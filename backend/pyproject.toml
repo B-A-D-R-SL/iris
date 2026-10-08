@@ -1,0 +1,21 @@
+[project]
+name = "backend"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "django>=6.1,<6.2",
+    "django-allauth>=65.19.7",
+    "django-environ>=0.14.0",
+    "djangorestframework>=3.18.3",
+    "drf-spectacular>=0.30.0",
+    "procrastinate>=3.10.0",
+]
+
+[dependency-groups]
+dev = [
+    "factory-boy>=3.3.3",
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "pytest-django>=4.14.0",
+    "ruff>=0.16.10",
+]
