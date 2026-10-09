@@ -200,3 +200,22 @@ Labels from `forms-and-fields.md`, grouped by form. Repeated labels are kept whe
 | Furniture offer form | `photos` | Photos | Photos |
 | Furniture offer form | `pickup_area` | Secteur (3 premiers caractères du code postal) | Area (first 3 characters of postal code) |
 | Furniture offer form | `donor_name`, `donor_email`, `donor_phone` | Vos coordonnées | Your contact details |
+
+## Translation keys
+
+Keys use `area.screen.element`. Use camelCase for names containing more than one word.
+
+| Key | Français | English |
+| --- | --- | --- |
+| `auth.login.title` | Connexion | Sign in |
+| `auth.login.email` | Courriel | Email address |
+| `household.registration.firstName` | Prénom | First name |
+| `store.newListing.title` | Titre | Title |
+| `reservation.confirmation.pickupCode` | Code de cueillette | Pickup code |
+
+## Sources
+
+- `Iris-Requirements.md`
+- `business-rules.md`
+- `forms-and-fields.md`
+- `screens.md`
