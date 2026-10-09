@@ -5,10 +5,16 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+from iris.views import health
+
 urlpatterns = [
+    # Health check
+    path("api/health/", health, name="health"),
+
+    # Django admin
     path("admin/", admin.site.urls),
 
-    # Headless authentication
+    # Authentication
     path("accounts/", include("allauth.urls")),
     path("_allauth/", include("allauth.headless.urls")),
 
