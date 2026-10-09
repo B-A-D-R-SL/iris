@@ -29,4 +29,25 @@ French and English terms used in Iris screens and documentation. Translation key
 | Best before | Meilleur avant | Best before | `best_before` | Date on food packaging |
 | Need | Besoin | Need | `need` | An item a household is looking for |
 
+## Status labels
 
+Status codes from `business-rules.md` and their screen labels.
+
+| Area | Code | Français | English |
+| --- | --- | --- | --- |
+| Household file | `draft` | Brouillon | Draft |
+| Household file | `submitted` | Demande soumise | Submitted |
+| Household file | `review_required` | Vérification par l'équipe requise | Staff review required |
+| Household file | `awaiting_visit` | Visite en personne requise | In-person visit required |
+| Household file | `approved` | Approuvé | Approved |
+| Household file | `renewal_needed` | Renouvellement requis | Renewal required |
+| Household file | `suspended` | Suspendu | Suspended |
+| Household file | `rejected` | Refusé | Rejected |
+| Listing | `published` | Publiée | Published |
+| Listing | `closed` | Terminée | Closed |
+| Listing | `cancelled` | Annulée | Cancelled |
+| Reservation | `reserved` | Réservée | Reserved |
+| Reservation | `picked_up` | Récupérée | Picked up |
+| Reservation | `cancelled` | Annulée | Cancelled |
+| Reservation | `cancelled_by_store` | Annulée par le commerce | Cancelled by store |
+| Reservation | `no_show` | Absence | No-show |
