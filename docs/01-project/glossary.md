@@ -51,3 +51,57 @@ Status codes from `business-rules.md` and their screen labels.
 | Reservation | `cancelled` | Annulée | Cancelled |
 | Reservation | `cancelled_by_store` | Annulée par le commerce | Cancelled by store |
 | Reservation | `no_show` | Absence | No-show |
+
+## Additional screen terms
+
+Terms used in the application screens.
+
+| Area | Français | English | Meaning |
+| --- | --- | --- | --- |
+| Accounts | Connexion | Sign in | Sign in to an account |
+| Accounts | Déconnexion | Sign out | Sign out of an account |
+| Accounts | Créer un compte | Create an account | Create a household account |
+| Accounts | Mot de passe oublié? | Forgot your password? | Request a password reset |
+| Accounts | Code de vérification | Verification code | Two-factor sign-in for staff |
+| Accounts | Invitation | Invitation | Invitation for a staff or store account |
+| Households | Inscription en personne | Walk-in registration | Registration completed with staff |
+| Households | Demande en ligne | Online application | Application submitted online |
+| Households | Membre adulte | Adult household member | Household member aged 18 or older |
+| Households | Personne à charge | Dependant | Household member under 18 |
+| Households | Renouvellement | Renewal | Renew an expired household file |
+| Households | Date d'expiration | Expiry date | Date the household file expires |
+| Households | Consentement | Consent | Permission to use data for a stated purpose |
+| Households | Déclaration de revenus | Tax return | Tax return, not the notice of assessment |
+| Households | Vérification de l'identité | Identity verification | ID checked in person; ID details are not stored |
+| Partners | Devenir partenaire | Become a partner | Public partner application |
+| Partners | Demande approuvée | Application approved | Approved partner application |
+| Partners | Demande refusée | Application rejected | Rejected partner application |
+| Listings | Produits excédentaires | Surplus goods | Goods a store can offer |
+| Listings | Catégorie | Category | Goods category |
+| Listings | Quantité disponible | Units available | Quantity still available |
+| Listings | Article | Item | One item |
+| Listings | Lot | Bundle | A group of items |
+| Listings | Publier une offre | Post a listing | Publish an offer |
+| Reservations | Confirmer la cueillette | Confirm pickup | Store confirms that goods were collected |
+| Reservations | Code QR | QR code | QR code for a reservation |
+| Reservations | Historique des cueillettes | Pickup history | Past pickups |
+| Priority | Priorité | Priority | Order in which households see listings |
+| Priority | Pointage de priorité | Priority score | Staff-only score; not shown to households |
+| Priority | Règles de priorité | Priority rules | Rules for access to listings |
+| Staff | File de vérification | Review queue | Cases waiting for staff review |
+| Staff | Journal d'audit | Audit log | Record of access and decisions |
+| Staff | Paramètres des règles | Rule settings | Settings with a recorded version history |
+| Reporting | Tableau de bord | Dashboard | Summary of platform activity |
+| Reporting | Exporter en CSV | Export to CSV | Download report data |
+| Reporting | Valeur estimée redistribuée | Estimated value redistributed | Value of goods collected |
+| Privacy | Politique de confidentialité | Privacy policy | How personal information is used and protected |
+| Privacy | Télécharger mes données | Download my data | Download personal information |
+| Privacy | Demander une correction | Request a correction | Request to correct personal information |
+| Privacy | Examen par une personne | Human review | Staff review of an automated decision |
+| Privacy | Fermer mon compte | Close my account | Request to close an account |
+| Needs | Mes besoins | My needs | Goods a household needs |
+| Needs | Correspondance | Match | Offer matching a stated need |
+| Assistant | Assistant de ressources communautaires | Community resource assistant | Help based on approved community resources |
+| Assistant | Source approuvée | Approved source | Resource checked by staff |
+| Furniture | Offre de meuble | Furniture offer | Furniture offered by a donor |
+| Furniture | Donateur | Donor | Person donating furniture |
