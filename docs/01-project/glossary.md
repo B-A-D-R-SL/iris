@@ -105,3 +105,98 @@ Terms used in the application screens.
 | Assistant | Source approuvée | Approved source | Resource checked by staff |
 | Furniture | Offre de meuble | Furniture offer | Furniture offered by a donor |
 | Furniture | Donateur | Donor | Person donating furniture |
+
+## Form labels
+
+Labels from `forms-and-fields.md`, grouped by form. Repeated labels are kept where they appear on different screens.
+
+| Screen / form | Field (API name) | Français | English |
+| --- | --- | --- | --- |
+| Sign in | `email` | Courriel | Email address |
+| Sign in | `password` | Mot de passe | Password |
+| Sign in | `code` | Code de vérification | Verification code |
+| Household account sign-up | `email` | Courriel | Email address |
+| Household account sign-up | `password` | Mot de passe | Password |
+| Household account sign-up | `password_confirm` | Confirmer le mot de passe | Confirm password |
+| Household account sign-up | `preferred_language` | Langue | Language |
+| Household account sign-up | `accept_terms` | J'accepte les conditions d'utilisation et la politique de confidentialité | I accept the terms of use and the privacy policy |
+| Step 1: Account holder | `first_name` | Prénom | First name |
+| Step 1: Account holder | `last_name` | Nom de famille | Last name |
+| Step 1: Account holder | `date_of_birth` | Date de naissance | Date of birth |
+| Step 1: Account holder | `email` | Courriel | Email address |
+| Step 1: Account holder | `phone` | Téléphone | Phone number |
+| Step 1: Account holder | `preferred_language` | Langue de communication | Preferred language |
+| Step 2: Address | `street_number` | Numéro civique | Street number |
+| Step 2: Address | `street_name` | Rue | Street name |
+| Step 2: Address | `unit` | Appartement | Apartment / unit |
+| Step 2: Address | `city` | Ville | City |
+| Step 2: Address | `province` | Province | Province |
+| Step 2: Address | `postal_code` | Code postal | Postal code |
+| Step 3: Household members | `first_name` | Prénom | First name |
+| Step 3: Household members | `last_name` | Nom de famille | Last name |
+| Step 3: Household members | `date_of_birth` | Date de naissance | Date of birth |
+| Step 3: Household members | `relation` | Lien avec la personne responsable | Relation to the account holder |
+| Step 4: Consent | `consent_data_processing` | J'accepte que B.A.D.R. utilise ces renseignements pour vérifier mon admissibilité | I agree that B.A.D.R. uses this information to check my eligibility |
+| Step 4: Consent | `consent_ai_reading` | J'accepte qu'un logiciel lise mes avis de cotisation pour remplir les champs | I agree that software reads my notices of assessment to fill in the fields |
+| Step 4: Consent | `consent_digest_emails` | Je veux recevoir un courriel quotidien des nouvelles offres | I want a daily email of new listings |
+| Step 5: Notices of assessment | `file` | Avis de cotisation de Revenu Québec | Revenu Québec notice of assessment |
+| Step 5: Notices of assessment | `did_not_file` | Cette personne n'a pas produit de déclaration de revenus | This person did not file a tax return |
+| Step 5: Notices of assessment | `did_not_file_reason` | Expliquez pourquoi | Explain why |
+| Step 5: Notices of assessment | `tax_year` | Année d'imposition | Tax year |
+| Step 5: Notices of assessment | `total_income` | Revenu total (ligne 199) | Total income (line 199) |
+| Step 5: Notices of assessment | `notice_first_name` / `notice_last_name` | Nom sur l'avis | Name on the notice |
+| Step 5: Notices of assessment | `notice_postal_code` | Code postal sur l'avis | Postal code on the notice |
+| Step 5: Notices of assessment | `notice_date` | Date de l'avis | Notice date |
+| Walk-in registration | `email` | Courriel | Email address |
+| Walk-in registration | `identity_checked_in_person` | Pièce d'identité avec photo vérifiée en personne | Photo ID checked in person |
+| Walk-in registration | `notice_seen_in_person` (per adult) | Avis vu en personne | Notice seen in person |
+| Partner application form | `business_name` | Nom de l'entreprise | Business name |
+| Partner application form | `business_type` | Type d'entreprise | Business type |
+| Partner application form | `neq` | Numéro d'entreprise du Québec (NEQ) | Quebec enterprise number (NEQ) |
+| Partner application form | `contact_first_name` | Prénom de la personne-ressource | Contact first name |
+| Partner application form | `contact_last_name` | Nom de la personne-ressource | Contact last name |
+| Partner application form | `contact_role` | Fonction | Role |
+| Partner application form | `contact_email` | Courriel | Email address |
+| Partner application form | `contact_phone` | Téléphone | Phone number |
+| Partner application form | `website` | Site Web | Website |
+| Partner application form | `goods_categories` | Types de produits offerts | Types of goods offered |
+| Partner application form | `expected_frequency` | Fréquence prévue des dons | Expected donation frequency |
+| Partner application form | `opening_hours` | Heures d'ouverture | Opening hours |
+| Partner application form | `message` | Message | Message |
+| Partner application form | `consent_contact` | J'accepte que B.A.D.R. communique avec moi au sujet de cette demande | I agree that B.A.D.R. contacts me about this application |
+| Store form | `name` | Nom du magasin | Store name |
+| Store form | `phone` | Téléphone | Phone number |
+| Store form | `email` | Courriel | Email address |
+| Store form | `opening_hours` | Heures d'ouverture | Opening hours |
+| Store form | `pickup_instructions` | Instructions pour la cueillette | Pickup instructions |
+| Store form | `is_active` | Actif | Active |
+| Listing form | `title` | Titre | Title |
+| Listing form | `category` | Catégorie | Category |
+| Listing form | `description` | Description | Description |
+| Listing form | `quantity` | Quantité | Quantity |
+| Listing form | `unit` | Unité | Unit |
+| Listing form | `max_per_household` | Maximum par foyer | Maximum per household |
+| Listing form | `pickup_start` | Début de la cueillette | Pickup starts |
+| Listing form | `pickup_end` | Fin de la cueillette | Pickup ends |
+| Listing form | `best_before` | Meilleur avant | Best before |
+| Listing form | `photo` | Photo | Photo |
+| Listing form | `estimated_value` | Valeur estimée | Estimated value |
+| Listing form | `safe_and_allowed` | Je confirme que ces produits sont sécuritaires et permis | I confirm these goods are safe and allowed |
+| Staff invitation | `email` | Courriel | Email address |
+| Staff invitation | `first_name` | Prénom | First name |
+| Staff invitation | `last_name` | Nom de famille | Last name |
+| Staff invitation | `role` | Rôle | Role |
+| Alternate for pickups | `alternate_name` | Nom de la personne remplaçante | Alternate's name |
+| Alternate for pickups | `alternate_phone` | Téléphone de la personne remplaçante | Alternate's phone |
+| Alternate for pickups | `alternate_email` | Courriel de la personne remplaçante | Alternate's email |
+| Need form | `category` | Catégorie | Category |
+| Need form | `detail` | Précision | Detail |
+| Need form | `is_active` | Actif | Active |
+| Furniture offer form | `title` | Titre | Title |
+| Furniture offer form | `furniture_type` | Type de meuble | Furniture type |
+| Furniture offer form | `description` | Description | Description |
+| Furniture offer form | `dimensions` | Dimensions (L × P × H, cm) | Dimensions (W × D × H, cm) |
+| Furniture offer form | `condition` | État | Condition |
+| Furniture offer form | `photos` | Photos | Photos |
+| Furniture offer form | `pickup_area` | Secteur (3 premiers caractères du code postal) | Area (first 3 characters of postal code) |
+| Furniture offer form | `donor_name`, `donor_email`, `donor_phone` | Vos coordonnées | Your contact details |
