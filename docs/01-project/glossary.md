@@ -54,7 +54,7 @@ Status codes from `business-rules.md` and their screen labels.
 
 ## Additional screen terms
 
-Terms used in the application screens.
+Terms based on `screens.md`, `user-stories.md`, `business-rules.md`, and `Iris-Requirements.md`.
 
 | Area | Français | English | Meaning |
 | --- | --- | --- | --- |
@@ -216,6 +216,8 @@ Keys use `area.screen.element`. Use camelCase for names containing more than one
 ## Sources
 
 - `Iris-Requirements.md`
+- `user-stories.md`
 - `business-rules.md`
 - `forms-and-fields.md`
 - `screens.md`
+- `overview.md`
