@@ -7,16 +7,20 @@ docs/04-data/mock-notices-of-assessment.md. Run from this folder:
     uv run generate.py                 # writes to <repo>/mock-data/notices
     uv run generate.py --out some/dir
 
-Notices 031 to 045 are delivered as phone photos (photos.py) instead of PDFs.
+Writes pdf/*.pdf, photos/*.png (photos.py), truth.csv (what is printed on each
+file) and applicants.csv (what the household declared at registration).
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
 import datetime as dt
 import io
 import random
-from dataclasses import dataclass
+import unicodedata
+from collections.abc import Iterable
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
 from faker import Faker
@@ -28,9 +32,8 @@ from reportlab.pdfgen.canvas import Canvas
 from photos import phone_photo
 
 SEED = 42
-NOTICE_COUNT = 50
-PHOTO_NUMBERS = range(31, 46)
 CURRENT_TAX_YEAR = 2025
+OLD_TAX_YEAR = 2023
 WATERMARK = "SPÉCIMEN – DOCUMENT FICTIF – NE PAS UTILISER"
 MASKED_SIN = "XXX XXX XXX"
 DEFAULT_OUT = Path(__file__).resolve().parents[2] / "mock-data" / "notices"
@@ -81,10 +84,66 @@ MONTREAL_STREETS = (
 # Letters Canada Post uses in postal codes (no D, F, I, O, Q, U).
 POSTAL_LETTERS = "ABCEGHJKLMNPRSTVWXYZ"
 
+# File number -> case. Counts follow docs/04-data/mock-notices-of-assessment.md.
+CASES: dict[int, str] = (
+    {number: "clean" for number in range(1, 31)}
+    | {number: "photo" for number in range(31, 46)}
+    | {46: "old_tax_year", 47: "name_mismatch", 48: "address_mismatch", 49: "zero_income"}
+    | {50: "unreadable"}
+)
+PHOTO_CASES = frozenset({"photo", "unreadable"})
+
+# Clean files whose declared name differs in a way the name check must tolerate
+# (business rules: case and accents ignored, extra middle names allowed).
+MIDDLE_NAME_NUMBERS = (5, 20)
+UPPERCASE_NUMBERS = (8, 25)
+ACCENT_CONTROLS = 2
+
+TRUTH_COLUMNS = (
+    "file",
+    "first_name",
+    "last_name",
+    "street_number",
+    "street_name",
+    "unit",
+    "postal_code",
+    "tax_year",
+    "total_income_cents",
+    "notice_date",
+    "case",
+)
+APPLICANT_COLUMNS = (
+    "file",
+    "first_name",
+    "last_name",
+    "street_number",
+    "street_name",
+    "unit",
+    "postal_code",
+    "name_should_match",
+    "address_should_match",
+    "variation",
+)
+
+
+@dataclass(frozen=True)
+class Declared:
+    """What the household declared at registration for the person on a notice."""
+
+    first_name: str
+    last_name: str
+    street_number: str
+    street_name: str
+    unit: str
+    postal_code: str
+    name_should_match: bool = True
+    address_should_match: bool = True
+    variation: str = "none"
+
 
 @dataclass(frozen=True)
 class Notice:
-    """The values printed on one notice. Amounts are in cents."""
+    """The values printed on one notice (amounts in cents) and what was declared."""
 
     number: int
     first_name: str
@@ -99,6 +158,8 @@ class Notice:
     net_income_cents: int
     taxable_income_cents: int
     balance_cents: int  # > 0: amount owed, < 0: refund
+    case: str
+    declared: Declared
 
     @property
     def stem(self) -> str:
@@ -106,7 +167,7 @@ class Notice:
 
     @property
     def is_photo(self) -> bool:
-        return self.number in PHOTO_NUMBERS
+        return self.case in PHOTO_CASES
 
     @property
     def file(self) -> str:
@@ -141,26 +202,128 @@ def _notice_date(rng: random.Random, tax_year: int) -> dt.date:
     return dt.date(tax_year + 1, 3, 1) + dt.timedelta(days=rng.randint(0, 121))
 
 
-def make_notice(number: int, fake: Faker, rng: random.Random) -> Notice:
+def strip_accents(text: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", text)
+    return "".join(char for char in decomposed if not unicodedata.combining(char))
+
+
+def _other_last_name(fake: Faker, last_name: str) -> str:
+    while True:
+        other = fake.last_name()
+        if strip_accents(other).casefold() != strip_accents(last_name).casefold():
+            return other
+
+
+def _moved(declared: Declared, rng: random.Random) -> Declared:
+    """The household moved: another civic number, street, unit and postal code."""
+    street_number, postal_code = declared.street_number, declared.postal_code
+    while street_number == declared.street_number:
+        street_number = str(rng.randint(100, 9999))
+    while postal_code == declared.postal_code:
+        postal_code = _postal_code(rng)
+    return replace(
+        declared,
+        street_number=street_number,
+        street_name=rng.choice(MONTREAL_STREETS),
+        unit=_unit(rng),
+        postal_code=postal_code,
+        address_should_match=False,
+        variation="moved",
+    )
+
+
+def make_notice(number: int, case: str, fake: Faker, rng: random.Random) -> Notice:
+    first_name, last_name = fake.first_name(), fake.last_name()
+    street_number, street_name = str(rng.randint(100, 9999)), rng.choice(MONTREAL_STREETS)
+    unit, postal_code = _unit(rng), _postal_code(rng)
+    tax_year = OLD_TAX_YEAR if case == "old_tax_year" else CURRENT_TAX_YEAR
+
     total = _total_income_cents(rng)
     net = round(total * (1 - rng.uniform(0, 0.15)))
     taxable = round(net * (1 - rng.uniform(0, 0.05)))
     balance = -rng.randint(0, 2_000_00) if rng.random() < 0.7 else rng.randint(1, 1_500_00)
+    if case == "zero_income":
+        total = net = taxable = balance = 0
+
+    declared = Declared(first_name, last_name, street_number, street_name, unit, postal_code)
+    if case == "name_mismatch":
+        declared = replace(
+            declared,
+            last_name=_other_last_name(fake, last_name),
+            name_should_match=False,
+            variation="different_last_name",
+        )
+    elif case == "address_mismatch":
+        declared = _moved(declared, rng)
+
     return Notice(
         number=number,
-        first_name=fake.first_name(),
-        last_name=fake.last_name(),
-        street_number=str(rng.randint(100, 9999)),
-        street_name=rng.choice(MONTREAL_STREETS),
-        unit=_unit(rng),
-        postal_code=_postal_code(rng),
-        tax_year=CURRENT_TAX_YEAR,
-        notice_date=_notice_date(rng, CURRENT_TAX_YEAR),
+        first_name=first_name,
+        last_name=last_name,
+        street_number=street_number,
+        street_name=street_name,
+        unit=unit,
+        postal_code=postal_code,
+        tax_year=tax_year,
+        notice_date=_notice_date(rng, tax_year),
         total_income_cents=total,
         net_income_cents=net,
         taxable_income_cents=taxable,
         balance_cents=balance,
+        case=case,
+        declared=declared,
     )
+
+
+def _add_name_controls(notices: list[Notice], fake: Faker) -> list[Notice]:
+    """Clean files where the declared name differs but must still match."""
+    by_number = {notice.number: notice for notice in notices}
+
+    for number in MIDDLE_NAME_NUMBERS:
+        notice = by_number[number]
+        middle = fake.first_name()
+        while middle == notice.first_name:
+            middle = fake.first_name()
+        by_number[number] = replace(
+            notice,
+            first_name=f"{notice.first_name} {middle}",
+            declared=replace(notice.declared, variation="middle_name_omitted"),
+        )
+
+    for number in UPPERCASE_NUMBERS:
+        notice = by_number[number]
+        by_number[number] = replace(
+            notice,
+            declared=replace(
+                notice.declared,
+                first_name=notice.first_name.upper(),
+                last_name=notice.last_name.upper(),
+                variation="uppercase",
+            ),
+        )
+
+    accented = [
+        notice
+        for notice in by_number.values()
+        if notice.case == "clean"
+        and notice.declared.variation == "none"
+        and strip_accents(notice.first_name + notice.last_name)
+        != notice.first_name + notice.last_name
+    ][:ACCENT_CONTROLS]
+    if len(accented) < ACCENT_CONTROLS:
+        raise RuntimeError("Not enough accented names for the accent controls; change the seed")
+    for notice in accented:
+        by_number[notice.number] = replace(
+            notice,
+            declared=replace(
+                notice.declared,
+                first_name=strip_accents(notice.first_name),
+                last_name=strip_accents(notice.last_name),
+                variation="accents_stripped",
+            ),
+        )
+
+    return [by_number[number] for number in sorted(by_number)]
 
 
 def build_notices(seed: int = SEED) -> list[Notice]:
@@ -168,7 +331,8 @@ def build_notices(seed: int = SEED) -> list[Notice]:
     fake = Faker("fr_CA")
     fake.seed_instance(seed)
     rng = random.Random(seed)
-    return [make_notice(number, fake, rng) for number in range(1, NOTICE_COUNT + 1)]
+    notices = [make_notice(number, case, fake, rng) for number, case in CASES.items()]
+    return _add_name_controls(notices, fake)
 
 
 # ---------------------------------------------------------------------------
@@ -321,6 +485,42 @@ def render_pdf(notice: Notice) -> bytes:
 
 
 # ---------------------------------------------------------------------------
+# Truth and applicant files
+# ---------------------------------------------------------------------------
+
+
+def truth_row(notice: Notice) -> dict[str, str]:
+    return {
+        "file": notice.file,
+        "first_name": notice.first_name,
+        "last_name": notice.last_name,
+        "street_number": notice.street_number,
+        "street_name": notice.street_name,
+        "unit": notice.unit,
+        "postal_code": notice.postal_code,
+        "tax_year": str(notice.tax_year),
+        "total_income_cents": str(notice.total_income_cents),
+        "notice_date": notice.notice_date.isoformat(),
+        "case": notice.case,
+    }
+
+
+def applicant_row(notice: Notice) -> dict[str, str]:
+    values = asdict(notice.declared)
+    row = {"file": notice.file} | {key: str(value) for key, value in values.items()}
+    for flag in ("name_should_match", "address_should_match"):
+        row[flag] = "true" if values[flag] else "false"
+    return row
+
+
+def write_csv(path: Path, columns: tuple[str, ...], rows: Iterable[dict[str, str]]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=columns, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+# ---------------------------------------------------------------------------
 # Command line
 # ---------------------------------------------------------------------------
 
@@ -337,9 +537,13 @@ def generate(out: Path, seed: int = SEED) -> list[Notice]:
         if notice.is_photo:
             # Own random stream per photo, so photo effects never shift the notice data.
             rng = random.Random(f"{seed}-photo-{notice.number}")
-            phone_photo(pdf_bytes, rng).save(out / notice.file, optimize=True)
+            photo = phone_photo(pdf_bytes, rng, unreadable=notice.case == "unreadable")
+            photo.save(out / notice.file, optimize=True)
         else:
             (out / notice.file).write_bytes(pdf_bytes)
+
+    write_csv(out / "truth.csv", TRUTH_COLUMNS, map(truth_row, notices))
+    write_csv(out / "applicants.csv", APPLICANT_COLUMNS, map(applicant_row, notices))
     return notices
 
 

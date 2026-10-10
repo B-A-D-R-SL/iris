@@ -49,7 +49,7 @@ Amounts are printed in the French Canadian style (`23 456,78 $`) and stored in c
 | `name_mismatch` | 1 | `pdf/notice-047.pdf` | Declared last name differs from the notice | `NAME_MISMATCH` |
 | `address_mismatch` | 1 | `pdf/notice-048.pdf` | Declared civic number and postal code differ (the person moved) | `ADDRESS_MISMATCH` |
 | `zero_income` | 1 | `pdf/notice-049.pdf` | All amounts 0 $ | Read 0 $; eligible |
-| `unreadable` | 1 | `photos/notice-050.png` | Photo so blurred and overexposed that the values cannot be read | Reading fails; manual entry |
+| `unreadable` | 1 | `photos/notice-050.png` | Out-of-focus photo: the values cannot be read, the large watermark still can | Reading fails; manual entry |
 
 `truth.csv` always holds what is **printed**, even for the unreadable photo, so a reader's output can be scored against it.
 

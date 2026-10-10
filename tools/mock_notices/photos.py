@@ -106,12 +106,11 @@ def phone_photo(pdf_bytes: bytes, rng: random.Random, *, unreadable: bool = Fals
     photo = Image.composite(shadow, photo, mask)
     photo.paste(sheet, (left, top), sheet)
 
-    photo = photo.filter(ImageFilter.GaussianBlur(rng.uniform(0.5, 1.1)))
     if unreadable:
-        small = (photo.width // 6, photo.height // 6)
-        photo = photo.resize(small, Image.Resampling.BILINEAR).resize(photo.size)
-        photo = photo.filter(ImageFilter.GaussianBlur(5))
-        photo = ImageEnhance.Brightness(photo).enhance(1.55)
-        photo = ImageEnhance.Contrast(photo).enhance(0.45)
-        photo = _jpeg(photo, 8)
+        # Out of focus: 10-11 pt values are lost, the 46 pt watermark stays legible.
+        photo = photo.filter(ImageFilter.GaussianBlur(6))
+        photo = ImageEnhance.Brightness(photo).enhance(1.1)
+        photo = _jpeg(photo, 20)
+    else:
+        photo = photo.filter(ImageFilter.GaussianBlur(rng.uniform(0.5, 1.1)))
     return _jpeg(photo, JPEG_QUALITY)

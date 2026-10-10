@@ -1,0 +1,51 @@
+file,first_name,last_name,street_number,street_name,unit,postal_code,name_should_match,address_should_match,variation
+pdf/notice-001.pdf,Monique,Lefebvre,1924,boulevard Saint-Laurent,,H4K 2E8,true,true,none
+pdf/notice-002.pdf,Benjamin,Cormier,3357,rue Dandurand,,H8Y 4A2,true,true,none
+pdf/notice-003.pdf,Theodore,Bolduc,1684,avenue Somerled,,H5B 7X1,true,true,accents_stripped
+pdf/notice-004.pdf,Philippe,Martel,3250,rue Ontario Est,5,H2K 1R4,true,true,none
+pdf/notice-005.pdf,Zoé,Lapointe,1269,avenue Querbes,,H9K 2T6,true,true,middle_name_omitted
+pdf/notice-006.pdf,Pauline,Cormier,5268,rue Villeray,6,H4V 6T2,true,true,none
+pdf/notice-007.pdf,Julie,Cloutier,6030,boulevard de Maisonneuve Ouest,,H3W 7C0,true,true,none
+pdf/notice-008.pdf,MARGUERITE,CARRIER,9863,boulevard Rosemont,,H9A 1X4,true,true,uppercase
+pdf/notice-009.pdf,Bernard,Lavoie,4415,rue Sauvé Est,,H9E 4W9,true,true,none
+pdf/notice-010.pdf,Gerard,Boudreau,5410,boulevard Saint-Michel,258,H4B 3Y1,true,true,accents_stripped
+pdf/notice-011.pdf,Raphaël,Nguyen,9107,avenue Papineau,317,H4X 3M6,true,true,none
+pdf/notice-012.pdf,Marianne,Morin,5639,boulevard Saint-Laurent,,H4Y 3A1,true,true,none
+pdf/notice-013.pdf,Laurence,Savard,4662,boulevard Saint-Michel,8,H4V 6J1,true,true,none
+pdf/notice-014.pdf,Thérèse,Turgeon,6696,boulevard Décarie,,H2K 3J8,true,true,none
+pdf/notice-015.pdf,Sophie,Gélinas,9116,boulevard Pie-IX,108,H2K 2S7,true,true,none
+pdf/notice-016.pdf,Claude,Lemieux,7030,avenue Laurier Est,,H8G 3M3,true,true,none
+pdf/notice-017.pdf,Dominique,Lavallée,8338,avenue Bennett,142,H3C 9C3,true,true,none
+pdf/notice-018.pdf,Thomas,Marcotte,8665,rue Hochelaga,,H4N 3L6,true,true,none
+pdf/notice-019.pdf,Alexandre,Plourde,9324,boulevard Pie-IX,5,H3P 1K5,true,true,none
+pdf/notice-020.pdf,Laurent,Denis,9186,rue Masson,,H2G 4E1,true,true,middle_name_omitted
+pdf/notice-021.pdf,Clémence,Deschênes,4425,rue Sauvé Est,,H1C 6L0,true,true,none
+pdf/notice-022.pdf,Thomas,Bernier,9289,rue Saint-Denis,177,H9B 5Y8,true,true,none
+pdf/notice-023.pdf,Patrick,Provencher,5962,rue Sainte-Catherine Est,,H2P 8S9,true,true,none
+pdf/notice-024.pdf,Anne,Lapointe,5542,avenue De Lorimier,,H4L 2E6,true,true,none
+pdf/notice-025.pdf,GÉRARD,AUDET,487,boulevard Henri-Bourassa Est,2,H5P 8R8,true,true,uppercase
+pdf/notice-026.pdf,Gilbert,Boivin,1876,avenue Querbes,,H6S 9W1,true,true,none
+pdf/notice-027.pdf,Astrid,Vézina,3328,rue Saint-Hubert,,H6Z 5E4,true,true,none
+pdf/notice-028.pdf,Samuel,Patel,6311,rue Fleury Est,,H5R 8A4,true,true,none
+pdf/notice-029.pdf,Daniel,Dupont,8475,boulevard Monk,,H3C 4W9,true,true,none
+pdf/notice-030.pdf,Emma,Paquin,7884,rue Lajeunesse,,H2T 6Y3,true,true,none
+photos/notice-031.png,Hugues,Delisle,1846,rue Rachel Est,366,H8B 8K1,true,true,none
+photos/notice-032.png,Catherine,Caron,7351,rue Lajeunesse,,H9S 8T2,true,true,none
+photos/notice-033.png,Karine,Arsenault,4019,rue Jarry Est,,H5K 4N5,true,true,none
+photos/notice-034.png,Mélanie,Tanguay,6897,avenue De Lorimier,1,H4S 6Y0,true,true,none
+photos/notice-035.png,Béatrice,Laroche,6965,rue Dandurand,,H9Z 3V3,true,true,none
+photos/notice-036.png,Maurice,Blouin,7757,rue Wellington,,H9A 6Y9,true,true,none
+photos/notice-037.png,Éric,Pelletier,5463,rue Sainte-Catherine Est,,H6R 4S4,true,true,none
+photos/notice-038.png,Odette,Perron,1224,rue Sherbrooke Est,,H4J 0Z2,true,true,none
+photos/notice-039.png,Victor,Caron,6143,avenue Papineau,,H2H 4E9,true,true,none
+photos/notice-040.png,Raphaël,Fréchette,1345,rue de Bordeaux,,H4E 4Z1,true,true,none
+photos/notice-041.png,Gilles,Audet,307,avenue De Lorimier,,H2S 5T2,true,true,none
+photos/notice-042.png,Thomas,Fillion,9807,rue Jarry Est,2,H5T 3T9,true,true,none
+photos/notice-043.png,Michelle,Trépanier,4332,boulevard Décarie,242,H9A 8J1,true,true,none
+photos/notice-044.png,Brigitte,Michaud,7442,boulevard Saint-Laurent,4,H5Y 5V8,true,true,none
+photos/notice-045.png,Camille,Leduc,3877,rue Beaubien Est,,H6E 8H3,true,true,none
+pdf/notice-046.pdf,Noël,Pilon,3280,avenue Christophe-Colomb,1,H9G 4B0,true,true,none
+pdf/notice-047.pdf,Sébastien,Lamoureux,7943,rue Saint-Zotique Est,230,H8E 1R7,false,true,different_last_name
+pdf/notice-048.pdf,Pénélope,Lamontagne,3504,rue Fleury Est,,H4L 1H3,true,false,moved
+pdf/notice-049.pdf,Étienne,Desrochers,143,avenue De Lorimier,,H8M 0K4,true,true,none
+photos/notice-050.png,Michelle,Desjardins,1980,rue Dandurand,5,H3C 0H4,true,true,none
