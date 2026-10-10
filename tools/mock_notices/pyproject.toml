@@ -1,0 +1,32 @@
+# AI contribution: 50% or more AI-generated
+[project]
+name = "mock-notices"
+version = "0.1.0"
+description = "Generates fake Revenu Québec notices of assessment (SPECIMEN) for Iris tests and the AI reading spike"
+requires-python = ">=3.13"
+dependencies = [
+    "faker>=37.0",
+    "pillow>=11.0",
+    "pypdfium2>=4.30",
+    "reportlab>=4.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

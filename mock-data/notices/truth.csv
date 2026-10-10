@@ -1,0 +1,51 @@
+file,first_name,last_name,street_number,street_name,unit,postal_code,tax_year,total_income_cents,notice_date,case
+pdf/notice-001.pdf,Monique,Lefebvre,1924,boulevard Saint-Laurent,,H4K 2E8,2025,3165104,2026-03-21,clean
+pdf/notice-002.pdf,Benjamin,Cormier,811,boulevard Rosemont,,H7C 8M9,2025,6170073,2026-04-17,clean
+pdf/notice-003.pdf,Théodore,Bolduc,1016,boulevard de Maisonneuve Ouest,,H6R 4C3,2025,7517091,2026-04-16,clean
+pdf/notice-004.pdf,Philippe,Martel,7768,avenue Bennett,106,H2X 4N1,2025,1436558,2026-03-20,clean
+pdf/notice-005.pdf,Zoé Jessica,Lapointe,9395,rue Jean-Talon Est,2,H9G 2V8,2025,3173027,2026-05-15,clean
+pdf/notice-006.pdf,Pauline,Cormier,3610,rue Dandurand,393,H8K 7S3,2025,3224945,2026-04-27,clean
+pdf/notice-007.pdf,Julie,Cloutier,7986,rue Sainte-Catherine Est,,H1H 6A6,2025,3381936,2026-03-08,clean
+pdf/notice-008.pdf,Marguerite,Carrier,9433,avenue Van Horne,,H1Z 1S9,2025,2473333,2026-05-12,clean
+pdf/notice-009.pdf,Bernard,Lavoie,9000,rue Masson,,H9A 8M1,2025,4680033,2026-06-25,clean
+pdf/notice-010.pdf,Gérard,Boudreau,1332,rue Notre-Dame Ouest,,H6Y 8G6,2025,2420246,2026-06-22,clean
+pdf/notice-011.pdf,Raphaël,Nguyen,1871,rue Bélanger,,H8K 3T5,2025,1891528,2026-03-04,clean
+pdf/notice-012.pdf,Marianne,Morin,3214,chemin de la Côte-des-Neiges,4,H6S 1N9,2025,1216792,2026-05-18,clean
+pdf/notice-013.pdf,Laurence,Savard,2880,rue Jean-Talon Est,272,H2K 4K3,2025,702831,2026-03-01,clean
+pdf/notice-014.pdf,Thérèse,Turgeon,7351,rue Lajeunesse,,H9S 8T2,2025,3510857,2026-05-09,clean
+pdf/notice-015.pdf,Sophie,Gélinas,3488,avenue De Lorimier,111,H7V 0P4,2025,3146068,2026-06-11,clean
+pdf/notice-016.pdf,Claude,Lemieux,4362,rue Bélanger,6,H7L 6L1,2025,741344,2026-05-12,clean
+pdf/notice-017.pdf,Dominique,Lavallée,3349,rue Ontario Est,,H4E 4Z1,2025,669144,2026-03-20,clean
+pdf/notice-018.pdf,Thomas,Marcotte,4095,boulevard Rosemont,,H7N 0V5,2025,1790145,2026-06-06,clean
+pdf/notice-019.pdf,Alexandre,Plourde,9168,avenue Bennett,382,H6P 7L4,2025,1190792,2026-03-13,clean
+pdf/notice-020.pdf,Laurent Véronique,Denis,2168,boulevard Saint-Michel,5,H8V 7N2,2025,5454661,2026-04-23,clean
+pdf/notice-021.pdf,Clémence,Deschênes,1430,avenue Papineau,181,H1S 7Z7,2025,1917036,2026-06-28,clean
+pdf/notice-022.pdf,Thomas,Bernier,9425,avenue Christophe-Colomb,,H8M 6L8,2025,3268810,2026-05-26,clean
+pdf/notice-023.pdf,Patrick,Provencher,5360,boulevard Pie-IX,,H6S 7M6,2025,7405104,2026-04-16,clean
+pdf/notice-024.pdf,Anne,Lapointe,2694,rue Masson,,H9S 1K1,2025,1169882,2026-03-19,clean
+pdf/notice-025.pdf,Gérard,Audet,8122,rue Notre-Dame Ouest,,H8P 5X8,2025,2508824,2026-03-05,clean
+pdf/notice-026.pdf,Gilbert,Boivin,1325,boulevard Monk,,H5N 9R1,2025,8219468,2026-03-13,clean
+pdf/notice-027.pdf,Astrid,Vézina,6851,rue Fullum,,H3H 2C9,2025,7861387,2026-04-26,clean
+pdf/notice-028.pdf,Samuel,Patel,4947,avenue Christophe-Colomb,303,H5A 9B9,2025,2275699,2026-05-20,clean
+pdf/notice-029.pdf,Daniel,Dupont,8937,rue Saint-Hubert,,H5H 4V4,2025,2619814,2026-04-28,clean
+pdf/notice-030.pdf,Emma,Paquin,7706,rue Masson,,H2G 0B4,2025,4561012,2026-03-13,clean
+photos/notice-031.png,Hugues,Delisle,5976,avenue du Mont-Royal Est,2,H8C 3Z0,2025,2585631,2026-03-17,photo
+photos/notice-032.png,Catherine,Caron,6997,avenue Bennett,8,H6W 9E7,2025,684193,2026-03-14,photo
+photos/notice-033.png,Karine,Arsenault,8382,avenue Querbes,,H2X 3S7,2025,6511943,2026-04-30,photo
+photos/notice-034.png,Mélanie,Tanguay,6830,avenue Somerled,,H7B 4Z4,2025,3725327,2026-05-18,photo
+photos/notice-035.png,Béatrice,Laroche,602,rue Jean-Talon Est,,H4R 6T5,2025,2442392,2026-04-26,photo
+photos/notice-036.png,Maurice,Blouin,6575,avenue Querbes,4,H3L 4N1,2025,3222322,2026-06-19,photo
+photos/notice-037.png,Éric,Pelletier,1834,avenue Van Horne,,H7W 1R4,2025,1852042,2026-05-22,photo
+photos/notice-038.png,Odette,Perron,9348,rue Lajeunesse,262,H3T 1V7,2025,2200175,2026-05-10,photo
+photos/notice-039.png,Victor,Caron,741,avenue Van Horne,,H8W 8Z2,2025,2253949,2026-04-12,photo
+photos/notice-040.png,Raphaël,Fréchette,8724,rue Jean-Talon Est,,H7W 5A5,2025,1803743,2026-06-21,photo
+photos/notice-041.png,Gilles,Audet,7455,boulevard de Maisonneuve Ouest,,H5V 3P9,2025,6825698,2026-05-31,photo
+photos/notice-042.png,Thomas,Fillion,536,avenue De Lorimier,221,H7C 5K0,2025,1049391,2026-03-03,photo
+photos/notice-043.png,Michelle,Trépanier,7589,rue Ontario Est,406,H9A 8Y3,2025,2308854,2026-05-04,photo
+photos/notice-044.png,Brigitte,Michaud,9633,boulevard Décarie,6,H3T 7H2,2025,3399404,2026-06-19,photo
+photos/notice-045.png,Camille,Leduc,8607,rue Jarry Est,,H7C 6Z2,2025,2505013,2026-04-25,photo
+pdf/notice-046.pdf,Noël,Pilon,6101,rue Saint-Hubert,410,H3T 5P7,2023,1302367,2024-04-27,old_tax_year
+pdf/notice-047.pdf,Sébastien,Lebel,1163,avenue Laurier Est,,H5H 2P8,2025,1717117,2026-05-31,name_mismatch
+pdf/notice-048.pdf,Pénélope,Lamontagne,9132,rue de Bordeaux,322,H9B 1W2,2025,1461441,2026-06-01,address_mismatch
+pdf/notice-049.pdf,Étienne,Desrochers,8012,avenue Van Horne,,H7M 7C0,2025,0,2026-03-21,zero_income
+photos/notice-050.png,Michelle,Desjardins,5328,avenue Van Horne,,H5T 3G1,2025,2917578,2026-05-03,unreadable
