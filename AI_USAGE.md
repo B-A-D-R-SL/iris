@@ -23,7 +23,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
-| SET-09 Mock notices of assessment (#397) | `tools/mock_notices/{generate.py,photos.py,tests/test_generate.py,pyproject.toml,README.md}`, `docs/04-data/mock-notices-of-assessment.md` | 50% or more AI-generated | *add link* |
+| SET-09 Mock notices of assessment (#397) | `tools/mock_notices/{generate.py,photos.py,tests/test_generate.py,pyproject.toml,README.md}`, `docs/03-data/mock-notices-of-assessment.md` | 50% or more AI-generated | *add link* |
 
 ## Examples, verification and corrections
 
@@ -37,10 +37,11 @@ At least half of the AI-assisted features need an example here. For each one:
 ### SET-09 Mock notices of assessment (#397, #398, #399, #400)
 
 - **What the AI produced:** the generator (`generate.py`), the phone-photo pipeline (`photos.py`), the tests, the tool README and the published spec, from the team draft and the owner's decisions (exact counts, a separate `applicants.csv`, a standalone uv project, committing the output).
-- **How we verified it:** 17 pytest checks in `tools/mock_notices/tests/` (byte-identical output for seed 42; counts and cases; watermark and `XXX XXX XXX` on every PDF page; the PDF text equals `truth.csv`; edge cases; name and address rules on `applicants.csv`; committed output up to date). We changed a value in the committed `truth.csv` on purpose and checked that the tests failed. We also looked at the PDFs and photos one by one.
+- **How we verified it:** 22 pytest checks in `tools/mock_notices/tests/` (byte-identical output for seed 42; counts and cases; watermark and footer on both pages; `XXX XXX XXX` identification number; the cover page and line 199 `Montant établi` equal `truth.csv`; changed returns; calculation columns that add up; edge cases; name and address rules on `applicants.csv`; committed output up to date). The layout was compared with a redacted sample notice and the line labels with the official 2025 TP-1. We changed a value in the committed `truth.csv` on purpose and checked that the tests failed. We also looked at the PDFs and photos one by one.
 - **Problems found and corrections:**
   - The team draft contradicted itself (50 PDFs + 15 photos in one table, 50 files in total in another). The final amount decided was 50 files (34 PDFs + 16 photos), and the spec now matches it.
   - The first lighting effect rotated a gradient and left dark triangles in the photo corners. Fixed by cropping the centre of a larger rotated gradient.
   - The first "unreadable" photo was so overexposed that the SPÉCIMEN watermark disappeared too. Replaced by an out-of-focus blur that loses the values but keeps the large watermark legible.
   - uv picked Python 3.14 for the tool because the root `.python-version` is not seen from a nested project. Pinned 3.13 in `tools/mock_notices/.python-version`.
   - A test expected the double space before the postal code, but PDF text extraction collapses it. The test now normalizes spaces.
+  - The first layout (one page, four summary lines, ISO dates, `Last, First` name) was invented by the AI and never checked against a real notice. After it was asked, it was compared with a redacted sample notice (tax year 2018) and redesigned: two pages (cover page, then `Détail des calculs` with `Montant déclaré` / `Montant établi`), envelope-window address, notice number, French dates, footer box on every page, and some changed returns. Line labels now come from the 2025 TP-1. Photos show both pages side by side.

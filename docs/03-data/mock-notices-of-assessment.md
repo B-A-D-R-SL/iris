@@ -4,27 +4,41 @@ Iris is built and tested with **generated** notices of assessment, never real on
 
 ## Rules
 
-- Every page carries the watermark **SPÉCIMEN – DOCUMENT FICTIF – NE PAS UTILISER** diagonally and in the footer. Phone photos are made from the watermarked page, so they carry it too.
+- Every page carries the watermark **SPÉCIMEN – DOCUMENT FICTIF – NE PAS UTILISER** diagonally and in the footer. Phone photos are made from the watermarked pages, so they carry it too.
 - Names come from Faker (`fr_CA`); addresses use real Montréal street names with fictional civic numbers and postal codes. Random seed **42**, so the same command always gives the same files.
-- The social insurance number is always printed as `XXX XXX XXX`.
-- The layout imitates the structure of a notice (header, taxpayer block, summary lines), not its graphic design or logo.
+- The identification number is always printed as `XXX XXX XXX`; no social insurance number appears anywhere.
+- The layout follows the **structure** of a real notice (see [Compared with a real notice](#compared-with-a-real-notice)), not its graphic design: no logo, and the form code reads `TPF-99 (SPÉCIMEN)`.
 
-## Fields printed on each notice
+## Layout
 
-| Printed label | Value | Read by Iris |
+Each notice is a two-page PDF (US Letter).
+
+**Page 1, cover page**
+
+| Where | What is printed | Read by Iris |
 | --- | --- | --- |
-| Avis de cotisation – Impôt sur le revenu | Title | |
-| Année d'imposition | 2025; 2023 for the `old_tax_year` case | Yes |
-| Date de l'avis | `YYYY-MM-DD`, between March 1 and June 30 of the year after the tax year | Yes |
-| Nom, prénom | Faker name, printed `Last name, First name` | Yes |
-| Adresse | Civic number, street, `app.` unit (about 40%), `Montréal (Québec)`, postal code starting with H | Yes |
-| Numéro d'assurance sociale | `XXX XXX XXX` | Never |
-| Revenu total (ligne 199) | 4,000 to 85,000 $ (80% below 38,000 $); 0 $ for the `zero_income` case | Yes |
-| Revenu net (ligne 275) | Total income minus 0 to 15% | No |
-| Revenu imposable (ligne 299) | Net income minus 0 to 5% | No |
-| Impôt du Québec à payer / Remboursement | Random: 70% a refund up to 2,000 $, otherwise up to 1,500 $ to pay; `Solde 0,00 $` when zero | No |
+| Top left | `Revenu Québec` (plain text, no logo) and an 11-digit document control number | Never |
+| Under it, envelope window (Courier) | `First Last`, then `civic number, street, app. unit` (unit on about 40%), then `Montréal (Québec)  H1A 1A1` | Name and address: yes |
+| Top right | `Numéro d'identification : XXX XXX XXX`, `Numéro de l'avis :` (11 characters, starts with Q or M), `Date de l'avis :` | Date: yes. Numbers: never |
+| Result box | `Par dépôt direct` or `Par chèque` › `Remboursement` and the amount; or `Solde à payer`; or `Solde nul` | No |
+| Title | `Avis de cotisation` and `Année d'imposition 2025` | Tax year: yes |
+| Messages | Thanks; "accepted as submitted" or "we changed your return (see page 2)"; refund or payment instructions | No |
 
-Amounts are printed in the French Canadian style (`23 456,78 $`) and stored in cents in the CSV files.
+**Page 2, `Détail des calculs`**: one row per TP-1 line with the columns `Ligne`, label, `+ − =`, **`Montant déclaré`** (what the person filed) and **`Montant établi`** (what Revenu Québec assessed). Income lines (101, 111, 114, 119, 122, 130, 147, 154 as they apply), **199 Revenu total**, deductions (201, 214, 250), 275 Revenu net, 295/297, 299 Revenu imposable, credits (350, 377, 377.1, 399), tax (401, 406, 432, 450), payments (451, 456, 462, 465) and 478 Remboursement or 479 Solde à payer. Labels come from the 2025 TP-1. When the return was changed, an `Explication des changements` paragraph follows the table.
+
+**Every page**: a footer box with `Prénom et nom de famille`, `Date de l'avis` and `Année d'imposition`, then the watermark line; `TPF-99 (SPÉCIMEN)` and `Page n de 2` at the top right.
+
+## Values
+
+| Value | How it is generated | Read by Iris |
+| --- | --- | --- |
+| Tax year | 2025; 2023 for the `old_tax_year` case | Yes |
+| Notice date | Between March 1 and June 30 of the year after the tax year, printed `28 mars 2026` (`1er` for the first of the month) | Yes |
+| Total income, line 199 **Montant établi** | 4,000 to 85,000 $ (80% below 38,000 $); 0 $ for `zero_income`. Split over income lines by profile: employment, employment and EI, retirement (OAS, QPP, pension), social assistance, or employment and social assistance; sometimes interest | Yes |
+| Changed returns | Files 003, 011, 017, 024, 029 (clean) and 034, 041 (photos): the person left out a slip (employment income or interest, 150 to 2,500 $), so line 199 `Montant déclaré` is lower than `Montant établi` | Must read **établi** |
+| Other lines | Plausible but simplified: worker deduction 6% (max 1,421 $), social assistance deducted at line 295, 14 % basic credit on 18,571 $, 14/19/24 % brackets, tax withheld, work premium. Not an exact tax calculation | No |
+
+Amounts in the table are printed `23 456,78` (with ` $` on the cover page) and stored in cents in the CSV files.
 
 ## Output
 
@@ -32,8 +46,8 @@ Amounts are printed in the French Canadian style (`23 456,78 $`) and stored in c
 
 | Folder or file | Content |
 | --- | --- |
-| `mock-data/notices/pdf/` | 34 PDF notices (one page, text layer included) |
-| `mock-data/notices/photos/` | 16 phone photos (PNG): the page rendered to an image, rotated −7° to +7°, uneven lighting, shadow, blur, JPEG quality 60, on a table background |
+| `mock-data/notices/pdf/` | 34 PDF notices (two pages, text layer included) |
+| `mock-data/notices/photos/` | 16 phone photos (PNG, about 2100 × 1400 px): both pages side by side on a table, each rotated −7° to +7°, uneven lighting, shadow, blur, JPEG quality 60 |
 | `mock-data/notices/truth.csv` | What is printed on each file: `file, first_name, last_name, street_number, street_name, unit, postal_code, tax_year, total_income_cents, notice_date, case` |
 | `mock-data/notices/applicants.csv` | What the household **declared** at registration for each file, to test the name and address checks (below) |
 
@@ -51,7 +65,7 @@ Amounts are printed in the French Canadian style (`23 456,78 $`) and stored in c
 | `zero_income` | 1 | `pdf/notice-049.pdf` | All amounts 0 $ | Read 0 $; eligible |
 | `unreadable` | 1 | `photos/notice-050.png` | Out-of-focus photo: the values cannot be read, the large watermark still can | Reading fails; manual entry |
 
-`truth.csv` always holds what is **printed**, even for the unreadable photo, so a reader's output can be scored against it.
+`truth.csv` always holds what is **printed**, even for the unreadable photo, so a reader's output can be scored against it. `total_income_cents` is line 199 in the **Montant établi** column.
 
 ## Declared values (`applicants.csv`)
 
@@ -67,6 +81,21 @@ For most files the declared values equal the printed ones (`variation` = `none`)
 | `middle_name_omitted` | 2 | The notice shows two first names, the household declared only the first | true | true |
 | `different_last_name` | 1 | Another last name (`name_mismatch` case) | false | true |
 | `moved` | 1 | Another civic number, street, unit and postal code (`address_mismatch` case) | true | false |
+
+## Compared with a real notice
+
+The layout was checked against a redacted sample notice of assessment (tax year 2018, form TPF-99 (2019-02), pages 1 and 2 of 4, personal data masked and stamped EXEMPLE) published as an example by [Carte loisir](https://www.carteloisir.ca/app/uploads/cal/exemples/avis-de-cotisation-pour-deficience-grave-et-prolongee-des-fonctions-mentales-ou-physiques-revenu-quebec.pdf). The sample is not stored in the repository. Line numbers and labels were checked against the official [2025 TP-1](https://www.revenuquebec.ca/fr/services-en-ligne/formulaires-et-publications/details-courant/tp-1/).
+
+| Same as the sample | Known differences |
+| --- | --- |
+| Cover page, then `Détail des calculs` | 2 pages instead of 4 (pages 3 and 4 of the sample were not available) |
+| Envelope-window name and address, first name first | No logo and no Mon dossier pictogram; form code `TPF-99 (SPÉCIMEN)` |
+| Identification number, notice number and date at the top right | Watermark on every page |
+| `Avis de cotisation` / `Année d'imposition` title, French long date | Some wording (payment message, explanation of changes) is ours |
+| `Montant déclaré` and `Montant établi` columns, line numbers, `+ − =` signs, totals in bold | The sample is from 2018; a current notice may differ. Compare with a recent notice from Mon dossier when one is available, without saving it |
+| Footer box on every page | |
+
+What this means for the AI reading spike (SET-19): the reader must find line 199 among about 20 rows, take the **Montant établi** column, parse French dates, and ignore the notice, identification and document numbers (business rules: never stored).
 
 ## How to run
 

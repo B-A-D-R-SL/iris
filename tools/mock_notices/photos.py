@@ -1,8 +1,9 @@
 # AI contribution: 50% or more AI-generated
 """Turn a notice PDF into a phone photo of the paper notice lying on a table.
 
-Steps: render the page, uneven lighting, rotate -7 to +7 degrees, soft shadow,
-table background, blur, JPEG quality 60. Every random choice comes from the
+Steps: render each page, uneven lighting, rotate each page -7 to +7 degrees,
+lay the pages side by side with a soft shadow on a table background, blur,
+JPEG quality 60. Every random choice comes from the
 `rng` passed in, so the same seed gives the same photo.
 """
 
@@ -25,16 +26,13 @@ TABLE_COLOURS = (
 )
 
 
-def render_page(pdf_bytes: bytes, dpi: int = RENDER_DPI) -> Image.Image:
-    """Render the first page of a PDF to an RGB image."""
+def render_pages(pdf_bytes: bytes, dpi: int = RENDER_DPI) -> list[Image.Image]:
+    """Render every page of a PDF to an RGB image."""
     document = pdfium.PdfDocument(pdf_bytes)
     try:
-        page = document[0]
-        image = page.render(scale=dpi / 72).to_pil().convert("RGB")
-        page.close()
+        return [page.render(scale=dpi / 72).to_pil().convert("RGB") for page in document]
     finally:
         document.close()
-    return image
 
 
 def _noise(rng: random.Random, size: tuple[int, int]) -> Image.Image:
@@ -82,32 +80,49 @@ def _jpeg(image: Image.Image, quality: int) -> Image.Image:
     return Image.open(buffer).convert("RGB")
 
 
-def phone_photo(pdf_bytes: bytes, rng: random.Random, *, unreadable: bool = False) -> Image.Image:
-    """A phone photo of the notice. `unreadable` wrecks it so no value can be read."""
-    paper = _uneven_light(rng, render_page(pdf_bytes))
+def _sheet(rng: random.Random, page: Image.Image) -> Image.Image:
+    """One page of paper: uneven light, then rotated -7 to +7 degrees (transparent corners)."""
+    paper = _uneven_light(rng, page).convert("RGBA")
     angle = rng.uniform(-MAX_ANGLE, MAX_ANGLE)
-
-    # Canvas a bit larger than the page, as when the phone is held above the table.
-    canvas_size = (round(paper.width * 1.22), round(paper.height * 1.16))
-    photo = table_background(rng, canvas_size)
-
-    sheet = paper.convert("RGBA").rotate(
+    return paper.rotate(
         angle, resample=Image.Resampling.BICUBIC, expand=True, fillcolor=(0, 0, 0, 0)
     )
-    left = (canvas_size[0] - sheet.width) // 2 + rng.randint(-20, 20)
-    top = (canvas_size[1] - sheet.height) // 2 + rng.randint(-20, 20)
 
+
+def _lay_on_table(
+    rng: random.Random, photo: Image.Image, sheet: Image.Image, at: tuple[int, int]
+) -> Image.Image:
+    """Paste a sheet with a soft shadow under it."""
     shadow_mask = sheet.getchannel("A").point(lambda alpha: alpha * 150 // 255)
     shadow_mask = shadow_mask.filter(ImageFilter.GaussianBlur(14))
-    shadow_offset = (rng.randint(8, 22), rng.randint(10, 26))
-    shadow = Image.new("RGB", canvas_size, (20, 16, 12))
-    mask = Image.new("L", canvas_size, 0)
-    mask.paste(shadow_mask, (left + shadow_offset[0], top + shadow_offset[1]))
-    photo = Image.composite(shadow, photo, mask)
-    photo.paste(sheet, (left, top), sheet)
+    offset = (rng.randint(8, 22), rng.randint(10, 26))
+    mask = Image.new("L", photo.size, 0)
+    mask.paste(shadow_mask, (at[0] + offset[0], at[1] + offset[1]))
+    photo = Image.composite(Image.new("RGB", photo.size, (20, 16, 12)), photo, mask)
+    photo.paste(sheet, at, sheet)
+    return photo
+
+
+def phone_photo(pdf_bytes: bytes, rng: random.Random, *, unreadable: bool = False) -> Image.Image:
+    """A phone photo of every page laid side by side on a table.
+
+    `unreadable` puts the photo out of focus so no value can be read.
+    """
+    sheets = [_sheet(rng, page) for page in render_pages(pdf_bytes)]
+
+    # Canvas a bit larger than the pages, as when the phone is held above the table.
+    gap = sheets[0].width // 25
+    width = sum(sheet.width for sheet in sheets) + gap * (len(sheets) + 1)
+    height = round(max(sheet.height for sheet in sheets) * 1.1)
+    photo = table_background(rng, (width, height))
+    left = gap
+    for sheet in sheets:
+        top = (height - sheet.height) // 2 + rng.randint(-15, 15)
+        photo = _lay_on_table(rng, photo, sheet, (left, top))
+        left += sheet.width + gap
 
     if unreadable:
-        # Out of focus: 10-11 pt values are lost, the 46 pt watermark stays legible.
+        # Out of focus: 9-10 pt values are lost, the 46 pt watermark stays legible.
         photo = photo.filter(ImageFilter.GaussianBlur(6))
         photo = ImageEnhance.Brightness(photo).enhance(1.1)
         photo = _jpeg(photo, 20)

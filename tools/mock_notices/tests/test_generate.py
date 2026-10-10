@@ -1,5 +1,5 @@
 # AI contribution: 50% or more AI-generated
-"""Checks the mock notice generator against docs/04-data/mock-notices-of-assessment.md."""
+"""Checks the mock notice generator against docs/03-data/mock-notices-of-assessment.md."""
 
 from __future__ import annotations
 
@@ -14,13 +14,19 @@ import pytest
 from PIL import Image, ImageFilter, ImageStat
 
 from generate import (
+    ADJUSTED_NUMBERS,
     APPLICANT_COLUMNS,
     CURRENT_TAX_YEAR,
     DEFAULT_OUT,
+    INCOME_LINES,
     MASKED_SIN,
     TRUTH_COLUMNS,
     WATERMARK,
+    Notice,
+    build_notices,
     format_amount,
+    format_date,
+    format_money,
     generate,
     strip_accents,
 )
@@ -163,35 +169,103 @@ def test_photos_are_png_and_pdfs_are_pdf(truth: list[dict[str, str]]) -> None:
 # --- What is printed ----------------------------------------------------------
 
 
-def test_every_pdf_page_is_watermarked_and_sin_masked(
+def pdf_rows(truth: list[dict[str, str]]) -> list[dict[str, str]]:
+    return [row for row in truth if row["file"].endswith(".pdf")]
+
+
+def line_row(page_text: str, line: str) -> str:
+    """The 'Détail des calculs' row of one TP-1 line, e.g. '199 Revenu total = 1,00 1,00'."""
+    return next(row for row in page_text.splitlines() if row.startswith(f"{line} "))
+
+
+@pytest.fixture(scope="session")
+def notices() -> dict[str, Notice]:
+    return {notice.file: notice for notice in build_notices()}
+
+
+def test_every_pdf_has_two_pages_with_watermark_and_identity_footer(
     out: Path, truth: list[dict[str, str]]
 ) -> None:
-    sin_pattern = re.compile(r"\b\d{3}[ -]?\d{3}[ -]?\d{3}\b")
-    for row in truth:
-        if not row["file"].endswith(".pdf"):
-            continue
-        for text in pdf_pages_text(out / row["file"]):
+    for row in pdf_rows(truth):
+        pages = pdf_pages_text(out / row["file"])
+        assert len(pages) == 2, row["file"]
+        date = format_date(dt.date.fromisoformat(row["notice_date"]))
+        for number, text in enumerate(pages, start=1):
             assert WATERMARK in text, row["file"]
-            assert MASKED_SIN in text, row["file"]
+            assert f"Page {number} de 2" in text, row["file"]
+            assert f"Prénom et nom de famille\n{row['first_name']} {row['last_name']}" in text
+            assert f"Date de l'avis\n{date}" in text, row["file"]
+            assert f"Année d'imposition\n{row['tax_year']}" in text, row["file"]
+
+
+def test_sin_is_always_masked(out: Path, truth: list[dict[str, str]]) -> None:
+    sin_pattern = re.compile(r"\b\d{3}[ -]?\d{3}[ -]?\d{3}\b")
+    for row in pdf_rows(truth):
+        pages = pdf_pages_text(out / row["file"])
+        assert f"Numéro d'identification : {MASKED_SIN}" in pages[0], row["file"]
+        for text in pages:
             assert not sin_pattern.search(text), row["file"]
 
 
-def test_pdf_text_shows_truth_values(out: Path, truth: list[dict[str, str]]) -> None:
-    for row in truth:
-        if not row["file"].endswith(".pdf"):
-            continue
-        text = pdf_pages_text(out / row["file"])[0]
+def test_cover_page_shows_truth_values(
+    out: Path, truth: list[dict[str, str]], notices: dict[str, Notice]
+) -> None:
+    for row in pdf_rows(truth):
+        cover = pdf_pages_text(out / row["file"])[0]
         address = f"{row['street_number']}, {row['street_name']}"
         if row["unit"]:
             address += f", app. {row['unit']}"
-        total = format_amount(int(row["total_income_cents"]))
+        date = format_date(dt.date.fromisoformat(row["notice_date"]))
+        # Envelope-window address block: name, street line, city line.
+        address_block = (
+            f"{row['first_name']} {row['last_name']}\n{address}\n"
+            f"Montréal (Québec) {row['postal_code']}\n"
+        )
 
-        assert f"{row['last_name']}, {row['first_name']}" in text, row["file"]
-        assert address in text, row["file"]
-        assert f"Montréal (Québec) {row['postal_code']}" in text, row["file"]
-        assert f"Année d'imposition\n{row['tax_year']}" in text, row["file"]
-        assert f"Date de l'avis\n{row['notice_date']}" in text, row["file"]
-        assert f"Revenu total (ligne 199) {total}" in text, row["file"]
+        assert address_block in cover, row["file"]
+        assert f"Date de l'avis : {date}" in cover, row["file"]
+        assert f"Numéro de l'avis : {notices[row['file']].notice_number}" in cover, row["file"]
+        assert f"Avis de cotisation\nAnnée d'imposition {row['tax_year']}" in cover, row["file"]
+
+
+def test_line_199_assessed_amount_equals_truth(out: Path, truth: list[dict[str, str]]) -> None:
+    # rule: Iris reads total income (line 199) as assessed ("Montant établi", last column)
+    for row in pdf_rows(truth):
+        calculations = pdf_pages_text(out / row["file"])[1]
+        total = format_amount(int(row["total_income_cents"]))
+        assert line_row(calculations, "199").startswith("199 Revenu total = "), row["file"]
+        assert line_row(calculations, "199").endswith(f" {total}"), row["file"]
+
+
+def test_adjusted_notices_show_a_lower_declared_total(
+    out: Path, truth: list[dict[str, str]], notices: dict[str, Notice]
+) -> None:
+    for row in truth:
+        notice = notices[row["file"]]
+        assert notice.is_adjusted is (notice.number in ADJUSTED_NUMBERS), row["file"]
+        if notice.is_adjusted:
+            assert notice.declared_lines["199"] < notice.total_income_cents, row["file"]
+        if notice.is_adjusted and row["file"].endswith(".pdf"):
+            cover, calculations = pdf_pages_text(out / row["file"])
+            declared = format_amount(notice.declared_lines["199"])
+            assert "Nous avons modifié votre déclaration de revenus." in cover, row["file"]
+            assert f"= {declared} " in line_row(calculations, "199"), row["file"]
+            assert "Explication des changements" in calculations, row["file"]
+
+
+def test_calculation_columns_add_up(notices: dict[str, Notice]) -> None:
+    for notice in notices.values():
+        for lines in (notice.declared_lines, notice.assessed_lines):
+            assert lines["199"] == sum(lines.get(line, 0) for line in INCOME_LINES)
+            assert all(amount >= 0 for amount in lines.values()), notice.file
+            balance = lines["450"] - lines["465"]
+            assert lines.get("479", 0) - lines.get("478", 0) == balance, notice.file
+
+
+def test_notice_numbers_look_like_real_ones(notices: dict[str, Notice]) -> None:
+    numbers = [notice.notice_number for notice in notices.values()]
+    assert all(re.fullmatch(r"[QM][A-Z0-9]{10}", number) for number in numbers)
+    assert len(set(numbers)) == len(numbers)
 
 
 def test_values_stay_in_spec_ranges(truth: list[dict[str, str]]) -> None:
@@ -205,10 +279,13 @@ def test_values_stay_in_spec_ranges(truth: list[dict[str, str]]) -> None:
             assert tax_year == CURRENT_TAX_YEAR
 
 
-def test_format_amount_uses_french_canadian_style() -> None:
-    assert format_amount(0) == "0,00 $"
-    assert format_amount(2_345_678) == "23 456,78 $"
-    assert format_amount(-12_305) == "123,05 $"
+def test_amounts_and_dates_use_french_canadian_style() -> None:
+    assert format_amount(0) == "0,00"
+    assert format_amount(2_345_678) == "23 456,78"
+    assert format_money(-12_305) == "123,05 $"
+    assert format_date(dt.date(2026, 3, 28)) == "28 mars 2026"
+    assert format_date(dt.date(2026, 4, 1)) == "1er avril 2026"
+    assert format_date(dt.date(2026, 8, 15)) == "15 août 2026"
 
 
 # --- Edge cases ---------------------------------------------------------------
@@ -250,12 +327,14 @@ def test_unreadable_photo_is_much_blurrier_than_every_other_photo(
     assert unreadable < 0.6 * least_sharp_photo
 
 
-def test_photos_are_rgb_and_large_enough_to_read(out: Path, truth: list[dict[str, str]]) -> None:
+def test_photos_show_both_pages_and_are_large_enough_to_read(
+    out: Path, truth: list[dict[str, str]]
+) -> None:
     for row in truth:
         if row["file"].endswith(".png"):
             with Image.open(out / row["file"]) as image:
                 assert image.mode == "RGB"
-                assert image.width >= 1000
+                assert image.width >= 1900  # two pages side by side, about 1000 px each
                 assert image.height >= 1300
 
 
