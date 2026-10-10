@@ -23,7 +23,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
-| SET-09 Mock notices of assessment (#397) | `tools/mock_notices/{generate.py,photos.py,tests/test_generate.py,pyproject.toml,README.md}`, `docs/03-data/mock-notices-of-assessment.md` | 50% or more AI-generated | *add link* |
+| SET-09 Mock notices of assessment (#397) | `tools/mock_notices/{generate.py,photos.py,tests/test_generate.py,pyproject.toml,README.md}`, `docs/03-data/mock-notices-of-assessment.md` | 50% or more AI-generated | [#592](https://github.com/B-A-D-R-SL/iris/pull/592) |
 
 ## Examples, verification and corrections
 
