@@ -1,6 +1,6 @@
 # Mock notices of assessment generator
 
-Generates fake Revenu Québec notices of assessment (*avis de cotisation*) for Iris. Every page is watermarked **SPÉCIMEN – DOCUMENT FICTIF – NE PAS UTILISER**. What is generated and why: [docs/04-data/mock-notices-of-assessment.md](../../docs/04-data/mock-notices-of-assessment.md).
+Generates fake Revenu Québec notices of assessment (*avis de cotisation*) for Iris. Every page is watermarked **SPÉCIMEN – DOCUMENT FICTIF – NE PAS UTILISER**. What is generated and why: [docs/03-data/mock-notices-of-assessment.md](../../docs/03-data/mock-notices-of-assessment.md).
 
 The output is committed in [`mock-data/notices/`](../../mock-data/notices/), so you only need this tool to change or regenerate it.
 
