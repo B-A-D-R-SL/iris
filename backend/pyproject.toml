@@ -39,3 +39,8 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "iris.settings.test"
 testpaths = ["tests"]
+
+
+[tool.ruff.lint]
+# Windows Docker bind mounts may report Python files as executable.
+ignore = ["EXE002"]
