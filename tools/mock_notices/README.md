@@ -21,3 +21,4 @@ The seed is fixed at 42 and the PDFs are written with reportlab's `invariant` mo
 | File | Role |
 | --- | --- |
 | `generate.py` | Entry point: builds the notice data (Faker, seed 42) and lays out the PDF (reportlab) |
+| `photos.py` | Turns a notice PDF into a phone photo (Pillow): rendered at 110 dpi with pypdfium2, uneven light, rotated −7° to +7°, shadow, table background, blur, JPEG quality 60, saved as PNG |

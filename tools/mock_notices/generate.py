@@ -6,6 +6,8 @@ docs/04-data/mock-notices-of-assessment.md. Run from this folder:
 
     uv run generate.py                 # writes to <repo>/mock-data/notices
     uv run generate.py --out some/dir
+
+Notices 031 to 045 are delivered as phone photos (photos.py) instead of PDFs.
 """
 
 from __future__ import annotations
@@ -23,8 +25,11 @@ from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.utils import simpleSplit
 from reportlab.pdfgen.canvas import Canvas
 
+from photos import phone_photo
+
 SEED = 42
 NOTICE_COUNT = 50
+PHOTO_NUMBERS = range(31, 46)
 CURRENT_TAX_YEAR = 2025
 WATERMARK = "SPÉCIMEN – DOCUMENT FICTIF – NE PAS UTILISER"
 MASKED_SIN = "XXX XXX XXX"
@@ -98,6 +103,15 @@ class Notice:
     @property
     def stem(self) -> str:
         return f"notice-{self.number:03d}"
+
+    @property
+    def is_photo(self) -> bool:
+        return self.number in PHOTO_NUMBERS
+
+    @property
+    def file(self) -> str:
+        """Path relative to the output folder."""
+        return f"photos/{self.stem}.png" if self.is_photo else f"pdf/{self.stem}.pdf"
 
 
 # ---------------------------------------------------------------------------
@@ -312,14 +326,20 @@ def render_pdf(notice: Notice) -> bytes:
 
 
 def generate(out: Path, seed: int = SEED) -> list[Notice]:
-    pdf_dir = out / "pdf"
-    pdf_dir.mkdir(parents=True, exist_ok=True)
-    for stale in pdf_dir.glob("notice-*.pdf"):
-        stale.unlink()
+    for folder, pattern in (("pdf", "notice-*.pdf"), ("photos", "notice-*.png")):
+        (out / folder).mkdir(parents=True, exist_ok=True)
+        for stale in (out / folder).glob(pattern):
+            stale.unlink()
 
     notices = build_notices(seed)
     for notice in notices:
-        (pdf_dir / f"{notice.stem}.pdf").write_bytes(render_pdf(notice))
+        pdf_bytes = render_pdf(notice)
+        if notice.is_photo:
+            # Own random stream per photo, so photo effects never shift the notice data.
+            rng = random.Random(f"{seed}-photo-{notice.number}")
+            phone_photo(pdf_bytes, rng).save(out / notice.file, optimize=True)
+        else:
+            (out / notice.file).write_bytes(pdf_bytes)
     return notices
 
 
