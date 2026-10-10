@@ -1,0 +1,14 @@
+# AI contribution: 50% or more AI-generated
+.venv/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+db.sqlite3
+.git/
+.idea/
+.vscode/
