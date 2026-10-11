@@ -79,4 +79,5 @@ knowledge_base:
   code_guidelines:
     enabled: true
     filePatterns:
-      - "review-rules.md"   # keep this file at the repo root so it applies to every path
+      - files: "docs/review-rules.md"
+        applyTo: "backend/**, frontend/**"
