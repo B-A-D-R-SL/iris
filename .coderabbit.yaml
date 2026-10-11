@@ -16,18 +16,18 @@ reviews:
   request_changes_workflow: true
 
   path_instructions:
-    - path: "modules/*/domain/**/*.py"
+    - path: "backend/modules/*/domain/**/*.py"
       instructions: |
         Rule 2: thresholds, weights, fees and delays must come from the RuleSet, never
         literals or module constants. A changed rule needs a test whose "# rule:" comment
         names its BR- ID.
-    - path: "modules/*/services*.py"
+    - path: "backend/modules/*/services*.py"
       instructions: |
         Rule 3: flag read-modify-write on counters (read, change in Python, save);
         require filter().update(F(...)). New uniqueness must be a database constraint.
         Rule 5: flag logging, emailing or copying a SIN, income amounts, immigration
         status or document text.
-    - path: "modules/*/{api,views,serializers}*.py"
+    - path: "backend/modules/*/{api,views,serializers}*.py"
       instructions: |
         Rule 4: every endpoint checks role AND ownership (object-level), deny by default,
         with allowed and refused tests for each role in test_api.py.
