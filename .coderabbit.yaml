@@ -1,0 +1,82 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# Iris is a public repo, so CodeRabbit's open-source tier applies (Team features):
+# line-by-line reviews, code guidelines, path instructions and custom pre-merge checks.
+# Deterministic rules (1, 6, 9, 10 and parts of 2, 4, 7) are enforced in CI instead;
+# CodeRabbit focuses on the rules that need judgment.
+
+language: en-US
+
+reviews:
+  profile: assertive
+  high_level_summary: true
+  poem: false
+
+  # Turns failing pre-merge checks in "error" mode into a blocking "changes requested" review.
+  request_changes_workflow: true
+
+  path_instructions:
+    - path: "modules/*/domain/**/*.py"
+      instructions: |
+        Rule 2: thresholds, weights, fees and delays must come from the RuleSet, never
+        literals or module constants. A changed rule needs a test whose "# rule:" comment
+        names its BR- ID.
+    - path: "modules/*/services*.py"
+      instructions: |
+        Rule 3: flag read-modify-write on counters (read, change in Python, save);
+        require filter().update(F(...)). New uniqueness must be a database constraint.
+        Rule 5: flag logging, emailing or copying a SIN, income amounts, immigration
+        status or document text.
+    - path: "modules/*/{api,views,serializers}*.py"
+      instructions: |
+        Rule 4: every endpoint checks role AND ownership (object-level), deny by default,
+        with allowed and refused tests for each role in test_api.py.
+    - path: "**/tests/**/*.py"
+      instructions: |
+        Test names state the rule. One test or more per acceptance criterion.
+        Generated data only (factories); no real names, addresses or documents.
+        Outside services use the fake adapters.
+    - path: "frontend/src/**/*.{ts,tsx}"
+      instructions: |
+        Rule 8: flag any eligibility or visibility decision; the API decides.
+        Rule 7: all visible text uses translation keys with French and English entries.
+
+  pre_merge_checks:
+    # Start in "warning"; switch a check to "error" once it stops producing false alarms.
+    custom_checks:
+      - name: "Sensitive data"            # rule 5
+        mode: "warning"
+        instructions: |
+          Fail if the PR logs, emails, or stores outside their own tables a SIN, income
+          amounts, immigration status, or document text. Also fail if test data, fixtures
+          or seed files contain realistic-looking real personal data (this repo is public).
+      - name: "Role and ownership"        # rule 4
+        mode: "warning"
+        instructions: |
+          For every new or changed API endpoint, check that it enforces both role and
+          ownership (object-level, not just "logged in"), and that test_api.py tests
+          allowed and refused access for each role.
+      - name: "RuleSet values"            # rule 2
+        mode: "warning"
+        instructions: |
+          Fail if code under domain/ or services hard-codes a threshold, weight, fee or
+          delay (as a literal or a module constant) instead of reading it from the RuleSet.
+          Fail if a business rule changes without a test whose "# rule:" comment names
+          its BR- ID.
+      - name: "Counters and uniqueness"   # rule 3
+        mode: "warning"
+        instructions: |
+          Fail if a counter or quantity is read, changed in Python and saved back
+          (read-modify-write). It must use filter().update(F(...)). Fail if new
+          uniqueness is enforced only in Python instead of a database constraint.
+      - name: "Front end decides nothing" # rule 8
+        mode: "warning"
+        instructions: |
+          Fail if TypeScript or TSX code decides eligibility, approval, priority or what a
+          user may see, instead of rendering what the API returned.
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "review-rules.md"   # keep this file at the repo root so it applies to every path
