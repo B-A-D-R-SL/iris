@@ -19,3 +19,32 @@ dev = [
     "pytest-django>=4.14.0",
     "ruff>=0.16.10",
 ]
+
+[tool.ruff.lint]
+# Windows Docker bind mounts may report Python files as executable.
+ignore = ["EXE002"]
+extend-select = [
+  "DTZ",      # Rule 6: no naive datetimes (datetime.now() without tz, etc.)
+  "TID251",   # Rules 6 and 9 + test rules: banned APIs listed below
+  "PLR2004",  # Rule 2: magic numbers in comparisons (only kept for domain/, see below)
+]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+# Rule 9: outside services only through adapters
+"requests".msg = "Rule 9: call outside services through an adapter in adapters/."
+"httpx".msg = "Rule 9: call outside services through an adapter in adapters/."
+"urllib.request".msg = "Rule 9: call outside services through an adapter in adapters/."
+"smtplib".msg = "Rule 9: send email through the email adapter."
+# Rule 6: money is integer cents
+"django.db.models.FloatField".msg = "Rule 6: money is integer cents. Use IntegerField/BigIntegerField (name it *_cents). For a non-money float, add '# noqa: TID251' with a reason."
+"django.db.models.DecimalField".msg = "Rule 6: money is integer cents. Use IntegerField/BigIntegerField (name it *_cents). For a non-money decimal, add '# noqa: TID251' with a reason."
+# Test rules: no fixed sleeps (use time-machine)
+"time.sleep".msg = "No fixed sleeps. Freeze the clock with time-machine, or wait on an event/condition."
+
+[tool.ruff.lint.per-file-ignores]
+# Adapters are the one place allowed to call outside services (and back off with sleep)
+"**/adapters/**" = ["TID251"]
+# Magic-number check applies to domain/ only ("!" = every file NOT matching)
+"!**/domain/**" = ["PLR2004"]
+# Generated migrations may contain naive datetime defaults and Decimal fields from the past
+"**/migrations/**" = ["DTZ", "TID251"]
