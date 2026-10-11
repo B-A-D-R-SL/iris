@@ -4,18 +4,43 @@ version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
     "django>=6.1,<6.2",
-    "django-allauth>=65.19.7",
+    "django-allauth[headless]>=65.19.7",
     "django-environ>=0.14.0",
     "djangorestframework>=3.18.3",
     "drf-spectacular>=0.30.0",
-    "procrastinate>=3.10.0",
+    "procrastinate[django]>=3.10.0",
+    "psycopg[binary]>=3.3.6",
 ]
 
 [dependency-groups]
 dev = [
+    "django-stubs>=6.1,<6.2",
     "factory-boy>=3.3.3",
     "mypy>=2.4.0",
     "pytest>=9.1.1",
     "pytest-django>=4.14.0",
     "ruff>=0.16.10",
 ]
+
+
+[tool.mypy]
+python_version = "3.13"
+plugins = ["mypy_django_plugin.main"]
+warn_unused_configs = true
+
+[tool.django-stubs]
+django_settings_module = "iris.settings.test"
+
+[[tool.mypy.overrides]]
+module = ["environ"]
+ignore_missing_imports = true
+
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "iris.settings.test"
+testpaths = ["tests"]
+
+
+[tool.ruff.lint]
+# Windows Docker bind mounts may report Python files as executable.
+ignore = ["EXE002"]

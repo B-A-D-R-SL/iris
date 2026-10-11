@@ -1,0 +1,12 @@
+# Dependencies and caches
+node_modules/
+.pnpm-store/
+
+# Generated files
+dist/
+coverage/
+pnpm-lock.yaml
+
+# Environment variables
+.env
+.env.*

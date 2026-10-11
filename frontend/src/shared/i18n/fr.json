@@ -1,0 +1,13 @@
+{
+  "title": "Bienvenue sur Iris",
+  "description": "Une plateforme de redistribution solidaire pour connecter les communautés et faciliter le partage des ressources.",
+  "language": "English",
+  "status": "Configuration du projet en cours",
+
+  "backend": {
+    "label": "État du serveur",
+    "checking": "Vérification...",
+    "online": "Connecté",
+    "offline": "Indisponible"
+  }
+}

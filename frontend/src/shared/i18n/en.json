@@ -1,0 +1,13 @@
+{
+  "title": "Welcome to Iris",
+  "description": "A solidarity redistribution platform connecting communities and making resource sharing easier.",
+  "language": "Français",
+  "status": "Project setup in progress",
+
+  "backend": {
+    "label": "Server status",
+    "checking": "Checking...",
+    "online": "Connected",
+    "offline": "Unavailable"
+  }
+}
