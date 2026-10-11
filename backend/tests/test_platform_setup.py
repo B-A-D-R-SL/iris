@@ -31,7 +31,10 @@ def test_dev_admin_is_created_and_idempotent(monkeypatch: pytest.MonkeyPatch) ->
 
 def test_dev_admin_refuses_non_debug(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DJANGO_DEV_ADMIN_PASSWORD", "local-test-password")
-    with override_settings(DEBUG=False), pytest.raises(CommandError, match="DEBUG=True"):
+    with (
+        override_settings(DEBUG=False),
+        pytest.raises(CommandError, match="DEBUG=True"),
+    ):
         call_command("create_dev_admin", stdout=StringIO())
 
 

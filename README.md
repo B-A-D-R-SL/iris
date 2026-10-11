@@ -94,6 +94,8 @@ Optionally, copy `.env.example` to `.env` at the repository root to customize lo
 
 PostgreSQL uses port `55433` on the host to avoid conflicts with existing local databases. Containers communicate through Docker's internal network.
 
+**PostgreSQL is required.** Django does not fall back to SQLite. For manual execution, set `DATABASE_URL` to a PostgreSQL connection string.
+
 ## Development and Testing
 
 ### Live Development
@@ -107,8 +109,10 @@ Backend source code is mounted directly into its container, allowing Django to r
 ```bash
 docker compose exec backend python -m pytest
 docker compose exec backend ruff check .
+docker compose exec backend ruff format --check .
 docker compose exec backend mypy .
 docker compose exec backend python manage.py check
+docker compose exec backend python manage.py makemigrations --check --dry-run
 ```
 
 ### Frontend Checks
@@ -119,6 +123,8 @@ docker compose exec frontend pnpm build
 docker compose exec frontend pnpm lint
 docker compose exec frontend pnpm format:check
 ```
+
+The TypeScript application and Vite configuration use strict compiler checking.
 
 ### Email Testing
 
@@ -155,10 +161,18 @@ For manual execution, configure `backend/.env` with a valid `DJANGO_SECRET_KEY` 
 
 **Docker Compose is the recommended development workflow.**
 
+## Structured Logging and Authentication
+
+- Django writes privacy-conscious JSON events (INFO, WARNING, ERROR). View them with `docker compose logs -f backend`.
+- Each HTTP response includes a server-generated `X-Request-ID`, which is also attached to the corresponding backend JSON log event.
+- The logger excludes raw paths, query strings, request bodies, authentication headers, arbitrary log messages and personal identifiers. See `docs/guides/observability.md`.
+- The frontend uses `src/shared/logger.ts` for structured application events.
+- django-allauth's headless routes are mounted once at `/api/auth/`, with allauth's own versioned paths under that prefix. The old `/_allauth/` prefix is not supported; see `docs/guides/auth-routing.md`. The final API contract remains a SET-15 decision.
+
 ## Current Development Status
 
 The initial frontend and backend foundations, Docker Compose environment, database integration, development administrator, and email testing infrastructure are implemented.
 
-Backend and frontend automated tests and quality checks are passing. PostgreSQL connectivity, migrations, administrator authentication, and SMTP email delivery have been verified.
+The initial backend and frontend checks passed. The additional strict TypeScript, logging, routing, and formatting changes should be revalidated using the commands above before the pull request.
 
 **Known limitation:** Azurite starts successfully, but Blob Storage operations have not yet passed integration testing due to an API-version incompatibility with the newer Azure SDK. This remains to be addressed.

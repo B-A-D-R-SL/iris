@@ -19,7 +19,9 @@ class Command(BaseCommand):
         email = os.environ.get("DJANGO_DEV_ADMIN_EMAIL", "admin@iris.local").strip()
         password = os.environ.get("DJANGO_DEV_ADMIN_PASSWORD", "")
         if not email or not password:
-            raise CommandError("DJANGO_DEV_ADMIN_EMAIL and DJANGO_DEV_ADMIN_PASSWORD are required")
+            raise CommandError(
+                "DJANGO_DEV_ADMIN_EMAIL and DJANGO_DEV_ADMIN_PASSWORD are required"
+            )
 
         user_model = get_user_model()
         user, created = user_model._default_manager.get_or_create(username=email)

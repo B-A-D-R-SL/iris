@@ -1,3 +1,4 @@
+# AI contribution: 50% or more AI-generated
 """Basic API endpoints for Iris."""
 
 from django.http import HttpRequest, JsonResponse

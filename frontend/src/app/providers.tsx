@@ -1,3 +1,4 @@
+// AI contribution: 50% or more AI-generated
 import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router";

@@ -1,3 +1,4 @@
+// AI contribution: 50% or more AI-generated
 export interface HealthResponse {
   status: "ok";
 }

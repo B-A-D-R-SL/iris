@@ -1,3 +1,4 @@
+// AI contribution: 50% or more AI-generated
 import prettier from "eslint-config-prettier";
 import js from "@eslint/js";
 import globals from "globals";

@@ -1,8 +1,11 @@
+// AI contribution: 50% or more AI-generated
 import { Badge, Button, Container, Group, Stack, Text, Title } from "@mantine/core";
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { getHealthStatus } from "../shared/api/health";
+import { logger } from "../shared/logger";
 
 export function HomePage() {
   const { t, i18n } = useTranslation();
@@ -14,9 +17,15 @@ export function HomePage() {
     refetchInterval: 30000,
   });
 
+  useEffect(() => {
+    if (isError) logger.warning("backend_health_unavailable");
+  }, [isError]);
+
   const switchLanguage = () => {
     const nextLanguage = i18n.resolvedLanguage === "fr" ? "en" : "fr";
-    void i18n.changeLanguage(nextLanguage);
+    void i18n.changeLanguage(nextLanguage).then(() => {
+      logger.info("language_changed");
+    });
   };
 
   const status = isPending ? "checking" : isError ? "offline" : "online";

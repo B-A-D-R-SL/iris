@@ -1,3 +1,4 @@
+// AI contribution: 50% or more AI-generated
 import React from "react";
 import ReactDOM from "react-dom/client";
 
