@@ -128,8 +128,11 @@ def test_same_seed_gives_byte_identical_files(out: Path, tmp_path: Path) -> None
 def test_committed_output_is_up_to_date(out: Path) -> None:
     # The files in mock-data/notices/ must be what the generator produces today.
     assert output_files(DEFAULT_OUT) == output_files(out)
+    # CSV rows first: a failure there shows which values changed.
     for name in ("truth.csv", "applicants.csv"):
         assert read_csv(DEFAULT_OUT / name) == read_csv(out / name), name
+    for name in output_files(out):
+        assert (DEFAULT_OUT / name).read_bytes() == (out / name).read_bytes(), name
 
 
 # --- Files and cases ----------------------------------------------------------
