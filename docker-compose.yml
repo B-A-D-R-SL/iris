@@ -1,0 +1,112 @@
+
+# AI contribution: 50% or more AI-generated
+# Local development only. Do not use these credentials in production.
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-iris}
+      POSTGRES_USER: ${POSTGRES_USER:-iris}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iris_local_dev_password}
+    ports:
+      - "127.0.0.1:${IRIS_DB_PORT:-55433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+    restart: unless-stopped
+    command: azurite --blobHost 0.0.0.0 --location /data
+    ports:
+      - "127.0.0.1:${IRIS_AZURITE_PORT:-10000}:10000"
+    volumes:
+      - azurite_data:/data
+
+  mailpit:
+    image: axllent/mailpit:v1.27.4
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${IRIS_MAILPIT_UI_PORT:-8025}:8025"
+      - "127.0.0.1:${IRIS_SMTP_PORT:-1025}:1025"
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      DJANGO_SETTINGS_MODULE: iris.settings.local
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-iris-insecure-local-dev-key-change-before-deploying}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-iris}:${POSTGRES_PASSWORD:-iris_local_dev_password}@db:5432/${POSTGRES_DB:-iris}
+      DJANGO_DEV_ADMIN_EMAIL: ${DJANGO_DEV_ADMIN_EMAIL:-admin@iris.local}
+      DJANGO_DEV_ADMIN_PASSWORD: ${DJANGO_DEV_ADMIN_PASSWORD:-iris_local_admin_password}
+      EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+      EMAIL_HOST: mailpit
+      EMAIL_PORT: "1025"
+      EMAIL_HOST_USER: ""
+      EMAIL_HOST_PASSWORD: ""
+      EMAIL_USE_TLS: "False"
+      DEFAULT_FROM_EMAIL: noreply@iris.local
+      AZURE_STORAGE_ACCOUNT_NAME: devstoreaccount1
+      AZURE_STORAGE_CONTAINER_NAME: iris-dev
+      AZURE_STORAGE_BLOB_ENDPOINT: http://azurite:10000/devstoreaccount1
+      # Public Azurite emulator credential.
+      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
+    command: >-
+      sh -c 'python manage.py migrate --noinput && python manage.py create_dev_admin && exec python manage.py runserver 0.0.0.0:8000'
+    ports:
+      - "127.0.0.1:${IRIS_BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+      azurite:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    environment:
+      API_PROXY_TARGET: http://backend:8000
+    command: pnpm dev --host 0.0.0.0
+    ports:
+      - "127.0.0.1:${IRIS_FRONTEND_PORT:-5174}:5173"
+    depends_on:
+      backend:
+        condition: service_started
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend/src
+          target: /app/src
+
+        - action: sync
+          path: ./frontend/public
+          target: /app/public
+
+        - action: sync
+          path: ./frontend/index.html
+          target: /app/index.html
+
+        - action: rebuild
+          path: ./frontend/package.json
+
+        - action: rebuild
+          path: ./frontend/pnpm-lock.yaml
+
+        - action: rebuild
+          path: ./frontend/vite.config.ts
+
+volumes:
+  postgres_data:
+  azurite_data:

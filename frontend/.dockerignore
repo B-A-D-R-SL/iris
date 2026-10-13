@@ -1,0 +1,9 @@
+# AI contribution: 50% or more AI-generated
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+.git/
+.idea/
+.vscode/

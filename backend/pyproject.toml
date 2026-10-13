@@ -4,21 +4,39 @@ version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
     "django>=6.1,<6.2",
-    "django-allauth>=65.19.7",
+    "django-allauth[headless]>=65.19.7",
     "django-environ>=0.14.0",
     "djangorestframework>=3.18.3",
     "drf-spectacular>=0.30.0",
-    "procrastinate>=3.10.0",
+    "procrastinate[django]>=3.10.0",
+    "psycopg[binary]>=3.3.6",
 ]
 
 [dependency-groups]
 dev = [
+    "django-stubs>=6.1,<6.2",
     "factory-boy>=3.3.3",
     "mypy>=2.4.0",
     "pytest>=9.1.1",
     "pytest-django>=4.14.0",
     "ruff>=0.16.10",
 ]
+
+[tool.mypy]
+python_version = "3.13"
+plugins = ["mypy_django_plugin.main"]
+warn_unused_configs = true
+
+[tool.django-stubs]
+django_settings_module = "iris.settings.test"
+
+[[tool.mypy.overrides]]
+module = ["environ"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "iris.settings.test"
+testpaths = ["tests"]
 
 [tool.ruff.lint]
 # Windows Docker bind mounts may report Python files as executable.
@@ -35,16 +53,20 @@ extend-select = [
 "httpx".msg = "Rule 9: call outside services through an adapter in adapters/."
 "urllib.request".msg = "Rule 9: call outside services through an adapter in adapters/."
 "smtplib".msg = "Rule 9: send email through the email adapter."
+
 # Rule 6: money is integer cents
 "django.db.models.FloatField".msg = "Rule 6: money is integer cents. Use IntegerField/BigIntegerField (name it *_cents). For a non-money float, add '# noqa: TID251' with a reason."
 "django.db.models.DecimalField".msg = "Rule 6: money is integer cents. Use IntegerField/BigIntegerField (name it *_cents). For a non-money decimal, add '# noqa: TID251' with a reason."
+
 # Test rules: no fixed sleeps (use time-machine)
 "time.sleep".msg = "No fixed sleeps. Freeze the clock with time-machine, or wait on an event/condition."
 
 [tool.ruff.lint.per-file-ignores]
 # Adapters are the one place allowed to call outside services (and back off with sleep)
 "**/adapters/**" = ["TID251"]
+
 # Magic-number check applies to domain/ only ("!" = every file NOT matching)
 "!**/domain/**" = ["PLR2004"]
+
 # Generated migrations may contain naive datetime defaults and Decimal fields from the past
 "**/migrations/**" = ["DTZ", "TID251"]
