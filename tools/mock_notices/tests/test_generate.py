@@ -13,23 +13,10 @@ import pypdfium2 as pdfium
 import pytest
 from PIL import Image, ImageFilter, ImageStat
 
-from generate import (
-    ADJUSTED_NUMBERS,
-    APPLICANT_COLUMNS,
-    CURRENT_TAX_YEAR,
-    DEFAULT_OUT,
-    INCOME_LINES,
-    MASKED_SIN,
-    TRUTH_COLUMNS,
-    WATERMARK,
-    Notice,
-    build_notices,
-    format_amount,
-    format_date,
-    format_money,
-    generate,
-    strip_accents,
-)
+from generate import APPLICANT_COLUMNS, DEFAULT_OUT, TRUTH_COLUMNS, generate
+from layout import MASKED_SIN, WATERMARK, format_amount, format_date, format_money
+from notices import ADJUSTED_NUMBERS, CURRENT_TAX_YEAR, Notice, build_notices, strip_accents
+from tax import INCOME_LINES
 
 EXPECTED_CASES = {
     "clean": 30,

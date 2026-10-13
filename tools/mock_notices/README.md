@@ -36,10 +36,13 @@ Read the files with the `csv` module (UTF-8, no BOM). Amounts are integer cents;
 
 | File | Role |
 | --- | --- |
-| `generate.py` | Entry point: builds the notice data (Faker, seed 42), the TP-1 lines in both columns (`calculate`), the edge cases and the declared values, lays out the two-page PDF (reportlab) and writes the CSV files. The layout follows a redacted sample notice; see the spec's "Compared with a real notice" section |
+| `generate.py` | Entry point: builds the notices, writes each one as a PDF or a photo, and writes the CSV files |
+| `notices.py` | The notice data (Faker, seed 42): names, addresses, dates, the cases and edge cases, and the declared values |
+| `tax.py` | The TP-1 lines of `Détail des calculs` in both columns (`calculate`), and the changed returns where a slip was left out |
+| `layout.py` | The two-page PDF (reportlab), with the watermark on every page. The layout follows a redacted sample notice; see the spec's "Compared with a real notice" section |
 | `photos.py` | Turns a notice PDF into a phone photo (Pillow): each page rendered at 110 dpi with pypdfium2, uneven light, rotated −7° to +7°, laid side by side with a shadow on a table background, blur, JPEG quality 60, saved as PNG. The unreadable photo is out of focus instead (blur radius 6, JPEG quality 20): the values are lost but the large watermark stays legible |
 | `tests/test_generate.py` | Reproducibility, counts and cases, two pages with watermark and footer, masked identification number, cover page and line 199 (`Montant établi`) equal `truth.csv`, changed returns, columns that add up, notice number format, edge cases, name and address matching rules on `applicants.csv`, committed output up to date |
 
 ## Changing the cases
 
-The file number → case table is `CASES` in `generate.py`; changed returns are `ADJUSTED_NUMBERS`; the name controls are `MIDDLE_NAME_NUMBERS`, `UPPERCASE_NUMBERS` and `ACCENT_CONTROLS`. Update the counts in the spec document and in `EXPECTED_CASES` / `EXPECTED_VARIATIONS` in the tests at the same time.
+The file number → case table is `CASES` in `notices.py`; changed returns are `ADJUSTED_NUMBERS`; the name controls are `MIDDLE_NAME_NUMBERS`, `UPPERCASE_NUMBERS` and `ACCENT_CONTROLS`. Update the counts in the spec document and in `EXPECTED_CASES` / `EXPECTED_VARIATIONS` in the tests at the same time.

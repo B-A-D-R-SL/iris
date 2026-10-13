@@ -23,7 +23,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
-| SET-09 Mock notices of assessment (#397) | `tools/mock_notices/{generate.py,photos.py,tests/test_generate.py,pyproject.toml,README.md}`, `docs/04-data/mock-notices-of-assessment.md` | 50% or more AI-generated | [#592](https://github.com/B-A-D-R-SL/iris/pull/592) |
+| SET-09 Mock notices of assessment (#397) | `tools/mock_notices/{generate.py,notices.py,tax.py,layout.py,photos.py,tests/test_generate.py,pyproject.toml,README.md}`, `docs/04-data/mock-notices-of-assessment.md` | 50% or more AI-generated | [#592](https://github.com/B-A-D-R-SL/iris/pull/592) |
 
 ## Examples, verification and corrections
 
@@ -36,7 +36,7 @@ At least half of the AI-assisted features need an example here. For each one:
 
 ### SET-09 Mock notices of assessment (#397, #398, #399, #400)
 
-- **What the AI produced:** the generator (`generate.py`), the phone-photo pipeline (`photos.py`), the tests, the tool README and the published spec, from the team draft and the owner's decisions (exact counts, a separate `applicants.csv`, a standalone uv project, committing the output).
+- **What the AI produced:** the generator (`generate.py`, `notices.py`, `tax.py`, `layout.py`), the phone-photo pipeline (`photos.py`), the tests, the tool README and the published spec, from the team draft and the owner's decisions (exact counts, a separate `applicants.csv`, a standalone uv project, committing the output).
 - **How we verified it:** 22 pytest checks in `tools/mock_notices/tests/` (byte-identical output for seed 42; counts and cases; watermark and footer on both pages; `XXX XXX XXX` identification number; the cover page and line 199 `Montant établi` equal `truth.csv`; changed returns; calculation columns that add up; edge cases; name and address rules on `applicants.csv`; committed output up to date). The layout was compared with a redacted sample notice and the line labels with the official 2025 TP-1. We changed a value in the committed `truth.csv` on purpose and checked that the tests failed. We also looked at the PDFs and photos one by one.
 - **Problems found and corrections:**
   - The team draft contradicted itself (50 PDFs + 15 photos in one table, 50 files in total in another). The final amount decided was 50 files (34 PDFs + 16 photos), and the spec now matches it.
