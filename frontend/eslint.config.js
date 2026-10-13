@@ -1,4 +1,3 @@
-// AI contribution: 50% or more AI-generated
 import prettier from "eslint-config-prettier";
 import js from "@eslint/js";
 import globals from "globals";
@@ -8,7 +7,7 @@ import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
-  globalIgnores(["dist"]),
+  globalIgnores(["coverage", "dist"]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [
