@@ -98,12 +98,13 @@ def write_csv(path: Path, columns: tuple[str, ...], rows: Iterable[dict[str, str
 
 
 def generate(out: Path, seed: int = SEED) -> list[Notice]:
+    # Build first: a seed that cannot give every case fails before any file is deleted.
+    notices = build_notices(seed)
     for folder, pattern in (("pdf", "notice-*.pdf"), ("photos", "notice-*.png")):
         (out / folder).mkdir(parents=True, exist_ok=True)
         for stale in (out / folder).glob(pattern):
             stale.unlink()
 
-    notices = build_notices(seed)
     for notice in notices:
         pdf_bytes = render_pdf(notice)
         if notice.is_photo:

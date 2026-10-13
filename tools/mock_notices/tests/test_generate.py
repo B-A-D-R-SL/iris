@@ -122,6 +122,16 @@ def test_committed_output_is_up_to_date(out: Path) -> None:
         assert (DEFAULT_OUT / name).read_bytes() == (out / name).read_bytes(), name
 
 
+def test_failed_run_keeps_the_existing_files(tmp_path: Path) -> None:
+    # Seed 533 has too few accented names for the accent controls, so building fails.
+    existing = tmp_path / "pdf" / "notice-001.pdf"
+    existing.parent.mkdir()
+    existing.write_bytes(b"previous run")
+    with pytest.raises(RuntimeError, match="accented names"):
+        generate(tmp_path, seed=533)
+    assert existing.read_bytes() == b"previous run"
+
+
 # --- Files and cases ----------------------------------------------------------
 
 
