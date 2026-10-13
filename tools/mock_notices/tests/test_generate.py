@@ -262,6 +262,13 @@ def test_calculation_columns_add_up(notices: dict[str, Notice]) -> None:
             assert lines.get("479", 0) - lines.get("478", 0) == balance, notice.file
 
 
+@pytest.mark.parametrize("seed", [50, 98, 213])
+def test_left_out_slip_never_makes_a_declared_line_negative(seed: int) -> None:
+    # With these seeds the slip drawn was larger than the employment income it came from.
+    for notice in build_notices(seed):
+        assert all(amount >= 0 for amount in notice.declared_lines.values()), notice.file
+
+
 def test_notice_numbers_look_like_real_ones(notices: dict[str, Notice]) -> None:
     numbers = [notice.notice_number for notice in notices.values()]
     assert all(re.fullmatch(r"[QM][A-Z0-9]{10}", number) for number in numbers)

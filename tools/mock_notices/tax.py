@@ -136,7 +136,10 @@ def _leave_out_a_slip(rng: random.Random, income: dict[str, int]) -> dict[str, i
     """
     line = "101" if "101" in income else "130"
     missing = min(rng.randint(150_00, 2_500_00), sum(income.values()) // 4)
-    if line not in income:
+    if line in income:
+        # The slip left out cannot be larger than the income on its line.
+        missing = min(missing, income[line])
+    else:
         biggest = max(income, key=lambda key: income[key])
         income[biggest] -= missing
         income[line] = missing
