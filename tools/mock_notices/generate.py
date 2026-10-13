@@ -2,7 +2,7 @@
 """Generate fake Revenu Québec notices of assessment for Iris (SET-09).
 
 Every notice is fictional and carries the SPECIMEN watermark. The spec is
-docs/03-data/mock-notices-of-assessment.md. Run from this folder:
+docs/04-data/mock-notices-of-assessment.md. Run from this folder:
 
     uv run generate.py                 # writes to <repo>/mock-data/notices
     uv run generate.py --out some/dir
@@ -104,7 +104,7 @@ FRENCH_MONTHS = (
     "décembre",
 )
 
-# File number -> case. Counts follow docs/03-data/mock-notices-of-assessment.md.
+# File number -> case. Counts follow docs/04-data/mock-notices-of-assessment.md.
 CASES: dict[int, str] = (
     {number: "clean" for number in range(1, 31)}
     | {number: "photo" for number in range(31, 46)}

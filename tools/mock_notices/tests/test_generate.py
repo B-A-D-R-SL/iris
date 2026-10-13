@@ -1,5 +1,5 @@
 # AI contribution: 50% or more AI-generated
-"""Checks the mock notice generator against docs/03-data/mock-notices-of-assessment.md."""
+"""Checks the mock notice generator against docs/04-data/mock-notices-of-assessment.md."""
 
 from __future__ import annotations
 
