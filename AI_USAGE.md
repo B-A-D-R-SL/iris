@@ -12,6 +12,7 @@
 | T-00.01.2 Frontend project (#375) | `frontend/src/`, `frontend/package.json`, `frontend/vite.config.ts`, `frontend/eslint.config.js`, `frontend/.prettierrc.json`, `backend/iris/{views.py,urls.py}` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | T-00.01.3 Docker Compose and README (#376) | `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, `backend/adapters/mailer/`, `backend/iris/management/commands/create_dev_admin.py`, `backend/tests/test_platform_setup.py`, `.env.example`, `README.md` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | SET-01 Setup hardening (#373, #374–#376) | `backend/iris/observability.py`, `backend/tests/test_observability.py`, `backend/iris/settings/base.py`, `frontend/src/shared/logger.ts`, `frontend/src/shared/logger.test.ts`, `backend/iris/urls.py` | 50% or more AI-generated | Not yet opened (`setup` branch) |
+| SET-32 SonarQube Cloud quality gate (#595) | `.coveragerc`, `sonar-project.properties`, `.github/workflows/sonarqube-cloud.yml`, `backend/pyproject.toml`, `backend/uv.lock`, `frontend/package.json`, `frontend/pnpm-lock.yaml`, `frontend/vite.config.ts`, `frontend/eslint.config.js`, `README.md`, `docs/guides/sonarqube-cloud.md` | 50% or more AI-generated | Not yet opened (`SET-32-sonarqube-quality-gate` branch) |
 
 ## Examples, verification and corrections
 
@@ -58,3 +59,14 @@
   - Ruff's format report panicked on a file containing a UTF-8 byte-order mark. Replaced the affected production settings file without the marker and formatted relevant Django entry points.
   - The public authentication contract remains a SET-15 decision. Only routing changed; no custom authentication handlers were implemented.
   - Request logs exclude raw URL paths, query strings, request bodies, authorization tokens, and arbitrary message content to avoid exposing personal data.
+
+### SET-32 SonarQube Cloud quality gate (#595)
+
+- **What the AI produced:** SonarQube Cloud scanner configuration for the Django backend and React frontend, backend pytest coverage with PostgreSQL 17 in GitHub Actions, frontend Vitest LCOV coverage, a dedicated PR/main workflow, setup documentation, and AI disclosure updates.
+- **How we verified it:** frontend coverage passed with 2 test files and 5 tests. Frontend ESLint and Prettier checks passed. Django `manage.py check`, Ruff format check, workflow YAML parsing, and `git diff --check` passed.
+- **Problems found and corrections:**
+  - Backend coverage could not fully pass locally because Docker was not running and no local PostgreSQL 17 endpoint was available. The workflow supplies a `postgres:17` service for CI.
+  - Backend Cobertura paths were initially package-relative. Moved coverage configuration to root `.coveragerc` and run coverage from the repository root so paths match the SonarQube Cloud scan.
+  - Frontend LCOV paths were initially relative to `frontend/`. Set the Vitest LCOV reporter `projectRoot` to the repository root so `SF:` paths start with `frontend/src/`.
+  - Frontend coverage tooling cleanup: ESLint scanned generated coverage HTML after local coverage runs. The generated `coverage/` directory is ignored while source-code linting rules remain unchanged.
+  - Backend Ruff lint still reports the pre-existing `manage.py` executable-bit issue (`EXE001`). This was not changed as part of SET-32.

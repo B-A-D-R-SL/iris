@@ -108,6 +108,7 @@ Backend source code is mounted directly into its container, allowing Django to r
 
 ```bash
 docker compose exec backend python -m pytest
+docker compose exec backend python -m pytest --cov=iris --cov=adapters --cov-report=xml:coverage.xml --cov-report=term-missing
 docker compose exec backend ruff check .
 docker compose exec backend ruff format --check .
 docker compose exec backend mypy .
@@ -119,12 +120,17 @@ docker compose exec backend python manage.py makemigrations --check --dry-run
 
 ```bash
 docker compose exec frontend pnpm test
+docker compose exec frontend pnpm test:coverage
 docker compose exec frontend pnpm build
 docker compose exec frontend pnpm lint
 docker compose exec frontend pnpm format:check
 ```
 
 The TypeScript application and Vite configuration use strict compiler checking.
+
+### SonarQube Cloud
+
+SonarQube Cloud analysis runs through `.github/workflows/sonarqube-cloud.yml` and imports backend Cobertura XML plus frontend LCOV coverage. Required project variables, secrets, and administrator setup steps are documented in `docs/guides/sonarqube-cloud.md`.
 
 ### Email Testing
 
