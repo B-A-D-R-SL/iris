@@ -12,7 +12,7 @@ Needs [uv](https://docs.astral.sh/uv/). From this folder:
 uv run generate.py                  # writes to <repo>/mock-data/notices/
 uv run generate.py --out /tmp/notices
 uv run generate.py --seed 7         # different people, same structure (do not commit)
-uv run pytest                       # 22 checks, about 30 seconds
+uv run pytest                       # 26 checks, about 30 seconds
 ```
 
 From the repository root: `uv run --project tools/mock_notices tools/mock_notices/generate.py`.
@@ -41,7 +41,7 @@ Read the files with the `csv` module (UTF-8, no BOM). Amounts are integer cents;
 | `tax.py` | The TP-1 lines of `Détail des calculs` in both columns (`calculate`), and the changed returns where a slip was left out |
 | `layout.py` | The two-page PDF (reportlab), with the watermark on every page. The layout follows a redacted sample notice; see the spec's "Compared with a real notice" section |
 | `photos.py` | Turns a notice PDF into a phone photo (Pillow): each page rendered at 110 dpi with pypdfium2, uneven light, rotated −7° to +7°, laid side by side with a shadow on a table background, blur, JPEG quality 60, saved as PNG. The unreadable photo is out of focus instead (blur radius 6, JPEG quality 20): the values are lost but the large watermark stays legible |
-| `tests/test_generate.py` | Reproducibility, counts and cases, two pages with watermark and footer, masked identification number, cover page and line 199 (`Montant établi`) equal `truth.csv`, changed returns, columns that add up, notice number format, edge cases, name and address matching rules on `applicants.csv`, committed output up to date |
+| `tests/test_generate.py` | Reproducibility, counts and cases, two pages with watermark and footer, masked identification number, cover page and line 199 (`Montant établi`) equal `truth.csv`, changed returns, columns that add up, no negative declared amount with other seeds, notice number format, edge cases, name and address matching rules on `applicants.csv`, committed output up to date byte for byte, a failed run keeps the previous files |
 
 ## Changing the cases
 
