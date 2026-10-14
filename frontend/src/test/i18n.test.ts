@@ -59,16 +59,28 @@ describe("SET-13 translations", () => {
     }
   });
 
-  it("uses area.screen.element for new keys", () => {
+  it("uses three-part keys with documented four-part option groups", () => {
     const segment = /^[a-z][a-zA-Z0-9]*$/;
-    for (const key of Object.keys(english)) {
-      if (legacyKeys.has(key)) continue;
-      const parts = key.split(".");
-      expect(parts.length, key).toBeGreaterThanOrEqual(3);
-      expect(
-        parts.every((part) => segment.test(part)),
-        key,
-      ).toBe(true);
+    const optionGroups = new Set([
+      "household.registrationMembers.relations",
+      "store.partnerApplication.businessTypes",
+      "store.partnerApplication.donationFrequency",
+      "furniture.offer.conditionOptions",
+    ]);
+    for (const [language, entries] of [
+      ["en", english],
+      ["fr", french],
+    ] as const) {
+      for (const key of Object.keys(entries)) {
+        if (legacyKeys.has(key)) continue;
+        const parts = key.split(".");
+        const isOptionGroup = optionGroups.has(parts.slice(0, 3).join("."));
+        expect(parts.length, `${language}: ${key}`).toBe(isOptionGroup ? 4 : 3);
+        expect(
+          parts.every((part) => segment.test(part)),
+          `${language}: ${key}`,
+        ).toBe(true);
+      }
     }
   });
 

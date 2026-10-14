@@ -203,7 +203,16 @@ Labels from `forms-and-fields.md`, grouped by form. Repeated labels are kept whe
 
 ## Translation keys
 
-Keys use `area.screen.element`. Use camelCase for names containing more than one word.
+Keys use exactly three segments: `area.screen.element`. Use camelCase for names containing more than one word.
+
+Grouped option labels use exactly four segments, `area.screen.element.option`, for these groups:
+
+- `household.registrationMembers.relations`
+- `store.partnerApplication.businessTypes`
+- `store.partnerApplication.donationFrequency`
+- `furniture.offer.conditionOptions`
+
+For example, `household.registrationMembers.relations.spousePartner` identifies an option under the relationship field. Other new keys must use three segments; additional nesting is not allowed. Original homepage and backend keys predate this convention and remain unchanged.
 
 | Key | Français | English |
 | --- | --- | --- |
