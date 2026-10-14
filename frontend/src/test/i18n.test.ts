@@ -6,6 +6,12 @@ import fr from "../shared/i18n/fr.json";
 
 type TranslationTree = { [key: string]: string | TranslationTree };
 
+/**
+ * Flattens nested translations into dot-separated keys mapped to their values.
+ * @param tree Translation entries to flatten.
+ * @param prefix Parent key path prepended to each entry, if provided.
+ * @returns A map of translation key paths to translated strings.
+ */
 function flatten(tree: TranslationTree, prefix = ""): Record<string, string> {
   const result: Record<string, string> = {};
 
