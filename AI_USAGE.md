@@ -10,6 +10,7 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | Claude Code (Anthropic) | Writing code and documents for an assigned issue in the repository, under the owner's direction; the owner reviews, tests and commits | All team members |
 | ChatGPT (OpenAI) | Generating and refining code, tests, configurations, and documentation for the backend, frontend, and Docker development environment. Also used for debugging, troubleshooting, and verification. | Owner of #374, #375, #376 |
 | CodeRabbit | Automated review comments on pull requests (in addition to a teammate's review) | All pull requests |
+| ChatGPT (OpenAI) | French/English terminology, wording consistency, shared translation content, translation validation tests, and PR-readiness review for SET-13. | Owner of #404 |
 
 ## How we declare AI-generated code
 
@@ -28,6 +29,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | T-00.01.3 Docker Compose and README (#376) | `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, `backend/adapters/mailer/`, `backend/iris/management/commands/create_dev_admin.py`, `backend/tests/test_platform_setup.py`, `.env.example`, `README.md` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | SET-01 Setup hardening (#373, #374–#376) | `backend/iris/observability.py`, `backend/tests/test_observability.py`, `backend/iris/settings/base.py`, `frontend/src/shared/logger.ts`, `frontend/src/shared/logger.test.ts`, `backend/iris/urls.py` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | SET-09 Mock notices of assessment (#397) | `tools/mock_notices/{generate.py,notices.py,tax.py,layout.py,photos.py,tests/test_generate.py,pyproject.toml,README.md}`, `docs/04-data/mock-notices-of-assessment.md` | 50% or more AI-generated | [#592](https://github.com/B-A-D-R-SL/iris/pull/592) |
+| SET-13 Glossary and French/English terminology (#404) | `docs/01-project/glossary.md`, `frontend/src/shared/i18n/en.json`, `frontend/src/shared/i18n/fr.json`, `frontend/src/test/i18n.test.ts` | 50% or more AI-generated | [#594](https://github.com/B-A-D-R-SL/iris/pull/594) |
 
 ## Examples, verification and corrections
 
@@ -81,6 +83,15 @@ At least half of the AI-assisted features need an example here. For each one:
   - Ruff's format report panicked on a file containing a UTF-8 byte-order mark. Replaced the affected production settings file without the marker and formatted relevant Django entry points.
   - The public authentication contract remains a SET-15 decision. Only routing changed; no custom authentication handlers were implemented.
   - Request logs exclude raw URL paths, query strings, request bodies, authorization tokens, and arbitrary message content to avoid exposing personal data.
+
+### SET-13 Glossary and French/English terminology (#404)
+
+- **What the AI produced:** 50% or more AI-generated translation support for French/English terminology, wording consistency, shared translation content, and translation validation tests.
+- **How we verified it:** compared terminology against the SET-13 acceptance criteria, checked that the glossary includes one French and one English wording per term, verified that shared translation keys match across languages, and ran the frontend tests, build, lint, and formatting checks.
+- **Problems found and corrections:**
+  - Kept legacy homepage/backend keys unchanged because they predate the `area.screen.element` convention.
+  - Standardized new translation keys to `area.screen.element` with camelCase segments for multi-word names.
+  - Reviewed French wording for project-specific terms such as B.A.D.R., notices of assessment, pickup, household files, and staff review.
 
 ### SET-09 Mock notices of assessment (#397, #398, #399, #400)
 
