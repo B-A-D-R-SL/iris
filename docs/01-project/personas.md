@@ -2,7 +2,7 @@
 
 ## Overview
 
-Trait d'Union serves users with different needs, responsibilities, and levels of familiarity with community services. The personas below represent the main user types considered when designing the platform.
+Iris serves users with different needs, responsibilities, and levels of familiarity with community services. The personas below represent the main user types considered when designing the platform.
 
 The platform is designed around three primary groups:
 
@@ -16,7 +16,7 @@ These personas help guide interface decisions, user flows, accessibility conside
 
 ## Beneficiary Personas
 
-Beneficiaries are individuals and families with limited financial resources who use Trait d'Union to access available food and other essential goods. Different household situations, language needs, schedules, and familiarity with community services can significantly affect how they interact with the platform.
+Beneficiaries are individuals and families with limited financial resources who use Iris to access available food and other essential goods. Different household situations, language needs, schedules, and familiarity with community services can significantly affect how they interact with the platform.
 
 ### Sarah — Single Parent
 
@@ -44,7 +44,7 @@ Lina represents a newcomer household that may face language barriers and may be 
 
 ## Business / Partner Persona
 
-Businesses and partner organizations provide the supply side of Trait d'Union by publishing available goods, specifying quantities and pickup periods, managing active listings, and completing pickups.
+Businesses and partner organizations provide the supply side of Iris by publishing available goods, specifying quantities and pickup periods, managing active listings, and completing pickups.
 
 ### Marc — Grocery Store Partner
 
@@ -68,7 +68,7 @@ Maria represents B.A.D.R. staff responsible for reviewing beneficiary informatio
 
 ## How the Personas Inform the Design
 
-The personas are used throughout the design process to ensure that Trait d'Union supports the needs of each major user group.
+The personas are used throughout the design process to ensure that Iris supports the needs of each major user group.
 
 They influence decisions such as:
 
