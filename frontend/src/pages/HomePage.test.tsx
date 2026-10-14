@@ -1,3 +1,4 @@
+// AI contribution: 50% or more AI-generated
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -45,6 +46,7 @@ describe("Iris homepage", () => {
     renderHomePage();
 
     expect(screen.getByRole("heading", { name: "Bienvenue sur Iris" })).toBeInTheDocument();
+    expect(document.documentElement.lang).toBe("fr");
   });
 
   it("switches from French to English", async () => {
@@ -53,6 +55,7 @@ describe("Iris homepage", () => {
     await userEvent.click(screen.getByRole("button", { name: "English" }));
 
     expect(screen.getByRole("heading", { name: "Welcome to Iris" })).toBeInTheDocument();
+    expect(document.documentElement.lang).toBe("en");
   });
 
   it("shows connected when the backend responds", async () => {

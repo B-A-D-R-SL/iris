@@ -1,3 +1,4 @@
+// AI contribution: 50% or more AI-generated
 import { Route, Routes } from "react-router";
 import { HomePage } from "../pages/HomePage";
 

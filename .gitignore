@@ -45,6 +45,7 @@ dist/
 build/
 .vite/
 *.tsbuildinfo
+.pnpm-store/
 
 # ==========================================
 # IDEs
