@@ -132,7 +132,7 @@ The TypeScript application and Vite configuration use strict compiler checking.
 
 ### Continuous Integration
 
-`.github/workflows/ci.yml` runs on every pull request (whatever its target branch) and on every push to `main`. It has two jobs, which are the required checks on `main`:
+`.github/workflows/ci.yml` runs on every pull request (whatever its target branch) and on every push to `main`. It has two jobs, `backend` and `frontend`, which the `main` ruleset (#381) is to require before a merge:
 
 - **backend**: ruff lint and format, mypy, import-linter module boundaries, missing migrations, pytest against PostgreSQL 17 with at least 70% total coverage, pip-audit.
 - **frontend**: ESLint, Prettier, `tsc`, Vitest with coverage, production build, `pnpm audit` (high and critical vulnerabilities fail).

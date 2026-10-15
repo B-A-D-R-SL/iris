@@ -1,6 +1,7 @@
 # AI contribution: 50% or more AI-generated
-# SET-02 (#378). The job names "backend" and "frontend" are the required status
-# checks in the main ruleset: rename them there too if they ever change here.
+# SET-02 (#378). The job names "backend" and "frontend" are meant to be the required
+# status checks of the main ruleset (#381): rename them there too if they change here.
+# Actions are pinned to full commit SHAs; the comment gives the release.
 name: CI
 
 on:
@@ -43,38 +44,42 @@ jobs:
       DJANGO_SECRET_KEY: iris-ci-only-not-a-secret
       DATABASE_URL: postgresql://iris:iris_ci_password@localhost:5432/iris
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           version: "0.12.23"
           python-version: "3.13"
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
 
+      # Install exactly what uv.lock says, from wheels only (no setup scripts run),
+      # then call the tools from that environment so nothing is resolved again.
       - name: Install dependencies
-        run: uv sync --locked
+        run: |
+          uv sync --locked --no-build
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Lint (ruff)
-        run: uv run ruff check --output-format=github .
+        run: ruff check --output-format=github .
 
       - name: Format (ruff)
-        run: uv run ruff format --check .
+        run: ruff format --check .
 
       - name: Type check (mypy)
-        run: uv run mypy .
+        run: mypy .
 
       - name: Module boundaries (import-linter)
-        run: uv run lint-imports
+        run: lint-imports
 
       - name: Missing migrations
-        run: uv run python manage.py makemigrations --check --dry-run
+        run: python manage.py makemigrations --check --dry-run
 
       - name: Tests with coverage (minimum 70%)
-        run: uv run pytest --cov --cov-report=term
+        run: pytest --cov --cov-report=term
 
       - name: Dependency audit (pip-audit)
-        run: uv run pip-audit --strict
+        run: pip-audit --strict
 
   frontend:
     runs-on: ubuntu-latest
@@ -83,13 +88,13 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
           version: 10.34.6
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 24
           cache: pnpm
