@@ -30,6 +30,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-01 Setup hardening (#373, #374–#376) | `backend/iris/observability.py`, `backend/tests/test_observability.py`, `backend/iris/settings/base.py`, `frontend/src/shared/logger.ts`, `frontend/src/shared/logger.test.ts`, `backend/iris/urls.py` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | SET-09 Mock notices of assessment (#397) | `tools/mock_notices/{generate.py,notices.py,tax.py,layout.py,photos.py,tests/test_generate.py,pyproject.toml,README.md}`, `docs/04-data/mock-notices-of-assessment.md` | 50% or more AI-generated | [#592](https://github.com/B-A-D-R-SL/iris/pull/592) |
 | SET-13 Glossary and French/English terminology (#404) | `docs/01-project/glossary.md`, `frontend/src/shared/i18n/en.json`, `frontend/src/shared/i18n/fr.json`, `frontend/src/test/i18n.test.ts` | 50% or more AI-generated | [#594](https://github.com/B-A-D-R-SL/iris/pull/594) |
+| SET-02 CI workflow and branch protection (#378, #379, #380, #381) | `.github/workflows/ci.yml`, `backend/pyproject.toml` (coverage and import-linter settings), `frontend/vite.config.ts` (coverage settings), `frontend/package.json` (scripts), `README.md` (checks and CI section) | 50% or more AI-generated | Not yet opened |
 
 ## Examples, verification and corrections
 
@@ -83,6 +84,15 @@ At least half of the AI-assisted features need an example here. For each one:
   - Ruff's format report panicked on a file containing a UTF-8 byte-order mark. Replaced the affected production settings file without the marker and formatted relevant Django entry points.
   - The public authentication contract remains a SET-15 decision. Only routing changed; no custom authentication handlers were implemented.
   - Request logs exclude raw URL paths, query strings, request bodies, authorization tokens, and arbitrary message content to avoid exposing personal data.
+
+### SET-02 CI workflow and branch protection (#378, #379, #380, #381)
+
+- **What the AI produced:** the `backend` and `frontend` jobs in `.github/workflows/ci.yml`, the coverage (70% minimum) and import-linter settings in `backend/pyproject.toml`, the Vitest coverage settings, the `typecheck` and `test:coverage` scripts, and the README CI section. The `main` ruleset is set in the GitHub settings, not in code.
+- **How we verified it:** ran every CI step locally against PostgreSQL 17 (Docker Compose) and Node 24 before opening the pull request; backend total coverage is 74%. Checked that each gate fails on bad input: a ruff error, a failing test, coverage below the minimum and a TypeScript error all exit non-zero. The pull request's own CI run is the final check.
+- **Problems found and corrections:**
+  - uv picked Python 3.14 for the backend on a Windows machine because the root `.python-version` is not seen from `backend/`. Added `backend/.python-version` (3.13) so local runs match CI and the Docker image; CI also pins 3.13.
+  - Prettier reported every frontend file on Windows. The cause is `core.autocrlf` (CRLF in the working copy), not style: `prettier --check --end-of-line auto` passes, and the Linux runner checks out LF.
+  - `backend/modules/` does not exist yet, so the first import-linter contract only keeps `adapters/` independent of the Django project package. The module contracts are SET-14's job.
 
 ### SET-13 Glossary and French/English terminology (#404)
 
