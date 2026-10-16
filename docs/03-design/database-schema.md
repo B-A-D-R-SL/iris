@@ -258,10 +258,17 @@ An adult member income-evidence record or a non-filing explanation.
 
 **Documented constraints and business rules**
 
+- A member may retain notice records from different tax years.
+- Eligibility uses the appropriate verified notice for the relevant
+  tax year, rather than adding income across different years.
+- Handling corrected or replacement notices for the same tax year
+  remains to be decided.
+
 | Rule | Enforcement |
 | --- | --- |
 | Each adult needs accepted evidence or a required non-filing explanation for approval. | Document and approval services. |
 | Record line 199 assessed income in integer cents. Do not extract SIN or document numbers. | Document entry and reading. |
+
 
 Sources: [Issue #468](https://github.com/B-A-D-R-SL/iris/issues/468), [Issue #474](https://github.com/B-A-D-R-SL/iris/issues/474).
 
@@ -475,6 +482,7 @@ Sources: [Issue #538](https://github.com/B-A-D-R-SL/iris/issues/538), [Issue #54
 | Store | One-to-many | User | Each User has zero or one Store; a Store has zero or many Users. |
 | Store | One-to-many | Invitation | Each Invitation has zero or one Store; a Store has zero or many Invitations. |
 | Household | One-to-many | Member | Each Member belongs to one Household; draft households may have zero or many Member rows. |
+| Member | One-to-many | IncomeNotice | Each IncomeNotice belongs to one Member. A Member may have zero or many notices, including notices from different tax years. |
 | Household | One-to-many | EligibilityDecision | Each decision belongs to one Household; a Household may have many decisions. |
 | RuleSetVersion | One-to-many | EligibilityDecision | Each decision uses one rule version; a version may be used by many decisions. |
 | Store | One-to-many | Listing | Each Listing belongs to one Store; a Store may have many Listings. |
@@ -495,12 +503,14 @@ erDiagram
     Store o|--o{ User : "optional store assignment"
     Store o|--o{ Invitation : "optional store assignment"
     Household ||--o{ Member : "contains"
+    Member ||--o{ IncomeNotice : "provides"
     Household ||--o{ EligibilityDecision : "has decisions"
     RuleSetVersion ||--o{ EligibilityDecision : "used by"
     Store ||--o{ Listing : "posts"
     Category ||--o{ Listing : "categorizes"
     Household ||--o{ Reservation : "makes"
     Listing ||--o{ Reservation : "reserved through"
+    
 
     User {
         string email UK "Unique sign-in email."

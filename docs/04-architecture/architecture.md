@@ -399,7 +399,10 @@ sequenceDiagram
 
 ### 7. Sequence — partner onboarding
 
-Please note that we are notifying the store manager in case of approval or rejection. if informing a second person is required, the sequence diagram should be modified
+The proposed store manager is the contact designated in the partner
+application. Approval and rejection notifications use that person's
+recorded email address. Receiving a rejection email does not require
+an Iris account or invitation.
 
 ```mermaid
 sequenceDiagram
@@ -409,7 +412,7 @@ sequenceDiagram
     participant AC as Accounts service
     participant A as Audit service
     participant N as Notification job
-    actor M as Invited store manager
+    actor M as Proposed store manager
 
     B->>S: submit_application(form)
     S->>S: Validate and save submitted application
@@ -438,7 +441,7 @@ sequenceDiagram
         S->>S: Save rejected status and required reason
         S->>A: Record rejection
         S-->>N: Queue decision email after commit
-        N-->>M: Notify store manager of rejection 
+        N-->>M: Notify proposed store manager of rejection 
     end
 ```
 
