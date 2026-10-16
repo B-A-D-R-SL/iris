@@ -68,5 +68,6 @@ extend-select = [
 # Magic-number check applies to domain/ only ("!" = every file NOT matching)
 "!**/domain/**" = ["PLR2004"]
 
-# Generated migrations may contain naive datetime defaults and Decimal fields from the past
-"**/migrations/**" = ["DTZ", "TID251"]
+# Generated migrations contain Django's mutable class attributes and may contain
+# naive datetime defaults and Decimal fields from the past.
+"**/migrations/**" = ["DTZ", "RUF012", "TID251"]
