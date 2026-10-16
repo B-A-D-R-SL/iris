@@ -1,4 +1,4 @@
-AI usage: 50% or more AI-generated.
+<!-- AI usage: 50% or more AI-generated. -->
 # Iris database schema — Release 1 draft
 
 This is a logical design draft based on the documented requirements. Field labels describe the information to store, and types describe logical values. This document does not establish a deployed SQL schema.

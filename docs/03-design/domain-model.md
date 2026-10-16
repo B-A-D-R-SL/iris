@@ -38,7 +38,7 @@ Partner application approval and invitation acceptance are shown separately as b
 Audit events and email delivery records appear as supporting concepts without implying direct database links to every model.
 
 ```mermaid
-%%{init: {"theme": "dark"}}%%
+
 flowchart LR
     subgraph Partners["Accounts and partners"]
         User["User account<br/>User"]
@@ -89,7 +89,7 @@ flowchart LR
 These arrows describe what the application does. They do not establish stored links between an application, its resulting store, its invitation, and the resulting user.
 
 ```mermaid
-%%{init: {"theme": "dark"}}%%
+
 flowchart LR
     PartnerApplication["Partner application"]
     Store["Partner store"]
