@@ -98,6 +98,7 @@ dependencies = [
     { name = "django-environ" },
     { name = "djangorestframework" },
     { name = "drf-spectacular" },
+    { name = "jsonschema" },
     { name = "procrastinate", extra = ["django"] },
     { name = "psycopg", extra = ["binary"] },
 ]
@@ -110,6 +111,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-django" },
     { name = "ruff" },
+    { name = "types-jsonschema" },
 ]
 
 [package.metadata]
@@ -119,6 +121,7 @@ requires-dist = [
     { name = "django-environ", specifier = ">=0.14.0" },
     { name = "djangorestframework", specifier = ">=3.18.3" },
     { name = "drf-spectacular", specifier = ">=0.30.0" },
+    { name = "jsonschema", specifier = ">=4.26,<5" },
     { name = "procrastinate", extras = ["django"], specifier = ">=3.10.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.6" },
 ]
@@ -131,6 +134,7 @@ dev = [
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-django", specifier = ">=4.14.0" },
     { name = "ruff", specifier = ">=0.16.10" },
+    { name = "types-jsonschema", specifier = ">=4.26,<5" },
 ]
 
 [[package]]
@@ -965,6 +969,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/5f/d3/3f06a1006f2261d1342aefb3c71eed02f5d4ca5bdbecd86ebc12ad38306e/sqlparse-0.6.0.tar.gz", hash = "sha256:113c35c75365ab9cc9c7231d68c6428fb11c085fc8e9eb1ad659b7ddbf6cd2b9", size = 178477, upload-time = "2026-08-13T19:16:06.396Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d9/50/f00935da0ec7cbf325f8dc4f772ae46fbc7b672dd62876e73f0a94adda57/sqlparse-0.6.0-py3-none-any.whl", hash = "sha256:b861c0288ce2fa56209a9a6412d2e066ac664b3873b89c26c9d8415e8e32996f", size = 50070, upload-time = "2026-08-13T19:16:04.062Z" },
+]
+
+[[package]]
+name = "types-jsonschema"
+version = "4.26.0.20261006"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "referencing" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/29/d2/1f742605f5a6d39f993134885b8de41c98af606871d3ebddaf3e776bd1eb/types_jsonschema-4.26.0.20261006.tar.gz", hash = "sha256:3eb7db61b6819d40addfdaac7173e749071a7d4a9a4394f0c844598ec84b2500", size = 16843, upload-time = "2026-10-06T08:16:07.318Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8b/a0/4f2e3c0dc3d5cad958006f2e0307065cc8fe4fbf0393ff0b69d55ee9bbe5/types_jsonschema-4.26.0.20261006-py3-none-any.whl", hash = "sha256:29301f4e65e3928540cdf5e23ad716e38bb0c0b416a48dada213edd3d70206ec", size = 16113, upload-time = "2026-10-06T08:16:06.355Z" },
 ]
 
 [[package]]

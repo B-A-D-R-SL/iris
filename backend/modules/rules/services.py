@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from modules.rules.domain.schemas import validate_rule_values
 from modules.rules.models import RuleSetVersion
 
 
@@ -27,7 +28,7 @@ def publish(
     number to answer historical questions.
     """
     normalized_rule_type = _validate_rule_type(rule_type)
-    _validate_values(values)
+    _validate_values(normalized_rule_type, values)
     effective_at = timezone.now() if effective_from is None else effective_from
     _validate_effective_from(effective_at)
 
@@ -39,7 +40,7 @@ def publish(
             .first()
         )
         next_version = 1 if latest_version is None else latest_version.version + 1
-        return RuleSetVersion.objects.create(
+        return RuleSetVersion.objects.create(  # type: ignore[misc]
             rule_type=normalized_rule_type,
             version=next_version,
             values=values,
@@ -56,9 +57,10 @@ def _validate_rule_type(rule_type: str) -> str:
     return normalized_rule_type
 
 
-def _validate_values(values: dict[str, Any]) -> None:
+def _validate_values(rule_type: str, values: dict[str, Any]) -> None:
     if not isinstance(values, dict):
         raise ValidationError("Rule values must be a JSON object.")
+    validate_rule_values(rule_type, values)
 
 
 def _validate_effective_from(effective_from: datetime) -> None:
