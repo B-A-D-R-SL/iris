@@ -105,3 +105,34 @@ At least half of the AI-assisted features need an example here. For each one:
   - A test expected the double space before the postal code, but PDF text extraction collapses it. The test now normalizes spaces.
   - The first layout (one page, four summary lines, ISO dates, `Last, First` name) was invented by the AI and never checked against a real notice. After it was asked, it was compared with a redacted sample notice (tax year 2018) and redesigned: two pages (cover page, then `Détail des calculs` with `Montant déclaré` / `Montant établi`), envelope-window address, notice number, French dates, footer box on every page, and some changed returns. Line labels now come from the 2025 TP-1. Photos show both pages side by side.
   - CodeRabbit found two bugs that only show with other seeds (the committed seed 42 output was not affected). The slip left out of a changed return could be larger than the employment income on line 101, giving a negative declared amount (seeds 50, 98, 213); it is now capped at that income. And `generate()` deleted the previous PDFs and photos before building the notices, so a seed that cannot give every case (533) left the old CSV files with no documents; the notices are now built first. Both have a test.
+ 
+### SET-05 Database schema review and ERD (#384)
+
+- **What the AI produced:** 50% or more AI-generated drafts of the
+  Release 1 database schema, ERD, domain model and migration order.
+- **How we verified it:** documents were read, reviewed and modified
+  to reflect member discussions and the agreed Release 1 scope.
+- **Problems found and corrections:**
+  - Reviewed missing fields and omitted models in the migration order.
+  - Clarified address storage, user names and Django password hashing.
+  - Improved diagram readability and relationship explanations.
+  - Requested consistency between Markdown fields and diagrams.
+  - Left uncertain requirements open for agreement before implementation.
+
+### SET-06 Architecture diagrams
+
+- **What the AI produced:** 50% or more AI-generated architecture
+  documentation, Mermaid diagrams and PNG exports for Release 1.
+- **How we verified it:** documents were read, reviewed and modified
+  following member discussions. Initial diagrams were rendered in
+  Mermaid; final edited sources and exports require a consistency check.
+- **Problems found and corrections:**
+  - Connected the notice of assessment to Iris in the system context.
+  - Clarified approval and rejection notifications to the proposed
+    store manager.
+  - Revised the dependency design so Eligibility receives decision
+    inputs without calling back into Households.
+  - Documented proposed failed-pickup and no-show handling, with final
+    rules to be agreed before implementation.
+  - Kept later features, including strikes and AI registration,
+    outside the active Release 1 flows.
