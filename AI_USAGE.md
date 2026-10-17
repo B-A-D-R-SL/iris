@@ -138,7 +138,7 @@ At least half of the AI-assisted features need an example here. For each one:
   - Kept later features, including strikes and AI registration,
     outside the active Release 1 flows.
 
-### SET-12 Listing categories and safety lists (#TODO)
+### SET-12 Listing categories and safety lists (#403)
 
 - **What the AI produced:** with Claude Code, the Listings section of `docs/02-requirements/business-rules.md` (16 categories with code, French and English names, food or not and default value; the prohibited items list; how food categories, default values and the "safe and allowed" confirmation are used) and the seed file `backend/modules/categories/data/categories.yaml`, from the team draft and the owner's decisions (publish only the SET-12 section, keep the draft's 16 categories and 8 prohibited items, use the column names of the `categories_category` table).
 - **How we verified it:** compared the category table with the team draft line by line (identical); a script checked that every YAML entry matches the document row in the same order (code, both names, food flag, value in cents, active, sort order) and that the French and English names match the SET-13 `categories` keys in `fr.json` and `en.json`. TODO: list agreed with the team on 2026-10-16.
