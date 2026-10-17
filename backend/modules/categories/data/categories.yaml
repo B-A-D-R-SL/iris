@@ -1,7 +1,7 @@
 # AI contribution: 50% or more AI-generated
 # Listing categories seeded into categories_category (SET-12).
 # Must match docs/02-requirements/business-rules.md#categories: change both together.
-# default_value_cents is in cents ($5 = 500). sort_order follows the table order.
+# default_value_cents is in cents ($5 = 500).
 
 categories:
   - code: fruits_vegetables
@@ -10,7 +10,6 @@ categories:
     is_food: true
     default_value_cents: 500
     is_active: true
-    sort_order: 1
 
   - code: bakery
     name_fr: Boulangerie
@@ -18,7 +17,6 @@ categories:
     is_food: true
     default_value_cents: 400
     is_active: true
-    sort_order: 2
 
   - code: dairy_eggs
     name_fr: Produits laitiers et œufs
@@ -26,7 +24,6 @@ categories:
     is_food: true
     default_value_cents: 600
     is_active: true
-    sort_order: 3
 
   - code: meat_fish
     name_fr: Viandes et poissons
@@ -34,7 +31,6 @@ categories:
     is_food: true
     default_value_cents: 1000
     is_active: true
-    sort_order: 4
 
   - code: prepared_meals
     name_fr: Plats préparés
@@ -42,7 +38,6 @@ categories:
     is_food: true
     default_value_cents: 800
     is_active: true
-    sort_order: 5
 
   - code: dry_goods
     name_fr: Épicerie sèche
@@ -50,7 +45,6 @@ categories:
     is_food: true
     default_value_cents: 400
     is_active: true
-    sort_order: 6
 
   - code: canned_goods
     name_fr: Conserves
@@ -58,7 +52,6 @@ categories:
     is_food: true
     default_value_cents: 300
     is_active: true
-    sort_order: 7
 
   - code: frozen
     name_fr: Surgelés
@@ -66,7 +59,6 @@ categories:
     is_food: true
     default_value_cents: 700
     is_active: true
-    sort_order: 8
 
   - code: beverages
     name_fr: Boissons
@@ -74,7 +66,6 @@ categories:
     is_food: true
     default_value_cents: 300
     is_active: true
-    sort_order: 9
 
   - code: baby_food
     name_fr: Alimentation pour bébé
@@ -82,7 +73,6 @@ categories:
     is_food: true
     default_value_cents: 500
     is_active: true
-    sort_order: 10
 
   - code: hygiene
     name_fr: Hygiène personnelle
@@ -90,7 +80,6 @@ categories:
     is_food: false
     default_value_cents: 500
     is_active: true
-    sort_order: 11
 
   - code: household_cleaning
     name_fr: Produits ménagers
@@ -98,7 +87,6 @@ categories:
     is_food: false
     default_value_cents: 500
     is_active: true
-    sort_order: 12
 
   - code: baby_care
     name_fr: Soins pour bébé
@@ -106,7 +94,6 @@ categories:
     is_food: false
     default_value_cents: 800
     is_active: true
-    sort_order: 13
 
   - code: clothing
     name_fr: Vêtements
@@ -114,7 +101,6 @@ categories:
     is_food: false
     default_value_cents: 1000
     is_active: true
-    sort_order: 14
 
   - code: school_supplies
     name_fr: Fournitures scolaires
@@ -122,7 +108,6 @@ categories:
     is_food: false
     default_value_cents: 500
     is_active: true
-    sort_order: 15
 
   - code: other
     name_fr: Autre
@@ -130,4 +115,3 @@ categories:
     is_food: false
     default_value_cents: 500
     is_active: true
-    sort_order: 16

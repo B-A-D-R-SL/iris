@@ -38,7 +38,7 @@ The `code` is the stable identifier used by the API, the database and the partne
 | `school_supplies` | Fournitures scolaires | School supplies | No | $5 |
 | `other` | Autre | Other | No | $5 |
 
-Categories are shown in the order of this table. Default values are stored in cents (`default_value_cents`, $5 = `500`).
+Default values are stored in cents (`default_value_cents`, $5 = `500`).
 
 ### Prohibited items
 
