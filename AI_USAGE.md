@@ -30,6 +30,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-01 Setup hardening (#373, #374–#376) | `backend/iris/observability.py`, `backend/tests/test_observability.py`, `backend/iris/settings/base.py`, `frontend/src/shared/logger.ts`, `frontend/src/shared/logger.test.ts`, `backend/iris/urls.py` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | SET-09 Mock notices of assessment (#397) | `tools/mock_notices/{generate.py,notices.py,tax.py,layout.py,photos.py,tests/test_generate.py,pyproject.toml,README.md}`, `docs/04-data/mock-notices-of-assessment.md` | 50% or more AI-generated | [#592](https://github.com/B-A-D-R-SL/iris/pull/592) |
 | SET-13 Glossary and French/English terminology (#404) | `docs/01-project/glossary.md`, `frontend/src/shared/i18n/en.json`, `frontend/src/shared/i18n/fr.json`, `frontend/src/test/i18n.test.ts` | 50% or more AI-generated | [#594](https://github.com/B-A-D-R-SL/iris/pull/594) |
+| SET-12 Listing categories and safety lists (#403) | `docs/02-requirements/business-rules.md` (Listings section), `backend/modules/categories/data/categories.yaml` | 50% or more AI-generated | Not yet opened (`feature/SET-12` branch) |
 
 ## Examples, verification and corrections
 
@@ -136,3 +137,13 @@ At least half of the AI-assisted features need an example here. For each one:
     rules to be agreed before implementation.
   - Kept later features, including strikes and AI registration,
     outside the active Release 1 flows.
+
+### SET-12 Listing categories and safety lists (#TODO)
+
+- **What the AI produced:** with Claude Code, the Listings section of `docs/02-requirements/business-rules.md` (16 categories with code, French and English names, food or not and default value; the prohibited items list; how food categories, default values and the "safe and allowed" confirmation are used) and the seed file `backend/modules/categories/data/categories.yaml`, from the team draft and the owner's decisions (publish only the SET-12 section, keep the draft's 16 categories and 8 prohibited items, use the column names of the `categories_category` table).
+- **How we verified it:** compared the category table with the team draft line by line (identical); a script checked that every YAML entry matches the document row in the same order (code, both names, food flag, value in cents, active, sort order) and that the French and English names match the SET-13 `categories` keys in `fr.json` and `en.json`. TODO: list agreed with the team on 2026-10-16.
+- **Problems found and corrections:**
+  - The AI first added French wording for the prohibited items that was not in the team draft. Removed: the list stays as in the draft until the French wording is agreed with the glossary owner (SET-13).
+  - The team draft contradicts itself: the business rules say prohibited items have no category, but US-34 says "categories on the prohibited list cannot be selected". The document follows the business rules; US-34 is to be reworded or confirmed by the team.
+  - The YAML keys follow the column names in the team draft schema (`name_fr`, `is_food`, `is_active`, `sort_order`), while the SET-05 branch uses other names (`french_label`, `food_indicator`, `active_indicator`, no sort order). To be confirmed with the SET-05 and SET-01 owners before merging.
+  - The sentence on the `listing_safety` setting (`prohibited_category_codes`, empty by default) comes from the unmerged SET-07 branch, not the team draft; to be confirmed with the SET-07 owner.
