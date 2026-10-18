@@ -1,0 +1,55 @@
+# AI contribution: 50% or more AI-generated
+# I have drafted a plan, told AI to implement it, and reviewed the code
+# The tracked .githooks/ files are available after merging into main, but Git
+# does not enable them in a fresh clone. Developers must run the one-time
+# `git config --local core.hooksPath .githooks` command from the README.
+# Once enabled in a clone, the hooks keep working on branches created there.
+# This PR check also catches commits from clones without active local hooks;
+# repository admins must require this check to block noncompliant merges.
+
+name: Commit policy
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  commit-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate new commit subjects
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          message_file=$(mktemp)
+          trap 'rm -f "$message_file"' EXIT
+
+          # On the first rollout, earlier branch commits predate this policy.
+          policy_active=false
+          if git cat-file -e "$BASE_SHA:.githooks/commit-msg" 2>/dev/null; then
+            policy_active=true
+          fi
+
+          while IFS= read -r commit; do
+            if [ "$policy_active" = false ]; then
+              if ! git cat-file -e "$commit:.githooks/commit-msg" 2>/dev/null; then
+                continue
+              fi
+              policy_active=true
+            fi
+
+            git show -s --format=%B "$commit" > "$message_file"
+            if ! ./.githooks/commit-msg "$message_file"; then
+              echo "::error::Commit $commit has an invalid subject"
+              exit 1
+            fi
+          done < <(git rev-list --reverse --no-merges "$BASE_SHA..$HEAD_SHA")

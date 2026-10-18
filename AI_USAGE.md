@@ -30,6 +30,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-01 Setup hardening (#373, #374–#376) | `backend/iris/observability.py`, `backend/tests/test_observability.py`, `backend/iris/settings/base.py`, `frontend/src/shared/logger.ts`, `frontend/src/shared/logger.test.ts`, `backend/iris/urls.py` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | SET-09 Mock notices of assessment (#397) | `tools/mock_notices/{generate.py,notices.py,tax.py,layout.py,photos.py,tests/test_generate.py,pyproject.toml,README.md}`, `docs/04-data/mock-notices-of-assessment.md` | 50% or more AI-generated | [#592](https://github.com/B-A-D-R-SL/iris/pull/592) |
 | SET-13 Glossary and French/English terminology (#404) | `docs/01-project/glossary.md`, `frontend/src/shared/i18n/en.json`, `frontend/src/shared/i18n/fr.json`, `frontend/src/test/i18n.test.ts` | 50% or more AI-generated | [#594](https://github.com/B-A-D-R-SL/iris/pull/594) |
+| SET-08.3 Git hooks and commit policy | `.githooks/pre-commit`, `.githooks/commit-msg`, `.gitattributes`, `.github/workflows/commit-policy.yml`, `README.md` | 50% or more AI-generated | Not yet opened |
 
 ## Examples, verification and corrections
 
@@ -136,3 +137,9 @@ At least half of the AI-assisted features need an example here. For each one:
     rules to be agreed before implementation.
   - Kept later features, including strikes and AI registration,
     outside the active Release 1 flows.
+
+### SET-08.3 Git hooks and commit policy
+
+- **What the AI produced:** tracked pre-commit and commit-msg hooks, a pull-request commit-policy check, Git line-ending attributes for the hooks, and setup instructions.
+- **How we verified it:** enabled the tracked hooks in this checkout; used a temporary Git repository to confirm that ordinary invalid messages and staged whitespace fail, `T`, `SET`, `US`, and `ES` messages pass, and a real merge commit succeeds. A second temporary repository exercised the pull-request check: it skipped pre-policy history and rejected a later invalid commit made by bypassing local hooks. Checked shell and workflow syntax; the editor reported no problems.
+- **Problems found and corrections:** Atlassian's examples assume `issue-` branches and use older Python syntax, so the hooks were adapted to Iris's approved ID format. Local hooks cannot enforce policy across other clones by themselves; the pull-request check was added. The first branch already contains a pre-policy commit, so the workflow starts validation when the hook first appears. Making the check required on protected branches still needs repository administrator access.

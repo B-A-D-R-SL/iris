@@ -1,0 +1,11 @@
+#!/bin/sh
+# AI contribution: 50% or more AI-generated
+# I have drafted a plan, told AI to implement it, and reviewed the code
+
+# Check only staged changes, including new files, before creating a commit.
+if ! git diff --cached --check; then
+    echo "pre-commit: fix staged whitespace errors before committing" >&2
+    exit 1
+fi
+
+exit 0
