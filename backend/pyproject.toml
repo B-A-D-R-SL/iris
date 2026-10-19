@@ -16,8 +16,11 @@ dependencies = [
 dev = [
     "django-stubs>=6.1,<6.2",
     "factory-boy>=3.3.3",
+    "import-linter>=2.15",
     "mypy>=2.4.0",
+    "pip-audit>=2.10.1",
     "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
     "pytest-django>=4.14.0",
     "ruff>=0.16.10",
 ]
@@ -37,6 +40,28 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "iris.settings.test"
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["."]
+branch = true
+omit = [".venv/*", "manage.py", "tests/*", "**/tests/*", "**/migrations/*"]
+
+[tool.coverage.report]
+# Team target: at least 70% total backend coverage (CI fails below it)
+fail_under = 70
+show_missing = true
+skip_covered = true
+
+[tool.importlinter]
+root_packages = ["iris", "adapters"]
+
+# Module boundary checks. SET-14 adds the contracts for backend/modules/
+# (modules talk only through services.py and queries.py; domain/ imports no Django).
+[[tool.importlinter.contracts]]
+name = "Adapters do not depend on the Django project package"
+type = "forbidden"
+source_modules = ["adapters"]
+forbidden_modules = ["iris"]
 
 [tool.ruff.lint]
 # Windows Docker bind mounts may report Python files as executable.
@@ -70,3 +95,4 @@ extend-select = [
 
 # Generated migrations may contain naive datetime defaults and Decimal fields from the past
 "**/migrations/**" = ["DTZ", "TID251"]
+
