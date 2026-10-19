@@ -54,6 +54,8 @@ INSTALLED_APPS = [
     "allauth.headless",
     # Background jobs
     "procrastinate.contrib.django",
+    # Iris modules
+    "modules.rules.apps.RulesConfig",
 ]
 
 MIDDLEWARE = [

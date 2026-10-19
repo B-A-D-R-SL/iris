@@ -8,6 +8,7 @@ dependencies = [
     "django-environ>=0.14.0",
     "djangorestframework>=3.18.3",
     "drf-spectacular>=0.30.0",
+    "jsonschema>=4.26,<5",
     "procrastinate[django]>=3.10.0",
     "psycopg[binary]>=3.3.6",
 ]
@@ -23,6 +24,7 @@ dev = [
     "pytest-cov>=7.1.0",
     "pytest-django>=4.14.0",
     "ruff>=0.16.10",
+    "types-jsonschema>=4.26,<5",
 ]
 
 [tool.mypy]
@@ -37,9 +39,13 @@ django_settings_module = "iris.settings.test"
 module = ["environ"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["allauth.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "iris.settings.test"
-testpaths = ["tests"]
+testpaths = ["tests", "modules"]
 
 [tool.coverage.run]
 source = ["."]
@@ -93,6 +99,6 @@ extend-select = [
 # Magic-number check applies to domain/ only ("!" = every file NOT matching)
 "!**/domain/**" = ["PLR2004"]
 
-# Generated migrations may contain naive datetime defaults and Decimal fields from the past
-"**/migrations/**" = ["DTZ", "TID251"]
-
+# Generated migrations contain Django's mutable class attributes and may contain
+# naive datetime defaults and Decimal fields from the past.
+"**/migrations/**" = ["DTZ", "RUF012", "TID251"]
