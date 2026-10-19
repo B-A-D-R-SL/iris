@@ -30,6 +30,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-01 Setup hardening (#373, #374–#376) | `backend/iris/observability.py`, `backend/tests/test_observability.py`, `backend/iris/settings/base.py`, `frontend/src/shared/logger.ts`, `frontend/src/shared/logger.test.ts`, `backend/iris/urls.py` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | SET-09 Mock notices of assessment (#397) | `tools/mock_notices/{generate.py,notices.py,tax.py,layout.py,photos.py,tests/test_generate.py,pyproject.toml,README.md}`, `docs/04-data/mock-notices-of-assessment.md` | 50% or more AI-generated | [#592](https://github.com/B-A-D-R-SL/iris/pull/592) |
 | SET-13 Glossary and French/English terminology (#404) | `docs/01-project/glossary.md`, `frontend/src/shared/i18n/en.json`, `frontend/src/shared/i18n/fr.json`, `frontend/src/test/i18n.test.ts` | 50% or more AI-generated | [#594](https://github.com/B-A-D-R-SL/iris/pull/594) |
+| SET-02 CI workflow and branch protection (#378, #379, #380, #381) | `.github/workflows/ci.yml`, `backend/pyproject.toml` (coverage and import-linter settings), `frontend/vite.config.ts` (coverage settings), `frontend/package.json` (scripts), `README.md` (checks and CI section) | 50% or more AI-generated | Not yet opened |
 
 ## Examples, verification and corrections
 
@@ -84,6 +85,17 @@ At least half of the AI-assisted features need an example here. For each one:
   - The public authentication contract remains a SET-15 decision. Only routing changed; no custom authentication handlers were implemented.
   - Request logs exclude raw URL paths, query strings, request bodies, authorization tokens, and arbitrary message content to avoid exposing personal data.
 
+### SET-02 CI workflow and branch protection (#378, #379, #380, #381)
+
+- **What the AI produced:** the `backend` and `frontend` jobs in `.github/workflows/ci.yml`, the coverage (70% minimum) and import-linter settings in `backend/pyproject.toml`, the Vitest coverage settings, the `typecheck` and `test:coverage` scripts, and the README CI section. The `main` ruleset (#381) is configured in the GitHub settings after this merges, not in code.
+- **How we verified it:** ran every CI step locally against PostgreSQL 17 (Docker Compose) and Node 24 before opening the pull request; backend total coverage is 74%. Checked that each gate fails on bad input: a ruff error, a failing test, coverage below the minimum and a TypeScript error all exit non-zero. The pull request's own CI run is the final check.
+- **Problems found and corrections:**
+  - uv picked Python 3.14 for the backend on a Windows machine because the root `.python-version` is not seen from `backend/`. Added `backend/.python-version` (3.13) so local runs match CI and the Docker image; CI also pins 3.13.
+  - Prettier reported every frontend file on Windows. The cause is `core.autocrlf` (CRLF in the working copy), not style: `prettier --check --end-of-line auto` passes, and the Linux runner checks out LF.
+  - The first CI run failed: `backend/manage.py` has a shebang but was stored in git as not executable, which ruff (EXE001) only reports on Linux. Marked it executable in git (`git update-index --chmod=+x`).
+  - SonarCloud failed the security rating on `ci.yml`: third-party actions not pinned to a commit and `uv run` calls that can re-resolve or build packages. Pinned every action to a full SHA, installed with `uv sync --locked --no-build` and called the tools straight from the synced environment.
+  - `backend/modules/` does not exist yet, so the first import-linter contract only keeps `adapters/` independent of the Django project package. The module contracts are SET-14's job.
+
 ### SET-13 Glossary and French/English terminology (#404)
 
 - **What the AI produced:** 50% or more AI-generated translation support for French/English terminology, wording consistency, shared translation content, and translation validation tests.
@@ -105,3 +117,34 @@ At least half of the AI-assisted features need an example here. For each one:
   - A test expected the double space before the postal code, but PDF text extraction collapses it. The test now normalizes spaces.
   - The first layout (one page, four summary lines, ISO dates, `Last, First` name) was invented by the AI and never checked against a real notice. After it was asked, it was compared with a redacted sample notice (tax year 2018) and redesigned: two pages (cover page, then `Détail des calculs` with `Montant déclaré` / `Montant établi`), envelope-window address, notice number, French dates, footer box on every page, and some changed returns. Line labels now come from the 2025 TP-1. Photos show both pages side by side.
   - CodeRabbit found two bugs that only show with other seeds (the committed seed 42 output was not affected). The slip left out of a changed return could be larger than the employment income on line 101, giving a negative declared amount (seeds 50, 98, 213); it is now capped at that income. And `generate()` deleted the previous PDFs and photos before building the notices, so a seed that cannot give every case (533) left the old CSV files with no documents; the notices are now built first. Both have a test.
+ 
+### SET-05 Database schema review and ERD (#384)
+
+- **What the AI produced:** 50% or more AI-generated drafts of the
+  Release 1 database schema, ERD, domain model and migration order.
+- **How we verified it:** documents were read, reviewed and modified
+  to reflect member discussions and the agreed Release 1 scope.
+- **Problems found and corrections:**
+  - Reviewed missing fields and omitted models in the migration order.
+  - Clarified address storage, user names and Django password hashing.
+  - Improved diagram readability and relationship explanations.
+  - Requested consistency between Markdown fields and diagrams.
+  - Left uncertain requirements open for agreement before implementation.
+
+### SET-06 Architecture diagrams
+
+- **What the AI produced:** 50% or more AI-generated architecture
+  documentation, Mermaid diagrams and PNG exports for Release 1.
+- **How we verified it:** documents were read, reviewed and modified
+  following member discussions. Initial diagrams were rendered in
+  Mermaid; final edited sources and exports require a consistency check.
+- **Problems found and corrections:**
+  - Connected the notice of assessment to Iris in the system context.
+  - Clarified approval and rejection notifications to the proposed
+    store manager.
+  - Revised the dependency design so Eligibility receives decision
+    inputs without calling back into Households.
+  - Documented proposed failed-pickup and no-show handling, with final
+    rules to be agreed before implementation.
+  - Kept later features, including strikes and AI registration,
+    outside the active Release 1 flows.

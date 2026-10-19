@@ -107,24 +107,37 @@ Backend source code is mounted directly into its container, allowing Django to r
 ### Backend Checks
 
 ```bash
-docker compose exec backend python -m pytest
+docker compose exec backend python -m pytest --cov
 docker compose exec backend ruff check .
 docker compose exec backend ruff format --check .
 docker compose exec backend mypy .
 docker compose exec backend python manage.py check
 docker compose exec backend python manage.py makemigrations --check --dry-run
+docker compose exec backend lint-imports
+docker compose exec backend pip-audit --strict
 ```
 
 ### Frontend Checks
 
 ```bash
-docker compose exec frontend pnpm test
+docker compose exec frontend pnpm test:coverage
 docker compose exec frontend pnpm build
 docker compose exec frontend pnpm lint
 docker compose exec frontend pnpm format:check
+docker compose exec frontend pnpm typecheck
+docker compose exec frontend pnpm audit --prod --audit-level high
 ```
 
 The TypeScript application and Vite configuration use strict compiler checking.
+
+### Continuous Integration
+
+`.github/workflows/ci.yml` runs on every pull request (whatever its target branch) and on every push to `main`. It has two jobs, `backend` and `frontend`, which the `main` ruleset (#381) is to require before a merge:
+
+- **backend**: ruff lint and format, mypy, import-linter module boundaries, missing migrations, pytest against PostgreSQL 17 with at least 70% total coverage, pip-audit.
+- **frontend**: ESLint, Prettier, `tsc`, Vitest with coverage, production build, `pnpm audit` (high and critical vulnerabilities fail).
+
+The commands above are the same checks. After pulling dependency changes, rebuild the images with `docker compose up --build --watch`.
 
 ### Email Testing
 
