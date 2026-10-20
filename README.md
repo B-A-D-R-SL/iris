@@ -111,7 +111,7 @@ The hooks live in the repository, but each clone needs the one-time Git configur
 - `pre-commit` checks staged changes for whitespace errors.
 - `commit-msg` requires `<ID> <type>(<scope>): <summary>`, for example `T-00.08.3 chore(git): add commit policy hooks`. IDs may start with `T`, `SET`, `US`, or `ES`. Allowed types are `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, and `ci`. Git merge commits are exempt.
 
-The **Commit policy** pull-request check validates new non-merge commits at integration. A repository administrator must make the `commit-policy` job a required check on protected branches and prevent direct pushes for the check to block noncompliant contributions.
+The **Commit policy** pull-request check validates new non-merge commits using the hook from the protected base branch. The PR that first adds this workflow needs a teammate's review because the base branch cannot run it yet. After merging it, a repository administrator must require the `commit-policy` job on protected branches and prevent direct pushes for the check to block noncompliant contributions. This public repository also needs an Actions event policy that allows `pull_request_target`; [GitHub's default policy](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target#default-policy-for-pull_request_target) is scheduled to block that event from November 2, 2026.
 
 ### Live Development
 

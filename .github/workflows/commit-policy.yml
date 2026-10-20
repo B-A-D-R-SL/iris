@@ -4,13 +4,17 @@
 # does not enable them in a fresh clone. Developers must run the one-time
 # `git config --local core.hooksPath .githooks` command from the README.
 # Once enabled in a clone, the hooks keep working on branches created there.
-# This PR check also catches commits from clones without active local hooks;
-# repository admins must require this check to block noncompliant merges.
+# This check uses the base branch's workflow and hook. It never runs a hook
+# supplied by the PR. The first PR introducing this workflow needs human review;
+# later PRs can be checked after this workflow reaches the base branch.
+# Repository admins must require this check to block noncompliant merges and
+# allow pull_request_target in the Actions event policy for this public repo.
 
 name: Commit policy
 
 on:
-  pull_request:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
 
 permissions:
   contents: read
@@ -19,37 +23,40 @@ jobs:
   commit-policy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
+          ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
 
-      - name: Validate new commit subjects
+      - name: Validate PR commit subjects with the base branch hook
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          message_file=$(mktemp)
-          trap 'rm -f "$message_file"' EXIT
-
-          # On the first rollout, earlier branch commits predate this policy.
-          policy_active=false
-          if git cat-file -e "$BASE_SHA:.githooks/commit-msg" 2>/dev/null; then
-            policy_active=true
+          # Fetch commit objects as data; leave the trusted base checkout intact.
+          git fetch --no-tags origin "refs/pull/$PR_NUMBER/head"
+          if [ "$(git rev-parse HEAD)" != "$BASE_SHA" ] ||
+             [ "$(git rev-parse FETCH_HEAD)" != "$HEAD_SHA" ]; then
+            echo "::error::Base or PR head changed while validating; rerun the check"
+            exit 1
+          fi
+          if [ ! -x .githooks/commit-msg ]; then
+            echo "::error::The base branch is missing the commit-msg validator"
+            exit 1
           fi
 
-          while IFS= read -r commit; do
-            if [ "$policy_active" = false ]; then
-              if ! git cat-file -e "$commit:.githooks/commit-msg" 2>/dev/null; then
-                continue
-              fi
-              policy_active=true
-            fi
+          message_file=$(mktemp)
+          commit_list=$(mktemp)
+          trap 'rm -f "$message_file" "$commit_list"' EXIT
+          git rev-list --reverse --no-merges "$BASE_SHA..$HEAD_SHA" > "$commit_list"
 
+          while IFS= read -r commit; do
             git show -s --format=%B "$commit" > "$message_file"
             if ! ./.githooks/commit-msg "$message_file"; then
               echo "::error::Commit $commit has an invalid subject"
               exit 1
             fi
-          done < <(git rev-list --reverse --no-merges "$BASE_SHA..$HEAD_SHA")
+          done < "$commit_list"
