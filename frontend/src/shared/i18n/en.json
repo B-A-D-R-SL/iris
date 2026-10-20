@@ -3,11 +3,321 @@
   "description": "A solidarity redistribution platform connecting communities and making resource sharing easier.",
   "language": "Français",
   "status": "Project setup in progress",
-
   "backend": {
     "label": "Server status",
     "checking": "Checking...",
     "online": "Connected",
     "offline": "Unavailable"
+  },
+  "household": {
+    "status": {
+      "draft": "Draft",
+      "submitted": "Submitted",
+      "reviewRequired": "Staff review required",
+      "awaitingVisit": "In-person visit required",
+      "approved": "Approved",
+      "renewalNeeded": "Renewal required",
+      "suspended": "Suspended",
+      "rejected": "Rejected"
+    },
+    "common": {
+      "walkInRegistration": "Walk-in registration",
+      "onlineApplication": "Online application",
+      "adultMember": "Adult household member",
+      "dependant": "Dependant",
+      "renewal": "Renewal",
+      "expiryDate": "Expiry date",
+      "consent": "Consent",
+      "taxReturn": "Tax return",
+      "identityVerification": "Identity verification",
+      "household": "Household",
+      "accountHolder": "Account holder",
+      "member": "Household member",
+      "alternate": "Alternate",
+      "file": "File"
+    },
+    "needs": {
+      "myNeeds": "My needs",
+      "match": "Match",
+      "category": "Category",
+      "detail": "Detail",
+      "isActive": "Active",
+      "need": "Need"
+    },
+    "registrationHolder": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "dateOfBirth": "Date of birth",
+      "email": "Email address",
+      "phone": "Phone number",
+      "preferredLanguage": "Preferred language"
+    },
+    "registrationAddress": {
+      "streetNumber": "Street number",
+      "streetName": "Street name",
+      "unit": "Apartment / unit",
+      "city": "City",
+      "province": "Province",
+      "postalCode": "Postal code"
+    },
+    "registrationMembers": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "dateOfBirth": "Date of birth",
+      "relation": "Relation to the account holder",
+      "relations": {
+        "spousePartner": "Spouse or partner",
+        "child": "Child",
+        "parent": "Parent",
+        "sibling": "Sibling",
+        "grandparent": "Grandparent",
+        "grandchild": "Grandchild",
+        "otherRelative": "Other relative",
+        "other": "Other"
+      }
+    },
+    "registrationConsent": {
+      "consentDataProcessing": "I agree that B.A.D.R. uses this information to check my eligibility",
+      "consentAiReading": "I agree that software reads my notices of assessment to fill in the fields",
+      "consentDigestEmails": "I want a daily email of new listings"
+    },
+    "registrationNotices": {
+      "file": "Revenu Québec notice of assessment",
+      "didNotFile": "This person did not file a tax return",
+      "didNotFileReason": "Explain why",
+      "taxYear": "Tax year",
+      "totalIncome": "Total income (line 199)",
+      "noticeFirstName": "Name on the notice",
+      "noticePostalCode": "Postal code on the notice",
+      "noticeDate": "Notice date"
+    },
+    "alternate": {
+      "alternateName": "Alternate's name",
+      "alternatePhone": "Alternate's phone",
+      "alternateEmail": "Alternate's email"
+    },
+    "registration": {
+      "firstName": "First name"
+    },
+    "eligibility": {
+      "noticeOfAssessment": "Notice of assessment",
+      "totalIncome": "Total income (line 199)",
+      "taxYear": "Tax year",
+      "lowIncomeCutoff": "Low income cut-off (LICO)",
+      "title": "Eligibility"
+    }
+  },
+  "listing": {
+    "status": {
+      "published": "Published",
+      "closed": "Closed",
+      "cancelled": "Cancelled"
+    },
+    "common": {
+      "surplusGoods": "Surplus goods",
+      "category": "Category",
+      "unitsAvailable": "Units available",
+      "item": "Item",
+      "bundle": "Bundle",
+      "postListing": "Post a listing",
+      "listing": "Listing",
+      "bestBefore": "Best before"
+    },
+    "categories": {
+      "fruitsVegetables": "Fruits and vegetables",
+      "bakery": "Bakery",
+      "dairyEggs": "Dairy and eggs",
+      "meatFish": "Meat and fish",
+      "preparedMeals": "Prepared meals",
+      "dryGoods": "Dry goods",
+      "cannedGoods": "Canned goods",
+      "frozen": "Frozen food",
+      "beverages": "Beverages",
+      "babyFood": "Baby food",
+      "hygiene": "Personal hygiene",
+      "householdCleaning": "Household cleaning",
+      "babyCare": "Baby care",
+      "clothing": "Clothing",
+      "schoolSupplies": "School supplies",
+      "other": "Other"
+    },
+    "units": {
+      "item": "Item",
+      "bundle": "Bundle"
+    }
+  },
+  "reservation": {
+    "status": {
+      "reserved": "Reserved",
+      "pickedUp": "Picked up",
+      "cancelled": "Cancelled",
+      "cancelledByStore": "Cancelled by store",
+      "noShow": "No-show"
+    },
+    "common": {
+      "confirmPickup": "Confirm pickup",
+      "qrCode": "QR code",
+      "pickupHistory": "Pickup history"
+    },
+    "confirmation": {
+      "pickupCode": "Pickup code",
+      "title": "Reservation",
+      "pickupWindow": "Pickup window"
+    }
+  },
+  "auth": {
+    "common": {
+      "signIn": "Sign in",
+      "signOut": "Sign out",
+      "createAccount": "Create an account",
+      "forgotPassword": "Forgot your password?",
+      "verificationCode": "Verification code",
+      "invitation": "Invitation"
+    },
+    "login": {
+      "email": "Email address",
+      "password": "Password",
+      "code": "Verification code",
+      "title": "Sign in"
+    },
+    "signup": {
+      "email": "Email address",
+      "password": "Password",
+      "passwordConfirm": "Confirm password",
+      "preferredLanguage": "Language",
+      "acceptTerms": "I accept the terms of use and the privacy policy"
+    }
+  },
+  "store": {
+    "partnerApplication": {
+      "becomePartner": "Become a partner",
+      "applicationApproved": "Application approved",
+      "applicationRejected": "Application rejected",
+      "businessName": "Business name",
+      "businessType": "Business type",
+      "neq": "Quebec enterprise number (NEQ)",
+      "contactFirstName": "Contact first name",
+      "contactLastName": "Contact last name",
+      "contactRole": "Role",
+      "contactEmail": "Email address",
+      "contactPhone": "Phone number",
+      "website": "Website",
+      "goodsCategories": "Types of goods offered",
+      "expectedFrequency": "Expected donation frequency",
+      "openingHours": "Opening hours",
+      "message": "Message",
+      "consentContact": "I agree that B.A.D.R. contacts me about this application",
+      "application": "Partner application",
+      "businessTypes": {
+        "grocery": "Grocery",
+        "supermarket": "Supermarket",
+        "bakery": "Bakery",
+        "restaurant": "Restaurant",
+        "cafe": "Café",
+        "convenienceStore": "Convenience store",
+        "pharmacy": "Pharmacy",
+        "farmProducer": "Farm or producer",
+        "communityOrganization": "Community organization",
+        "other": "Other"
+      },
+      "donationFrequency": {
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "occasional": "Occasionally"
+      }
+    },
+    "details": {
+      "name": "Store name",
+      "phone": "Phone number",
+      "email": "Email address",
+      "openingHours": "Opening hours",
+      "pickupInstructions": "Pickup instructions",
+      "isActive": "Active",
+      "partnerStore": "Partner store"
+    },
+    "newListing": {
+      "title": "Title",
+      "category": "Category",
+      "description": "Description",
+      "quantity": "Quantity",
+      "unit": "Unit",
+      "maxPerHousehold": "Maximum per household",
+      "pickupStart": "Pickup starts",
+      "pickupEnd": "Pickup ends",
+      "bestBefore": "Best before",
+      "photo": "Photo",
+      "estimatedValue": "Estimated value",
+      "safeAndAllowed": "I confirm these goods are safe and allowed"
+    }
+  },
+  "staff": {
+    "priority": {
+      "priority": "Priority",
+      "priorityScore": "Priority score",
+      "priorityRules": "Priority rules",
+      "strike": "Strike",
+      "priorityTier": "Priority tier"
+    },
+    "common": {
+      "reviewQueue": "Review queue",
+      "auditLog": "Audit log",
+      "ruleSettings": "Rule settings",
+      "intakeWorker": "Intake worker",
+      "admin": "Admin"
+    },
+    "reports": {
+      "dashboard": "Dashboard",
+      "exportCsv": "Export to CSV",
+      "estimatedValueRedistributed": "Estimated value redistributed"
+    },
+    "walkIn": {
+      "email": "Email address",
+      "identityCheckedInPerson": "Photo ID checked in person",
+      "noticeSeenInPerson": "Notice seen in person"
+    },
+    "invitation": {
+      "email": "Email address",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "role": "Role"
+    },
+    "review": {
+      "reviewByStaff": "Review by staff"
+    }
+  },
+  "privacy": {
+    "common": {
+      "privacyPolicy": "Privacy policy",
+      "downloadData": "Download my data",
+      "requestCorrection": "Request a correction",
+      "humanReview": "Human review",
+      "closeAccount": "Close my account"
+    }
+  },
+  "assistant": {
+    "resources": {
+      "communityResourceAssistant": "Community resource assistant",
+      "approvedSource": "Approved source"
+    }
+  },
+  "furniture": {
+    "offer": {
+      "furnitureOffer": "Furniture offer",
+      "donor": "Donor",
+      "title": "Title",
+      "furnitureType": "Furniture type",
+      "description": "Description",
+      "dimensions": "Dimensions (W × D × H, cm)",
+      "condition": "Condition",
+      "photos": "Photos",
+      "pickupArea": "Area (first 3 characters of postal code)",
+      "donorName": "Your contact details",
+      "conditionOptions": {
+        "new": "New",
+        "good": "Good",
+        "fair": "Fair"
+      }
+    }
   }
 }

@@ -1,6 +1,6 @@
 # SonarQube Cloud setup
 
-Iris uses SonarQube Cloud CI-based analysis only. Do not configure a self-hosted SonarQube server or `SONAR_HOST_URL` for this project.
+This workflow configures SonarQube Cloud CI-based analysis. It does not configure a self-hosted SonarQube server or require `SONAR_HOST_URL`.
 
 ## Required SonarQube Cloud project values
 
@@ -26,10 +26,10 @@ It runs on:
 
 The workflow starts a PostgreSQL 17 service, runs backend pytest coverage, runs frontend Vitest coverage, validates the required SonarQube Cloud settings, then runs `SonarSource/sonarqube-scan-action`.
 
-The backend coverage command runs from the repository root so Cobertura filenames match the root SonarQube Cloud scan:
+The backend coverage command runs from `backend/`, using the existing test discovery, exclusions, and 70% minimum in `backend/pyproject.toml`. It includes both `tests/` and module tests:
 
 ```bash
-PYTHONPATH=backend uv run --project backend --python 3.13 pytest backend/tests --cov=backend/iris --cov=backend/adapters --cov-config=.coveragerc --cov-report=xml:backend/coverage.xml --cov-report=term-missing
+.venv/bin/python -m pytest --cov --cov-report=xml:coverage.xml --cov-report=term
 ```
 
 ## Coverage reports
@@ -46,11 +46,15 @@ The import paths are configured in `sonar-project.properties`:
 - `sonar.python.coverage.reportPaths=backend/coverage.xml`
 - `sonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info`
 
+The reports are generated and scanned in the same job. Backend Cobertura source directories resolve to that job's backend checkout; frontend LCOV filenames are prefixed with `frontend/` using the reporter's `projectRoot`. Source and test scope includes `backend/modules/`.
+
+The workflow uses main's Node 24, pnpm 10.34.6, Python 3.13, pinned Actions, and locked dependency installation. Existing `backend` and `frontend` CI jobs remain unchanged.
+
 ## Quality gate setup
 
 Configure the quality gate in SonarQube Cloud and assign it to the Iris project. The scanner waits for the quality gate result with `sonar.qualitygate.wait=true`, so the GitHub Actions job fails when the gate fails.
 
-After the first successful scan, enable the corresponding required status check in GitHub branch protection for `main`.
+If the team decides that this gate must block merges, an administrator can require its status check after the first successful scan. This change does not modify repository rules or existing required checks.
 
 ## Notes
 

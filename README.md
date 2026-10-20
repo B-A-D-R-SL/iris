@@ -98,6 +98,21 @@ PostgreSQL uses port `55433` on the host to avoid conflicts with existing local 
 
 ## Development and Testing
 
+### Commit hooks
+
+After cloning, enable the tracked Git hooks once in that clone:
+
+```bash
+git config --local core.hooksPath .githooks
+```
+
+The hooks live in the repository, but each clone needs the one-time Git configuration above:
+
+- `pre-commit` checks staged changes for whitespace errors.
+- `commit-msg` requires `<ID> <type>(<scope>): <summary>`, for example `T-00.08.3 chore(git): add commit policy hooks`. IDs may start with `T`, `SET`, `US`, or `ES`. Allowed types are `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, and `ci`. Git merge commits are exempt.
+
+The **Commit policy** pull-request check validates new non-merge commits using the hook from the protected base branch. The PR that first adds this workflow needs a teammate's review because the base branch cannot run it yet. After merging it, a repository administrator must require the `commit-policy` job on protected branches and prevent direct pushes for the check to block noncompliant contributions. This public repository also needs an Actions event policy that allows `pull_request_target`; [GitHub's default policy](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target#default-policy-for-pull_request_target) is scheduled to block that event from November 2, 2026.
+
 ### Live Development
 
 With `docker compose up --watch`, frontend changes made in PyCharm or another editor are synchronized into Docker automatically, enabling Vite's hot reload.
@@ -107,26 +122,37 @@ Backend source code is mounted directly into its container, allowing Django to r
 ### Backend Checks
 
 ```bash
-docker compose exec backend python -m pytest
-docker compose exec backend python -m pytest --cov=iris --cov=adapters --cov-report=xml:coverage.xml --cov-report=term-missing
+docker compose exec backend python -m pytest --cov
 docker compose exec backend ruff check .
 docker compose exec backend ruff format --check .
 docker compose exec backend mypy .
 docker compose exec backend python manage.py check
 docker compose exec backend python manage.py makemigrations --check --dry-run
+docker compose exec backend lint-imports
+docker compose exec backend pip-audit --strict
 ```
 
 ### Frontend Checks
 
 ```bash
-docker compose exec frontend pnpm test
 docker compose exec frontend pnpm test:coverage
 docker compose exec frontend pnpm build
 docker compose exec frontend pnpm lint
 docker compose exec frontend pnpm format:check
+docker compose exec frontend pnpm typecheck
+docker compose exec frontend pnpm audit --prod --audit-level high
 ```
 
 The TypeScript application and Vite configuration use strict compiler checking.
+
+### Continuous Integration
+
+`.github/workflows/ci.yml` runs on every pull request (whatever its target branch) and on every push to `main`. It has two jobs, `backend` and `frontend`, which the `main` ruleset (#381) is to require before a merge:
+
+- **backend**: ruff lint and format, mypy, import-linter module boundaries, missing migrations, pytest against PostgreSQL 17 with at least 70% total coverage, pip-audit.
+- **frontend**: ESLint, Prettier, `tsc`, Vitest with coverage, production build, `pnpm audit` (high and critical vulnerabilities fail).
+
+The commands above are the same checks. After pulling dependency changes, rebuild the images with `docker compose up --build --watch`.
 
 ### SonarQube Cloud
 

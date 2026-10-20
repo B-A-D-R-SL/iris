@@ -1,0 +1,117 @@
+# AI contribution: 50% or more AI-generated
+# Listing categories seeded into categories_category (SET-12).
+# Must match docs/02-requirements/business-rules.md#categories: change both together.
+# default_value_cents is in cents ($5 = 500).
+
+categories:
+  - code: fruits_vegetables
+    name_fr: Fruits et légumes
+    name_en: Fruits and vegetables
+    is_food: true
+    default_value_cents: 500
+    is_active: true
+
+  - code: bakery
+    name_fr: Boulangerie
+    name_en: Bakery
+    is_food: true
+    default_value_cents: 400
+    is_active: true
+
+  - code: dairy_eggs
+    name_fr: Produits laitiers et œufs
+    name_en: Dairy and eggs
+    is_food: true
+    default_value_cents: 600
+    is_active: true
+
+  - code: meat_fish
+    name_fr: Viandes et poissons
+    name_en: Meat and fish
+    is_food: true
+    default_value_cents: 1000
+    is_active: true
+
+  - code: prepared_meals
+    name_fr: Plats préparés
+    name_en: Prepared meals
+    is_food: true
+    default_value_cents: 800
+    is_active: true
+
+  - code: dry_goods
+    name_fr: Épicerie sèche
+    name_en: Dry goods
+    is_food: true
+    default_value_cents: 400
+    is_active: true
+
+  - code: canned_goods
+    name_fr: Conserves
+    name_en: Canned goods
+    is_food: true
+    default_value_cents: 300
+    is_active: true
+
+  - code: frozen
+    name_fr: Surgelés
+    name_en: Frozen food
+    is_food: true
+    default_value_cents: 700
+    is_active: true
+
+  - code: beverages
+    name_fr: Boissons
+    name_en: Beverages
+    is_food: true
+    default_value_cents: 300
+    is_active: true
+
+  - code: baby_food
+    name_fr: Alimentation pour bébé
+    name_en: Baby food
+    is_food: true
+    default_value_cents: 500
+    is_active: true
+
+  - code: hygiene
+    name_fr: Hygiène personnelle
+    name_en: Personal hygiene
+    is_food: false
+    default_value_cents: 500
+    is_active: true
+
+  - code: household_cleaning
+    name_fr: Produits ménagers
+    name_en: Household cleaning
+    is_food: false
+    default_value_cents: 500
+    is_active: true
+
+  - code: baby_care
+    name_fr: Soins pour bébé
+    name_en: Baby care
+    is_food: false
+    default_value_cents: 800
+    is_active: true
+
+  - code: clothing
+    name_fr: Vêtements
+    name_en: Clothing
+    is_food: false
+    default_value_cents: 1000
+    is_active: true
+
+  - code: school_supplies
+    name_fr: Fournitures scolaires
+    name_en: School supplies
+    is_food: false
+    default_value_cents: 500
+    is_active: true
+
+  - code: other
+    name_fr: Autre
+    name_en: Other
+    is_food: false
+    default_value_cents: 500
+    is_active: true

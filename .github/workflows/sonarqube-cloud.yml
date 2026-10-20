@@ -1,3 +1,4 @@
+# AI contribution: 50% or more AI-generated
 name: SonarQube Cloud
 
 on:
@@ -19,72 +20,66 @@ jobs:
   scan:
     name: Coverage and scan
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       postgres:
         image: postgres:17
         env:
           POSTGRES_DB: iris
-          POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_USER: iris
+          POSTGRES_PASSWORD: iris_ci_password
         ports:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U iris -d iris"
-          --health-interval 10s
+          --health-interval 5s
           --health-timeout 5s
-          --health-retries 10
+          --health-retries 15
 
     env:
-      DATABASE_URL: postgresql://iris@127.0.0.1:5432/iris
-      DJANGO_SECRET_KEY: iris-ci-secret-key-for-tests
+      DATABASE_URL: postgresql://iris:iris_ci_password@localhost:5432/iris
+      DJANGO_SECRET_KEY: iris-ci-only-not-a-secret
       DJANGO_SETTINGS_MODULE: iris.settings.test
       NODE_VERSION: "24"
-      PNPM_VERSION: "12.10.1"
+      PNPM_VERSION: "10.34.6"
       PYTHON_VERSION: "3.13"
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          persist-credentials: false
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
+          version: "0.12.23"
+          python-version: ${{ env.PYTHON_VERSION }}
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
-          working-directory: backend
 
       - name: Install backend dependencies
         working-directory: backend
-        run: uv sync --frozen --group dev --python "${PYTHON_VERSION}"
+        run: uv sync --locked --no-build
 
       - name: Run backend tests with coverage
-        env:
-          PYTHONPATH: backend
+        working-directory: backend
         run: >-
-          uv run --project backend --python "${PYTHON_VERSION}"
-          pytest backend/tests
-          --cov=backend/iris
-          --cov=backend/adapters
-          --cov-config=.coveragerc
-          --cov-report=xml:backend/coverage.xml
-          --cov-report=term-missing
+          .venv/bin/python -m pytest
+          --cov
+          --cov-report=xml:coverage.xml
+          --cov-report=term
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
           version: ${{ env.PNPM_VERSION }}
           run_install: false
 
       - name: Set up Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -120,7 +115,7 @@ jobs:
           exit "${missing}"
 
       - name: Run SonarQube Cloud scan
-        uses: SonarSource/sonarqube-scan-action@v7
+        uses: SonarSource/sonarqube-scan-action@c7ee0f9df90b7aa20e8dcf9695dcfe2e7da5b4f2 # v7
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:

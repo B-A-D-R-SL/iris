@@ -79,5 +79,5 @@ knowledge_base:
   code_guidelines:
     enabled: true
     filePatterns:
-      - files: "docs/process/review-rules.md"
+      - files: "docs/05-process/review-rules.md"
         applyTo: "backend/**, frontend/**"
