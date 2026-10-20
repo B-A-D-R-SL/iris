@@ -156,7 +156,7 @@ The commands above are the same checks. After pulling dependency changes, rebuil
 
 ### SonarQube Cloud
 
-SonarQube Cloud analysis runs through `.github/workflows/sonarqube-cloud.yml` and imports backend Cobertura XML plus frontend LCOV coverage. Required project variables, secrets, and administrator setup steps are documented in `docs/guides/sonarqube-cloud.md`.
+The SonarQube Cloud job in `.github/workflows/ci.yml` imports backend Cobertura XML and frontend LCOV artifacts from the existing test jobs, without rerunning their tests. Required project variables, the analysis secret, and administrator setup steps are documented in `docs/guides/sonarqube-cloud.md`.
 
 ### Email Testing
 

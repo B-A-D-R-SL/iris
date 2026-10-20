@@ -79,10 +79,17 @@ jobs:
         run: python manage.py makemigrations --check --dry-run
 
       - name: Tests with coverage (minimum 70%)
-        run: pytest --cov --cov-report=term
+        run: pytest --cov --cov-report=term --cov-report=xml:coverage.xml
 
       - name: Dependency audit (pip-audit)
         run: pip-audit --strict
+
+      - name: Upload backend coverage
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+          if-no-files-found: error
 
   frontend:
     runs-on: ubuntu-latest
@@ -126,3 +133,72 @@ jobs:
 
       - name: Dependency audit (high and critical fail)
         run: pnpm audit --prod --audit-level high
+
+      - name: Upload frontend coverage
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/lcov.info
+          if-no-files-found: error
+
+  sonar:
+    name: SonarQube Cloud
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Validate SonarQube Cloud configuration
+        env:
+          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          missing=0
+          if [ -z "${SONAR_ORGANIZATION}" ]; then
+            echo "::error::Set the SONAR_ORGANIZATION repository variable to the SonarQube Cloud organization key."
+            missing=1
+          fi
+          if [ -z "${SONAR_PROJECT_KEY}" ]; then
+            echo "::error::Set the SONAR_PROJECT_KEY repository variable to the SonarQube Cloud project key."
+            missing=1
+          fi
+          if [ -z "${SONAR_TOKEN}" ]; then
+            echo "::error::Set the SONAR_TOKEN repository secret to a SonarQube Cloud token."
+            missing=1
+          fi
+          exit "${missing}"
+
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download backend coverage
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: backend-coverage
+          path: backend
+
+      - name: Download frontend coverage
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
+
+      - name: Verify coverage reports
+        run: |
+          test -s backend/coverage.xml
+          test -s frontend/coverage/lcov.info
+
+      - name: Run SonarQube Cloud scan
+        uses: SonarSource/sonarqube-scan-action@c7ee0f9df90b7aa20e8dcf9695dcfe2e7da5b4f2 # v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
