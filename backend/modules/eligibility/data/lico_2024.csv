@@ -1,0 +1,12 @@
+# AI contribution: 50% or more AI-generated
+# source_url: https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1110024101
+# retrieved_on: 2026-10-18
+# selection: before tax; population of 500,000 and over; 2024; 7 means 7 or more
+family_size,threshold_cents
+1,3126400
+2,3892200
+3,4785100
+4,5809600
+5,6589200
+6,7431500
+7,8273900

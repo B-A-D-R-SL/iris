@@ -1,0 +1,28 @@
+#!/bin/sh
+# AI contribution: 50% or more AI-generated
+# I have drafted a plan, told AI to implement it, and reviewed the code
+
+
+if [ "$#" -ne 1 ] || [ ! -f "$1" ]; then
+    echo "commit-msg: expected a commit-message file" >&2
+    exit 2
+fi
+
+# Git's merge commits use generated subjects and preserve the team's merge history.
+if [ -f "$(git rev-parse --git-path MERGE_HEAD)" ]; then
+    exit 0
+fi
+
+subject=$(sed -n '1p' "$1")
+pattern='^(T-[0-9]{2}\.[0-9]{2}\.[0-9]+|SET-[0-9]{2}(\.[0-9]+)?|US-[0-9]+|ES-[0-9]+) (feat|fix|docs|test|refactor|chore|ci)\([a-z][a-z0-9-]*\): [^[:space:]].*$'
+
+if printf '%s\n' "$subject" | LC_ALL=C grep -Eq "$pattern"; then
+    exit 0
+fi
+
+echo "commit-msg: invalid subject: $subject" >&2
+echo "Expected: <ID> <type>(<scope>): <summary>" >&2
+echo "IDs: T-00.08.3, SET-08.3, US-11, ES-01" >&2
+echo "Types: feat, fix, docs, test, refactor, chore, ci" >&2
+echo "Example: T-00.08.3 chore(git): add commit policy hooks" >&2
+exit 1

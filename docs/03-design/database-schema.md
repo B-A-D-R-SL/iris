@@ -510,7 +510,7 @@ erDiagram
     Category ||--o{ Listing : "categorizes"
     Household ||--o{ Reservation : "makes"
     Listing ||--o{ Reservation : "reserved through"
-    
+
 
     User {
         string email UK "Unique sign-in email."
