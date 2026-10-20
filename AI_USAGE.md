@@ -11,6 +11,7 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | ChatGPT (OpenAI) | Generating and refining code, tests, configurations, and documentation for the backend, frontend, and Docker development environment. Also used for debugging, troubleshooting, and verification. | Owner of #374, #375, #376 |
 | CodeRabbit | Automated review comments on pull requests (in addition to a teammate's review) | All pull requests |
 | ChatGPT (OpenAI) | French/English terminology, wording consistency, shared translation content, translation validation tests, and PR-readiness review for SET-13. | Owner of #404 |
+| ChatGPT (OpenAI) | Assisted with drafting and revising the SET-08.1 Statistics Canada source document under Leon's direction and review. | Leon Kojakian (#394) |
 
 ## How we declare AI-generated code
 
@@ -31,6 +32,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-09 Mock notices of assessment (#397) | `tools/mock_notices/{generate.py,notices.py,tax.py,layout.py,photos.py,tests/test_generate.py,pyproject.toml,README.md}`, `docs/04-data/mock-notices-of-assessment.md` | 50% or more AI-generated | [#592](https://github.com/B-A-D-R-SL/iris/pull/592) |
 | SET-13 Glossary and French/English terminology (#404) | `docs/01-project/glossary.md`, `frontend/src/shared/i18n/en.json`, `frontend/src/shared/i18n/fr.json`, `frontend/src/test/i18n.test.ts` | 50% or more AI-generated | [#594](https://github.com/B-A-D-R-SL/iris/pull/594) |
 | SET-08.3 Git hooks and commit policy | `.githooks/pre-commit`, `.githooks/commit-msg`, `.gitattributes`, `.github/workflows/commit-policy.yml`, `README.md` | 50% or more AI-generated | Not yet opened |
+| T-00.08.1 Official LICO table (#394) | `docs/04-data/lico-thresholds.md` | 50% or more AI-generated | Not yet opened (commit `5e3baad`) |
+| T-00.08.2 LICO threshold seed | `backend/modules/eligibility/data/lico_2024.csv`, `backend/modules/rules/management/commands/seed_rules.py`, `backend/modules/rules/tests/test_seed_rules.py` | 50% or more AI-generated | Not yet opened |
 | SET-12 Listing categories and safety lists (#403) | `docs/02-requirements/business-rules.md` (Listings section), `backend/modules/categories/data/categories.yaml` | 50% or more AI-generated | Not yet opened (`feature/SET-12` branch) |
 | SET-02 CI workflow and branch protection (#378, #379, #380, #381) | `.github/workflows/ci.yml`, `backend/pyproject.toml` (coverage and import-linter settings), `frontend/vite.config.ts` (coverage settings), `frontend/package.json` (scripts), `README.md` (checks and CI section) | 50% or more AI-generated | Not yet opened |
 
@@ -156,6 +159,20 @@ At least half of the AI-assisted features need an example here. For each one:
 - **What the AI produced:** tracked pre-commit and commit-msg hooks, a pull-request commit-policy check, Git line-ending attributes for the hooks, and setup instructions.
 - **How we verified it:** enabled the tracked hooks in this checkout; used a temporary Git repository to confirm that ordinary invalid messages and staged whitespace fail, `T`, `SET`, `US`, and `ES` messages pass, and a real merge commit succeeds. A second temporary repository exercised the pull-request check: it skipped pre-policy history and rejected a later invalid commit made by bypassing local hooks. Checked shell and workflow syntax; the editor reported no problems.
 - **Problems found and corrections:** Atlassian's examples assume `issue-` branches and use older Python syntax, so the hooks were adapted to Iris's approved ID format. Local hooks cannot enforce policy across other clones by themselves; the pull-request check was added. The first branch already contains a pre-policy commit, so the workflow starts validation when the hook first appears. Making the check required on protected branches still needs repository administrator access.
+
+### T-00.08.1 Official LICO table (#394)
+
+- **What the AI produced:** a draft of `docs/04-data/lico-thresholds.md` recording the official table, selection criteria, retrieval date, and seven threshold values.
+- **Leon's contribution:** Leon stopped the initial implementation to request a plan, asked for a comparison with `Iris-Requirements.md` and a rewrite, then approved the revised scope before implementation. He reviewed the resulting documentation and committed it as `5e3baad`.
+- **How we verified it:** the published document records Statistics Canada table 11-10-0241-01, the before-tax series for communities of 500,000 and over, reference year 2024, retrieval on October 18, 2026, and the seven values for family sizes 1 through 7 or more. It includes the selected-table link so a teammate can check the figures against the source.
+- **Problems found and corrections:** the first implementation preceded Leon's review. At his request, the work returned to a reviewable plan and was narrowed to fetching and documenting the official values; the CSV and rule seeding were left for T-00.08.2.
+
+### T-00.08.2 LICO threshold seed
+
+- **What the AI produced:** the reviewed 2024 LICO CSV, a seed loader for its source and retrieval metadata, and focused seed tests.
+- **How we verified it:** the default seed path publishes version 1 with all seven exact cent amounts from the SET-08.1 source document, the Statistics Canada link, and the recorded retrieval date. Six focused tests passed, including idempotence and rejection of missing or duplicate data and missing retrieval metadata. Ruff lint, Ruff formatting, and mypy passed on the changed Python files. Teammate review remains pending.
+- **Problems found and corrections:** the earlier seed loader used the date when the command ran as `retrieved_on`, which could misstate when the data was obtained. Source and retrieval metadata now travel with the CSV, and the loader validates them before publishing.
+
 ### SET-12 Listing categories and safety lists (#403)
 
 - **What the AI produced:** with Claude Code, the Listings section of `docs/02-requirements/business-rules.md` (16 categories with code, French and English names, food or not and default value; the prohibited items list; how food categories, default values and the "safe and allowed" confirmation are used) and the seed file `backend/modules/categories/data/categories.yaml`, from the team draft and the owner's decisions (publish only the SET-12 section, keep the draft's 16 categories and 8 prohibited items, use the column names of the `categories_category` table).
