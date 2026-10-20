@@ -11,6 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "gen:api": "node scripts/gen-api.mjs",
+    "test:api": "node --test scripts/test-api-generation.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
@@ -41,6 +43,7 @@
     "eslint-plugin-react-refresh": "^0.5.6",
     "globals": "^17.12.0",
     "jsdom": "^30.1.2",
+    "openapi-typescript": "6.7.6",
     "prettier": "^3.9.9",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.69.0",
