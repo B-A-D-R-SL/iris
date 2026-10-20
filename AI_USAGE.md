@@ -12,6 +12,7 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | CodeRabbit | Automated review comments on pull requests (in addition to a teammate's review) | All pull requests |
 | ChatGPT (OpenAI) | French/English terminology, wording consistency, shared translation content, translation validation tests, and PR-readiness review for SET-13. | Owner of #404 |
 | ChatGPT (OpenAI) | Assisted with drafting and revising the SET-08.1 Statistics Canada source document under Leon's direction and review. | Leon Kojakian (#394) |
+| ChatGPT (OpenAI) | Drafted T-02.11.1 tests for the future US-11 Store model, B.A.D.R. seed, and Django admin access under Leon's direction. | Leon Kojakian (#439) |
 
 ## How we declare AI-generated code
 
@@ -34,6 +35,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-08.3 Git hooks and commit policy | `.githooks/pre-commit`, `.githooks/commit-msg`, `.gitattributes`, `.github/workflows/commit-policy.yml`, `README.md` | 50% or more AI-generated | Not yet opened |
 | T-00.08.1 Official LICO table (#394) | `docs/04-data/lico-thresholds.md` | 50% or more AI-generated | Not yet opened (commit `5e3baad`) |
 | T-00.08.2 LICO threshold seed | `backend/modules/eligibility/data/lico_2024.csv`, `backend/modules/rules/management/commands/seed_rules.py`, `backend/modules/rules/tests/test_seed_rules.py` | 50% or more AI-generated | Not yet opened |
+| T-02.11.1 B.A.D.R. first store tests (#439) | `backend/modules/stores/tests/test_store.py`, `test_seed_badr_store.py`, `test_admin.py` | 50% or more AI-generated | Not yet opened; tests await US-11 build tasks |
 | SET-12 Listing categories and safety lists (#403) | `docs/02-requirements/business-rules.md` (Listings section), `backend/modules/categories/data/categories.yaml` | 50% or more AI-generated | Not yet opened (`feature/SET-12` branch) |
 | SET-02 CI workflow and branch protection (#378, #379, #380, #381) | `.github/workflows/ci.yml`, `backend/pyproject.toml` (coverage and import-linter settings), `frontend/vite.config.ts` (coverage settings), `frontend/package.json` (scripts), `README.md` (checks and CI section) | 50% or more AI-generated | Not yet opened |
 
@@ -172,6 +174,13 @@ At least half of the AI-assisted features need an example here. For each one:
 - **What the AI produced:** the reviewed 2024 LICO CSV, a seed loader for its source and retrieval metadata, and focused seed tests.
 - **How we verified it:** the default seed path publishes version 1 with all seven exact cent amounts from the SET-08.1 source document, the Statistics Canada link, and the recorded retrieval date. Six focused tests passed, including idempotence and rejection of missing or duplicate data and missing retrieval metadata. Ruff lint, Ruff formatting, and mypy passed on the changed Python files. Teammate review remains pending.
 - **Problems found and corrections:** the earlier seed loader used the date when the command ran as `retrieved_on`, which could misstate when the data was obtained. Source and retrieval metadata now travel with the CSV, and the loader validates them before publishing.
+
+### T-02.11.1 B.A.D.R. first store tests (#439)
+
+- **What the AI produced:** three test files covering the Store fields and one-B.A.D.R. constraint, an idempotent seed, and Django admin access.
+- **Leon's direction:** drafted a plan to implement the task, use the documented local administrator credentials for the admin login test, with an isolated PostgreSQL test database. Keep this task limited to tests; the Store model, seed command, admin registration, migration, and app setup belong to the US-11 build tasks.
+- **How we verified it:** the tests passed against a temporary Store implementation, which was removed at Leon's request. The tests are expected to fail until the US-11 build tasks add that implementation. Teammate review remains pending.
+- **Problems found and corrections:** the initial work included production code beyond T-02.11.1. It was removed, and the local demo migration and seed were reversed. The tests retain an opening-hours case that the future build must support.
 
 ### SET-12 Listing categories and safety lists (#403)
 
