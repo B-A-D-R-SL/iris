@@ -31,6 +31,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-09 Mock notices of assessment (#397) | `tools/mock_notices/{generate.py,notices.py,tax.py,layout.py,photos.py,tests/test_generate.py,pyproject.toml,README.md}`, `docs/04-data/mock-notices-of-assessment.md` | 50% or more AI-generated | [#592](https://github.com/B-A-D-R-SL/iris/pull/592) |
 | SET-13 Glossary and French/English terminology (#404) | `docs/01-project/glossary.md`, `frontend/src/shared/i18n/en.json`, `frontend/src/shared/i18n/fr.json`, `frontend/src/test/i18n.test.ts` | 50% or more AI-generated | [#594](https://github.com/B-A-D-R-SL/iris/pull/594) |
 | SET-08.3 Git hooks and commit policy | `.githooks/pre-commit`, `.githooks/commit-msg`, `.gitattributes`, `.github/workflows/commit-policy.yml`, `README.md` | 50% or more AI-generated | Not yet opened |
+| SET-12 Listing categories and safety lists (#403) | `docs/02-requirements/business-rules.md` (Listings section), `backend/modules/categories/data/categories.yaml` | 50% or more AI-generated | Not yet opened (`feature/SET-12` branch) |
+| SET-02 CI workflow and branch protection (#378, #379, #380, #381) | `.github/workflows/ci.yml`, `backend/pyproject.toml` (coverage and import-linter settings), `frontend/vite.config.ts` (coverage settings), `frontend/package.json` (scripts), `README.md` (checks and CI section) | 50% or more AI-generated | Not yet opened |
 
 ## Examples, verification and corrections
 
@@ -84,6 +86,17 @@ At least half of the AI-assisted features need an example here. For each one:
   - Ruff's format report panicked on a file containing a UTF-8 byte-order mark. Replaced the affected production settings file without the marker and formatted relevant Django entry points.
   - The public authentication contract remains a SET-15 decision. Only routing changed; no custom authentication handlers were implemented.
   - Request logs exclude raw URL paths, query strings, request bodies, authorization tokens, and arbitrary message content to avoid exposing personal data.
+
+### SET-02 CI workflow and branch protection (#378, #379, #380, #381)
+
+- **What the AI produced:** the `backend` and `frontend` jobs in `.github/workflows/ci.yml`, the coverage (70% minimum) and import-linter settings in `backend/pyproject.toml`, the Vitest coverage settings, the `typecheck` and `test:coverage` scripts, and the README CI section. The `main` ruleset (#381) is configured in the GitHub settings after this merges, not in code.
+- **How we verified it:** ran every CI step locally against PostgreSQL 17 (Docker Compose) and Node 24 before opening the pull request; backend total coverage is 74%. Checked that each gate fails on bad input: a ruff error, a failing test, coverage below the minimum and a TypeScript error all exit non-zero. The pull request's own CI run is the final check.
+- **Problems found and corrections:**
+  - uv picked Python 3.14 for the backend on a Windows machine because the root `.python-version` is not seen from `backend/`. Added `backend/.python-version` (3.13) so local runs match CI and the Docker image; CI also pins 3.13.
+  - Prettier reported every frontend file on Windows. The cause is `core.autocrlf` (CRLF in the working copy), not style: `prettier --check --end-of-line auto` passes, and the Linux runner checks out LF.
+  - The first CI run failed: `backend/manage.py` has a shebang but was stored in git as not executable, which ruff (EXE001) only reports on Linux. Marked it executable in git (`git update-index --chmod=+x`).
+  - SonarCloud failed the security rating on `ci.yml`: third-party actions not pinned to a commit and `uv run` calls that can re-resolve or build packages. Pinned every action to a full SHA, installed with `uv sync --locked --no-build` and called the tools straight from the synced environment.
+  - `backend/modules/` does not exist yet, so the first import-linter contract only keeps `adapters/` independent of the Django project package. The module contracts are SET-14's job.
 
 ### SET-13 Glossary and French/English terminology (#404)
 
@@ -143,3 +156,12 @@ At least half of the AI-assisted features need an example here. For each one:
 - **What the AI produced:** tracked pre-commit and commit-msg hooks, a pull-request commit-policy check, Git line-ending attributes for the hooks, and setup instructions.
 - **How we verified it:** enabled the tracked hooks in this checkout; used a temporary Git repository to confirm that ordinary invalid messages and staged whitespace fail, `T`, `SET`, `US`, and `ES` messages pass, and a real merge commit succeeds. A second temporary repository exercised the pull-request check: it skipped pre-policy history and rejected a later invalid commit made by bypassing local hooks. Checked shell and workflow syntax; the editor reported no problems.
 - **Problems found and corrections:** Atlassian's examples assume `issue-` branches and use older Python syntax, so the hooks were adapted to Iris's approved ID format. Local hooks cannot enforce policy across other clones by themselves; the pull-request check was added. The first branch already contains a pre-policy commit, so the workflow starts validation when the hook first appears. Making the check required on protected branches still needs repository administrator access.
+### SET-12 Listing categories and safety lists (#403)
+
+- **What the AI produced:** with Claude Code, the Listings section of `docs/02-requirements/business-rules.md` (16 categories with code, French and English names, food or not and default value; the prohibited items list; how food categories, default values and the "safe and allowed" confirmation are used) and the seed file `backend/modules/categories/data/categories.yaml`, from the team draft and the owner's decisions (publish only the SET-12 section, keep the draft's 16 categories and 8 prohibited items, use the column names of the `categories_category` table).
+- **How we verified it:** compared the category table with the team draft line by line (identical); a script checked that every YAML entry matches the document row in the same order (code, both names, food flag, value in cents, active) and that the French and English names match the SET-13 `categories` keys in `fr.json` and `en.json`. TODO: list agreed with the team on 2026-10-16.
+- **Problems found and corrections:**
+  - The AI first added French wording for the prohibited items that was not in the team draft. Removed: the list stays as in the draft until the French wording is agreed with the glossary owner (SET-13).
+  - The team draft contradicts itself: the business rules say prohibited items have no category, but US-34 says "categories on the prohibited list cannot be selected". The document follows the business rules; US-34 is to be reworded or confirmed by the team.
+  - The YAML keys first followed the team draft schema, including `sort_order`, while the SET-05 branch used other names (`french_label`, `food_indicator`, `active_indicator`) and no sort order. Agreed with the SET-05 owner: keep `name_fr`, `name_en`, `is_food`, `is_active` (consistent with `is_active` and `is_badr` on other tables) and drop `sort_order`.
+  - The sentence on the `listing_safety` setting (`prohibited_category_codes`, empty by default) comes from the unmerged SET-07 branch, not the team draft; to be confirmed with the SET-07 owner.
