@@ -31,6 +31,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-09 Mock notices of assessment (#397) | `tools/mock_notices/{generate.py,notices.py,tax.py,layout.py,photos.py,tests/test_generate.py,pyproject.toml,README.md}`, `docs/04-data/mock-notices-of-assessment.md` | 50% or more AI-generated | [#592](https://github.com/B-A-D-R-SL/iris/pull/592) |
 | SET-13 Glossary and French/English terminology (#404) | `docs/01-project/glossary.md`, `frontend/src/shared/i18n/en.json`, `frontend/src/shared/i18n/fr.json`, `frontend/src/test/i18n.test.ts` | 50% or more AI-generated | [#594](https://github.com/B-A-D-R-SL/iris/pull/594) |
 | SET-02 CI workflow and branch protection (#378, #379, #380, #381) | `.github/workflows/ci.yml`, `backend/pyproject.toml` (coverage and import-linter settings), `frontend/vite.config.ts` (coverage settings), `frontend/package.json` (scripts), `README.md` (checks and CI section) | 50% or more AI-generated | Not yet opened |
+| SET-15 OpenAPI and TypeScript generation (#406), partial implementation | `backend/iris/settings/base.py`, `backend/tests/test_api_schema.py`, `frontend/scripts/{gen-api,test-api-generation}.mjs`, `frontend/src/shared/api/generated.d.ts`, `frontend/src/test/api-types.typecheck.ts`, `frontend/package.json`, `frontend/pnpm-lock.yaml`, `.github/workflows/ci.yml`, `docs/guides/api-generation.md`, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | Not opened; categories compliance (#377) and documented team decisions remain pending |
 
 ## Examples, verification and corrections
 
@@ -40,6 +41,27 @@ At least half of the AI-assisted features need an example here. For each one:
 - **What the AI produced:** files, commit or pull request
 - **How we verified it:** the automated tests or the review comment that checked it
 - **Problems found and corrections:** what was wrong or rejected, and what we changed
+
+### SET-15 OpenAPI and TypeScript generation (#406)
+
+- **What the AI produced:** health response schema metadata and regression tests,
+  a pinned openapi-typescript generator and generated declarations, temporary-copy
+  drift tests, an added CI drift check, a generation guide, and the reviewed
+  team API conventions document. The draft's conventions and endpoint catalog
+  are preserved with implementation status and unresolved decisions identified.
+- **How we verified it:** 13 focused backend tests and Ruff checks passed.
+  Isolated frontend validation with pnpm 10.34.6 and TypeScript 6.0.3 passed
+  type checking, ESLint, formatting, all 11 Vitest tests, production build, and
+  the generation/drift regression test. Schema export passed validation.
+  Existing lockfile entries and CI checks were compared and remain unchanged.
+  Documentation validation checked all 10 convention rows and 69 endpoint rows
+  against the supplied draft, plus Markdown formatting and local links/anchors.
+- **Problems found and corrections:** openapi-typescript 7.13.0 requires a
+  TypeScript 5 peer, so 6.7.6 was selected and tested without peer overrides or
+  a compiler downgrade. Vitest initially collected the Node-only regression
+  test; its filename was changed without altering Vitest configuration.
+  The local backend environment uses Python 3.14.8 rather than CI's 3.13;
+  CI execution and PostgreSQL-dependent backend tests remain to be verified.
 
 ### T-00.01.1 Backend project (#374)
 
