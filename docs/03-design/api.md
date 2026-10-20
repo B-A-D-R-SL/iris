@@ -34,8 +34,10 @@ consumers have not been rewritten to use them.
 
 Categories compliance remains dependent on
 [reference module #377](https://github.com/B-A-D-R-SL/iris/issues/377).
-There is no categories endpoint in this checkout, so that acceptance criterion
-remains incomplete.
+SET-12's [category seed data](../../backend/modules/categories/data/categories.yaml)
+and [listing business rules](../02-requirements/business-rules.md#categories) are
+now merged from main. They do not implement categories endpoints, so that
+acceptance criterion remains incomplete.
 
 ## Conventions
 
@@ -198,12 +200,11 @@ session-cookie contract. Authentication, CSRF, and permission settings remain
 unchanged. See [authentication routing](../guides/auth-routing.md).
 
 DRF defaults to `IsAuthenticated`, but this is not the role-and-ownership
-matrix required by the draft. The referenced `business-rules.md` permission
-matrix is not present in this checkout; its intended documentation location is
-`docs/02-requirements/business-rules.md`. Role and ownership checks and the
-matrix remain dependencies of the planned endpoints. The draft's `Who`
-column does not establish that framework authentication operations all have
-identical access requirements.
+matrix required by the draft. The [business rules](../02-requirements/business-rules.md)
+now contain SET-12's listing categories and prohibited items, but not the
+permission matrix. Role and ownership checks and the matrix remain dependencies
+of the planned endpoints. The draft's `Who` column does not establish that
+framework authentication operations all have identical access requirements.
 
 ### Dates, money, and languages
 

@@ -19,10 +19,11 @@ team decisions. This guide describes generation tooling; it does not establish
 additional API requirements or imply that every documented convention is
 already implemented.
 
-Categories compliance remains dependent on [reference module #377](https://github.com/B-A-D-R-SL/iris/issues/377).
-There is no categories endpoint in this checkout; the unmerged SET-12 seed data
-does not implement one. Categories must be checked against the adopted
-conventions and added to the schema when its module is implemented.
+SET-12's category seed data and listing business rules are now merged from main.
+They provide reference data and documentation, not categories API endpoints.
+Categories API compliance still depends on [reference module #377](https://github.com/B-A-D-R-SL/iris/issues/377).
+Categories must be checked against the adopted conventions and added to the schema
+when its module is implemented.
 
 ## Generator compatibility
 
