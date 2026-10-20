@@ -29,6 +29,7 @@ class Command(BaseCommand):
     help = "Create version 1 of every business-rule type without duplicating data."
 
     def add_arguments(self, parser: CommandParser) -> None:
+        """Accept a reviewed LICO CSV path for the initial rule seed."""
         parser.add_argument(
             "--lico-file",
             type=Path,
@@ -40,6 +41,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args: Any, **options: Any) -> None:
+        """Publish missing version-one rules together without rewriting existing ones."""
         if set(DEFAULT_RULE_VALUES) != set(RULE_TYPES) - {"lico_thresholds"}:
             raise CommandError("Seed defaults do not cover every supported rule type.")
 
@@ -87,6 +89,7 @@ class Command(BaseCommand):
 
 
 def _find_latest_lico_file() -> Path:
+    """Select the highest-year bundled LICO CSV for an initial seed."""
     data_directory = settings.BASE_DIR / "modules" / "eligibility" / "data"
     candidates = sorted(data_directory.glob("lico_[0-9][0-9][0-9][0-9].csv"))
     if not candidates:
@@ -98,6 +101,7 @@ def _find_latest_lico_file() -> Path:
 
 
 def _load_lico_values(path: Path) -> dict[str, Any]:
+    """Validate source metadata and seven cent amounts before publishing them."""
     if not path.is_file():
         raise CommandError(f"LICO data file does not exist: {path}")
 
@@ -174,6 +178,7 @@ def _load_lico_values(path: Path) -> dict[str, Any]:
 
 
 def _parse_lico_row(row: dict[str, str], line_number: int) -> tuple[int, int]:
+    """Parse one family-size row and require a positive integer cent amount."""
     try:
         family_size = int(row["family_size"])
         threshold_cents = int(row["threshold_cents"])
@@ -189,6 +194,7 @@ def _parse_lico_row(row: dict[str, str], line_number: int) -> tuple[int, int]:
 
 
 def _get_seed_publisher() -> AbstractBaseUser:
+    """Get the seed audit account, creating it without a usable password."""
     user_model = get_user_model()
     username_field = user_model.USERNAME_FIELD
     publisher, created = user_model._default_manager.get_or_create(
