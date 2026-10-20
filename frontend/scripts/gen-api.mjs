@@ -1,7 +1,8 @@
 // AI contribution: 50% or more AI-generated
 import { execFileSync } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { lstat, readFile, realpath, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import openapiTS from "openapi-typescript";
@@ -10,29 +11,52 @@ import { format, resolveConfig } from "prettier";
 const { values } = parseArgs({
   options: {
     check: { type: "boolean", default: false },
-    output: { type: "string" },
+    "temporary-output": { type: "boolean", default: false },
   },
 });
 
 const defaultOutput = fileURLToPath(new URL("../src/shared/api/generated.d.ts", import.meta.url));
-const outputPath = values.output ? resolve(values.output) : defaultOutput;
+let outputPath = defaultOutput;
 
-// Generate the schema using the existing Python environment without starting Django.
+// Tests may use one fixed filename in a private mkdtemp directory, never a CLI path.
+if (values["temporary-output"]) {
+  const directory = await realpath(process.cwd());
+  const info = await lstat(directory);
+  if (
+    dirname(directory) !== (await realpath(tmpdir())) ||
+    !/^iris-api-generation-[A-Za-z0-9]{6}$/.test(basename(directory)) ||
+    (typeof process.getuid === "function" &&
+      (info.uid !== process.getuid() || (info.mode & 0o077) !== 0))
+  ) {
+    throw new Error(
+      "Temporary output requires a private iris-api-generation-* directory in tmpdir.",
+    );
+  }
+  outputPath = join(directory, "generated.d.ts");
+}
+
+try {
+  const info = await lstat(outputPath);
+  if (!info.isFile() || info.nlink !== 1) {
+    throw new Error("API output must be a regular file without symbolic or hard links.");
+  }
+} catch (error) {
+  if (error.code !== "ENOENT") throw error;
+}
+
+const pythonExecutable = fileURLToPath(
+  new URL(
+    process.platform === "win32"
+      ? "../../backend/.venv/Scripts/python.exe"
+      : "../../backend/.venv/bin/python",
+    import.meta.url,
+  ),
+);
+
+// Use the installed interpreter directly: no PATH lookup, dependency sync, or server.
 const schema = execFileSync(
-  "uv",
-  [
-    "run",
-    "--no-cache",
-    "--no-sync",
-    "--no-python-downloads",
-    "python",
-    "manage.py",
-    "spectacular",
-    "--format",
-    "openapi-json",
-    "--validate",
-    "--fail-on-warn",
-  ],
+  pythonExecutable,
+  ["-B", "manage.py", "spectacular", "--format", "openapi-json", "--validate", "--fail-on-warn"],
   {
     cwd: new URL("../../backend/", import.meta.url),
     encoding: "utf8",
