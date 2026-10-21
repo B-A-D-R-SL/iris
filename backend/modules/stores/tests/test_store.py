@@ -4,11 +4,14 @@
 """US-11 store persistence and data-integrity tests."""
 
 import uuid
+from typing import cast
 
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+
 from modules.stores.models import Store
+from modules.stores.tests.factories import StoreFactory
 
 
 @pytest.fixture
@@ -87,3 +90,14 @@ def test_database_allows_only_one_badr_store(store_fields: dict[str, object]) ->
         Store.objects.create(**second_fields, is_badr=True)
 
     assert Store.objects.filter(is_badr=True).count() == 1
+
+
+@pytest.mark.django_db
+def test_factory_creates_multiple_partners_with_case_insensitive_email() -> None:
+    """Partner stores remain repeatable while PostgreSQL compares email without case."""
+    first = cast(Store, StoreFactory(email="Partner@Example.test"))
+    second = cast(Store, StoreFactory())
+
+    assert first.pk != second.pk
+    assert Store.objects.filter(is_badr=False).count() == 2
+    assert Store.objects.get(email="partner@example.test") == first

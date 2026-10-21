@@ -1,4 +1,5 @@
 # AI contribution: 50% or more AI-generated
+# I have planned implementation, reviewed and tested the code
 """US-11 Django admin registration, form, and permission tests."""
 
 from io import StringIO
@@ -6,10 +7,11 @@ from io import StringIO
 import pytest
 from django.contrib import admin
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth.models import AnonymousUser, Permission
 from django.core.management import call_command
 from django.test import RequestFactory, override_settings
 from django.urls import reverse
+
 from modules.stores.models import Store
 
 LOCAL_ADMIN_EMAIL = "admin@iris.local"
@@ -73,10 +75,22 @@ def test_local_admin_can_see_and_edit_store_in_django_admin(
 
 @pytest.mark.django_db
 def test_non_admins_have_no_store_admin_permissions() -> None:
-    """Refuse anonymous and ordinary users through Django admin permissions."""
+    """Refuse anonymous, ordinary, and non-admin staff users."""
     store_admin = admin.site._registry[Store]
     request = RequestFactory().get("/admin/stores/store/")
     request.user = AnonymousUser()
+    assert not store_admin.has_view_permission(request)
+    assert not store_admin.has_change_permission(request)
+
+    staff_user = get_user_model()._default_manager.create_user(
+        username="staff@example.test",
+        password="local-test-password",
+        is_staff=True,
+    )
+    staff_user.user_permissions.set(
+        Permission.objects.filter(codename__in=["view_store", "change_store"])
+    )
+    request.user = staff_user
     assert not store_admin.has_view_permission(request)
     assert not store_admin.has_change_permission(request)
 
