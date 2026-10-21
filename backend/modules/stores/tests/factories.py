@@ -18,6 +18,6 @@ class StoreFactory(factory.django.DjangoModelFactory):
     street_name = "rue Exemple"
     city = "Montréal"
     postal_code = "H2X 1Y4"
-    phone = "514-555-0100"
+    phone = "+15145550100"
     email = factory.Sequence(lambda n: f"partner-{n}@example.test")
     opening_hours = factory.LazyFunction(dict)

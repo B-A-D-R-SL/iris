@@ -15,6 +15,7 @@ from django.utils.translation import pgettext_lazy
 from modules.stores.fields import CitextEmailField
 
 POSTAL_CODE_PATTERN = r"^[A-Za-z]\d[A-Za-z] ?\d[A-Za-z]\d$"
+E164_PHONE_NUMBER_PATTERN = r"^\+[1-9]\d{1,14}$"
 
 
 class Store(models.Model):
@@ -53,7 +54,14 @@ class Store(models.Model):
         ],
     )
     phone = models.CharField(
-        pgettext_lazy("store field", "Phone number"), max_length=16
+        pgettext_lazy("store field", "Phone number"),
+        max_length=16,
+        validators=[
+            RegexValidator(
+                E164_PHONE_NUMBER_PATTERN,
+                "Enter a phone number in E.164 format.",
+            )
+        ],
     )
     email = CitextEmailField(
         pgettext_lazy("store field", "Email address"), max_length=254

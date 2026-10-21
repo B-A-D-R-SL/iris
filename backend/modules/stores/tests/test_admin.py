@@ -165,7 +165,7 @@ def test_local_admin_can_see_and_edit_store_in_django_admin(
         street_name="rue Exemple",
         city="Montreal",
         postal_code="H0H 0H0",
-        phone="514-555-0100",
+        phone="+15145550100",
         email="badr-store@example.test",
         opening_hours={"mon": [["09:00", "17:00"]]},
         is_badr=True,
@@ -186,7 +186,7 @@ def test_local_admin_can_see_and_edit_store_in_django_admin(
             "unit": "",
             "city": store.city,
             "postal_code": store.postal_code,
-            "phone": "514-555-0199",
+            "phone": "+15145550199",
             "email": store.email,
             "opening_hours": '{"mon": [["09:00", "17:00"]]}',
             "pickup_instructions": "",
@@ -199,7 +199,7 @@ def test_local_admin_can_see_and_edit_store_in_django_admin(
     store_admin.save_model(request, form.save(commit=False), form, change=True)
 
     store.refresh_from_db()
-    assert store.phone == "514-555-0199"
+    assert store.phone == "+15145550199"
 
 
 @pytest.mark.django_db

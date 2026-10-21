@@ -27,7 +27,7 @@ def test_seed_creates_one_active_badr_store_and_is_idempotent() -> None:
     assert store.street_name == "rue Exemple"
     assert store.city == "Montreal"
     assert store.postal_code == "H0H 0H0"
-    assert store.phone == "514-555-0100"
+    assert store.phone == "+15145550100"
     assert store.email == "badr-store@example.test"
     assert store.opening_hours == {}
     assert store.unit is None

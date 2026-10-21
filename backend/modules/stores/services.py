@@ -13,7 +13,7 @@ BADR_STORE_DEFAULTS = {
     "street_name": "rue Exemple",
     "city": "Montreal",
     "postal_code": "H0H 0H0",
-    "phone": "514-555-0100",
+    "phone": "+15145550100",
     "email": "badr-store@example.test",
     "opening_hours": {},
     "is_active": True,
