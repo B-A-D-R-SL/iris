@@ -36,6 +36,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | T-00.08.2 LICO threshold seed | `backend/modules/eligibility/data/lico_2024.csv`, `backend/modules/rules/management/commands/seed_rules.py`, `backend/modules/rules/tests/test_seed_rules.py` | 50% or more AI-generated | Not yet opened |
 | SET-12 Listing categories and safety lists (#403) | `docs/02-requirements/business-rules.md` (Listings section), `backend/modules/categories/data/categories.yaml` | 50% or more AI-generated | Not yet opened (`feature/SET-12` branch) |
 | SET-02 CI workflow and branch protection (#378, #379, #380, #381) | `.github/workflows/ci.yml`, `backend/pyproject.toml` (coverage and import-linter settings), `frontend/vite.config.ts` (coverage settings), `frontend/package.json` (scripts), `README.md` (checks and CI section) | 50% or more AI-generated | Not yet opened |
+| SET-15 OpenAPI and TypeScript generation (#406), partial implementation | `backend/iris/settings/base.py`, `backend/tests/test_api_schema.py`, `frontend/scripts/{gen-api,test-api-generation}.mjs`, `frontend/src/shared/api/generated.d.ts`, `frontend/src/test/api-types.typecheck.ts`, `frontend/package.json`, `frontend/pnpm-lock.yaml`, `.github/workflows/ci.yml`, `docs/guides/api-generation.md`, `docs/03-design/api.md`, `AI_USAGE.md`, `README.md` | 50% or more AI-generated | [#604](https://github.com/B-A-D-R-SL/iris/pull/604); categories compliance (#377) and documented team decisions remain pending |
 
 ## Examples, verification and corrections
 
@@ -45,6 +46,52 @@ At least half of the AI-assisted features need an example here. For each one:
 - **What the AI produced:** files, commit or pull request
 - **How we verified it:** the automated tests or the review comment that checked it
 - **Problems found and corrections:** what was wrong or rejected, and what we changed
+
+### SET-15 OpenAPI and TypeScript generation (#406)
+
+- **What the AI produced:** health response schema metadata and regression tests,
+  a pinned openapi-typescript generator and generated declarations, temporary-copy
+  drift tests, an added CI drift check, a generation guide, and the reviewed
+  team API conventions document. The draft's conventions and endpoint catalog
+  are preserved with implementation status and unresolved decisions identified.
+- **How we verified it:** 13 focused backend tests and Ruff checks passed.
+  Isolated frontend validation with pnpm 10.34.6 and TypeScript 6.0.3 passed
+  type checking, ESLint, formatting, all 11 Vitest tests, production build, and
+  the generation/drift regression test. Schema export passed validation.
+  Existing lockfile entries and CI checks were compared and remain unchanged.
+  Documentation validation checked all 10 convention rows and 69 endpoint rows
+  against the supplied draft, plus Markdown formatting and local links/anchors.
+- **Problems found and corrections:** openapi-typescript 7.13.0 requires a
+  TypeScript 5 peer, so 6.7.6 was selected and tested without peer overrides or
+  a compiler downgrade. Vitest initially collected the Node-only regression
+  test; its filename was changed without altering Vitest configuration.
+  The local backend environment uses Python 3.14.8 rather than CI's 3.13;
+  CI execution and PostgreSQL-dependent backend tests remain to be verified.
+  PR #604 review fixes add explicit UTF-8 Python output, remove the default
+  subprocess buffer limit, and skip only symbolic-link creation on Windows.
+  A schema-stdin mode supports generation and drift tests across the separate
+  Docker containers; the README now lists both API checks and the command to
+  copy regenerated declarations back to the checkout. Regression coverage
+  includes Unicode schemas larger than 1 MiB through both Python and stdin.
+- **PR #604 review verification:** all eight generator tests passed with local
+  Python, and seven passed with a piped schema (the Python-only export test is
+  skipped in that mode). Generated declarations match the validated schema.
+  Four backend schema tests, all 11 Vitest tests, TypeScript checking, ESLint,
+  and formatting of changed frontend files and the generation guide passed.
+  Validation used Python 3.13 and Node 22.23.2; CI uses Node 24. Native Windows
+  and the full container workflow were not run; the Docker daemon was stopped.
+- **CI follow-up:** updated only `certifi` from 2026.7.22 to 2026.10.19 to
+  address the dependency audit finding PYSEC-2026-4320. Merged current `main`
+  so the PR base matches the newly introduced commit-policy workflow, and
+  reworded the ten older SET-15 commit subjects to the required ID-first
+  format while preserving each commit's tree, authorship, and merge structure.
+  The original branch head is retained locally as
+  `backup/SET-15-before-ci-fix-b9933c2`. Removed the empty
+  `.github/workflows/story-test-task.yml`, which GitHub rejected before running
+  any jobs.
+  The locked dependency audit reports no known vulnerabilities after the
+  update; 13 focused backend tests, all eight generator tests, schema drift
+  checking, and Ruff lint/format checks passed after the merge.
 
 ### T-00.01.1 Backend project (#374)
 
