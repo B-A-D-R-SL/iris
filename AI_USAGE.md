@@ -15,6 +15,7 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | ChatGPT (OpenAI) | Assisted with drafting and revising the SET-08.1 Statistics Canada source document under Leon's direction and review. | Leon Kojakian (#394) |
 | ChatGPT (OpenAI) | Drafted T-02.11.1 tests for the future US-11 Store model, B.A.D.R. seed, and Django admin access under Leon's direction; documented the later Store REST API test plan. | Leon Kojakian (#439) |
 | ChatGPT (OpenAI) | Implemented the US-11 Store model, migration, admin registration, service, and test factory from Leon's approved T-02.11.2 plan. | Leon Kojakian (#441) |
+| ChatGPT (OpenAI) | Implemented the idempotent B.A.D.R. Store seed command and expanded its tests from Leon's approved T-02.11.3 plan. | Leon Kojakian (#442) |
 
 ## How we declare AI-generated code
 
@@ -37,8 +38,9 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-08.3 Git hooks and commit policy | `.githooks/pre-commit`, `.githooks/commit-msg`, `.gitattributes`, `.github/workflows/commit-policy.yml`, `README.md` | 50% or more AI-generated | Not yet opened |
 | T-00.08.1 Official LICO table (#394) | `docs/04-data/lico-thresholds.md` | 50% or more AI-generated | Not yet opened (commit `5e3baad`) |
 | T-00.08.2 LICO threshold seed | `backend/modules/eligibility/data/lico_2024.csv`, `backend/modules/rules/management/commands/seed_rules.py`, `backend/modules/rules/tests/test_seed_rules.py` | 50% or more AI-generated | Not yet opened |
-| T-02.11.1 B.A.D.R. first store tests (#439) | `backend/modules/stores/tests/test_store.py`, `test_seed_badr_store.py`, `test_admin.py`, `test_api.py` (US-14 comment only) | 50% or more AI-generated | Not yet opened; active tests await US-11 model and seed build tasks |
+| T-02.11.1 B.A.D.R. first store tests (#439) | `backend/modules/stores/tests/test_store.py`, `test_seed_badr_store.py`, `test_admin.py`, `test_api.py` (US-14 comment only) | 50% or more AI-generated | Not yet opened; model, seed, and admin tests now pass |
 | T-02.11.2 Store model and migration (#441) | `backend/modules/stores/{__init__.py,apps.py,fields.py,models.py,services.py,admin.py,migrations/0001_initial.py,tests/factories.py}`, `backend/iris/settings/base.py`, focused test additions | 50% or more AI-generated (generated migration exempt) | Not yet opened |
+| T-02.11.3 B.A.D.R. seed (#442) | `backend/modules/stores/management/`, `backend/modules/stores/services.py`, `backend/modules/stores/tests/test_seed_badr_store.py`, `AI_USAGE.md` | 50% or more AI-generated | Not yet opened |
 | SET-12 Listing categories and safety lists (#403) | `docs/02-requirements/business-rules.md` (Listings section), `backend/modules/categories/data/categories.yaml` | 50% or more AI-generated | Not yet opened (`feature/SET-12` branch) |
 | SET-02 CI workflow and branch protection (#378, #379, #380, #381) | `.github/workflows/ci.yml`, `backend/pyproject.toml` (coverage and import-linter settings), `frontend/vite.config.ts` (coverage settings), `frontend/package.json` (scripts), `README.md` (checks and CI section) | 50% or more AI-generated | Not yet opened |
 | SET-15 OpenAPI and TypeScript generation (#406), partial implementation | `backend/iris/settings/base.py`, `backend/tests/test_api_schema.py`, `frontend/scripts/{gen-api,test-api-generation}.mjs`, `frontend/src/shared/api/generated.d.ts`, `frontend/src/test/api-types.typecheck.ts`, `frontend/package.json`, `frontend/pnpm-lock.yaml`, `.github/workflows/ci.yml`, `docs/guides/api-generation.md`, `docs/03-design/api.md`, `AI_USAGE.md`, `README.md` | 50% or more AI-generated | [#604](https://github.com/B-A-D-R-SL/iris/pull/604); categories compliance (#377) and documented team decisions remain pending |
@@ -231,7 +233,7 @@ At least half of the AI-assisted features need an example here. For each one:
 
 - **What the AI produced:** tests covering the Store fields and one-B.A.D.R. constraint, an idempotent seed, and Django admin access. `test_api.py` records only a comment for the later US-14 Store REST endpoint tests.
 - **Leon's direction:** use the documented local administrator credentials for the admin test, with an isolated PostgreSQL test database. Keep this task limited to US-11 tests; the Store model, seed command, admin registration, migration, and app setup belong to the build tasks.
-- **How we verified it:** the original model, seed, and admin tests passed against a temporary Store implementation, which was removed at Leon's request. With the #441 model in place, nine focused model and admin tests passed against PostgreSQL with 96% Store-module coverage. The seed test still awaits #442; teammate review remains pending.
+- **How we verified it:** the original model, seed, and admin tests passed against a temporary Store implementation, which was removed at Leon's request. With the #441 model in place, nine focused model and admin tests passed against PostgreSQL with 96% Store-module coverage. The seed test passes with #442; teammate review remains pending.
 - **Problems found and corrections:** the initial work included production code beyond T-02.11.1. It was removed, and the local demo migration and seed were reversed. The seed test now checks the exact placeholder address from issue #442. At Leon's request, the admin HTTP-to-database integration test was replaced by direct admin form tests. REST endpoint tests were later reduced to a US-14 comment after reviewing the team requirements and architecture.
 
 ### T-02.11.2 Store model and migration (#441)
@@ -240,6 +242,13 @@ At least half of the AI-assisted features need an example here. For each one:
 - **Leon's contribution:** Leon supplied the #441 task scope, checked the proposed work against `Iris-Requirements.md` and the team architecture, database, and API documents, and kept the REST endpoint out of this model task. He requested a revised plan, reviewed the staged partner-application foreign key and service-layer admin writes, and approved implementation.
 - **How we verified it:** the Store migration applied cleanly to local PostgreSQL; `makemigrations --check --dry-run` found no changes; nine focused tests passed, including validation, the database uniqueness constraint, admin permissions, and case-insensitive email. Focused coverage was 96%; Ruff and mypy passed on the Store module. A teammate's review is still needed.
 - **Problems found and corrections:** Django's `ModelAdmin` cannot be subscripted at runtime, so its annotation was removed before generating the migration. The generated migration needed a `CITextExtension` operation before creating the table. The nullable `application_id` foreign key is staged for the PartnerApplication model rather than represented as an unvalidated UUID in #441.
+
+### T-02.11.3 B.A.D.R. seed (#442)
+
+- **What the AI produced:** a `seed_badr_store` management command, a Store service that creates only a missing B.A.D.R. row, and tests for the exact placeholder address, repeat runs, retained administrator edits, and an unaffected partner store.
+- **Leon's contribution:** Leon requested a plan based on the team requirements, architecture, database, and API documents, then reviewed and approved the plan before implementation. The real store details remain for B.A.D.R. to confirm.
+- **How we verified it:** eleven focused Store tests passed against PostgreSQL, including both seed tests. Focused Store-module coverage was 96.59%; Ruff lint and formatting and mypy passed on the changed Python files. A teammate's review is still needed.
+- **Problems found and corrections:** Ruff found an import ordering issue and mypy treated the test factory instance as a factory rather than a Store. Both were corrected before the final checks.
 
 ### SET-12 Listing categories and safety lists (#403)
 
