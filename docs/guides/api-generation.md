@@ -20,8 +20,8 @@ additional API requirements or imply that every documented convention is
 already implemented.
 
 Categories compliance remains dependent on [reference module #377](https://github.com/B-A-D-R-SL/iris/issues/377).
-There is no categories endpoint in this checkout; the unmerged SET-12 seed data
-does not implement one. Categories must be checked against the adopted
+SET-12 category seed data is merged into main, but no categories endpoint is
+implemented in this checkout. Categories must be checked against the adopted
 conventions and added to the schema when its module is implemented.
 
 ## Generator compatibility
