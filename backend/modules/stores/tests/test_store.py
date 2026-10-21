@@ -24,7 +24,7 @@ def store_fields() -> dict[str, object]:
         "unit": "2",
         "city": "Montréal",
         "postal_code": "H2X 1Y4",
-        "phone": "514-555-0100",
+        "phone": "+15145550100",
         "email": "partner@example.test",
         "opening_hours": {"mon": [["09:00", "17:00"]], "sun": []},
         "pickup_instructions": "Use the side door.",
@@ -65,7 +65,12 @@ def test_store_defaults_and_optional_address_fields(
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     ("field", "value"),
-    [("name", ""), ("email", "not-an-email"), ("postal_code", "invalid")],
+    [
+        ("name", ""),
+        ("email", "not-an-email"),
+        ("postal_code", "invalid"),
+        ("phone", "514-555-0100"),
+    ],
 )
 def test_store_rejects_invalid_required_details(
     store_fields: dict[str, object], field: str, value: str
