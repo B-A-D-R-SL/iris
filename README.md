@@ -130,11 +130,36 @@ docker compose exec frontend pnpm audit --prod --audit-level high
 
 The TypeScript application and Vite configuration use strict compiler checking.
 
+### API Types and Generation Checks
+
+From the repository root, pipe the validated backend schema into the frontend
+container. This uses the installed container dependencies; a host Python virtual
+environment or Node installation is unnecessary.
+Run these pipelines in Bash (Git Bash on Windows) to preserve UTF-8 between
+the Docker commands.
+
+```bash
+docker compose exec -T -e PYTHONUTF8=1 backend python -B manage.py spectacular --format openapi-json --validate --fail-on-warn | docker compose exec -T frontend pnpm gen:api --schema-stdin --check
+docker compose exec -T -e PYTHONUTF8=1 backend python -B manage.py spectacular --format openapi-json --validate --fail-on-warn | docker compose exec -T frontend pnpm test:api --schema-stdin
+```
+
+After changing the schema, regenerate the types and copy them to your checkout
+so they can be committed with the backend change:
+
+```bash
+docker compose exec -T -e PYTHONUTF8=1 backend python -B manage.py spectacular --format openapi-json --validate --fail-on-warn | docker compose exec -T frontend pnpm gen:api --schema-stdin
+docker compose cp frontend:/app/src/shared/api/generated.d.ts frontend/src/shared/api/generated.d.ts
+```
+
+See the [generation guide](docs/guides/api-generation.md) for the equivalent
+manual commands. Rebuild the frontend image after pulling generator script
+changes so the container runs the current version.
+
 ### Continuous Integration
 
 `.github/workflows/ci.yml` runs on every pull request (whatever its target branch) and on every push to `main`. It has two jobs, `backend` and `frontend`, which the `main` ruleset (#381) is to require before a merge:
 
-- **backend**: ruff lint and format, mypy, import-linter module boundaries, missing migrations, pytest against PostgreSQL 17 with at least 70% total coverage, pip-audit.
+- **backend**: ruff lint and format, mypy, import-linter module boundaries, missing migrations, pytest against PostgreSQL 17 with at least 70% total coverage, pip-audit, `pnpm gen:api --check`, and `pnpm test:api`.
 - **frontend**: ESLint, Prettier, `tsc`, Vitest with coverage, production build, `pnpm audit` (high and critical vulnerabilities fail).
 
 The commands above are the same checks. After pulling dependency changes, rebuild the images with `docker compose up --build --watch`.

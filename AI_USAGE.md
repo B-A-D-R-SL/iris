@@ -63,6 +63,19 @@ At least half of the AI-assisted features need an example here. For each one:
   test; its filename was changed without altering Vitest configuration.
   The local backend environment uses Python 3.14.8 rather than CI's 3.13;
   CI execution and PostgreSQL-dependent backend tests remain to be verified.
+  PR #604 review fixes add explicit UTF-8 Python output, remove the default
+  subprocess buffer limit, and skip only symbolic-link creation on Windows.
+  A schema-stdin mode supports generation and drift tests across the separate
+  Docker containers; the README now lists both API checks and the command to
+  copy regenerated declarations back to the checkout. Regression coverage
+  includes Unicode schemas larger than 1 MiB through both Python and stdin.
+- **PR #604 review verification:** all eight generator tests passed with local
+  Python, and seven passed with a piped schema (the Python-only export test is
+  skipped in that mode). Generated declarations match the validated schema.
+  Four backend schema tests, all 11 Vitest tests, TypeScript checking, ESLint,
+  and formatting of changed frontend files and the generation guide passed.
+  Validation used Python 3.13 and Node 22.23.2; CI uses Node 24. Native Windows
+  and the full container workflow were not run; the Docker daemon was stopped.
 
 ### T-00.01.1 Backend project (#374)
 

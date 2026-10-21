@@ -35,10 +35,20 @@ incorrect or missing status. No existing dependency version was changed.
 
 ## Generate and check types
 
-Use the project's Python 3.13, Node 24, uv, and pnpm setup. Install the locked
+For the recommended Docker workflow, use the schema pipeline and copy commands
+in the [README](../../README.md#api-types-and-generation-checks). `--schema-stdin`
+reads an exported OpenAPI JSON document instead of launching local Python, so
+the backend and frontend can run in separate containers. `test:api` accepts the
+same flag and passes that schema to its generator subprocesses. It uses
+`node:test` directly so piped stdin reaches the test script.
+
+For manual development, use the project's Python 3.13, Node 24, uv, and pnpm setup. Install the locked
 backend and frontend dependencies as described in the README, and provide the
 backend's existing required configuration (`DJANGO_SECRET_KEY` and a PostgreSQL
 `DATABASE_URL`). Generation does not start services or run migrations.
+The default interpreter is `backend/.venv/bin/python` (or
+`backend/.venv/Scripts/python.exe` on Windows), created by running
+`uv sync --locked` from `backend/`.
 
 From `frontend/`:
 
@@ -57,6 +67,11 @@ The output is `frontend/src/shared/api/generated.d.ts`. Keep that file under
 version control, regenerate it after schema changes, and include it in the same
 review as the backend change. Existing frontend API consumers and their runtime
 response validation are preserved.
+
+Local Python exports use UTF-8, including on Windows, and are not
+limited by Node's default 1 MiB subprocess buffer. Only the symbolic-link test
+is skipped on Windows, where creating symlinks may require extra privileges;
+hard-link rejection remains tested.
 
 Generation uses stable ordering, the existing Prettier configuration, and LF
 line endings. `--check` compares against the generated content without writing

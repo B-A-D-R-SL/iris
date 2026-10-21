@@ -12,7 +12,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "gen:api": "node scripts/gen-api.mjs",
-    "test:api": "node --test scripts/test-api-generation.mjs",
+    "test:api": "node scripts/test-api-generation.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
