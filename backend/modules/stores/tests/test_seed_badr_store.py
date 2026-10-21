@@ -1,4 +1,4 @@
-# AI contribution: 50% or more AI-
+# AI contribution: 50% or more AI-generated
 # Code has been planned and written by AI, while I reviewed, edited, and tested the code
 """US-11 B.A.D.R. store seed tests."""
 
@@ -19,10 +19,10 @@ def test_seed_creates_one_active_badr_store_and_is_idempotent() -> None:
     assert Store.objects.count() == 1
     assert store.name == "B.A.D.R."
     assert store.is_active is True
-    assert store.street_number
-    assert store.street_name
-    assert store.city
-    assert store.postal_code
+    assert store.street_number == "0000"
+    assert store.street_name == "rue Exemple"
+    assert store.city == "Montreal"
+    assert store.postal_code == "H0H 0H0"
     assert store.phone
     assert store.email
     assert isinstance(store.opening_hours, dict)
