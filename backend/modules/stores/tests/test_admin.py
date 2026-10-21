@@ -3,19 +3,144 @@
 """US-11 Django admin registration, form, and permission tests."""
 
 from io import StringIO
+from typing import cast
 
 import pytest
+from django.apps import apps
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser, Permission
+from django.core.exceptions import ValidationError
 from django.core.management import call_command
-from django.test import RequestFactory, override_settings
+from django.test import Client, RequestFactory, override_settings
 from django.urls import reverse
+from django.utils.translation import override
 
 from modules.stores.models import Store
+from modules.stores.tests.factories import StoreFactory
 
 LOCAL_ADMIN_EMAIL = "admin@iris.local"
 LOCAL_ADMIN_PASSWORD = "iris_local_admin_password"
+
+
+@pytest.mark.parametrize(
+    ("language", "app_name", "postal_error"),
+    [
+        ("fr", "Magasins", "Entrez un code postal canadien."),
+        ("en", "Stores", "Enter a Canadian postal code."),
+    ],
+)
+def test_store_admin_text_uses_current_language(
+    language: str, app_name: str, postal_error: str
+) -> None:
+    """Translate the Store admin section and its postal-code validation error."""
+    with override(language):
+        assert str(apps.get_app_config("stores").verbose_name) == app_name
+        field = Store._meta.get_field("postal_code")
+        with pytest.raises(ValidationError) as error:
+            field.run_validators("invalid")
+        assert postal_error in error.value.messages
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("language", "expected_labels"),
+    [
+        (
+            "fr",
+            {
+                "name": "Nom du magasin",
+                "street_number": "Numéro civique",
+                "street_name": "Rue",
+                "unit": "App.",
+                "city": "Ville",
+                "postal_code": "Code postal",
+                "phone": "Téléphone",
+                "email": "Courriel",
+                "opening_hours": "Heures d’ouverture",
+                "pickup_instructions": "Instructions pour la cueillette",
+                "is_badr": "Magasin B.A.D.R.",
+                "is_active": "Actif",
+            },
+        ),
+        (
+            "en",
+            {
+                "name": "Store name",
+                "street_number": "Street number",
+                "street_name": "Street",
+                "unit": "Apt.",
+                "city": "City",
+                "postal_code": "Postal code",
+                "phone": "Phone number",
+                "email": "Email address",
+                "opening_hours": "Opening hours",
+                "pickup_instructions": "Pickup instructions",
+                "is_badr": "B.A.D.R. store",
+                "is_active": "Active",
+            },
+        ),
+    ],
+)
+def test_store_admin_form_uses_translated_field_labels(
+    client: Client, language: str, expected_labels: dict[str, str]
+) -> None:
+    """Show the approved Store form labels in both admin languages."""
+    admin_user = get_user_model()._default_manager.create_superuser(
+        username=LOCAL_ADMIN_EMAIL, password=LOCAL_ADMIN_PASSWORD
+    )
+    store = cast(Store, StoreFactory())
+    client.force_login(admin_user)
+
+    response = client.get(
+        reverse("admin:stores_store_change", args=[store.pk]),
+        headers={"Accept-Language": language},
+    )
+
+    assert response.status_code == 200
+    form = response.context["adminform"].form
+    for field_name, label in expected_labels.items():
+        assert form.fields[field_name].label == label
+    with override(language):
+        assert (
+            str(Store._meta.verbose_name) == {"fr": "Magasin", "en": "Store"}[language]
+        )
+        assert (
+            str(Store._meta.verbose_name_plural)
+            == {
+                "fr": "Magasins",
+                "en": "Stores",
+            }[language]
+        )
+        assert str(Store._meta.get_field("id").verbose_name) == "ID"
+        assert (
+            str(Store._meta.get_field("created_at").verbose_name)
+            == {
+                "fr": "Créé le",
+                "en": "Created at",
+            }[language]
+        )
+        assert (
+            str(Store._meta.get_field("updated_at").verbose_name)
+            == {
+                "fr": "Modifié le",
+                "en": "Updated at",
+            }[language]
+        )
+
+
+@pytest.mark.parametrize(
+    ("accepted_language", "expected_language"),
+    [("fr", "fr"), ("en", "en"), ("es", "fr")],
+)
+def test_admin_request_selects_supported_language(
+    client: Client, accepted_language: str, expected_language: str
+) -> None:
+    """Select French or English for admin requests, defaulting to French."""
+    response = client.get(
+        "/admin/login/", headers={"Accept-Language": accepted_language}
+    )
+    assert response.wsgi_request.LANGUAGE_CODE == expected_language
 
 
 @pytest.mark.django_db

@@ -1,0 +1,78 @@
+# AI contribution: 50% or more AI-generated
+msgid ""
+msgstr ""
+"Project-Id-Version: Iris\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-AI-Contribution: 50% or more AI-generated\n"
+
+msgid "Enter a Canadian postal code."
+msgstr "Entrez un code postal canadien."
+
+msgid "Stores"
+msgstr "Magasins"
+
+msgid "Store"
+msgstr "Magasin"
+
+msgctxt "store field"
+msgid "ID"
+msgstr "ID"
+
+msgctxt "store field"
+msgid "Store name"
+msgstr "Nom du magasin"
+
+msgctxt "store field"
+msgid "Street number"
+msgstr "Numéro civique"
+
+msgctxt "store field"
+msgid "Street"
+msgstr "Rue"
+
+msgctxt "store field"
+msgid "Apt."
+msgstr "App."
+
+msgctxt "store field"
+msgid "City"
+msgstr "Ville"
+
+msgctxt "store field"
+msgid "Postal code"
+msgstr "Code postal"
+
+msgctxt "store field"
+msgid "Phone number"
+msgstr "Téléphone"
+
+msgctxt "store field"
+msgid "Email address"
+msgstr "Courriel"
+
+msgctxt "store field"
+msgid "Opening hours"
+msgstr "Heures d’ouverture"
+
+msgctxt "store field"
+msgid "Pickup instructions"
+msgstr "Instructions pour la cueillette"
+
+msgctxt "store field"
+msgid "B.A.D.R. store"
+msgstr "Magasin B.A.D.R."
+
+msgctxt "store field"
+msgid "Active"
+msgstr "Actif"
+
+msgctxt "store field"
+msgid "Created at"
+msgstr "Créé le"
+
+msgctxt "store field"
+msgid "Updated at"
+msgstr "Modifié le"

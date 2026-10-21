@@ -4,6 +4,7 @@
 """Django configuration for the stores module."""
 
 from django.apps import AppConfig
+from django.utils.translation import gettext_lazy as _
 
 
 class StoresConfig(AppConfig):
@@ -11,4 +12,4 @@ class StoresConfig(AppConfig):
 
     default_auto_field = "django.db.models.BigAutoField"
     name = "modules.stores"
-    verbose_name = "Stores"
+    verbose_name = _("Stores")
