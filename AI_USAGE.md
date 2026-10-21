@@ -1,3 +1,4 @@
+<!-- AI contribution: 50% or more AI-generated -->
 # AI usage
 
 How the Iris team uses generative AI, as required by the course rubric. This file stays up to date every iteration.
@@ -12,7 +13,7 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | CodeRabbit | Automated review comments on pull requests (in addition to a teammate's review) | All pull requests |
 | ChatGPT (OpenAI) | French/English terminology, wording consistency, shared translation content, translation validation tests, and PR-readiness review for SET-13. | Owner of #404 |
 | ChatGPT (OpenAI) | Assisted with drafting and revising the SET-08.1 Statistics Canada source document under Leon's direction and review. | Leon Kojakian (#394) |
-| ChatGPT (OpenAI) | Drafted T-02.11.1 tests for the future US-11 Store model, B.A.D.R. seed, Django admin access, and admin-only REST API under Leon's direction. | Leon Kojakian (#439) |
+| ChatGPT (OpenAI) | Drafted T-02.11.1 tests for the future US-11 Store model, B.A.D.R. seed, and Django admin access under Leon's direction; documented the later Store REST API test plan. | Leon Kojakian (#439) |
 
 ## How we declare AI-generated code
 
@@ -35,7 +36,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-08.3 Git hooks and commit policy | `.githooks/pre-commit`, `.githooks/commit-msg`, `.gitattributes`, `.github/workflows/commit-policy.yml`, `README.md` | 50% or more AI-generated | Not yet opened |
 | T-00.08.1 Official LICO table (#394) | `docs/04-data/lico-thresholds.md` | 50% or more AI-generated | Not yet opened (commit `5e3baad`) |
 | T-00.08.2 LICO threshold seed | `backend/modules/eligibility/data/lico_2024.csv`, `backend/modules/rules/management/commands/seed_rules.py`, `backend/modules/rules/tests/test_seed_rules.py` | 50% or more AI-generated | Not yet opened |
-| T-02.11.1 B.A.D.R. first store tests (#439) | `backend/modules/stores/tests/test_store.py`, `test_seed_badr_store.py`, `test_admin.py`, `test_api.py` | 50% or more AI-generated | Not yet opened; tests await US-11 build tasks and a Store REST endpoint |
+| T-02.11.1 B.A.D.R. first store tests (#439) | `backend/modules/stores/tests/test_store.py`, `test_seed_badr_store.py`, `test_admin.py`, `test_api.py` (US-14 comment only) | 50% or more AI-generated | Not yet opened; active tests await US-11 model and seed build tasks |
 | SET-12 Listing categories and safety lists (#403) | `docs/02-requirements/business-rules.md` (Listings section), `backend/modules/categories/data/categories.yaml` | 50% or more AI-generated | Not yet opened (`feature/SET-12` branch) |
 | SET-02 CI workflow and branch protection (#378, #379, #380, #381) | `.github/workflows/ci.yml`, `backend/pyproject.toml` (coverage and import-linter settings), `frontend/vite.config.ts` (coverage settings), `frontend/package.json` (scripts), `README.md` (checks and CI section) | 50% or more AI-generated | Not yet opened |
 
@@ -177,10 +178,10 @@ At least half of the AI-assisted features need an example here. For each one:
 
 ### T-02.11.1 B.A.D.R. first store tests (#439)
 
-- **What the AI produced:** four test files covering the Store fields and one-B.A.D.R. constraint, an idempotent seed, Django admin access, and an admin-only Store REST endpoint through PostgreSQL and the OpenAPI schema.
-- **Leon's direction:** drafted a plan to implement the task, use the documented local administrator credentials for the admin and REST login tests, with an isolated PostgreSQL test database. Keep this task limited to tests; the Store model, seed command, admin registration, migration, app setup, and REST endpoint belong to the build tasks.
-- **How we verified it:** the original model, seed, and admin tests passed against a temporary Store implementation, which was removed at Leon's request. Ruff lint and formatting pass for the current tests. The new REST API and OpenAPI tests cannot pass until the Store model, seed, and endpoint are built. Teammate review remains pending.
-- **Problems found and corrections:** the initial work included production code beyond T-02.11.1. It was removed, and the local demo migration and seed were reversed. The seed test now checks the exact placeholder address from issue #442. At Leon's request, the admin HTTP-to-database integration test was replaced by direct admin form tests and a future REST API-to-database test; no endpoint has been implemented yet.
+- **What the AI produced:** tests covering the Store fields and one-B.A.D.R. constraint, an idempotent seed, and Django admin access. `test_api.py` records only a comment for the later US-14 Store REST endpoint tests.
+- **Leon's direction:** use the documented local administrator credentials for the admin test, with an isolated PostgreSQL test database. Keep this task limited to US-11 tests; the Store model, seed command, admin registration, migration, and app setup belong to the build tasks.
+- **How we verified it:** the original model, seed, and admin tests passed against a temporary Store implementation, which was removed at Leon's request. Ruff lint and formatting passed before the REST tests were replaced by a comment. The current active tests await the Store model and seed; teammate review remains pending.
+- **Problems found and corrections:** the initial work included production code beyond T-02.11.1. It was removed, and the local demo migration and seed were reversed. The seed test now checks the exact placeholder address from issue #442. At Leon's request, the admin HTTP-to-database integration test was replaced by direct admin form tests. REST endpoint tests were later reduced to a US-14 comment after reviewing the team requirements and architecture.
 
 ### SET-12 Listing categories and safety lists (#403)
 
