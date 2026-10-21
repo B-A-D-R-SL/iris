@@ -11,6 +11,7 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | ChatGPT (OpenAI) | Generating and refining code, tests, configurations, and documentation for the backend, frontend, and Docker development environment. Also used for debugging, troubleshooting, and verification. | Owner of #374, #375, #376 |
 | CodeRabbit | Automated review comments on pull requests (in addition to a teammate's review) | All pull requests |
 | ChatGPT (OpenAI) | French/English terminology, wording consistency, shared translation content, translation validation tests, and PR-readiness review for SET-13. | Owner of #404 |
+| ChatGPT (OpenAI) | Assisted with drafting and revising the SET-08.1 Statistics Canada source document under Leon's direction and review. | Leon Kojakian (#394) |
 
 ## How we declare AI-generated code
 
@@ -30,6 +31,9 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-01 Setup hardening (#373, #374–#376) | `backend/iris/observability.py`, `backend/tests/test_observability.py`, `backend/iris/settings/base.py`, `frontend/src/shared/logger.ts`, `frontend/src/shared/logger.test.ts`, `backend/iris/urls.py` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | SET-09 Mock notices of assessment (#397) | `tools/mock_notices/{generate.py,notices.py,tax.py,layout.py,photos.py,tests/test_generate.py,pyproject.toml,README.md}`, `docs/04-data/mock-notices-of-assessment.md` | 50% or more AI-generated | [#592](https://github.com/B-A-D-R-SL/iris/pull/592) |
 | SET-13 Glossary and French/English terminology (#404) | `docs/01-project/glossary.md`, `frontend/src/shared/i18n/en.json`, `frontend/src/shared/i18n/fr.json`, `frontend/src/test/i18n.test.ts` | 50% or more AI-generated | [#594](https://github.com/B-A-D-R-SL/iris/pull/594) |
+| SET-08.3 Git hooks and commit policy | `.githooks/pre-commit`, `.githooks/commit-msg`, `.gitattributes`, `.github/workflows/commit-policy.yml`, `README.md` | 50% or more AI-generated | Not yet opened |
+| T-00.08.1 Official LICO table (#394) | `docs/04-data/lico-thresholds.md` | 50% or more AI-generated | Not yet opened (commit `5e3baad`) |
+| T-00.08.2 LICO threshold seed | `backend/modules/eligibility/data/lico_2024.csv`, `backend/modules/rules/management/commands/seed_rules.py`, `backend/modules/rules/tests/test_seed_rules.py` | 50% or more AI-generated | Not yet opened |
 | SET-12 Listing categories and safety lists (#403) | `docs/02-requirements/business-rules.md` (Listings section), `backend/modules/categories/data/categories.yaml` | 50% or more AI-generated | Not yet opened (`feature/SET-12` branch) |
 | SET-02 CI workflow and branch protection (#378, #379, #380, #381) | `.github/workflows/ci.yml`, `backend/pyproject.toml` (coverage and import-linter settings), `frontend/vite.config.ts` (coverage settings), `frontend/package.json` (scripts), `README.md` (checks and CI section) | 50% or more AI-generated | Not yet opened |
 | SET-15 OpenAPI and TypeScript generation (#406), partial implementation | `backend/iris/settings/base.py`, `backend/tests/test_api_schema.py`, `frontend/scripts/{gen-api,test-api-generation}.mjs`, `frontend/src/shared/api/generated.d.ts`, `frontend/src/test/api-types.typecheck.ts`, `frontend/package.json`, `frontend/pnpm-lock.yaml`, `.github/workflows/ci.yml`, `docs/guides/api-generation.md`, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | Not opened; categories compliance (#377) and documented team decisions remain pending |
@@ -184,6 +188,25 @@ At least half of the AI-assisted features need an example here. For each one:
     rules to be agreed before implementation.
   - Kept later features, including strikes and AI registration,
     outside the active Release 1 flows.
+
+### SET-08.3 Git hooks and commit policy
+
+- **What the AI produced:** tracked pre-commit and commit-msg hooks, a pull-request commit-policy check, Git line-ending attributes for the hooks, and setup instructions.
+- **How we verified it:** enabled the tracked hooks in this checkout; used a temporary Git repository to confirm that ordinary invalid messages and staged whitespace fail, `T`, `SET`, `US`, and `ES` messages pass, and a real merge commit succeeds. A second temporary repository exercised the original pull-request check. The revised workflow passed YAML and shell syntax checks; an isolated local PR simulation rejected an invalid subject even when the PR replaced its hook with a script that always succeeds, and accepted a valid subject. Its GitHub-hosted behavior needs verification after it is merged into the base branch.
+- **Problems found and corrections:** Atlassian's examples assume `issue-` branches and use older Python syntax, so the hooks were adapted to Iris's approved ID format. Local hooks cannot enforce policy across other clones by themselves; the pull-request check was added. CodeRabbit then found that the check executed the hook from the PR, allowing a contributor to replace it. The workflow was changed to run the base branch's hook and read PR commits only as data. SonarQube Cloud subsequently flagged the `actions/checkout` step under `pull_request_target`; the workflow now fetches Git objects without checking out PR files and executes only the hook extracted from the trusted base commit. The first PR needs human review because the trusted workflow is unavailable on the base branch until merge. A repository administrator must require the check, prevent direct pushes, and allow `pull_request_target` in the Actions event policy before GitHub's default block takes effect on November 2, 2026.
+
+### T-00.08.1 Official LICO table (#394)
+
+- **What the AI produced:** a draft of `docs/04-data/lico-thresholds.md` recording the official table, selection criteria, retrieval date, and seven threshold values.
+- **Leon's contribution:** Leon stopped the initial implementation to request a plan, asked for a comparison with `Iris-Requirements.md` and a rewrite, then approved the revised scope before implementation. He reviewed the resulting documentation and committed it as `5e3baad`.
+- **How we verified it:** the published document records Statistics Canada table 11-10-0241-01, the before-tax series for communities of 500,000 and over, reference year 2024, retrieval on October 18, 2026, and the seven values for family sizes 1 through 7 or more. It includes the selected-table link so a teammate can check the figures against the source.
+- **Problems found and corrections:** the first implementation preceded Leon's review. At his request, the work returned to a reviewable plan and was narrowed to fetching and documenting the official values; the CSV and rule seeding were left for T-00.08.2.
+
+### T-00.08.2 LICO threshold seed
+
+- **What the AI produced:** the reviewed 2024 LICO CSV, a seed loader for its source and retrieval metadata, and focused seed tests.
+- **How we verified it:** the default seed path publishes version 1 with all seven exact cent amounts from the SET-08.1 source document, the Statistics Canada link, and the recorded retrieval date. Six focused tests passed, including idempotence and rejection of missing or duplicate data and missing retrieval metadata. Ruff lint, Ruff formatting, and mypy passed on the changed Python files. Teammate review remains pending.
+- **Problems found and corrections:** the earlier seed loader used the date when the command ran as `retrieved_on`, which could misstate when the data was obtained. Source and retrieval metadata now travel with the CSV, and the loader validates them before publishing.
 
 ### SET-12 Listing categories and safety lists (#403)
 

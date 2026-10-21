@@ -1,0 +1,6 @@
+# AI contribution: 50% or more AI-generated
+# I have drafted a plan, told AI to implement it, and reviewed the code
+
+
+# Git hooks must keep Unix line endings on every developer platform.
+.githooks/* text eol=lf

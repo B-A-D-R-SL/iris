@@ -1,7 +1,9 @@
+# AI contribution: 50% or more AI-generated
 """Seed the first version of every supported business-rule type."""
 
 import csv
 from copy import deepcopy
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +29,7 @@ class Command(BaseCommand):
     help = "Create version 1 of every business-rule type without duplicating data."
 
     def add_arguments(self, parser: CommandParser) -> None:
+        """Accept a reviewed LICO CSV path for the initial rule seed."""
         parser.add_argument(
             "--lico-file",
             type=Path,
@@ -38,6 +41,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args: Any, **options: Any) -> None:
+        """Publish missing version-one rules together without rewriting existing ones."""
         if set(DEFAULT_RULE_VALUES) != set(RULE_TYPES) - {"lico_thresholds"}:
             raise CommandError("Seed defaults do not cover every supported rule type.")
 
@@ -85,6 +89,7 @@ class Command(BaseCommand):
 
 
 def _find_latest_lico_file() -> Path:
+    """Select the highest-year bundled LICO CSV for an initial seed."""
     data_directory = settings.BASE_DIR / "modules" / "eligibility" / "data"
     candidates = sorted(data_directory.glob("lico_[0-9][0-9][0-9][0-9].csv"))
     if not candidates:
@@ -96,6 +101,7 @@ def _find_latest_lico_file() -> Path:
 
 
 def _load_lico_values(path: Path) -> dict[str, Any]:
+    """Validate source metadata and seven cent amounts before publishing them."""
     if not path.is_file():
         raise CommandError(f"LICO data file does not exist: {path}")
 
@@ -105,14 +111,33 @@ def _load_lico_values(path: Path) -> dict[str, Any]:
         raise CommandError("LICO filename must use the form lico_<year>.csv.") from exc
 
     thresholds: dict[int, int] = {}
+    metadata: dict[str, str] = {}
     try:
         with path.open(newline="", encoding="utf-8-sig") as data_file:
-            reader = csv.DictReader(data_file)
+            csv_lines: list[str] = []
+            comment_line_count = 0
+            for line in data_file:
+                if not csv_lines and line.startswith("#"):
+                    comment_line_count += 1
+                    key, separator, value = line[1:].partition(":")
+                    key = key.strip()
+                    if separator and key in {"source_url", "retrieved_on"}:
+                        if key in metadata:
+                            raise CommandError(f"LICO CSV repeats {key} metadata.")
+                        metadata[key] = value.strip()
+                    continue
+                csv_lines.append(line)
+
+            reader = csv.DictReader(csv_lines)
             if reader.fieldnames != ["family_size", "threshold_cents"]:
                 raise CommandError(
                     "LICO CSV headers must be family_size,threshold_cents."
                 )
-            for line_number, row in enumerate(reader, start=2):
+            for line_number, row in enumerate(reader, start=comment_line_count + 2):
+                if None in row:
+                    raise CommandError(
+                        f"LICO CSV line {line_number} must have exactly two columns."
+                    )
                 family_size, threshold_cents = _parse_lico_row(row, line_number)
                 if family_size in thresholds:
                     raise CommandError(
@@ -121,6 +146,17 @@ def _load_lico_values(path: Path) -> dict[str, Any]:
                 thresholds[family_size] = threshold_cents
     except OSError as exc:
         raise CommandError(f"Could not read LICO data file {path}: {exc}") from exc
+
+    if metadata.get("source_url") != LICO_SOURCE_URL:
+        raise CommandError(f"LICO CSV source_url must be {LICO_SOURCE_URL}.")
+    retrieved_on = metadata.get("retrieved_on", "")
+    try:
+        if date.fromisoformat(retrieved_on).isoformat() != retrieved_on:
+            raise ValueError("retrieved_on must use YYYY-MM-DD")
+    except ValueError as exc:
+        raise CommandError(
+            "LICO CSV retrieved_on must use an ISO date (YYYY-MM-DD)."
+        ) from exc
 
     if set(thresholds) != EXPECTED_LICO_SIZES:
         missing = sorted(EXPECTED_LICO_SIZES - set(thresholds))
@@ -132,8 +168,8 @@ def _load_lico_values(path: Path) -> dict[str, Any]:
 
     return {
         "year": year,
-        "source_url": LICO_SOURCE_URL,
-        "retrieved_on": timezone.localdate().isoformat(),
+        "source_url": metadata["source_url"],
+        "retrieved_on": retrieved_on,
         "thresholds": {
             str(family_size): thresholds[family_size]
             for family_size in sorted(thresholds)
@@ -142,6 +178,7 @@ def _load_lico_values(path: Path) -> dict[str, Any]:
 
 
 def _parse_lico_row(row: dict[str, str], line_number: int) -> tuple[int, int]:
+    """Parse one family-size row and require a positive integer cent amount."""
     try:
         family_size = int(row["family_size"])
         threshold_cents = int(row["threshold_cents"])
@@ -157,6 +194,7 @@ def _parse_lico_row(row: dict[str, str], line_number: int) -> tuple[int, int]:
 
 
 def _get_seed_publisher() -> AbstractBaseUser:
+    """Get the seed audit account, creating it without a usable password."""
     user_model = get_user_model()
     username_field = user_model.USERNAME_FIELD
     publisher, created = user_model._default_manager.get_or_create(

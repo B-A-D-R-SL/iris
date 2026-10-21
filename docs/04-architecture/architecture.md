@@ -268,7 +268,7 @@ flowchart LR
         households --> accounts
         households --> documents
         households --> eligibility
-        
+
         listings --> categories
         listings --> stores
         reservations --> listings
@@ -441,7 +441,7 @@ sequenceDiagram
         S->>S: Save rejected status and required reason
         S->>A: Record rejection
         S-->>N: Queue decision email after commit
-        N-->>M: Notify proposed store manager of rejection 
+        N-->>M: Notify proposed store manager of rejection
     end
 ```
 
@@ -649,7 +649,3 @@ Before implementation, agree on:
 
 Once agreed, update the reserve-and-pickup sequence, reservation state
 diagram and relevant business rules together.
-
-
-
-
