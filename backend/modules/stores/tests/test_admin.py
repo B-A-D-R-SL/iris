@@ -8,6 +8,7 @@ from typing import cast
 import pytest
 from django.apps import apps
 from django.contrib import admin
+from django.contrib.admin.utils import label_for_field
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser, Permission
 from django.core.exceptions import ValidationError
@@ -59,7 +60,6 @@ def test_store_admin_text_uses_current_language(
                 "email": "Courriel",
                 "opening_hours": "Heures d’ouverture",
                 "pickup_instructions": "Instructions pour la cueillette",
-                "is_badr": "Magasin B.A.D.R.",
                 "is_active": "Actif",
             },
         ),
@@ -76,7 +76,6 @@ def test_store_admin_text_uses_current_language(
                 "email": "Email address",
                 "opening_hours": "Opening hours",
                 "pickup_instructions": "Pickup instructions",
-                "is_badr": "B.A.D.R. store",
                 "is_active": "Active",
             },
         ),
@@ -101,7 +100,12 @@ def test_store_admin_form_uses_translated_field_labels(
     form = response.context["adminform"].form
     for field_name, label in expected_labels.items():
         assert form.fields[field_name].label == label
+    assert "is_badr" not in form.fields
+    assert "is_badr" in response.context["adminform"].readonly_fields
     with override(language):
+        badr_label = {"fr": "Magasin B.A.D.R.", "en": "B.A.D.R. store"}[language]
+        assert str(label_for_field("is_badr", Store)) == badr_label
+        assert badr_label in response.content.decode()
         assert (
             str(Store._meta.verbose_name) == {"fr": "Magasin", "en": "Store"}[language]
         )
