@@ -26,7 +26,6 @@ jobs:
       - name: Validate PR commit subjects with the base branch hook
         shell: bash
         env:
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -35,9 +34,10 @@ jobs:
           # Read Git objects only. No pull-request files are checked out.
           git init --quiet
           git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
-          git fetch --no-tags origin "refs/heads/$BASE_REF"
+          # Validate the event's immutable base, even if the target branch moved.
+          git fetch --no-tags origin "$BASE_SHA"
           if [ "$(git rev-parse FETCH_HEAD)" != "$BASE_SHA" ]; then
-            echo "::error::Base branch changed while validating; rerun the check"
+            echo "::error::Fetched base does not match the PR event commit"
             exit 1
           fi
           git fetch --no-tags origin "refs/pull/$PR_NUMBER/head"
