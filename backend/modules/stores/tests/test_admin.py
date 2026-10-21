@@ -8,7 +8,6 @@ from typing import cast
 import pytest
 from django.apps import apps
 from django.contrib import admin
-from django.contrib.admin.utils import label_for_field
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser, Permission
 from django.core.exceptions import ValidationError
@@ -104,7 +103,7 @@ def test_store_admin_form_uses_translated_field_labels(
     assert "is_badr" in response.context["adminform"].readonly_fields
     with override(language):
         badr_label = {"fr": "Magasin B.A.D.R.", "en": "B.A.D.R. store"}[language]
-        assert str(label_for_field("is_badr", Store)) == badr_label
+        assert str(Store._meta.get_field("is_badr").verbose_name) == badr_label
         assert badr_label in response.content.decode()
         assert (
             str(Store._meta.verbose_name) == {"fr": "Magasin", "en": "Store"}[language]
