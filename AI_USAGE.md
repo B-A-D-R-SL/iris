@@ -93,39 +93,9 @@ At least half of the AI-assisted features need an example here. For each one:
 
 ### SET-32 SonarQube Cloud quality gate (#595)
 
-- **What the AI produced:** SonarQube Cloud scanner configuration for the Django backend and React frontend, Cobertura/LCOV report handling, a scanner job in the existing CI workflow consuming coverage artifacts from its backend/frontend jobs, setup documentation, and AI disclosure updates.
-- **How we verified it:** before the artifact refactor, all 32 database-free backend tests and all 11 frontend tests passed locally, along with Ruff, ESLint/Prettier, TypeScript checking, and the production build. Local tests used Python 3.14.8 and Vitest/coverage 5.0.5; PR #605 subsequently passed both backend and frontend tests with coverage using main's CI toolchain. The dedicated scanner stopped at missing configuration. The artifact-only refactor was validated separately without rerunning those test suites; hosted artifact transfer and the CI-based SonarQube gate still require validation.
-- **Problems found and corrections:**
-  - Backend coverage could not fully pass locally because Docker was not running and no local PostgreSQL 17 endpoint was available. The workflow supplies a `postgres:17` service for CI.
-  - The initial root `.coveragerc` duplicated main's coverage policy and omitted module code. Removed it during integration with main; the workflow now uses `backend/pyproject.toml` and discovers both backend and module tests. Cobertura source paths resolve in the same job that runs the scanner.
-  - Frontend LCOV paths were initially relative to `frontend/`. Set the Vitest LCOV reporter `projectRoot` to the repository root so `SF:` paths start with `frontend/src/`.
-  - Frontend coverage tooling cleanup: ESLint scanned generated coverage HTML after local coverage runs. The generated `coverage/` directory is ignored while source-code linting rules remain unchanged.
-  - Main already provides coverage dependencies and fixes the `manage.py` executable bit. Kept main's dependency manifests and lockfiles unchanged instead of retaining SET-32's older coverage versions.
-  - Replaced the nonexistent `setup-uv@v10` reference and mutable action tags with pinned Actions, locked installation, and the toolchain versions established in main. Existing commits were preserved; commit-message policy changes require the owner's approval.
-  - The initial dedicated Sonar workflow duplicated main's dependency installation and tests. Replaced it with one dependent scanner job in `ci.yml`; existing test jobs upload their coverage reports once. Checked YAML, run-step syntax, preserved CI steps/gates, artifact paths, and rejection of missing or empty reports without rerunning the successful application tests. Hosted artifact transfer and scanning remain unverified. Automatic analysis and repository settings were not changed; switching analysis modes requires separate administrator approval.
-  - The subsequent successful CI rerun imported both backend Cobertura and frontend LCOV artifacts and reported `QUALITY GATE STATUS: PASSED`. A later run stopped at the backend dependency audit because `certifi` 2026.7.22 was vulnerable, which skipped the dependent scanner. Updated only `certifi` to the reported fixed version, 2026.10.19; the local locked-environment audit reports no known vulnerabilities. No audit, coverage threshold, or scanner setting was weakened.
-  - Addressed the analysis-scope review by scanning from the repository root,
-    including tools, GitHub workflows, and frontend configuration files. Added
-    tools' Python tests to the test scope and excluded `tools/**` only from
-    coverage calculations because CI does not export tools coverage. Backend
-    and frontend report paths, CI test commands, and the quality gate are
-    unchanged. The setup guide explains the source, test, and coverage scopes.
-    Local scope validation checked representative source and test paths, all
-    tracked tools files' coverage exclusion, preserved filters and report paths,
-    and disjoint source/test classification. Guide formatting and whitespace
-    checks passed; the hosted scan verifies actual scanner behavior.
-  - Prepared a local commit-policy correction to fetch the immutable base SHA
-    from the PR event instead of comparing it with a moving target branch.
-    The validator still comes only from that trusted base, no PR code is checked
-    out, and a changed PR head still fails validation. Because the workflow uses
-    `pull_request_target`, this correction takes effect only after it reaches
-    the target branch. The fix was prepared and verified locally for owner
-    review before commit/push approval; no merge was performed for this fix.
-    Disposable local repositories reproduced the old failure and verified the
-    advancing-base fix, trusted-hook selection, invalid-subject rejection,
-    changed-head rejection, and failure on an unavailable base. A separate CI
-    resolution proposal preserves API checks and coverage uploads; its YAML and
-    shell syntax passed validation without changing the tracked CI workflow.
+- **What the AI produced:** SonarQube Cloud CI integration reusing coverage artifacts, repository-wide analysis configuration, setup documentation, and a commit-policy fix.
+- **How we verified it:** Backend/frontend CI and the Sonar quality gate passed before the latest scope changes. Local workflow, scope, and commit-policy checks passed; latest integration still needs hosted validation.
+- **Problems found and corrections:** Removed duplicate test runs, fixed coverage paths and lint exclusions, pinned Actions, updated certifi, expanded analysis to tools/workflows/configs, and corrected stale-base validation. Tools are excluded only from coverage. Existing quality gates remain unchanged; the policy fix activates after reaching main.
 
 ### SET-02 CI workflow and branch protection (#378, #379, #380, #381)
 
