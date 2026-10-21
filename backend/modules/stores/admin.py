@@ -19,7 +19,7 @@ class StoreAdmin(admin.ModelAdmin):
     list_display = ("name", "city", "postal_code", "is_badr", "is_active")
     list_filter = ("is_badr", "is_active")
     search_fields = ("name", "city", "postal_code", "email")
-    readonly_fields = ("id", "created_at", "updated_at")
+    readonly_fields = ("id", "is_badr", "created_at", "updated_at")
 
     def has_module_permission(self, request: HttpRequest) -> bool:
         """Keep Store records visible only to active administrators."""
