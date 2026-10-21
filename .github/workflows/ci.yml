@@ -90,6 +90,29 @@ jobs:
           name: backend-coverage
           path: backend/coverage.xml
           if-no-files-found: error
+      - name: Set up pnpm for API type checks
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: 10.34.6
+
+      - name: Set up Node for API type checks
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies for API type checks
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Check generated API types
+        working-directory: frontend
+        run: pnpm gen:api --check
+
+      - name: Test API generation and drift detection
+        working-directory: frontend
+        run: pnpm test:api
 
   frontend:
     runs-on: ubuntu-latest
