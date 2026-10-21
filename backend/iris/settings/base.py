@@ -88,6 +88,37 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "Iris API",
     "DESCRIPTION": "Backend API for the Iris redistribution platform.",
     "VERSION": "1.0.0",
+    # Document the Django health view without changing its authentication or behavior.
+    "APPEND_PATHS": {
+        "/api/health/": {
+            "get": {
+                "operationId": "health_retrieve",
+                "summary": "Check backend availability",
+                "description": (
+                    "Returns the backend process status. This does not check "
+                    "database or external service connectivity."
+                ),
+                "tags": ["health"],
+                "security": [],
+                "responses": {
+                    "200": {
+                        "description": "The backend process is available.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["status"],
+                                    "properties": {
+                                        "status": {"type": "string", "enum": ["ok"]}
+                                    },
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        }
+    },
 }
 
 ROOT_URLCONF = "iris.urls"
