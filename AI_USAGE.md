@@ -80,6 +80,18 @@ At least half of the AI-assisted features need an example here. For each one:
   and formatting of changed frontend files and the generation guide passed.
   Validation used Python 3.13 and Node 22.23.2; CI uses Node 24. Native Windows
   and the full container workflow were not run; the Docker daemon was stopped.
+- **CI follow-up:** updated only `certifi` from 2026.7.22 to 2026.10.19 to
+  address the dependency audit finding PYSEC-2026-4320. Merged current `main`
+  so the PR base matches the newly introduced commit-policy workflow, and
+  reworded the ten older SET-15 commit subjects to the required ID-first
+  format while preserving each commit's tree, authorship, and merge structure.
+  The original branch head is retained locally as
+  `backup/SET-15-before-ci-fix-b9933c2`. Removed the empty
+  `.github/workflows/story-test-task.yml`, which GitHub rejected before running
+  any jobs.
+  The locked dependency audit reports no known vulnerabilities after the
+  update; 13 focused backend tests, all eight generator tests, schema drift
+  checking, and Ruff lint/format checks passed after the merge.
 
 ### T-00.01.1 Backend project (#374)
 
