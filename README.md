@@ -179,6 +179,10 @@ changes so the container runs the current version.
 
 The commands above are the same checks. After pulling dependency changes, rebuild the images with `docker compose up --build --watch`.
 
+### SonarQube Cloud
+
+The SonarQube Cloud job in `.github/workflows/ci.yml` imports backend Cobertura XML and frontend LCOV artifacts from the existing test jobs, without rerunning their tests. Required project variables, the analysis secret, and administrator setup steps are documented in `docs/guides/sonarqube-cloud.md`.
+
 ### Email Testing
 
 Mailpit captures outgoing development emails without delivering them to real recipients.

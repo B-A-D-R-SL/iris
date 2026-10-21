@@ -33,6 +33,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | T-00.01.2 Frontend project (#375) | `frontend/src/`, `frontend/package.json`, `frontend/vite.config.ts`, `frontend/eslint.config.js`, `frontend/.prettierrc.json`, `backend/iris/{views.py,urls.py}` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | T-00.01.3 Docker Compose and README (#376) | `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, `backend/adapters/mailer/`, `backend/iris/management/commands/create_dev_admin.py`, `backend/tests/test_platform_setup.py`, `.env.example`, `README.md` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | SET-01 Setup hardening (#373, #374–#376) | `backend/iris/observability.py`, `backend/tests/test_observability.py`, `backend/iris/settings/base.py`, `frontend/src/shared/logger.ts`, `frontend/src/shared/logger.test.ts`, `backend/iris/urls.py` | 50% or more AI-generated | Not yet opened (`setup` branch) |
+| SET-32 SonarQube Cloud quality gate (#595) | `sonar-project.properties`, `.github/workflows/{ci,commit-policy}.yml`, `frontend/vite.config.ts`, `frontend/eslint.config.js`, `backend/uv.lock`, `README.md`, `docs/guides/sonarqube-cloud.md` | 50% or more AI-generated | [#605](https://github.com/B-A-D-R-SL/iris/pull/605) |
 | SET-09 Mock notices of assessment (#397) | `tools/mock_notices/{generate.py,notices.py,tax.py,layout.py,photos.py,tests/test_generate.py,pyproject.toml,README.md}`, `docs/04-data/mock-notices-of-assessment.md` | 50% or more AI-generated | [#592](https://github.com/B-A-D-R-SL/iris/pull/592) |
 | SET-13 Glossary and French/English terminology (#404) | `docs/01-project/glossary.md`, `frontend/src/shared/i18n/en.json`, `frontend/src/shared/i18n/fr.json`, `frontend/src/test/i18n.test.ts` | 50% or more AI-generated | [#594](https://github.com/B-A-D-R-SL/iris/pull/594) |
 | SET-08.3 Git hooks and commit policy | `.githooks/pre-commit`, `.githooks/commit-msg`, `.gitattributes`, `.github/workflows/commit-policy.yml`, `README.md` | 50% or more AI-generated | Not yet opened |
@@ -143,6 +144,12 @@ At least half of the AI-assisted features need an example here. For each one:
   - Ruff's format report panicked on a file containing a UTF-8 byte-order mark. Replaced the affected production settings file without the marker and formatted relevant Django entry points.
   - The public authentication contract remains a SET-15 decision. Only routing changed; no custom authentication handlers were implemented.
   - Request logs exclude raw URL paths, query strings, request bodies, authorization tokens, and arbitrary message content to avoid exposing personal data.
+
+### SET-32 SonarQube Cloud quality gate (#595)
+
+- **What the AI produced:** SonarQube Cloud CI integration reusing coverage artifacts, repository-wide analysis configuration, setup documentation, and a commit-policy fix.
+- **How we verified it:** Backend/frontend CI and the Sonar quality gate passed before the latest scope changes. Local workflow, scope, and commit-policy checks passed; latest integration still needs hosted validation.
+- **Problems found and corrections:** Removed duplicate test runs, fixed coverage paths and lint exclusions, pinned Actions, updated certifi, expanded analysis to tools/workflows/configs, and corrected stale-base validation. Tools are excluded only from coverage. Existing quality gates remain unchanged; the policy fix activates after reaching main.
 
 ### SET-02 CI workflow and branch protection (#378, #379, #380, #381)
 
