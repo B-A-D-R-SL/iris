@@ -104,6 +104,16 @@ At least half of the AI-assisted features need an example here. For each one:
   - Replaced the nonexistent `setup-uv@v10` reference and mutable action tags with pinned Actions, locked installation, and the toolchain versions established in main. Existing commits were preserved; commit-message policy changes require the owner's approval.
   - The initial dedicated Sonar workflow duplicated main's dependency installation and tests. Replaced it with one dependent scanner job in `ci.yml`; existing test jobs upload their coverage reports once. Checked YAML, run-step syntax, preserved CI steps/gates, artifact paths, and rejection of missing or empty reports without rerunning the successful application tests. Hosted artifact transfer and scanning remain unverified. Automatic analysis and repository settings were not changed; switching analysis modes requires separate administrator approval.
   - The subsequent successful CI rerun imported both backend Cobertura and frontend LCOV artifacts and reported `QUALITY GATE STATUS: PASSED`. A later run stopped at the backend dependency audit because `certifi` 2026.7.22 was vulnerable, which skipped the dependent scanner. Updated only `certifi` to the reported fixed version, 2026.10.19; the local locked-environment audit reports no known vulnerabilities. No audit, coverage threshold, or scanner setting was weakened.
+  - Addressed the analysis-scope review by scanning from the repository root,
+    including tools, GitHub workflows, and frontend configuration files. Added
+    tools' Python tests to the test scope and excluded `tools/**` only from
+    coverage calculations because CI does not export tools coverage. Backend
+    and frontend report paths, CI test commands, and the quality gate are
+    unchanged. The setup guide explains the source, test, and coverage scopes.
+    Local scope validation checked representative source and test paths, all
+    tracked tools files' coverage exclusion, preserved filters and report paths,
+    and disjoint source/test classification. Guide formatting and whitespace
+    checks passed; the hosted scan verifies actual scanner behavior.
 
 ### SET-02 CI workflow and branch protection (#378, #379, #380, #381)
 

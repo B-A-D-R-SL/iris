@@ -8,11 +8,11 @@ Automatic analysis is currently enabled for the project. This implementation doe
 
 Create or import the Iris project in SonarQube Cloud, then add these GitHub repository settings:
 
-| GitHub setting | Type | Value |
-| --- | --- | --- |
+| GitHub setting       | Type                | Value                            |
+| -------------------- | ------------------- | -------------------------------- |
 | `SONAR_ORGANIZATION` | Repository variable | SonarQube Cloud organization key |
-| `SONAR_PROJECT_KEY` | Repository variable | SonarQube Cloud project key |
-| `SONAR_TOKEN` | Repository secret | SonarQube Cloud analysis token |
+| `SONAR_PROJECT_KEY`  | Repository variable | SonarQube Cloud project key      |
+| `SONAR_TOKEN`        | Repository secret   | SonarQube Cloud analysis token   |
 
 Only `SONAR_TOKEN` is a secret. The project and organization identifiers remain configurable through non-secret repository variables. Do not commit tokens or generated credentials.
 
@@ -40,9 +40,9 @@ pytest --cov --cov-report=term --cov-report=xml:coverage.xml
 
 SonarQube Cloud imports these generated reports:
 
-| Area | Tool | Artifact | Report path after download |
-| --- | --- | --- | --- |
-| Backend Django | `pytest` with `pytest-cov` | `backend-coverage` | `backend/coverage.xml` |
+| Area           | Tool                                 | Artifact            | Report path after download    |
+| -------------- | ------------------------------------ | ------------------- | ----------------------------- |
+| Backend Django | `pytest` with `pytest-cov`           | `backend-coverage`  | `backend/coverage.xml`        |
 | Frontend React | `vitest --coverage` with V8 coverage | `frontend-coverage` | `frontend/coverage/lcov.info` |
 
 The import paths are configured in `sonar-project.properties`:
@@ -53,6 +53,24 @@ The import paths are configured in `sonar-project.properties`:
 The artifacts contain only the report files. The scanner restores them under `backend/` and `frontend/coverage/` in its checkout. All three jobs use `ubuntu-latest` and the same event checkout, so backend Cobertura source directories resolve against the same repository workspace path. Frontend LCOV filenames are prefixed with `frontend/` using the reporter's `projectRoot`. Source and test scope includes `backend/modules/`.
 
 The test jobs keep main's Node 24, pnpm 10.34.6, Python 3.13, pinned Actions, and locked dependency installation. Their names, tests, audits, and 70% backend coverage minimum are preserved; the only test-command addition exports backend XML. Artifact Actions are pinned to immutable commits too.
+
+## Analysis scope
+
+`sonar.sources=.` includes analyzable files throughout the repository, including
+`tools/mock_notices`, `.github` workflows, and frontend configuration files such
+as `vite.config.ts` and `eslint.config.js`. Dependencies, generated coverage,
+build output, and Python caches remain excluded through the existing exclusion
+patterns and Git ignore rules.
+
+`sonar.tests=.` uses test inclusion patterns to classify backend tests, frontend
+tests and setup files, and `tools/**/tests/**/*.py` as tests rather than production
+sources. Test directories are excluded from the source scope to avoid indexing
+the same file in both categories.
+
+`sonar.coverage.exclusions` includes `tools/**` because this CI workflow does not
+produce coverage for the standalone tools project. Tools and their tests remain
+in static analysis; this exclusion affects only coverage calculations. Backend
+and frontend coverage report paths and the quality gate remain unchanged.
 
 ## Quality gate setup
 
