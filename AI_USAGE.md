@@ -29,7 +29,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | T-00.01.2 Frontend project (#375) | `frontend/src/`, `frontend/package.json`, `frontend/vite.config.ts`, `frontend/eslint.config.js`, `frontend/.prettierrc.json`, `backend/iris/{views.py,urls.py}` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | T-00.01.3 Docker Compose and README (#376) | `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, `backend/adapters/mailer/`, `backend/iris/management/commands/create_dev_admin.py`, `backend/tests/test_platform_setup.py`, `.env.example`, `README.md` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | SET-01 Setup hardening (#373, #374–#376) | `backend/iris/observability.py`, `backend/tests/test_observability.py`, `backend/iris/settings/base.py`, `frontend/src/shared/logger.ts`, `frontend/src/shared/logger.test.ts`, `backend/iris/urls.py` | 50% or more AI-generated | Not yet opened (`setup` branch) |
-| SET-32 SonarQube Cloud quality gate (#595) | `sonar-project.properties`, `.github/workflows/ci.yml`, `frontend/vite.config.ts`, `frontend/eslint.config.js`, `backend/uv.lock`, `README.md`, `docs/guides/sonarqube-cloud.md` | 50% or more AI-generated | [#605](https://github.com/B-A-D-R-SL/iris/pull/605) |
+| SET-32 SonarQube Cloud quality gate (#595) | `sonar-project.properties`, `.github/workflows/{ci,commit-policy}.yml`, `frontend/vite.config.ts`, `frontend/eslint.config.js`, `backend/uv.lock`, `README.md`, `docs/guides/sonarqube-cloud.md` | 50% or more AI-generated | [#605](https://github.com/B-A-D-R-SL/iris/pull/605) |
 | SET-09 Mock notices of assessment (#397) | `tools/mock_notices/{generate.py,notices.py,tax.py,layout.py,photos.py,tests/test_generate.py,pyproject.toml,README.md}`, `docs/04-data/mock-notices-of-assessment.md` | 50% or more AI-generated | [#592](https://github.com/B-A-D-R-SL/iris/pull/592) |
 | SET-13 Glossary and French/English terminology (#404) | `docs/01-project/glossary.md`, `frontend/src/shared/i18n/en.json`, `frontend/src/shared/i18n/fr.json`, `frontend/src/test/i18n.test.ts` | 50% or more AI-generated | [#594](https://github.com/B-A-D-R-SL/iris/pull/594) |
 | SET-08.3 Git hooks and commit policy | `.githooks/pre-commit`, `.githooks/commit-msg`, `.gitattributes`, `.github/workflows/commit-policy.yml`, `README.md` | 50% or more AI-generated | Not yet opened |
@@ -114,6 +114,18 @@ At least half of the AI-assisted features need an example here. For each one:
     tracked tools files' coverage exclusion, preserved filters and report paths,
     and disjoint source/test classification. Guide formatting and whitespace
     checks passed; the hosted scan verifies actual scanner behavior.
+  - Prepared a local commit-policy correction to fetch the immutable base SHA
+    from the PR event instead of comparing it with a moving target branch.
+    The validator still comes only from that trusted base, no PR code is checked
+    out, and a changed PR head still fails validation. Because the workflow uses
+    `pull_request_target`, this correction takes effect only after it reaches
+    the target branch. The fix was prepared and verified locally for owner
+    review before commit/push approval; no merge was performed for this fix.
+    Disposable local repositories reproduced the old failure and verified the
+    advancing-base fix, trusted-hook selection, invalid-subject rejection,
+    changed-head rejection, and failure on an unavailable base. A separate CI
+    resolution proposal preserves API checks and coverage uploads; its YAML and
+    shell syntax passed validation without changing the tracked CI workflow.
 
 ### SET-02 CI workflow and branch protection (#378, #379, #380, #381)
 
