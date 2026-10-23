@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import logging
 from pathlib import Path
 
@@ -159,3 +160,38 @@ def test_main_with_files_outside_the_notices_folder_runs_unscored(tmp_path, noti
     summary = out.with_suffix(".summary.md").read_text(encoding="utf-8")
     assert f"- {copy.as_posix()}: full_name, street_number" in summary
     assert "| name |" not in summary
+
+
+class RecordingFakeReader:
+    """Exposes the raw result of its last call, like AzureLayoutReader."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+        self.last_result: dict | None = None
+
+    def read_notice(self, content: bytes, content_type: str) -> NoticeReading:
+        self.calls += 1
+        self.last_result = None
+        if self.calls == 2:
+            raise DocumentReadError("service failed")
+        self.last_result = {"call": self.calls}
+        return make_reading(make_row())
+
+
+def test_run_files_records_each_raw_result_by_notice_number(tmp_path):
+    names = ["pdf/notice-001.pdf", "pdf/notice-002.pdf", "pdf/notice-003.pdf"]
+    record_dir = tmp_path / "recorded"
+    run_files(RecordingFakeReader(), _write_files(tmp_path, names), tmp_path, record_dir)
+    assert sorted(p.name for p in record_dir.iterdir()) == [
+        "layout-notice-001.json",
+        "layout-notice-003.json",  # the failed read of 002 leaves nothing to record
+    ]
+    assert json.loads((record_dir / "layout-notice-003.json").read_text("utf-8")) == {"call": 3}
+
+
+def test_main_record_fails_clearly_for_a_reader_without_raw_results(tmp_path):
+    with pytest.raises(SystemExit, match="--record"):
+        main(
+            ["--reader", "truth", "--split", "dev", "--out", str(tmp_path / "x.csv")]
+            + ["--record", str(tmp_path / "rec")]
+        )

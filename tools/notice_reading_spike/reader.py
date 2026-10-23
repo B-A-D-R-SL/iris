@@ -48,3 +48,10 @@ class MeteredReader(DocumentReader, Protocol):
     """A spike reader that reports what its last call cost."""
 
     last_cost_usd: float
+
+
+@runtime_checkable
+class RecordingReader(DocumentReader, Protocol):
+    """A spike reader that keeps the raw service answer of its last call (None after a failure)."""
+
+    last_result: dict | None

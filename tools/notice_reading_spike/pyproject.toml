@@ -4,7 +4,9 @@ name = "notice-reading-spike"
 version = "0.1.0"
 description = "Benchmark harness comparing document readers on the mock Revenu Québec notices (SET-19)"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "azure-ai-documentintelligence>=1.0.2",
+]
 
 [dependency-groups]
 dev = [

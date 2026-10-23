@@ -1,19 +1,28 @@
 # AI contribution: 50% or more AI-generated
 """Runs a document reader over mock notices, scores it and writes the CSV and summary.
 
-Usage: uv run run.py --reader truth (--split dev|heldout|all | --files PATH...) --out results/x.csv
+Usage: uv run run.py --reader truth|azure-layout (--split dev|heldout|all | --files PATH...)
+       --out results/x.csv [--record DIR]
 """
 
 from __future__ import annotations
 
 import argparse
 import csv
+import json
 import logging
 import time
 from collections.abc import Callable
 from pathlib import Path
 
-from reader import DocumentReader, DocumentReadError, MeteredReader, NoticeReading
+from azure_layout_reader import AzureLayoutReader
+from reader import (
+    DocumentReader,
+    DocumentReadError,
+    MeteredReader,
+    NoticeReading,
+    RecordingReader,
+)
 from records import RunRecord
 from score import DEV_FILES, FIELD_NAMES, TruthRow, load_truth, score_reading, summarize
 from truth_reader import TruthReader
@@ -35,7 +44,10 @@ def _truth_reader() -> DocumentReader:
     return TruthReader(load_truth(NOTICES_DIR / "truth.csv"), NOTICES_DIR)
 
 
-READERS: dict[str, Callable[[], DocumentReader]] = {"truth": _truth_reader}
+READERS: dict[str, Callable[[], DocumentReader]] = {
+    "truth": _truth_reader,
+    "azure-layout": AzureLayoutReader.from_env,
+}
 
 
 def content_type_for(path: Path) -> str:
@@ -73,9 +85,26 @@ def _read_one(reader: DocumentReader, path: Path, root: Path) -> RunRecord:
     return record
 
 
-def run_files(reader: DocumentReader, files: list[Path], root: Path) -> list[RunRecord]:
-    """Read each file; a DocumentReadError becomes a failed record, anything else propagates."""
-    return [_read_one(reader, path, root) for path in files]
+def _record_raw_result(reader: RecordingReader, path: Path, record_dir: Path) -> None:
+    if reader.last_result is not None:
+        record_dir.mkdir(parents=True, exist_ok=True)
+        target = record_dir / f"layout-{path.stem}.json"
+        target.write_text(json.dumps(reader.last_result, ensure_ascii=False), encoding="utf-8")
+
+
+def run_files(
+    reader: DocumentReader, files: list[Path], root: Path, record_dir: Path | None = None
+) -> list[RunRecord]:
+    """Read each file; a DocumentReadError becomes a failed record, anything else propagates.
+
+    With `record_dir`, each successful raw service result is saved as `layout-<file stem>.json`.
+    """
+    records = []
+    for path in files:
+        records.append(_read_one(reader, path, root))
+        if record_dir is not None and isinstance(reader, RecordingReader):
+            _record_raw_result(reader, path, record_dir)
+    return records
 
 
 def select_files(split: str, truth: dict[str, TruthRow], root: Path) -> list[Path]:
@@ -118,6 +147,9 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--split", choices=["dev", "heldout", "all"])
     source.add_argument("--files", nargs="+", type=Path)
+    parser.add_argument(
+        "--record", type=Path, metavar="DIR", help="save each raw service result under DIR"
+    )
     parser.add_argument("--out", required=True, type=Path, help="CSV path; summary goes beside it")
     return parser.parse_args(argv)
 
@@ -127,7 +159,15 @@ def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
     truth = load_truth(NOTICES_DIR / "truth.csv")
     files = args.files or select_files(args.split, truth, NOTICES_DIR)
-    records = run_files(READERS[args.reader](), files, NOTICES_DIR)
+    try:
+        reader = READERS[args.reader]()
+    except ValueError as exc:
+        raise SystemExit(f"error: {exc}") from exc
+    if args.record and not isinstance(reader, RecordingReader):
+        raise SystemExit(
+            f"error: --record needs a reader that keeps raw results, not {args.reader}"
+        )
+    records = run_files(reader, files, NOTICES_DIR, args.record)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     write_csv(records, truth, args.out)
     summary_path = args.out.with_suffix(".summary.md")
