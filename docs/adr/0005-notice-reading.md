@@ -7,7 +7,7 @@ Status: Proposed · Date: 2026-10-23
 
 Iris reads the household income from a Revenu Québec notice of assessment (US-22), so that staff do not retype it and automatic approval can rely on it. Four constraints shape the choice:
 
-- **Law 25:** the notice is personal and financial information. Disclosure to a provider needs a written agreement (s. 17, s. 18.3). The evidence gathered for B.A.D.R.'s privacy officer is in [notice-reading-privacy-inputs.md](../04-data/notice-reading-privacy-inputs.md).
+- **Law 25:** the notice is personal and financial information. The [evidence document](../04-data/notice-reading-privacy-inputs.md) lists what ss. 17 and 18.3 ask for, including written terms with the provider; B.A.D.R.'s privacy officer decides how they apply.
 - **Canadian processing:** the team requires AI reading to run in a Canadian region.
 - **Budget:** the production environment is planned at 60 USD per month, and a result must arrive within 60 seconds per notice.
 - **Wrong values are costly:** a wrong income at high confidence could auto-approve a household, so the confidence threshold (0.90) is a rule setting.
@@ -109,7 +109,7 @@ Whichever option is chosen, no real notice goes to a service until all of these 
 
 ## Consequences
 
-- The 0.90 threshold is a rule setting, not a constant in the reader; staff can change it without a release.
+- The 0.90 threshold should become a versioned rule setting when US-22 and US-24 are built, like the other settings in the business rules; it is not a constant in the reader.
 - `TruthReader` becomes the fake reader for the application's tests, so no test calls a service.
 - If Gemini is chosen, the LLM security checks apply: the model has no tools, its output is validated before use, untrusted text in a notice is never treated as instructions, and no secret goes in a prompt.
 - If Gemini is chosen, B.A.D.R. holds a second vendor account, contract and bill, outside the Microsoft nonprofit credits.

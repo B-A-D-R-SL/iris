@@ -7,7 +7,7 @@ Read next: the [planning note](../../docs/06-planning/set-19-notice-reading-spik
 
 ## Setup
 
-Needs [uv](https://docs.astral.sh/uv/). Run every command below from this folder (`tools/notice_reading_spike`). uv installs Python 3.13 and the dependencies into `.venv` on the first run.
+You need an Azure subscription (a student one or B.A.D.R.'s), a Google Cloud account, the Google Cloud CLI (`gcloud`, [install](https://cloud.google.com/sdk/docs/install)) for the sign-in in step 3, and [uv](https://docs.astral.sh/uv/). Run every command below from this folder (`tools/notice_reading_spike`). uv installs Python 3.13 and the dependencies into `.venv` on the first run.
 
 1. **Document Intelligence.** In the Azure portal, create a Document Intelligence resource on the free tier (F0). When Canada Central or Canada East is offered, pick one. Copy the endpoint and one key from "Keys and Endpoint".
 2. **Vertex AI.** In Google Cloud, create a project, link a billing account and enable the Vertex AI API. In Model Garden, look at the models offered in Montréal (`northamerica-northeast1`) and pick the newest Gemini Flash.
@@ -57,7 +57,7 @@ uv run --env-file .env run.py --reader vlm --split all --out results/vlm-2.csv
 
 Write `results/summary.md` by hand: repeatability between the two runs, and held-out against dev accuracy. Commit `results/` (mock data only).
 
-**Real-notice conditions.** `--files` reads any PDF, PNG or JPEG. Download the public redacted sample notice to a folder outside the repo, and also read two mockup screenshots that are not notices:
+**Real-notice conditions.** `--files` reads any PDF, PNG or JPEG. Download the public redacted sample notice published by Carte loisir ([PDF](https://www.carteloisir.ca/app/uploads/cal/exemples/avis-de-cotisation-pour-deficience-grave-et-prolongee-des-fonctions-mentales-ou-physiques-revenu-quebec.pdf)) to a folder outside the repository, never inside it, and never commit it. Use that path in the command below (`../../../notice-sample/redacted.pdf` is only an example). Also read two mockup screenshots that are not notices:
 
 ```sh
 uv run --env-file .env run.py --reader vlm --files ../../../notice-sample/redacted.pdf "../../docs/03-design/mockups/Registration.png" "../../docs/03-design/mockups/Store - Post a listing.png" --out results/vlm-real.csv
