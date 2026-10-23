@@ -1,7 +1,7 @@
 # AI contribution: 50% or more AI-generated
 """Runs a document reader over mock notices, scores it and writes the CSV and summary.
 
-Usage: uv run run.py --reader truth|azure-layout (--split dev|heldout|all | --files PATH...)
+Usage: uv run run.py --reader truth|azure-layout|vlm (--split dev|heldout|all | --files PATH...)
        --out results/x.csv [--record DIR]
 """
 
@@ -26,6 +26,7 @@ from reader import (
 from records import RunRecord
 from score import DEV_FILES, FIELD_NAMES, TruthRow, load_truth, score_reading, summarize
 from truth_reader import TruthReader
+from vlm_reader import VlmReader
 
 __all__ = ["READERS", "RunRecord", "main", "run_files"]
 
@@ -47,6 +48,7 @@ def _truth_reader() -> DocumentReader:
 READERS: dict[str, Callable[[], DocumentReader]] = {
     "truth": _truth_reader,
     "azure-layout": AzureLayoutReader.from_env,
+    "vlm": VlmReader.from_env,
 }
 
 
