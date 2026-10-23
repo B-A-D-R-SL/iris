@@ -40,8 +40,8 @@ _YEAR = re.compile(r"\d{4}")
 SYSTEM_PROMPT = (
     "You read images of a Revenu Québec notice of assessment (avis de cotisation) and return "
     "JSON.\n"
-    "Return each value exactly as printed, for example amounts like 75 170,91 and dates like "
-    "16 avril 2026. The total income is line 199, read from the Montant établi column, never "
+    "Return each value exactly as printed, for example amounts like 12 345,67 and dates like "
+    "9 juillet 2026. The total income is line 199, read from the Montant établi column, never "
     "from the Montant déclaré column. Return an empty string for the unit when the notice prints "
     "no unit.\n"
     "For any value you cannot read, return null with confidence 0. Confidence is a number from "
@@ -182,7 +182,10 @@ class VlmReader:
         input_price = _price_env(_ENV_INPUT_PRICE)
         output_price = _price_env(_ENV_OUTPUT_PRICE)
         if location != REGION:
-            raise ValueError(f"{_ENV_LOCATION} must be {REGION}: Law 25 allows no other region")
+            raise ValueError(
+                f"{_ENV_LOCATION} must be {REGION}: the project's data-location "
+                "requirement restricts this reader to the Montréal region"
+            )
         client = genai.Client(vertexai=True, project=project, location=location)
         return cls(client, model, input_price, output_price)
 
