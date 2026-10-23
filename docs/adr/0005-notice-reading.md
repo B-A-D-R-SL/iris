@@ -1,0 +1,115 @@
+<!-- AI contribution: 50% or more AI-generated -->
+# ADR 0005: How Iris reads notices of assessment
+
+Status: Proposed · Date: 2026-10-23
+
+## Context
+
+Iris reads the household income from a Revenu Québec notice of assessment (US-22), so that staff do not retype it and automatic approval can rely on it. Four constraints shape the choice:
+
+- **Law 25:** the notice is personal and financial information. Disclosure to a provider needs a written agreement (s. 17, s. 18.3). The evidence gathered for B.A.D.R.'s privacy officer is in [notice-reading-privacy-inputs.md](../04-data/notice-reading-privacy-inputs.md).
+- **Canadian processing:** the team requires AI reading to run in a Canadian region.
+- **Budget:** the production environment is planned at 60 USD per month, and a result must arrive within 60 seconds per notice.
+- **Wrong values are costly:** a wrong income at high confidence could auto-approve a household, so the confidence threshold (0.90) is a rule setting.
+
+Spike SET-19 ([#410](https://github.com/B-A-D-R-SL/iris/issues/410)) measures two options on 50 fictional notices. Method and runbook: [planning note](../06-planning/set-19-notice-reading-spike.md), [harness README](../../tools/notice_reading_spike/README.md).
+
+## Options compared
+
+| Option | How it reads |
+| --- | --- |
+| A. Azure AI Document Intelligence | `prebuilt-layout` returns the page text and lines; our own parser finds the labelled values |
+| B. Gemini on Vertex AI (Montréal, `northamerica-northeast1`) | A vision model gets the page images and answers in JSON, which is validated key by key before use |
+
+## Interface
+
+Both options sit behind one port, so the choice stays a configuration detail. Copied from `tools/notice_reading_spike/reader.py`:
+
+```python
+@dataclass(frozen=True)
+class ReadField[T]:
+    """One value read from a notice, with the reader's confidence in it."""
+
+    value: T | None  # None: could not be read
+    confidence: float  # 0.0 to 1.0
+
+
+@dataclass(frozen=True)
+class NoticeReading:
+    """The fields Iris needs from a notice of assessment."""
+
+    full_name: ReadField[str]  # as printed, e.g. "Zoé Jessica Lapointe"
+    street_number: ReadField[str]
+    street_name: ReadField[str]
+    unit: ReadField[str]  # "" when the notice prints no unit
+    postal_code: ReadField[str]  # "H2X 4N1"
+    tax_year: ReadField[int]
+    total_income_cents: ReadField[int]  # line 199, Montant établi
+    notice_date: ReadField[dt.date]
+
+
+class DocumentReadError(Exception):
+    """The service failed or its answer is unusable: the household enters the values by hand."""
+
+
+class DocumentReader(Protocol):
+    """Reads a notice of assessment. `content_type` is a PDF, PNG or JPEG media type."""
+
+    def read_notice(self, content: bytes, content_type: str) -> NoticeReading: ...
+```
+
+The name is returned as printed because the notice prints one string and compound names make a first and last name split guesswork; the name check allows extra middle names. A reader never returns the identification number, the notice number or the document control number.
+
+## Pass criteria (set before any measurement)
+
+| Measure (held-out mock notices) | Pass |
+| --- | --- |
+| Total income, PDFs | ≥ 95% correct |
+| Total income, readable photos | ≥ 85% correct |
+| Total income wrong at confidence ≥ 0.90 | 0 (such a value could auto-approve a household) |
+| Name, address, tax year, notice date | ≥ 90% correct each |
+| Unreadable photo and wrong documents | No value at confidence ≥ 0.90 |
+| Document numbers returned | 0 |
+| Time per notice | p95 ≤ 60 s |
+| Cost per notice | ≤ 0.05 USD (assumption: keeps AI reading a small share of the 60 USD-per-month environment budget at a few hundred notices a month) |
+| Law 25 | Processing in Canada; deletion control or short retention; no training on our data; written terms covering s. 18.3; no blocking `Unknown`. Final say: B.A.D.R.'s privacy officer |
+
+## Results
+
+| Option | Total income, PDFs | Total income, photos | Confident and wrong | Name, address, tax year, notice date | Unreadable and wrong documents | Document numbers | Time p95 | Cost per notice | Law 25 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A. Document Intelligence | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run |
+| B. Gemini on Vertex AI | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run |
+
+The Law 25 column summarizes the [evidence document](../04-data/notice-reading-privacy-inputs.md), which holds the quoted sources and is not repeated here.
+
+## Decision
+
+Recorded after the live runs, against the pass criteria above.
+
+## Conditions before real notices
+
+Whichever option is chosen, no real notice goes to a service until all of these are met:
+
+- A privacy impact assessment signed by B.A.D.R.
+- An account held by B.A.D.R. in a Canadian region.
+- Written terms between B.A.D.R. and the provider that cover s. 17 and s. 18.3.
+- Updated consent text that tells households a service reads their notice.
+- Handling that meets s. 12.1 (a decision made only by automated processing), so a person can have a result reviewed.
+
+## Alternatives considered
+
+| Alternative | Why not |
+| --- | --- |
+| Azure-hosted vision language model | None is offered with processing in Canada |
+| Document Intelligence custom neural model | Needs labelled real notices to train, and we may use only fictional ones |
+| Self-hosted open-weights vision model | A GPU server costs more than the whole budget, and B.A.D.R. cannot run it |
+| US-hosted models | Break the Canadian processing requirement |
+| Manual entry only | Safe but slow: staff retype every income, which US-22 aims to avoid |
+
+## Consequences
+
+- The 0.90 threshold is a rule setting, not a constant in the reader; staff can change it without a release.
+- `TruthReader` becomes the fake reader for the application's tests, so no test calls a service.
+- If Gemini is chosen, the LLM security checks apply: the model has no tools, its output is validated before use, untrusted text in a notice is never treated as instructions, and no secret goes in a prompt.
+- If Gemini is chosen, B.A.D.R. holds a second vendor account, contract and bill, outside the Microsoft nonprofit credits.
