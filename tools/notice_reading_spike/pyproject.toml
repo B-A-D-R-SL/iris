@@ -1,0 +1,30 @@
+# AI contribution: 50% or more AI-generated
+[project]
+name = "notice-reading-spike"
+version = "0.1.0"
+description = "Benchmark harness comparing document readers on the mock Revenu Québec notices (SET-19)"
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C90"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
