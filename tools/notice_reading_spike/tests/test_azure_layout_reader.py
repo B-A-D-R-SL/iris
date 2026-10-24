@@ -11,10 +11,11 @@ import pytest
 from azure.core.exceptions import HttpResponseError
 
 from azure_layout_reader import AzureLayoutReader
-from reader import DocumentReadError
+from reader import ConfiguredReader, DocumentReadError, RecordingReader
 
-FIXTURE = Path(__file__).parent / "fixtures" / "layout-notice-003.json"
+FIXTURE = Path(__file__).parent / "fixtures" / "synthetic-layout-notice-003.json"
 OPERATION_ID = "op-123"
+HOST = "example.cognitiveservices.azure.com"
 
 
 class FakeResult:
@@ -65,58 +66,79 @@ def fixture_result() -> FakeResult:
     return FakeResult(json.loads(FIXTURE.read_text("utf-8")))
 
 
+def make_reader(client: FakeClient) -> AzureLayoutReader:
+    return AzureLayoutReader(client, 0.01, HOST)
+
+
 def test_read_notice_returns_the_parsed_reading_and_sends_raw_bytes():
     client = FakeClient(FakePoller(fixture_result()))
-    reading = AzureLayoutReader(client, 0.01).read_notice(b"%PDF", "application/pdf")
+    reading = make_reader(client).read_notice(b"%PDF", "application/pdf")
     assert reading.total_income_cents.value == 7517091
-    model_id, body, kwargs = client.analyzed[0]
-    assert (model_id, body, kwargs["content_type"]) == (
-        "prebuilt-layout",
-        b"%PDF",
-        "application/pdf",
-    )
+    model_id, body, _ = client.analyzed[0]
+    assert (model_id, body) == ("prebuilt-layout", b"%PDF")
     assert client.poller.timeout == 60
+
+
+def test_read_notice_polls_every_second_and_leaves_the_media_type_to_the_sdk():
+    client = FakeClient(FakePoller(fixture_result()))
+    make_reader(client).read_notice(b"%PDF", "application/pdf")
+    _, _, kwargs = client.analyzed[0]
+    # polling_interval=1 avoids the 30 s fallback wait; the SDK sends bytes as octet-stream
+    # whatever content_type says, so none is passed.
+    assert kwargs == {"polling_interval": 1}
 
 
 def test_read_notice_deletes_analyze_result_even_when_parsing_fails():
     bad = FakeResult({"pages": [{"lines": [{"content": "no spans"}]}]})
     client = FakeClient(FakePoller(bad))
+    reader = make_reader(client)
     with pytest.raises(DocumentReadError):
-        AzureLayoutReader(client, 0.01).read_notice(b"x", "application/pdf")
+        reader.read_notice(b"x", "application/pdf")
     assert client.deleted == [("prebuilt-layout", OPERATION_ID)]
+
+
+def test_read_notice_keeps_the_raw_result_when_parsing_fails():
+    raw = {"pages": [{"lines": [{"content": "no spans"}]}]}
+    reader = make_reader(FakeClient(FakePoller(FakeResult(raw))))
+    with pytest.raises(DocumentReadError):
+        reader.read_notice(b"x", "application/pdf")
+    assert reader.last_result == raw  # so run.py --record can save what the parser rejected
 
 
 def test_read_notice_deletes_analyze_result_when_the_poll_fails():
     client = FakeClient(FakePoller(HttpResponseError("boom")))
+    reader = make_reader(client)
     with pytest.raises(DocumentReadError):
-        AzureLayoutReader(client, 0.01).read_notice(b"x", "application/pdf")
+        reader.read_notice(b"x", "application/pdf")
     assert client.deleted == [("prebuilt-layout", OPERATION_ID)]
 
 
 def test_read_notice_wraps_service_errors_in_document_read_error():
     client = FakeClient(HttpResponseError("boom"))
+    reader = make_reader(client)
     with pytest.raises(DocumentReadError):
-        AzureLayoutReader(client, 0.01).read_notice(b"x", "application/pdf")
+        reader.read_notice(b"x", "application/pdf")
     assert client.deleted == []  # no operation was created, so nothing to delete
 
 
 def test_read_notice_treats_an_unfinished_operation_as_a_timeout():
     client = FakeClient(FakePoller(None, done=False))
+    reader = make_reader(client)
     with pytest.raises(DocumentReadError, match="timed out"):
-        AzureLayoutReader(client, 0.01).read_notice(b"x", "application/pdf")
+        reader.read_notice(b"x", "application/pdf")
     assert client.deleted == [("prebuilt-layout", OPERATION_ID)]
 
 
 def test_read_notice_cost_counts_billed_pages():
     raw = {"pages": [{"pageNumber": 1}, {"pageNumber": 2}]}
-    reader = AzureLayoutReader(FakeClient(FakePoller(FakeResult(raw))), 0.01)
+    reader = make_reader(FakeClient(FakePoller(FakeResult(raw))))
     reader.read_notice(b"x", "application/pdf")
     assert reader.last_cost_usd == pytest.approx(0.02)
 
 
 def test_read_notice_resets_cost_and_result_when_the_next_call_fails():
     client = FakeClient(FakePoller(fixture_result()))
-    reader = AzureLayoutReader(client, 0.01)
+    reader = make_reader(client)
     reader.read_notice(b"x", "application/pdf")
     assert reader.last_cost_usd > 0
     assert reader.last_result is not None
@@ -130,15 +152,22 @@ def test_read_notice_resets_cost_and_result_when_the_next_call_fails():
 def test_read_notice_logs_a_failed_delete_without_hiding_the_reading(caplog):
     client = FakeClient(FakePoller(fixture_result()), delete_error=HttpResponseError("nope"))
     with caplog.at_level(logging.WARNING):
-        reading = AzureLayoutReader(client, 0.01).read_notice(b"x", "application/pdf")
+        reading = make_reader(client).read_notice(b"x", "application/pdf")
     assert reading.total_income_cents.value == 7517091
     assert [r.getMessage() for r in caplog.records] == [
         "azure_layout_delete_failed HttpResponseError"
     ]
 
 
+def test_settings_name_the_model_and_endpoint_host():
+    reader = make_reader(FakeClient(FakePoller(fixture_result())))
+    assert isinstance(reader, ConfiguredReader)
+    assert isinstance(reader, RecordingReader)
+    assert reader.settings == {"model": "prebuilt-layout", "endpoint host": HOST}
+
+
 def test_from_env_names_the_missing_variable_and_never_echoes_the_key(monkeypatch):
-    monkeypatch.setenv("AZURE_DI_ENDPOINT", "https://example.cognitiveservices.azure.com/")
+    monkeypatch.setenv("AZURE_DI_ENDPOINT", f"https://{HOST}/")
     monkeypatch.setenv("AZURE_DI_KEY", "secret-key-value")
     monkeypatch.delenv("AZURE_DI_PRICE_PER_PAGE_USD", raising=False)
     with pytest.raises(ValueError, match="AZURE_DI_PRICE_PER_PAGE_USD") as info:
@@ -146,8 +175,18 @@ def test_from_env_names_the_missing_variable_and_never_echoes_the_key(monkeypatc
     assert "secret-key-value" not in str(info.value)
 
 
-def test_from_env_builds_a_reader_with_the_configured_price(monkeypatch):
-    monkeypatch.setenv("AZURE_DI_ENDPOINT", "https://example.cognitiveservices.azure.com/")
+def test_from_env_builds_a_reader_with_the_configured_price_and_host_but_no_key(monkeypatch):
+    monkeypatch.setenv("AZURE_DI_ENDPOINT", f"https://{HOST}/")
+    monkeypatch.setenv("AZURE_DI_KEY", "secret-key-value")
+    monkeypatch.setenv("AZURE_DI_PRICE_PER_PAGE_USD", "0.01")
+    reader = AzureLayoutReader.from_env()
+    assert reader.price_per_page_usd == 0.01
+    assert reader.settings["endpoint host"] == HOST
+    assert "secret-key-value" not in json.dumps(reader.settings)
+
+
+def test_from_env_reports_an_unknown_host_for_an_endpoint_without_a_scheme(monkeypatch):
+    monkeypatch.setenv("AZURE_DI_ENDPOINT", HOST)
     monkeypatch.setenv("AZURE_DI_KEY", "k")
     monkeypatch.setenv("AZURE_DI_PRICE_PER_PAGE_USD", "0.01")
-    assert AzureLayoutReader.from_env().price_per_page_usd == 0.01
+    assert AzureLayoutReader.from_env().settings["endpoint host"] == "unknown"

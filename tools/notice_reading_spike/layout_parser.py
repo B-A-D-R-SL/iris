@@ -11,13 +11,18 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from fields import normalize_postal_code, parse_amount_cents, parse_french_date, strip_accents
+from fields import (
+    normalize_postal_code,
+    normalize_unit,
+    parse_amount_cents,
+    parse_french_date,
+    strip_accents,
+)
 from reader import UNREAD, NoticeReading, ReadField
 
-_POSTAL_LINE = re.compile(r"\(Qu[ée]bec\)\s+([A-Z]\d[A-Z] \d[A-Z]\d)$")
+_POSTAL_LINE = re.compile(r"\(Qu[ée]bec\)\s+([A-Z]\d[A-Z]\s?\d[A-Z]\d)\s*$")
 _TAX_YEAR = re.compile(r"Ann[ée]e d['’]imposition\s+(\d{4})")
 _DATE_LABEL = re.compile(r"Date de l['’]avis\s*:\s*(.*)$")
-_UNIT = re.compile(r"app\.?\s+(\S.*)", re.IGNORECASE)
 _INCOME_LINE = "199"
 _ASSESSED_HEADER = "etabli"  # "Montant établi", compared without accents and case
 SHAPE_ERROR = "unexpected AnalyzeResult shape"
@@ -114,6 +119,12 @@ def _street_parts(street_line: LayoutLine) -> list[tuple[str, int, int]]:
     return parts
 
 
+def _unit_of(part: str) -> str | None:
+    """The unit when a street-line part is a marker plus a value (`app. 106`), else None."""
+    unit = normalize_unit(part)
+    return unit if unit and unit != part.strip() else None
+
+
 def _address_fields(
     postal_line: LayoutLine, street_line: LayoutLine, postal: str
 ) -> dict[str, ReadField]:
@@ -126,16 +137,16 @@ def _address_fields(
     parts = _street_parts(street_line)
     if len(parts) < 2:
         return fields
-    unit_match = _UNIT.fullmatch(parts[-1][0]) if len(parts) > 2 else None
-    name_parts = parts[1:-1] if unit_match else parts[1:]
+    unit = _unit_of(parts[-1][0]) if len(parts) > 2 else None
+    name_parts = parts[1:-1] if unit else parts[1:]
     fields["street_number"] = ReadField(parts[0][0], street_line.confidence(0, parts[0][2]))
     fields["street_name"] = ReadField(
         ", ".join(text for text, _, _ in name_parts),
         street_line.confidence(name_parts[0][1], name_parts[-1][2]),
     )
     fields["unit"] = (
-        ReadField(unit_match.group(1), street_line.confidence(parts[-1][1], parts[-1][2]))
-        if unit_match
+        ReadField(unit, street_line.confidence(parts[-1][1], parts[-1][2]))
+        if unit
         else ReadField("", street_line.confidence())
     )
     return fields

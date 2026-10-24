@@ -6,6 +6,7 @@ from __future__ import annotations
 import logging
 import os
 from typing import Any
+from urllib.parse import urlparse
 
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.core.credentials import AzureKeyCredential
@@ -18,6 +19,9 @@ logger = logging.getLogger(__name__)
 
 MODEL_ID = "prebuilt-layout"
 TIMEOUT_SECONDS = 60  # US-22 budget per notice
+# Poll every second when the service sends no Retry-After. The SDK's generated default is 30 s
+# (1.0.2's public client lowers it to 1 s); passing it pins the timing whatever the client.
+POLLING_SECONDS = 1
 _SERVICE_ERRORS = (HttpResponseError, ServiceRequestError, ServiceResponseError)
 _ENV_ENDPOINT = "AZURE_DI_ENDPOINT"
 _ENV_KEY = "AZURE_DI_KEY"
@@ -34,13 +38,17 @@ def _require_env(name: str) -> str:
 class AzureLayoutReader:
     """Reads a notice with Document Intelligence layout, then parses the labelled lines.
 
-    Exposes `last_cost_usd` (pages x price) and `last_result` (the raw AnalyzeResult as a dict,
-    for `run.py --record`). Each analyze result is deleted from the service after the call.
+    Exposes `last_cost_usd` (pages x price), `last_result` (the raw AnalyzeResult as a dict, kept
+    even when parsing it fails, for `run.py --record`) and `settings` (model and endpoint host,
+    never the key). Each analyze result is deleted from the service after the call.
     """
 
-    def __init__(self, client: DocumentIntelligenceClient, price_per_page_usd: float) -> None:
+    def __init__(
+        self, client: DocumentIntelligenceClient, price_per_page_usd: float, endpoint_host: str
+    ) -> None:
         self._client = client
         self.price_per_page_usd = price_per_page_usd
+        self.settings = {"model": MODEL_ID, "endpoint host": endpoint_host}
         self.last_cost_usd = 0.0
         self.last_result: dict[str, Any] | None = None
 
@@ -54,15 +62,18 @@ class AzureLayoutReader:
             price = float(price_text)
         except ValueError:
             raise ValueError(f"environment variable {_ENV_PRICE} is not a number") from None
-        return cls(DocumentIntelligenceClient(endpoint, AzureKeyCredential(key)), price)
+        client = DocumentIntelligenceClient(endpoint, AzureKeyCredential(key))
+        return cls(client, price, urlparse(endpoint).hostname or "unknown")
 
     def read_notice(self, content: bytes, content_type: str) -> NoticeReading:
+        # content_type is not passed on: the SDK (1.0.2) sends bytes as application/octet-stream
+        # and ignores it.
         self.last_cost_usd = 0.0
         self.last_result = None
         operation_id: str | None = None
         try:
             poller = self._client.begin_analyze_document(
-                MODEL_ID, content, content_type=content_type
+                MODEL_ID, content, polling_interval=POLLING_SECONDS
             )
             operation_id = poller.details["operation_id"]
             result = poller.result(timeout=TIMEOUT_SECONDS)

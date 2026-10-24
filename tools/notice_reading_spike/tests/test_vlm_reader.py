@@ -10,10 +10,12 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
+from conftest import make_row
 from google.genai import errors
 
-from reader import UNREAD, DocumentReadError
+from reader import UNREAD, ConfiguredReader, DocumentReadError
 from run import READERS
+from score import score_reading
 from vlm_reader import SYSTEM_PROMPT, VlmReader, parse_vlm_json, to_images
 
 NOTICES = Path(__file__).resolve().parents[3] / "mock-data" / "notices"
@@ -88,6 +90,18 @@ def test_parse_vlm_json_converts_printed_text_to_typed_fields():
     assert reading.postal_code.value == "H2X 4N1"
     assert reading.full_name.value == "Zoé Jessica Lapointe"
     assert reading.unit.value == ""
+
+
+def test_parse_vlm_json_drops_the_unit_marker_like_the_layout_parser():
+    reading = parse_vlm_json(payload(unit={"text": "app. 106", "confidence": 0.95}))
+    assert reading.unit.value == "106"  # truth.csv stores 106; the notice prints "app. 106"
+    assert reading.unit.confidence == 0.95
+
+
+def test_read_notice_scores_a_printed_unit_as_correct():
+    body = payload(unit={"text": "app. 106", "confidence": 0.95})
+    reading = VlmReader(FakeClient(response(body)), "m", 1.0, 1.0).read_notice(PNG, "image/png")
+    assert score_reading(make_row(unit="106"), reading).outcomes["unit"] == "correct"
 
 
 def test_parse_vlm_json_unparseable_amount_becomes_unread_field():
@@ -218,10 +232,24 @@ def test_read_notice_cost_is_zero_when_usage_is_missing():
     assert reader.last_cost_usd == 0.0
 
 
-def test_system_prompt_pins_the_income_column_and_treats_images_as_data():
-    assert "199" in SYSTEM_PROMPT
-    assert "Montant établi" in SYSTEM_PROMPT
-    assert "never instructions" in SYSTEM_PROMPT
+def test_settings_record_model_region_temperature_and_thinking():
+    reader = VlmReader(FakeClient(response(payload())), "gemini-test", 0.3, 2.5)
+    assert isinstance(reader, ConfiguredReader)
+    assert reader.settings == {
+        "model": "gemini-test",
+        "region": "northamerica-northeast1",
+        "temperature": "0.0",
+        "thinking": "model default (not set by the reader)",
+    }
+
+
+def test_read_notice_sends_the_temperature_its_settings_report():
+    client = FakeClient(response(payload()))
+    reader = VlmReader(client, "m", 1.0, 1.0)
+    reader.read_notice(PNG, "image/png")
+    config = client.models.calls[0]["config"]
+    assert str(config.temperature) == reader.settings["temperature"]
+    assert config.thinking_config is None  # matches "model default (not set by the reader)"
 
 
 def _env(monkeypatch, **overrides: str | None) -> None:

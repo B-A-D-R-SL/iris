@@ -85,16 +85,8 @@ class FileScore:
     outcomes: dict[str, str]
     confident_wrong_fields: tuple[str, ...]
 
-    @property
-    def confident_wrong(self) -> int:
-        return len(self.confident_wrong_fields)
-
     def all_correct(self, fields: tuple[str, ...]) -> bool:
         return all(self.outcomes[name] == CORRECT for name in fields)
-
-    @property
-    def address_correct(self) -> bool:
-        return self.all_correct(ADDRESS_FIELDS)
 
 
 def load_truth(path: Path) -> dict[str, TruthRow]:
@@ -198,19 +190,21 @@ def _scored(
 
 
 def _accuracy_table(pairs: list[tuple[RunRecord, TruthRow]]) -> list[str]:
+    """Held-out PDFs and held-out photos measure the pass criteria; dev files only tune."""
     readable = [(r, t) for r, t in pairs if t.case != UNREADABLE_CASE]
+    heldout = [(r, t) for r, t in readable if r.file not in DEV_FILES]
 
     def scores(selected: list[tuple[RunRecord, TruthRow]]) -> list[FileScore]:
         return [score_reading(t, r.reading) for r, t in selected]
 
     groups = (
-        scores([(r, t) for r, t in readable if r.file.startswith("pdf/")]),
-        scores([(r, t) for r, t in readable if r.file.startswith("photos/")]),
-        scores([(r, t) for r, t in readable if r.file not in DEV_FILES]),
+        scores([(r, t) for r, t in heldout if r.file.startswith("pdf/")]),
+        scores([(r, t) for r, t in heldout if r.file.startswith("photos/")]),
+        scores([(r, t) for r, t in readable if r.file in DEV_FILES]),
     )
     every = scores(pairs)
     lines = [
-        "| Field | PDF accuracy | Photo accuracy | Held-out accuracy | Confident-and-wrong |",
+        "| Field | Held-out PDFs | Held-out photos | Dev (all) | Confident-and-wrong |",
         "| --- | --- | --- | --- | --- |",
     ]
     for label, fields in _ROWS:
@@ -226,10 +220,13 @@ def _truth_lines(pairs: list[tuple[RunRecord, TruthRow]]) -> list[str]:
     ]
     unreadable = [r for r, t in pairs if t.case == UNREADABLE_CASE]
     confident = sum(len(confident_fields(r.reading)) for r in unreadable)
+    outcome = (
+        f"{confident} field(s) at confidence >= {CONFIDENT:.2f} (pass: 0)" if unreadable else "n/a"
+    )
     return [
         f"Changed returns, income accuracy ({len(changed)} files): "
         f"{_accuracy(changed, ('total_income_cents',))}",
-        f"notice-050 outcome: {confident} field(s) at confidence >= {CONFIDENT:.2f} (pass: 0)",
+        f"notice-050 outcome: {outcome}",
     ]
 
 
@@ -256,11 +253,15 @@ def _unscored_lines(records: list[RunRecord]) -> list[str]:
     return lines
 
 
-def summarize(records: list[RunRecord], truth: dict[str, TruthRow]) -> str:
-    """Render the run as Markdown: accuracy table, pass-criteria measures, unscored files."""
+def summarize(
+    records: list[RunRecord], truth: dict[str, TruthRow], settings: dict[str, str]
+) -> str:
+    """Render the run as Markdown: settings, accuracy table, pass-criteria measures, unscored."""
     pairs = _scored(records, truth)
     unscored = [record for record in records if record.file not in truth]
-    sections: list[str] = ["# Notice reading run", ""]
+    sections: list[str] = ["# Notice reading run", "", "## Settings", ""]
+    sections += [f"- {name}: {value}" for name, value in settings.items()]
+    sections += ["", "## Results", ""]
     if records:
         if pairs:
             sections += _accuracy_table(pairs) + [""]

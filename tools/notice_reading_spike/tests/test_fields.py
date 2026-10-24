@@ -7,7 +7,7 @@ import datetime as dt
 
 import pytest
 
-from fields import normalize_postal_code, parse_amount_cents, parse_french_date
+from fields import normalize_postal_code, normalize_unit, parse_amount_cents, parse_french_date
 
 
 @pytest.mark.parametrize(
@@ -55,3 +55,30 @@ def test_normalize_postal_code():
     assert normalize_postal_code("h2x4n1") == "H2X 4N1"
     assert normalize_postal_code(" H2X 4N1 ") == "H2X 4N1"
     assert normalize_postal_code("H2X 4N") is None
+
+
+@pytest.mark.parametrize(
+    ("text", "unit"),
+    [
+        ("app. 106", "106"),  # as the notices print it
+        ("APP. 106", "106"),
+        ("app 106", "106"),
+        ("app.106", "106"),
+        ("apt. 4B", "4B"),
+        ("unité 12", "12"),
+        ("Unite 12", "12"),  # OCR often drops the accent
+        ("# 7", "7"),
+        ("#7", "7"),
+        ("  106  ", "106"),
+        ("106", "106"),
+        ("", ""),
+        ("   ", ""),
+    ],
+)
+def test_normalize_unit_drops_the_unit_marker(text, unit):
+    assert normalize_unit(text) == unit
+
+
+def test_normalize_unit_keeps_words_that_only_start_like_a_marker():
+    assert normalize_unit("appartement 5") == "appartement 5"
+    assert normalize_unit("Apton") == "Apton"

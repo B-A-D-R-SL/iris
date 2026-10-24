@@ -11,13 +11,22 @@ import pytest
 
 from layout_parser import LayoutCell, LayoutDocument, LayoutLine, parse_layout
 from reader import NoticeReading
-from score import contains_document_number
+from score import TruthRow, contains_document_number
 
 FIXTURES = Path(__file__).parent / "fixtures"
+SYNTHETIC = "synthetic-layout-notice-003.json"  # hand-built; recorded files are layout-notice-NNN
 
 
 def load_fixture(name: str) -> LayoutDocument:
     return LayoutDocument.from_analyze_result(json.loads((FIXTURES / name).read_text("utf-8")))
+
+
+def truth_row_for(fixture: Path, truth: dict[str, TruthRow]) -> TruthRow:
+    """The truth row of `[synthetic-]layout-notice-NNN.json`; fails clearly when there is none."""
+    stem = fixture.stem.partition("layout-")[2]
+    rows = [row for name, row in truth.items() if Path(name).stem == stem]
+    assert rows, f"{fixture.name}: no row for {stem!r} in mock-data/notices/truth.csv"
+    return rows[0]
 
 
 def line(text: str, confidence: float = 0.99) -> LayoutLine:
@@ -28,22 +37,33 @@ def cell(row: int, column: int, text: str, header: bool = False) -> LayoutCell:
     return LayoutCell(row, column, text, 0.97, header)
 
 
-@pytest.mark.parametrize("fixture", sorted(FIXTURES.glob("layout-notice-*.json")))
+@pytest.mark.parametrize(
+    "fixture", sorted(FIXTURES.glob("*layout-notice-*.json")), ids=lambda path: path.name
+)
 def test_parse_layout_matches_truth_for_every_fixture(fixture, truth):
-    stem = fixture.stem.removeprefix("layout-")
-    row = next(row for name, row in truth.items() if Path(name).stem == stem)
+    row = truth_row_for(fixture, truth)
     reading = parse_layout(load_fixture(fixture.name))
     for name, expected in row.expected.items():
         assert getattr(reading, name).value == expected, name
 
 
+def test_truth_row_for_names_a_fixture_without_a_truth_row(truth):
+    with pytest.raises(AssertionError, match="layout-notice-999.json: no row for 'notice-999'"):
+        truth_row_for(FIXTURES / "layout-notice-999.json", truth)
+
+
+def test_truth_row_for_finds_recorded_and_synthetic_names(truth):
+    assert truth_row_for(Path("layout-notice-031.json"), truth).file == "photos/notice-031.png"
+    assert truth_row_for(FIXTURES / SYNTHETIC, truth).file == "pdf/notice-003.pdf"
+
+
 def test_parse_layout_reads_line_199_established_amount_on_changed_return():
-    reading = parse_layout(load_fixture("layout-notice-003.json"))
+    reading = parse_layout(load_fixture(SYNTHETIC))
     assert reading.total_income_cents.value == 7517091  # établi, not déclaré (7432655)
 
 
 def test_parse_layout_confidence_is_lowest_word_confidence_of_the_value():
-    reading = parse_layout(load_fixture("layout-notice-003.json"))
+    reading = parse_layout(load_fixture(SYNTHETIC))
     assert reading.street_name.confidence == 0.87  # "Maisonneuve" is the weakest word
     assert reading.street_number.confidence > 0.9
     assert reading.total_income_cents.confidence >= 0.95
@@ -63,6 +83,48 @@ def test_parse_layout_splits_unit_from_app_suffix():
     assert reading.street_name.value == "avenue Bennett"
     assert reading.unit.value == "106"
     assert reading.postal_code.value == "H1M 2B3"
+
+
+def test_parse_layout_uses_the_shared_unit_rule_for_other_markers():
+    doc = LayoutDocument(
+        lines=(
+            line("Zoé Jessica Lapointe"),
+            line("7768, avenue Bennett, APP.4B"),
+            line("Montréal (Québec)  H1M 2B3"),
+        ),
+        tables=(),
+    )
+    reading = parse_layout(doc)
+    assert reading.street_name.value == "avenue Bennett"
+    assert reading.unit.value == "4B"
+
+
+def test_parse_layout_keeps_a_last_part_without_a_unit_marker_in_the_street_name():
+    doc = LayoutDocument(
+        lines=(
+            line("Théodore Bolduc"),
+            line("1016, boulevard de Maisonneuve, Ouest"),
+            line("Montréal (Québec)  H6R 4C3"),
+        ),
+        tables=(),
+    )
+    reading = parse_layout(doc)
+    assert reading.street_name.value == "boulevard de Maisonneuve, Ouest"
+    assert reading.unit.value == ""
+
+
+@pytest.mark.parametrize(
+    "postal_line", ["Montréal (Québec)  H6R4C3", "Montréal (Québec)  H6R 4C3 "]
+)
+def test_parse_layout_reads_a_postal_code_without_space_or_with_trailing_space(postal_line):
+    doc = LayoutDocument(
+        lines=(line("Théodore Bolduc"), line("1016, boulevard Rosemont"), line(postal_line)),
+        tables=(),
+    )
+    reading = parse_layout(doc)
+    assert reading.postal_code.value == "H6R 4C3"
+    assert reading.street_number.value == "1016"
+    assert reading.full_name.value == "Théodore Bolduc"
 
 
 def test_parse_layout_accepts_date_on_the_line_after_the_label():
@@ -95,7 +157,7 @@ def test_parse_layout_empty_document_returns_all_unread_fields():
 
 
 def test_parse_layout_never_returns_identification_or_notice_number():
-    doc = load_fixture("layout-notice-003.json")
+    doc = load_fixture(SYNTHETIC)
     assert any("QI65FDHJK1E" in printed.text for printed in doc.lines)  # it is on the page
     assert not contains_document_number(parse_layout(doc))
 

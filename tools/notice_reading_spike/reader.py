@@ -52,6 +52,17 @@ class MeteredReader(DocumentReader, Protocol):
 
 @runtime_checkable
 class RecordingReader(DocumentReader, Protocol):
-    """A spike reader that keeps the raw service answer of its last call (None after a failure)."""
+    """A spike reader that keeps the raw service answer of its last call.
+
+    The answer is kept even when parsing it failed, so it can be recorded and the parser fixed;
+    it is None when the service gave no answer.
+    """
 
     last_result: dict | None
+
+
+@runtime_checkable
+class ConfiguredReader(DocumentReader, Protocol):
+    """A spike reader that reports its run settings (model, region or host...), never a key."""
+
+    settings: dict[str, str]
