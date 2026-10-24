@@ -9,7 +9,7 @@ Iris reads the household income from a Revenu Québec notice of assessment (US-2
 
 - **Law 25:** the notice is personal and financial information. The [evidence document](../04-data/notice-reading-privacy-inputs.md) lists what ss. 17 and 18.3 ask for, including written terms with the provider; B.A.D.R.'s privacy officer decides how they apply.
 - **Canadian processing:** the team requires AI reading to run in a Canadian region.
-- **Budget:** the production environment is planned at 60 USD per month, and a result must arrive within 60 seconds per notice.
+- **Budget:** the team caps an environment at 60 USD per month and plans 35 to 50 USD for hosting ([architecture draft](../04-architecture/architecture-initial-draft.md)), and a result must arrive within 60 seconds per notice.
 - **Wrong values are costly:** a wrong income at high confidence could auto-approve a household, so the confidence threshold (0.90) is a rule setting.
 
 Spike SET-19 ([#410](https://github.com/B-A-D-R-SL/iris/issues/410)) measures two options on 50 fictional notices. Method and runbook: [planning note](../06-planning/set-19-notice-reading-spike.md), [harness README](../../tools/notice_reading_spike/README.md).
@@ -20,6 +20,8 @@ Spike SET-19 ([#410](https://github.com/B-A-D-R-SL/iris/issues/410)) measures tw
 | --- | --- |
 | A. Azure AI Document Intelligence | `prebuilt-layout` returns the page text and lines; our own parser finds the labelled values |
 | B. Gemini on Vertex AI (Montréal, `northamerica-northeast1`) | A vision model gets the page images and answers in JSON, which is validated key by key before use |
+
+The PDF input differs: Document Intelligence receives the original PDF, with its text layer; Gemini receives 150-dpi PNG renders of each page, so it sees only the visible text (no native-PDF Gemini variant is measured in this spike).
 
 ## Interface
 
@@ -58,7 +60,7 @@ class DocumentReader(Protocol):
     def read_notice(self, content: bytes, content_type: str) -> NoticeReading: ...
 ```
 
-The name is returned as printed because the notice prints one string and compound names make a first and last name split guesswork; the name check allows extra middle names. A reader never returns the identification number, the notice number or the document control number.
+The name is returned as printed because the notice prints one string and compound names make a first and last name split guesswork; the name check allows extra middle names. A reader must not return the identification number, the notice number or the document control number: the spike measures this (`document_number_leaks`), and US-22 must enforce it in application code. The mock notices print the identification number (SIN) masked as `XXX XXX XXX`, so a check for SIN patterns is for US-22 to add.
 
 ## Pass criteria (set before any measurement)
 
@@ -71,17 +73,17 @@ The name is returned as printed because the notice prints one string and compoun
 | Unreadable photo and wrong documents | No value at confidence ≥ 0.90 |
 | Document numbers returned | 0 |
 | Time per notice | p95 ≤ 60 s |
-| Cost per notice | ≤ 0.05 USD (assumption: keeps AI reading a small share of the 60 USD-per-month environment budget at a few hundred notices a month) |
+| Cost per notice | ≤ 0.05 USD (about 15 USD a month at 300 notices; the team caps an environment at 60 USD a month and plans 35–50 USD for hosting) |
 | Law 25 | Processing in Canada; deletion control or short retention; no training on our data; written terms covering s. 18.3; no blocking `Unknown`. Final say: B.A.D.R.'s privacy officer |
 
 ## Results
 
-| Option | Total income, PDFs | Total income, photos | Confident and wrong | Name, address, tax year, notice date | Unreadable and wrong documents | Document numbers | Time p95 | Cost per notice | Law 25 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| A. Document Intelligence | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run |
-| B. Gemini on Vertex AI | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run |
+| Option | Total income, PDFs | Total income, photos | Confident and wrong | Name, address, tax year, notice date | Unreadable and wrong documents | Document numbers | Time p95 | Cost per notice | Data location (spike / production) | Law 25 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A. Document Intelligence | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run |
+| B. Gemini on Vertex AI | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run | pending live run |
 
-The Law 25 column summarizes the [evidence document](../04-data/notice-reading-privacy-inputs.md), which holds the quoted sources and is not repeated here.
+The data location column gives the region each run used (each run logs the Document Intelligence endpoint host or the Gemini region, and its summary records it) and the region production would use. The Law 25 column summarizes the [evidence document](../04-data/notice-reading-privacy-inputs.md), which holds the quoted sources and is not repeated here.
 
 ## Decision
 
@@ -101,7 +103,7 @@ Whichever option is chosen, no real notice goes to a service until all of these 
 
 | Alternative | Why not |
 | --- | --- |
-| Azure-hosted vision language model | None is offered with processing in Canada |
+| Azure-hosted vision language model | Not confirmed that one is offered with processing in Canada (evidence document, [still unknown](../04-data/notice-reading-privacy-inputs.md#still-unknown-and-what-badr-should-read)). Before deciding, check the Azure AI Foundry model catalog filtered on Canada East and Canada Central with deployment type Standard |
 | Document Intelligence custom neural model | Needs labelled real notices to train, and we may use only fictional ones |
 | Self-hosted open-weights vision model | A GPU server costs more than the whole budget, and B.A.D.R. cannot run it |
 | US-hosted models | Break the Canadian processing requirement |

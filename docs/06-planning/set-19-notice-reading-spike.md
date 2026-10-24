@@ -25,7 +25,7 @@ Iris must read the household income from a Revenu Québec notice of assessment (
 | Unreadable photo and wrong documents | No value at confidence ≥ 0.90 |
 | Document numbers returned | 0 |
 | Time per notice | p95 ≤ 60 s |
-| Cost per notice | ≤ 0.05 USD (assumption: keeps AI reading a small share of the 60 USD-per-month environment budget at a few hundred notices a month) |
+| Cost per notice | ≤ 0.05 USD (about 15 USD a month at 300 notices; the team caps an environment at 60 USD a month and plans 35–50 USD for hosting) |
 | Law 25 | Processing in Canada; deletion control or short retention; no training on our data; written terms covering s. 18.3; no blocking `Unknown`. Final say: B.A.D.R.'s privacy officer |
 
 ## Outputs
