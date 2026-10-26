@@ -1,3 +1,4 @@
+# AI contribution: Below 50% AI-generated
 from copy import deepcopy
 from datetime import datetime
 
@@ -18,7 +19,7 @@ def at(year: int, month: int, day: int) -> datetime:
 @pytest.fixture
 def publisher(django_user_model):
     return django_user_model.objects.create_user(
-        username="rule-publisher",
+        email="rule-publisher@example.test",
         password="not-used-by-this-test",
     )
 

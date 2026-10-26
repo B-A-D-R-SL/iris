@@ -16,7 +16,9 @@ class Command(BaseCommand):
         if not settings.DEBUG:
             raise CommandError("create_dev_admin is available only when DEBUG=True")
 
-        email = os.environ.get("DJANGO_DEV_ADMIN_EMAIL", "admin@iris.local").strip()
+        email = (
+            os.environ.get("DJANGO_DEV_ADMIN_EMAIL", "admin@iris.local").strip().lower()
+        )
         password = os.environ.get("DJANGO_DEV_ADMIN_PASSWORD", "")
         if not email or not password:
             raise CommandError(
@@ -24,12 +26,13 @@ class Command(BaseCommand):
             )
 
         user_model = get_user_model()
-        user, created = user_model._default_manager.get_or_create(username=email)
+        user, created = user_model._default_manager.get_or_create(email=email)
 
         if hasattr(user, "email"):
             user.email = email
         user.is_staff = True
         user.is_superuser = True
+        user.role = "admin"
         user.set_password(password)
         user.save()
 

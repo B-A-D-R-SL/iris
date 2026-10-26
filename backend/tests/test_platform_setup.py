@@ -4,7 +4,7 @@
 from io import StringIO
 
 import pytest
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core import mail
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -15,15 +15,15 @@ from adapters.mailer.smtp import SmtpMailer
 
 @pytest.mark.django_db
 def test_dev_admin_is_created_and_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("DJANGO_DEV_ADMIN_EMAIL", "admin@iris.local")
+    monkeypatch.setenv("DJANGO_DEV_ADMIN_EMAIL", "ADMIN@IRIS.LOCAL")
     monkeypatch.setenv("DJANGO_DEV_ADMIN_PASSWORD", "local-test-password")
 
     with override_settings(DEBUG=True):
         call_command("create_dev_admin", stdout=StringIO())
         call_command("create_dev_admin", stdout=StringIO())
 
-    assert User.objects.filter(username="admin@iris.local").count() == 1
-    user = User.objects.get(username="admin@iris.local")
+    assert get_user_model().objects.filter(email="admin@iris.local").count() == 1
+    user = get_user_model().objects.get(email="admin@iris.local")
     assert user.email == "admin@iris.local"
     assert user.is_staff and user.is_superuser
     assert user.check_password("local-test-password")

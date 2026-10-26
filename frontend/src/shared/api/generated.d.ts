@@ -8,6 +8,9 @@ export interface paths {
      */
     get: operations["health_retrieve"];
   };
+  "/api/me/": {
+    get: operations["me_retrieve"];
+  };
   "/api/schema/": {
     /**
      * @description OpenApi3 schema for this API. Format can be selected via content negotiation.
@@ -22,7 +25,26 @@ export interface paths {
 export type webhooks = Record<string, never>;
 
 export interface components {
-  schemas: never;
+  schemas: {
+    CurrentUser: {
+      /** Format: uuid */
+      id: string;
+      language: string;
+      name: string;
+      role: components["schemas"]["RoleEnum"];
+      /** Format: uuid */
+      store: string | null;
+    };
+    /**
+     * @description * `beneficiary` - Beneficiary
+     * * `store_staff` - Store Staff
+     * * `store_manager` - Store Manager
+     * * `intake_worker` - Intake Worker
+     * * `admin` - Admin
+     * @enum {string}
+     */
+    RoleEnum: "beneficiary" | "store_staff" | "store_manager" | "intake_worker" | "admin";
+  };
   responses: never;
   parameters: never;
   requestBodies: never;
@@ -49,6 +71,19 @@ export interface operations {
             status: "ok";
           };
         };
+      };
+    };
+  };
+  me_retrieve: {
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["CurrentUser"];
+        };
+      };
+      /** @description Authentication required. */
+      401: {
+        content: never;
       };
     };
   };
