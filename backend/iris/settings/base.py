@@ -56,7 +56,9 @@ INSTALLED_APPS = [
     "procrastinate.contrib.django",
     # Iris modules
     "modules.rules.apps.RulesConfig",
+    "modules.categories.apps.CategoriesConfig",
     "modules.stores.apps.StoresConfig",
+    "modules.listings.apps.ListingsConfig",
 ]
 
 MIDDLEWARE = [
