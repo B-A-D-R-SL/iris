@@ -27,6 +27,14 @@ export function FileUpload(props: FileUploadProps) {
   const generatedId = useId();
   const id = props.id ?? generatedId;
   const types = fileTypeNames(accept);
+  // The buttons are not Mantine inputs, so link them to the helper and error text ourselves.
+  const descriptionId = `${id}-description`;
+  const errorId = `${id}-error`;
+  const hasError = Boolean(wrapper.error) && typeof wrapper.error !== "boolean";
+  const describedBy =
+    [hasError ? errorId : null, wrapper.description ? descriptionId : null]
+      .filter(Boolean)
+      .join(" ") || undefined;
 
   return (
     <Input.Wrapper
@@ -36,6 +44,8 @@ export function FileUpload(props: FileUploadProps) {
       withAsterisk={false}
       inputWrapperOrder={wrapper.inputWrapperOrder}
       id={id}
+      descriptionProps={{ id: descriptionId }}
+      errorProps={{ id: errorId }}
     >
       {value ? (
         <div className={classes.fileRow}>
@@ -50,7 +60,14 @@ export function FileUpload(props: FileUploadProps) {
           </Stack>
           <FileButton onChange={onChange} accept={accept.join(",")}>
             {(buttonProps) => (
-              <Button {...buttonProps} id={id} variant="subtle" size="sm" disabled={props.disabled}>
+              <Button
+                {...buttonProps}
+                id={id}
+                aria-describedby={describedBy}
+                variant="subtle"
+                size="sm"
+                disabled={props.disabled}
+              >
                 {t("shared.fileUpload.change")}
               </Button>
             )}
@@ -74,6 +91,7 @@ export function FileUpload(props: FileUploadProps) {
               className={classes.dropZone}
               data-error={props.error ? true : undefined}
               aria-required={wrapper["aria-required"]}
+              aria-describedby={describedBy}
               disabled={props.disabled}
               onBlur={props.onBlur}
               onFocus={props.onFocus}

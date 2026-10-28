@@ -26,6 +26,9 @@ export function DateField(props: DateFieldProps) {
       minDate={props.minDate}
       maxDate={props.maxDate}
       valueFormat="YYYY-MM-DD"
+      // Only an optional date may be emptied (back to null).
+      clearable={props.optional}
+      clearButtonProps={{ "aria-label": t("shared.dateField.clear") }}
       placeholder={t("shared.dateField.placeholder")}
       rightSection={<IconCalendar size={20} stroke={2} aria-hidden />}
       rightSectionPointerEvents="none"

@@ -14,8 +14,9 @@ import "./shared/i18n";
 
 import App from "./app/App";
 import { AppProviders } from "./app/providers";
+import { rootOptions } from "./app/rootOptions";
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+ReactDOM.createRoot(document.getElementById("root")!, rootOptions).render(
   <React.StrictMode>
     <AppProviders>
       <BrowserRouter>

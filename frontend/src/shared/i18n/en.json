@@ -398,7 +398,8 @@
       "fileSize": "Choose a file of {{max}} MB or less."
     },
     "dateField": {
-      "placeholder": "YYYY-MM-DD"
+      "placeholder": "YYYY-MM-DD",
+      "clear": "Clear date"
     },
     "fileUpload": {
       "choose": "Choose a file",

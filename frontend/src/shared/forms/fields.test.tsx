@@ -179,6 +179,35 @@ describe("DateField", () => {
     await userEvent.type(input, "2026-10-11");
     await waitFor(() => expect(onValue).toHaveBeenLastCalledWith("2026-10-11"));
   });
+
+  it("lets an optional date be cleared back to null", async () => {
+    const onValue = vi.fn();
+    const { container } = renderWithProviders(
+      <Controlled<string | null> initial="2026-10-11" onValue={onValue}>
+        {(value, setValue) => (
+          <DateField label="Meilleur avant" optional value={value} onChange={setValue} />
+        )}
+      </Controlled>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Effacer la date" }));
+    expect(onValue).toHaveBeenLastCalledWith(null);
+    expect(screen.getByLabelText("Meilleur avant (facultatif)")).toHaveValue("");
+    await expectNoAxeViolations(container);
+  });
+
+  it("keeps a required date and offers no clear button", async () => {
+    const onValue = vi.fn();
+    renderWithProviders(
+      <Controlled<string | null> initial="2026-10-11" onValue={onValue}>
+        {(value, setValue) => (
+          <DateField label="Date de naissance" value={value} onChange={setValue} />
+        )}
+      </Controlled>,
+    );
+    expect(screen.queryByRole("button", { name: "Effacer la date" })).not.toBeInTheDocument();
+    await userEvent.clear(screen.getByLabelText("Date de naissance"));
+    expect(onValue).not.toHaveBeenCalledWith(null);
+  });
 });
 
 describe("FileUpload", () => {
@@ -214,6 +243,27 @@ describe("FileUpload", () => {
     await userEvent.click(screen.getByRole("button", { name: "Retirer" }));
     expect(onValue).toHaveBeenLastCalledWith(null);
     expect(screen.getByRole("button", { name: "Photo (facultatif)" })).toBeInTheDocument();
+  });
+
+  it("links the upload controls to the help text and the error", () => {
+    const props = {
+      label: "Photo",
+      accept: ["image/jpeg"],
+      maxMb: 5,
+      description: "Une photo des produits.",
+      error: "Choisissez un fichier de 5 Mo ou moins.",
+      onChange: () => {},
+    };
+    const empty = renderWithProviders(<FileUpload {...props} value={null} />);
+    expect(screen.getByRole("button", { name: "Photo" })).toHaveAccessibleDescription(
+      "Choisissez un fichier de 5 Mo ou moins. Une photo des produits.",
+    );
+    empty.unmount();
+
+    renderWithProviders(<FileUpload {...props} value={photo} />);
+    expect(screen.getByRole("button", { name: "Photo" })).toHaveAccessibleDescription(
+      "Choisissez un fichier de 5 Mo ou moins. Une photo des produits.",
+    );
   });
 });
 

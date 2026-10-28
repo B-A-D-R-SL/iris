@@ -398,7 +398,8 @@
       "fileSize": "Choisissez un fichier de {{max}} Mo ou moins."
     },
     "dateField": {
-      "placeholder": "AAAA-MM-JJ"
+      "placeholder": "AAAA-MM-JJ",
+      "clear": "Effacer la date"
     },
     "fileUpload": {
       "choose": "Choisir un fichier",

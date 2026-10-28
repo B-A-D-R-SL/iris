@@ -7,15 +7,17 @@ import { MemoryRouter } from "react-router";
 import { expect, vi } from "vitest";
 
 import { AppProviders } from "../app/providers";
+import { rootOptions } from "../app/rootOptions";
 import type { CurrentUser, Role } from "../features/accounts/currentUser";
 
-/** Renders inside the real providers (theme, dates, queries) and a router at `route`. */
+/** Renders like main.tsx: real providers and root options, and a router at `route`. */
 export function renderWithProviders(ui: ReactNode, { route = "/" }: { route?: string } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <AppProviders queryClient={queryClient} env="test">
       <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
     </AppProviders>,
+    { onCaughtError: rootOptions.onCaughtError },
   );
 }
 
