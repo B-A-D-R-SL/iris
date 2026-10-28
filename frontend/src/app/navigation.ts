@@ -141,7 +141,11 @@ function isWithin(pathname: string, path: string): boolean {
  * page, so /store/listings/new highlights "Publier", not "Mes offres".
  */
 export function activeNavPath(items: readonly NavItem[], pathname: string): string | null {
-  const matches = items.filter((item) => isWithin(pathname, item.path));
-  if (matches.length === 0) return null;
-  return matches.reduce((best, item) => (item.path.length > best.path.length ? item : best)).path;
+  return items.reduce<string | null>(
+    (best, item) =>
+      isWithin(pathname, item.path) && (best === null || item.path.length > best.length)
+        ? item.path
+        : best,
+    null,
+  );
 }
