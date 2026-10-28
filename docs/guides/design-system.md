@@ -22,9 +22,10 @@ How to build a screen that fits Iris. Everything here follows the
 
 1. Create it in `src/areas/<area>/`.
 2. In `src/app/App.tsx`, replace the `PlaceholderScreen` of your route with your screen.
-3. Household and store screens start with their own app bar:
-   `<AppBar title={t("…")} />`, or `<AppBar title={t("…")} backTo="/listings" />` on a sub-screen.
-   Staff and public screens start with `<Title order={1}>`.
+3. Household and store screens start with their own app bar: `<AppBar title={t("…")} />`.
+   A sub-screen adds a back arrow to its parent screen in the same area, for example
+   `backTo="/listings"` on a household listing detail and `backTo="/store/listings"` on a store
+   listing edit. Staff and public screens start with `<Title order={1}>`.
 
 Menus and guards already exist. `src/app/navigation.ts` decides which roles see which tab;
 `RequireRole` sends signed-out visitors to `/sign-in` and other roles to their own home.
