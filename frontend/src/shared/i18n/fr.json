@@ -1,14 +1,4 @@
 {
-  "title": "Bienvenue sur Iris",
-  "description": "Une plateforme de redistribution solidaire pour connecter les communautés et faciliter le partage des ressources.",
-  "language": "English",
-  "status": "Configuration du projet en cours",
-  "backend": {
-    "label": "État du serveur",
-    "checking": "Vérification...",
-    "online": "Connecté",
-    "offline": "Indisponible"
-  },
   "household": {
     "status": {
       "draft": "Brouillon",
@@ -318,6 +308,110 @@
         "good": "Bon état",
         "fair": "Acceptable"
       }
+    }
+  },
+  "app": {
+    "brand": {
+      "byBadr": "par B.A.D.R.",
+      "home": "Iris, accueil"
+    },
+    "language": {
+      "switchTo": "English"
+    },
+    "appBar": {
+      "back": "Retour",
+      "account": "Mon compte"
+    },
+    "mainNav": {
+      "label": "Navigation principale"
+    },
+    "householdNav": {
+      "home": "Accueil",
+      "listings": "Offres",
+      "reservations": "Réservations",
+      "profile": "Profil"
+    },
+    "storeNav": {
+      "today": "Aujourd'hui",
+      "confirm": "Confirmer",
+      "post": "Publier",
+      "myListings": "Mes offres"
+    },
+    "staffBar": {
+      "workspace": "Espace équipe · B.A.D.R.",
+      "openMenu": "Ouvrir le menu",
+      "closeMenu": "Fermer le menu"
+    },
+    "staffNav": {
+      "workspace": "Votre espace",
+      "households": "Foyers",
+      "reviews": "Vérifications",
+      "walkIn": "Inscription en personne",
+      "partners": "Partenaires",
+      "stores": "Commerces",
+      "categories": "Catégories",
+      "auditLog": "Journal d'audit",
+      "accessNotice": "Accès réservé au personnel autorisé"
+    },
+    "placeholder": {
+      "title": "Bientôt disponible",
+      "description": "Cet écran est en construction."
+    },
+    "notFound": {
+      "title": "Page introuvable",
+      "description": "Cette adresse ne correspond à aucune page d'Iris.",
+      "backHome": "Retour à l'accueil"
+    },
+    "crash": {
+      "title": "Une erreur est survenue",
+      "description": "Rechargez la page. Si le problème continue, réessayez plus tard.",
+      "reload": "Recharger la page"
+    }
+  },
+  "public": {
+    "welcome": {
+      "title": "Bienvenue sur Iris",
+      "intro": "Iris permet aux foyers à faible revenu de réserver gratuitement des surplus offerts par B.A.D.R. et ses commerces partenaires, puis de les récupérer avec un code.",
+      "householdTitle": "Pour les foyers",
+      "householdText": "B.A.D.R. vérifie votre revenu avec votre avis de cotisation. Une fois votre dossier approuvé, vous réservez des offres près de chez vous.",
+      "apply": "Inscrire mon foyer",
+      "partnerTitle": "Pour les commerces",
+      "partnerText": "Offrez vos surplus au lieu de les jeter. B.A.D.R. examine chaque demande de partenariat."
+    }
+  },
+  "shared": {
+    "form": {
+      "optional": "(facultatif)",
+      "requiredNotice": "Tous les champs sont obligatoires, sauf ceux marqués « facultatif »."
+    },
+    "validation": {
+      "required": "Remplissez ce champ.",
+      "textLength": "Entrez de {{min}} à {{max}} caractères.",
+      "textMax": "Entrez au plus {{max}} caractères.",
+      "postalCode": "Entrez un code postal canadien, par exemple H2X 1Y4.",
+      "phone": "Entrez un numéro de 10 chiffres, par exemple (514) 555-0123.",
+      "moneyRange": "Entrez un montant de {{min, currency(currency: CAD; currencyDisplay: narrowSymbol)}} à {{max, currency(currency: CAD; currencyDisplay: narrowSymbol)}}.",
+      "date": "Entrez une date au format AAAA-MM-JJ.",
+      "dateMin": "Choisissez le {{date}} ou après.",
+      "dateMax": "Choisissez le {{date}} ou avant.",
+      "fileType": "Choisissez un fichier {{types}}.",
+      "fileSize": "Choisissez un fichier de {{max}} Mo ou moins."
+    },
+    "dateField": {
+      "placeholder": "AAAA-MM-JJ"
+    },
+    "fileUpload": {
+      "choose": "Choisir un fichier",
+      "limits": "{{types}}, {{max}} Mo maximum",
+      "size": "{{size, number(maximumFractionDigits: 1)}} Mo",
+      "change": "Changer",
+      "remove": "Retirer"
+    },
+    "states": {
+      "loading": "Chargement…",
+      "errorTitle": "Impossible d'afficher cette page",
+      "errorDescription": "Vérifiez votre connexion Internet, puis réessayez.",
+      "retry": "Réessayer"
     }
   }
 }
