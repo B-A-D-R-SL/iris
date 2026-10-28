@@ -1,3 +1,4 @@
+# AI contribution: 50% or more AI-generated
 """JSON schemas and defaults for every supported business-rule type."""
 
 from typing import Any, Final
@@ -16,6 +17,7 @@ RULE_TYPES: Final = (
     "strikes",
     "reservations",
     "listing_safety",
+    "listing_posting",
     "file_validity",
     "retention",
 )
@@ -132,6 +134,25 @@ RULE_SCHEMAS: Final[dict[str, JSONSchema]] = {
             },
         }
     ),
+    "listing_posting": _object_schema(
+        {
+            "title_min_length": {"type": "integer", "minimum": 2, "maximum": 80},
+            "title_max_length": {"type": "integer", "minimum": 2, "maximum": 80},
+            "description_max_length": {"type": "integer", "minimum": 1, "maximum": 500},
+            "quantity_max": {"type": "integer", "minimum": 1, "maximum": 999},
+            "max_per_household": {"type": "integer", "minimum": 1, "maximum": 10},
+            "estimated_value_max_cents": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100_000,
+            },
+            "pickup_start_max_days": {"type": "integer", "minimum": 1},
+            "pickup_min_minutes": {"type": "integer", "minimum": 1},
+            "pickup_max_minutes": {"type": "integer", "minimum": 1},
+            "photo_max_bytes": {"type": "integer", "minimum": 1},
+            "photo_max_dimension": {"type": "integer", "minimum": 1},
+        }
+    ),
     "file_validity": _object_schema(
         {
             "approved_months": {"type": "integer", "minimum": 1},
@@ -198,6 +219,19 @@ DEFAULT_RULE_VALUES: Final[dict[str, dict[str, Any]]] = {
         "best_before_margin_days": 0,
         "prohibited_category_codes": [],
     },
+    "listing_posting": {
+        "title_min_length": 2,
+        "title_max_length": 80,
+        "description_max_length": 500,
+        "quantity_max": 999,
+        "max_per_household": 10,
+        "estimated_value_max_cents": 100_000,
+        "pickup_start_max_days": 7,
+        "pickup_min_minutes": 30,
+        "pickup_max_minutes": 720,
+        "photo_max_bytes": 5 * 1024 * 1024,
+        "photo_max_dimension": 1280,
+    },
     "file_validity": {
         "approved_months": 12,
         "renewal_banner_days": 30,
@@ -233,6 +267,11 @@ def validate_rule_values(rule_type: str, values: dict[str, Any]) -> None:
     errors = sorted(validator.iter_errors(values), key=_error_sort_key)
     if errors:
         raise ValidationError({"values": [_format_error(error) for error in errors]})
+    if rule_type == "listing_posting" and (
+        values["title_min_length"] > values["title_max_length"]
+        or values["pickup_min_minutes"] > values["pickup_max_minutes"]
+    ):
+        raise ValidationError({"values": ["Posting minimums cannot exceed maximums."]})
 
 
 def _error_sort_key(error: JSONSchemaValidationError) -> tuple[str, str]:

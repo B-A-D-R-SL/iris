@@ -15,6 +15,7 @@ urlpatterns = [
     # Authentication: allauth's own versioned app/browser subpaths live here.
     path("api/auth/", include("allauth.headless.urls")),
     path("accounts/", include("allauth.urls")),
+    path("api/store/", include("modules.listings.api.urls")),
     # API documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
