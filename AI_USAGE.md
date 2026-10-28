@@ -270,3 +270,44 @@ At least half of the AI-assisted features need an example here. For each one:
   - The team draft contradicts itself: the business rules say prohibited items have no category, but US-34 says "categories on the prohibited list cannot be selected". The document follows the business rules; US-34 is to be reworded or confirmed by the team.
   - The YAML keys first followed the team draft schema, including `sort_order`, while the SET-05 branch used other names (`french_label`, `food_indicator`, `active_indicator`) and no sort order. Agreed with the SET-05 owner: keep `name_fr`, `name_en`, `is_food`, `is_active` (consistent with `is_active` and `is_badr` on other tables) and drop `sort_order`.
   - The sentence on the `listing_safety` setting (`prohibited_category_codes`, empty by default) comes from the unmerged SET-07 branch, not the team draft; to be confirmed with the SET-07 owner.
+
+
+  ### T-05.33.3 Posting service/API and T-05.33.1 tests (#494, #492)
+
+- **What the AI produced:** with OpenAI Codex, the independent listing-posting
+  backend and tests (50% or more AI-generated): validation, role/store permission
+  checks, database operations, safety/photo integration interfaces, the POST
+  endpoint, translated errors, generated API types, and documentation. Mark
+  required compliance with the repository architecture and testing without
+  integrating Vlad's account code or implementing Ryan's safety checker.
+
+- **How we verified it:** Codex ran the checks under Mark's direction against
+  local PostgreSQL. All 228 backend tests passed with 90.01% coverage, exceeding
+  the 70% gate. Ruff lint and formatting, mypy across 91 files, the existing
+  import-linter contract, Django system checks, and missing-migration checks
+  passed. OpenAPI validation and generated-type drift checks passed; API
+  generator tests recorded seven passes and one expected Python-only skip.
+  All 11 frontend tests, TypeScript checking, production build, ESLint,
+  generated-declaration formatting, and Git whitespace checking passed.
+  Tests cover validation boundaries, permissions, server-controlled fields,
+  database writes, rule versions, safety refusals, upload checks, cleanup,
+  translated responses, and CSRF enforcement. all implemented files have been reviewed.
+
+- **Problems found and corrections:**
+  - Mark requested explanations of every changed file and questioned the
+    dependencies, database requirements, injection protection, and backend
+    translations. The decisions and remaining integration boundaries were
+    explained against the repository documentation.
+  - Mark identified a leading blank line that failed formatting. Removed it
+    using Ruff and reran the static checks.
+  - Mark requested removal of the private photo-storage reference from
+    responses. Removed it, updated schema assertions, and regenerated API types.
+  - Mark requested checking actual JPEG/PNG signatures instead of trusting
+    only the declared content type. Added signature checks and mismatch tests,
+    and updated existing photo fixtures.
+  - Mark requested controlled handling of missing or unexpected posting-rule
+    keys. These now return HTTP 503, with service tests and English/French API
+    tests confirming that no listing is saved.
+  - Mark requested fresh test and coverage measurements. Updated the guide
+    from 214 tests and 90.11% coverage to 228 tests and 90.01%.
+  

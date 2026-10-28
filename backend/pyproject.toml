@@ -1,3 +1,4 @@
+# AI contribution: 50% or more AI-generated
 [project]
 name = "backend"
 version = "0.1.0"
@@ -41,6 +42,12 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["allauth.*"]
+ignore_missing_imports = true
+
+# DRF ships no typing metadata; keep checking our code without adding runtime
+# dependencies or suppressing errors in the listing modules themselves.
+[[tool.mypy.overrides]]
+module = ["rest_framework.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
