@@ -29,12 +29,16 @@ Own the categories feature boundary within the Iris modular monolith.
 Other modules must communicate through public services or queries.
 Do not import another module's models or internal domain code.
 
-## Future implementation
+## Implemented functionality
 
-TODO: Module owner defines business operations, model ownership,
-API endpoints, tests, and applicable audit events.
-
-Do not treat this scaffold as implemented business functionality.
+- Category model with stable codes, bilingual names, food classification,
+  default values in cents, and active status.
+- Public read-only `GET /api/categories/` endpoint.
+- Validated service operations for saving and deactivating categories.
+- Pure Python food best-before-date validation.
+- Idempotent category seed command using the reviewed YAML data.
+- Automated domain, service, API, seed, and frontend tests.
+- Read-only staff Categories page; editing belongs to US-35.
 
 ## Audit events
 
