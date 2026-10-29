@@ -97,6 +97,19 @@
       "title": "Eligibility"
     }
   },
+  "category": {
+    "list": {
+      "description": "Active categories available for donated goods.",
+      "name": "Name",
+      "code": "Code",
+      "type": "Type",
+      "defaultValue": "Default value",
+      "food": "Food",
+      "nonFood": "Non-food",
+      "empty": "No categories available",
+      "emptyDescription": "There are currently no active categories."
+    }
+  },
   "listing": {
     "status": {
       "published": "Published",

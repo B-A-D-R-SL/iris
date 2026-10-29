@@ -16,6 +16,7 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | ChatGPT (OpenAI) | Drafted T-02.11.1 tests for the future US-11 Store model, B.A.D.R. seed, and Django admin access under Leon's direction; documented the later Store REST API test plan. | Leon Kojakian (#439) |
 | ChatGPT (OpenAI) | Implemented the US-11 Store model, migration, admin registration, service, and test factory from Leon's approved T-02.11.2 plan. | Leon Kojakian (#441) |
 | ChatGPT (OpenAI) | Implemented the idempotent B.A.D.R. Store seed command and expanded its tests from Leon's approved T-02.11.3 plan. | Leon Kojakian (#442) |
+| ChatGPT (OpenAI) | Implemented and reviewed the Categories reference module (#377), Django module scaffolding, import-boundary checks, documentation, and tests for SET-14 (#405). | Owner of #377 and #405 |
 
 ## How we declare AI-generated code
 
@@ -46,6 +47,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-02 CI workflow and branch protection (#378, #379, #380, #381) | `.github/workflows/ci.yml`, `backend/pyproject.toml` (coverage and import-linter settings), `frontend/vite.config.ts` (coverage settings), `frontend/package.json` (scripts), `README.md` (checks and CI section) | 50% or more AI-generated | Not yet opened |
 | SET-15 OpenAPI and TypeScript generation (#406), partial implementation | `backend/iris/settings/base.py`, `backend/tests/test_api_schema.py`, `frontend/scripts/{gen-api,test-api-generation}.mjs`, `frontend/src/shared/api/generated.d.ts`, `frontend/src/test/api-types.typecheck.ts`, `frontend/package.json`, `frontend/pnpm-lock.yaml`, `.github/workflows/ci.yml`, `docs/guides/api-generation.md`, `docs/03-design/api.md`, `AI_USAGE.md`, `README.md` | 50% or more AI-generated | [#604](https://github.com/B-A-D-R-SL/iris/pull/604); categories compliance (#377) and documented team decisions remain pending |
 | SET-16 Design system, translations and app shell (#407) | `frontend/src/app/` (theme, providers, routes, layouts, navigation, guards, error boundary), `frontend/src/areas/public/WelcomePage.tsx`, `frontend/src/features/accounts/currentUser.ts`, `frontend/src/shared/{forms,ui}/`, `frontend/src/shared/i18n/{fr,en}.json`, `frontend/src/test/`, `frontend/public/{manifest.webmanifest,favicon.svg,icons/}`, `frontend/index.html`, `frontend/package.json`, `docs/guides/design-system.md`; built from the Figma Components page (SET-11) | 50% or more AI-generated (lock file and generated icons exempt) | Not yet opened (`SET-16-design-system-translations-and-app-shell` branch) |
+| T-00.01.4 Categories reference module (#377) | `backend/modules/categories/`, `frontend/src/features/categories/`, `backend/iris/urls.py`, `frontend/src/app/App.tsx`, translations, API types, and `docs/guides/reference-module.md` | 50% or more AI-generated | Pending PR (`feature/SET-14`) |
+| SET-14 Module skeletons and boundary checks (#405) | `backend/modules/` (15 module structures and READMEs), `backend/iris/settings/base.py`, `backend/pyproject.toml`, and architecture-related Rules changes | 50% or more AI-generated | Pending PR (`feature/SET-14`) |
 
 ## Examples, verification and corrections
 
@@ -55,6 +58,14 @@ At least half of the AI-assisted features need an example here. For each one:
 - **What the AI produced:** files, commit or pull request
 - **How we verified it:** the automated tests or the review comment that checked it
 - **Problems found and corrections:** what was wrong or rejected, and what we changed
+
+### T-00.01.4 Categories reference module (#377) and SET-14 Module skeletons (#405)
+
+- **What the AI produced:** ChatGPT assisted with the Categories Django model, migration, services, queries, pure domain rules, REST API, seed command, React page, bilingual translations, tests, and reference documentation. It also assisted with scaffolding the 15 Django modules, registering their applications, documenting their interfaces, and configuring architectural dependency checks.
+- **Developer involvement:** Reviewed GitHub acceptance criteria and Iris architecture requirements, executed the implementation and verification commands, identified gaps in the architectural enforcement, and validated the corrected configuration.
+- **How we verified it:** The initial full regression run passed 91 backend tests with 86.86% coverage and 172 frontend tests with 94.32% statement coverage. Ruff, mypy, ESLint, TypeScript, migrations, frontend build, API type generation, and dependency security audits passed. All 15 module READMEs were checked for ownership, public-function, and audit-event sections.
+- **Problems found and corrections:** The original Import Linter configuration allowed unauthorized cross-module imports through any public services or queries. Replaced the generic exceptions with the architecture's approved dependency whitelist. A negative test confirmed that Categories cannot import Stores services, a positive test confirmed that Listings can import Categories services, and the clean project passed all three Import Linter contracts.
+- **Remaining verification:** Final regression checks after the documentation updates, GitHub Actions results, and teammate review are pending. The remaining modules are intentionally scaffolds; their business functionality belongs to separate backlog tasks.
 
 ### SET-15 OpenAPI and TypeScript generation (#406)
 
