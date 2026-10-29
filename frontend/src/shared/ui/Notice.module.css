@@ -1,0 +1,17 @@
+/* AI contribution: 50% or more AI-generated */
+/* Figma "Alert": grayscale, the border tells success and error apart. */
+
+.notice {
+  background-color: var(--mantine-color-gray-0);
+  border: 1px solid var(--mantine-color-default-border);
+  color: var(--mantine-color-text);
+}
+
+.notice[data-type="success"] {
+  border-color: var(--mantine-color-gray-9);
+}
+
+.notice[data-type="error"] {
+  background-color: var(--mantine-color-body);
+  border: 2px solid var(--mantine-color-gray-9);
+}
