@@ -2,9 +2,9 @@
 /**
  * Starts the US-33 time-to-post preview (docs/usability/time-to-post.md):
  *
- *   node scripts/usability/preview.mjs [--port 8000] [--out usability-runs.jsonl]
+ *   node scripts/usability/preview.mjs [--port 8000]
  *
- * Then run `pnpm dev` (Vite sends /api to port 8000) and open
+ * Runs are saved to frontend/usability-runs.jsonl. Then run `pnpm dev` (Vite sends /api to port 8000) and open
  * http://localhost:5173/store/listings/new?participant=P1 in the browser's phone view.
  */
 import { execFileSync } from "node:child_process";
@@ -13,12 +13,12 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 import { createPreviewApi } from "./preview-api.mjs";
+import { RUNS_FILE } from "./runs-file.mjs";
 import { describeRun, summarize, TARGET_SECONDS } from "./runs.mjs";
 
 const { values } = parseArgs({
   options: {
     port: { type: "string", default: "8000" },
-    out: { type: "string", default: "usability-runs.jsonl" },
   },
 });
 
@@ -59,7 +59,7 @@ const server = createPreviewApi({
   onOpen: (participant) => console.log(`${participant}: form loaded, the clock is running`),
   onRun: (run) => {
     runs.push(run);
-    appendFileSync(values.out, `${JSON.stringify(run)}\n`);
+    appendFileSync(RUNS_FILE, `${JSON.stringify(run)}\n`);
     console.log(describeRun(run));
     const { counted, median } = summarize(runs);
     if (median !== null) {
@@ -86,6 +86,6 @@ server.listen(Number(values.port), "127.0.0.1", () => {
   console.log(
     `Time-to-post preview API on http://127.0.0.1:${values.port} (${categories.length} categories)`,
   );
-  console.log(`Runs are saved to ${values.out}. Open, for each participant:`);
+  console.log(`Runs are saved to ${RUNS_FILE}. Open, for each participant:`);
   console.log("  http://localhost:5173/store/listings/new?participant=P1");
 });
