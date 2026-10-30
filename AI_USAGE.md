@@ -49,6 +49,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-16 Design system, translations and app shell (#407) | `frontend/src/app/` (theme, providers, routes, layouts, navigation, guards, error boundary), `frontend/src/areas/public/WelcomePage.tsx`, `frontend/src/features/accounts/currentUser.ts`, `frontend/src/shared/{forms,ui}/`, `frontend/src/shared/i18n/{fr,en}.json`, `frontend/src/test/`, `frontend/public/{manifest.webmanifest,favicon.svg,icons/}`, `frontend/index.html`, `frontend/package.json`, `docs/guides/design-system.md`; built from the Figma Components page (SET-11) | 50% or more AI-generated (lock file and generated icons exempt) | Not yet opened (`SET-16-design-system-translations-and-app-shell` branch) |
 | T-00.01.4 Categories reference module (#377) | `backend/modules/categories/`, `frontend/src/features/categories/`, `backend/iris/urls.py`, `frontend/src/app/App.tsx`, translations, API types, and `docs/guides/reference-module.md` | 50% or more AI-generated | Pending PR (`feature/SET-14`) |
 | SET-14 Module skeletons and boundary checks (#405) | `backend/modules/` (15 module structures and READMEs), `backend/iris/settings/base.py`, `backend/pyproject.toml`, and architecture-related Rules changes | 50% or more AI-generated | Pending PR (`feature/SET-14`) |
+| SET-31 Professional and context wiki pages (#590) | `docs/wiki/` (five page drafts and review/publishing guide), `docs/README.md`, `AI_USAGE.md` | 50% or more AI-generated | This change (`SET-31-project-wiki-professional-and-context-pages`) |
 
 ## Examples, verification and corrections
 
@@ -58,6 +59,35 @@ At least half of the AI-assisted features need an example here. For each one:
 - **What the AI produced:** files, commit or pull request
 - **How we verified it:** the automated tests or the review comment that checked it
 - **Problems found and corrections:** what was wrong or rejected, and what we changed
+
+### SET-31 Professional and context wiki pages (#590)
+
+- **Project ideas and direction:** The underlying project ideas, scope,
+  architecture, privacy commitments and stakeholder priorities came from the
+  team's existing requirements, documentation and wiki. Reuven selected #590
+  and directed the work around those established materials.
+- **AI assistance — refinement and polishing:** ChatGPT/Codex helped organize,
+  expand, refine and polish the presentation of that material across the five
+  pages, improving wording, consistency, source references and explicit
+  assumptions. AI also drafted new prose and proposed the illustrative
+  consultant-cost model and risk follow-up details for review. The generation
+  disclosure describes that writing contribution; it does not attribute the
+  original project idea or policy decisions to AI.
+- **Review status:** Human review and stakeholder confirmations have not yet
+  been recorded. The repository keeps wiki-ready Markdown and publication
+  instructions.
+- **Verification:** Compared the drafts with the current repository and existing
+  wiki; checked official CAI, Quebec legislation and Microsoft references for
+  legal and funding claims. One-off checks passed for seven Markdown files,
+  five pending review records, 68 links, table structures and the cost model's
+  totals, sensitivity cases and annualized cloud figures. `git diff --check`
+  passed. Application tests were not run for this documentation-only change.
+- **Corrections and limits:** Preserved the original USD 35–50/month cloud figure
+  as an unverified planning estimate rather than a current quote. Separated the
+  Canada-only project policy from the legal rules for processing outside Quebec.
+  Marked consultant hours/rates as illustrative, retained funding evidence from
+  #591, and flagged inconsistent privacy-officer spelling for confirmation.
+  Teammate reviews, wiki publication and issue closure remain pending.
 
 ### T-00.01.4 Categories reference module (#377) and SET-14 Module skeletons (#405)
 
