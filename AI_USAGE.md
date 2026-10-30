@@ -17,6 +17,7 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | ChatGPT (OpenAI) | Implemented the US-11 Store model, migration, admin registration, service, and test factory from Leon's approved T-02.11.2 plan. | Leon Kojakian (#441) |
 | ChatGPT (OpenAI) | Implemented the idempotent B.A.D.R. Store seed command and expanded its tests from Leon's approved T-02.11.3 plan. | Leon Kojakian (#442) |
 | ChatGPT (OpenAI) | Implemented the T-01.01.3 sign-in screen, browser session handling, sign-out controls, translations, and frontend tests under Leon's approved plan. | Leon Kojakian (#425) |
+| ChatGPT (OpenAI) | Implemented and reviewed the Categories reference module (#377), Django module scaffolding, import-boundary checks, documentation, and tests for SET-14 (#405). | Owner of #377 and #405 |
 
 ## How we declare AI-generated code
 
@@ -50,6 +51,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-02 CI workflow and branch protection (#378, #379, #380, #381) | `.github/workflows/ci.yml`, `backend/pyproject.toml` (coverage and import-linter settings), `frontend/vite.config.ts` (coverage settings), `frontend/package.json` (scripts), `README.md` (checks and CI section) | 50% or more AI-generated | Not yet opened |
 | SET-15 OpenAPI and TypeScript generation (#406), partial implementation | `backend/iris/settings/base.py`, `backend/tests/test_api_schema.py`, `frontend/scripts/{gen-api,test-api-generation}.mjs`, `frontend/src/shared/api/generated.d.ts`, `frontend/src/test/api-types.typecheck.ts`, `frontend/package.json`, `frontend/pnpm-lock.yaml`, `.github/workflows/ci.yml`, `docs/guides/api-generation.md`, `docs/03-design/api.md`, `AI_USAGE.md`, `README.md` | 50% or more AI-generated | [#604](https://github.com/B-A-D-R-SL/iris/pull/604); categories compliance (#377) and documented team decisions remain pending |
 | SET-16 Design system, translations and app shell (#407) | `frontend/src/app/` (theme, providers, routes, layouts, navigation, guards, error boundary), `frontend/src/areas/public/WelcomePage.tsx`, `frontend/src/features/accounts/currentUser.ts`, `frontend/src/shared/{forms,ui}/`, `frontend/src/shared/i18n/{fr,en}.json`, `frontend/src/test/`, `frontend/public/{manifest.webmanifest,favicon.svg,icons/}`, `frontend/index.html`, `frontend/package.json`, `docs/guides/design-system.md`; built from the Figma Components page (SET-11) | 50% or more AI-generated (lock file and generated icons exempt) | Not yet opened (`SET-16-design-system-translations-and-app-shell` branch) |
+| T-00.01.4 Categories reference module (#377) | `backend/modules/categories/`, `frontend/src/features/categories/`, `backend/iris/urls.py`, `frontend/src/app/App.tsx`, translations, API types, and `docs/guides/reference-module.md` | 50% or more AI-generated | Pending PR (`feature/SET-14`) |
+| SET-14 Module skeletons and boundary checks (#405) | `backend/modules/` (15 module structures and READMEs), `backend/iris/settings/base.py`, `backend/pyproject.toml`, and architecture-related Rules changes | 50% or more AI-generated | Pending PR (`feature/SET-14`) |
 
 ## Examples, verification and corrections
 
@@ -81,11 +84,59 @@ At least half of the AI-assisted features need an example here. For each one:
 - **How we verified it:** backed up the old database, recreated only the PostgreSQL volume, confirmed the migration order, rebuilt the backend with Argon2, checked the lockfile, verified administrator authentication and the health endpoint, and confirmed nine rule types, seven LICO sizes, and one active B.A.D.R. Store.
 - **Problem found and correction:** the fresh database migrated correctly, but `create_dev_admin` then failed because the previous lockfile omitted Argon2. Regenerating the lockfile fixed backend startup.
 
+### T-00.01.4 Categories reference module (#377) and SET-14 Module skeletons (#405)
+
+- **What the AI produced:** ChatGPT assisted with the Categories Django model, migration, services, queries, pure domain rules, REST API, seed command, React page, bilingual translations, tests, and reference documentation. It also assisted with scaffolding the 15 Django modules, registering their applications, documenting their interfaces, and configuring architectural dependency checks.
+- **Developer involvement:** Reviewed GitHub acceptance criteria and Iris architecture requirements, executed the implementation and verification commands, identified gaps in the architectural enforcement, and validated the corrected configuration.
+- **How we verified it:** The initial full regression run passed 91 backend tests with 86.86% coverage and 172 frontend tests with 94.32% statement coverage. Ruff, mypy, ESLint, TypeScript, migrations, frontend build, API type generation, and dependency security audits passed. All 15 module READMEs were checked for ownership, public-function, and audit-event sections.
+- **Problems found and corrections:** The original Import Linter configuration allowed unauthorized cross-module imports through any public services or queries. Replaced the generic exceptions with the architecture's approved dependency whitelist. A negative test confirmed that Categories cannot import Stores services, a positive test confirmed that Listings can import Categories services, and the clean project passed all three Import Linter contracts.
+- **Remaining verification:** Final regression checks after the documentation updates, GitHub Actions results, and teammate review are pending. The remaining modules are intentionally scaffolds; their business functionality belongs to separate backlog tasks.
+
 ### SET-15 OpenAPI and TypeScript generation (#406)
 
-- **What the AI produced:** health endpoint schema, TypeScript API generation, drift checks, regression tests, and API documentation preserving unresolved team decisions.
-- **How we verified it:** 13 focused backend tests, eight generator tests, and 11 frontend tests passed, alongside schema validation, typing, lint, formatting, build, and dependency audit checks.
-- **Problems found and corrections:** openapi-typescript 7.13.0 required TypeScript 5, so 6.7.6 was pinned without downgrading the project's compiler. Renamed the Node-only regression test to prevent Vitest from collecting it. Fixed UTF-8 output and subprocess buffer limits for large schemas, skipped unsupported symbolic-link creation on Windows, and added schema piping between Docker containers. Removed an empty workflow rejected by GitHub, corrected commit subjects to match repository policy, and updated `certifi` to resolve PYSEC-2026-4320. Native Windows and the full container workflow remain unverified.
+- **What the AI produced:** health response schema metadata and regression tests,
+  a pinned openapi-typescript generator and generated declarations, temporary-copy
+  drift tests, an added CI drift check, a generation guide, and the reviewed
+  team API conventions document. The draft's conventions and endpoint catalog
+  are preserved with implementation status and unresolved decisions identified.
+- **How we verified it:** 13 focused backend tests and Ruff checks passed.
+  Isolated frontend validation with pnpm 10.34.6 and TypeScript 6.0.3 passed
+  type checking, ESLint, formatting, all 11 Vitest tests, production build, and
+  the generation/drift regression test. Schema export passed validation.
+  Existing lockfile entries and CI checks were compared and remain unchanged.
+  Documentation validation checked all 10 convention rows and 69 endpoint rows
+  against the supplied draft, plus Markdown formatting and local links/anchors.
+- **Problems found and corrections:** openapi-typescript 7.13.0 requires a
+  TypeScript 5 peer, so 6.7.6 was selected and tested without peer overrides or
+  a compiler downgrade. Vitest initially collected the Node-only regression
+  test; its filename was changed without altering Vitest configuration.
+  The local backend environment uses Python 3.14.8 rather than CI's 3.13;
+  CI execution and PostgreSQL-dependent backend tests remain to be verified.
+  PR #604 review fixes add explicit UTF-8 Python output, remove the default
+  subprocess buffer limit, and skip only symbolic-link creation on Windows.
+  A schema-stdin mode supports generation and drift tests across the separate
+  Docker containers; the README now lists both API checks and the command to
+  copy regenerated declarations back to the checkout. Regression coverage
+  includes Unicode schemas larger than 1 MiB through both Python and stdin.
+- **PR #604 review verification:** all eight generator tests passed with local
+  Python, and seven passed with a piped schema (the Python-only export test is
+  skipped in that mode). Generated declarations match the validated schema.
+  Four backend schema tests, all 11 Vitest tests, TypeScript checking, ESLint,
+  and formatting of changed frontend files and the generation guide passed.
+  Validation used Python 3.13 and Node 22.23.2; CI uses Node 24. Native Windows
+  and the full container workflow were not run; the Docker daemon was stopped.
+- **CI follow-up:** updated only `certifi` from 2026.7.22 to 2026.10.19 to
+  address the dependency audit finding PYSEC-2026-4320. Merged current `main`
+  so the PR base matches the newly introduced commit-policy workflow, and
+  reworded the ten older SET-15 commit subjects to the required ID-first
+  format while preserving each commit's tree, authorship, and merge structure.
+  The original branch head is retained locally as
+  `backup/SET-15-before-ci-fix-b9933c2`. Removed the empty
+  `.github/workflows/story-test-task.yml`, which GitHub rejected before running
+  any jobs.
+  The locked dependency audit reports no known vulnerabilities after the
+  update; 13 focused backend tests, all eight generator tests, schema drift
+  checking, and Ruff lint/format checks passed after the merge.
 
 ### T-00.01.1 Backend project (#374)
 

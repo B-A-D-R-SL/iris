@@ -15,6 +15,7 @@ import { AREA_ROLES } from "./navigation";
 import { NotFoundPage } from "./NotFoundPage";
 import { PlaceholderScreen } from "./PlaceholderScreen";
 import { RequireRole } from "./RequireRole";
+import { CategoriesPage } from "../features/categories/CategoriesPage";
 
 export default function App() {
   return (
@@ -109,10 +110,7 @@ export default function App() {
               path="staff/stores"
               element={<PlaceholderScreen titleKey="app.staffNav.stores" />}
             />
-            <Route
-              path="staff/categories"
-              element={<PlaceholderScreen titleKey="app.staffNav.categories" />}
-            />
+            <Route path="staff/categories" element={<CategoriesPage />} />
             <Route
               path="staff/audit"
               element={<PlaceholderScreen titleKey="app.staffNav.auditLog" />}

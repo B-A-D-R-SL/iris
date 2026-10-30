@@ -6,12 +6,13 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from iris.views import health
-from modules.accounts.api import current_user
 
 urlpatterns = [
     # Health check
     path("api/health/", health, name="health"),
-    path("api/me/", current_user, name="current-user"),
+    path("api/", include("modules.accounts.api.urls")),
+    # Public listing categories
+    path("api/categories/", include("modules.categories.api.urls")),
     # Django admin
     path("admin/", admin.site.urls),
     # Authentication: allauth's own versioned app/browser subpaths live here.
