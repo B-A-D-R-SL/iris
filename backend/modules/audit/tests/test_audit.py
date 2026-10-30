@@ -5,7 +5,9 @@ from uuid import uuid4
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import connection
+from django.db import IntegrityError, connection, transaction
+from django.db.migrations.executor import MigrationExecutor
+from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 
 from modules.audit import services
@@ -97,6 +99,56 @@ def test_record_rejects_personal_metadata(event_inputs, key):
     assert not AuditEvent.objects.exists()
 
 
+@pytest.mark.parametrize(
+    "operation", ["save", "update", "bulk_update", "delete", "queryset_delete"]
+)
+def test_postgresql_rejects_orm_mutations(event_inputs, operation):
+    event = services.record(**event_inputs)
+    with pytest.raises(IntegrityError, match="append-only"), transaction.atomic():
+        if operation == "save":
+            event.action = "decision"
+            event.save()
+        elif operation == "update":
+            AuditEvent.objects.filter(pk=event.pk).update(action="decision")
+        elif operation == "bulk_update":
+            event.action = "decision"
+            AuditEvent.objects.bulk_update([event], ["action"])
+        elif operation == "delete":
+            event.delete()
+        else:
+            AuditEvent.objects.filter(pk=event.pk).delete()
+
+    event.refresh_from_db()
+    assert event.action == "view"
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "UPDATE audit_auditevent SET action = 'decision' WHERE id = %s",
+        "DELETE FROM audit_auditevent WHERE id = %s",
+    ],
+)
+def test_postgresql_rejects_direct_sql_mutations(event_inputs, sql):
+    event = services.record(**event_inputs)
+    with (
+        pytest.raises(IntegrityError, match="append-only"),
+        transaction.atomic(),
+        connection.cursor() as cursor,
+    ):
+        cursor.execute(sql, [event.pk])
+
+    event.refresh_from_db()
+    assert event.action == "view"
+
+
+def test_actor_deletion_preserves_event(actor, event_inputs):
+    event = services.record(**event_inputs)
+    with pytest.raises(ProtectedError):
+        actor.delete()
+    assert AuditEvent.objects.filter(pk=event.pk).exists()
+
+
 @pytest.mark.parametrize("target_type", ["household", "partner_application"])
 def test_target_type_validation(target_type):
     field = AuditEvent._meta.get_field("target_type")
@@ -108,3 +160,20 @@ def test_target_type_validation_rejects_free_text(target_type):
     field = AuditEvent._meta.get_field("target_type")
     with pytest.raises(ValidationError):
         field.clean(target_type, None)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_append_only_migration_is_reversible(event_inputs):
+    event = services.record(**event_inputs)
+    executor = MigrationExecutor(connection)
+    try:
+        executor.migrate([("audit", "0001_initial")])
+        assert AuditEvent.objects.filter(pk=event.pk).update(action="decision") == 1
+    finally:
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+
+    event.refresh_from_db()
+    assert event.action == "decision"
+    with pytest.raises(IntegrityError, match="append-only"), transaction.atomic():
+        AuditEvent.objects.filter(pk=event.pk).delete()
