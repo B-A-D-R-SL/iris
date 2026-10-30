@@ -1,40 +1,37 @@
+<!-- AI contribution: 50% or more AI-generated -->
 # Audit module
 
-**Owner pair:** Staff & insight
-**Status:** SET-14 architecture skeleton
+Owner pair: Staff & insight.
 
-## Responsibility
+Records who acted, their role at that time, the action, target, and timestamp.
 
-Own the audit feature boundary within the Iris modular monolith.
+Public API: `modules.audit.services.record(actor, action, target_type, target_id, metadata)`.
+Returns an `AuditEvent`; invalid inputs raise Django `ValidationError`.
+Database errors propagate to the caller.
+The actor must be a saved user. Target types use lowercase identifiers such as
+`household`; target IDs accept strings, integers, or UUIDs (stored as strings).
 
-## Layers
+Supported actions: `view` and `decision`.
+Metadata accepts `{}` or `{"outcome": "approved" | "rejected" | "review_required"}`.
+No names, contact details, SINs, income, immigration status, document contents,
+free text, nested values, or other metadata keys are accepted.
+Callers must supply record identifiers rather than personal data as targets.
 
-- `api/`: HTTP validation, permissions, and routing
-- `domain/`: Pure Python business rules; no Django dependencies
-- `services.py`: Public write operations and transactions
-- `queries.py`: Public read-only operations
-- `models.py`: Module-owned Django models
-- `tasks.py`: Background jobs when necessary
-- `tests/`: Domain, service, and API tests
+```python
+from modules.audit.services import record
 
-## Public functions
+record(request.user, "view", "household", household.pk, {})
+```
 
-No public functions implemented yet.
+Recording joins the caller's transaction and rolls back with it.
+PostgreSQL rejects UPDATE and DELETE through both ORM and SQL; actors referenced
+by events cannot be deleted. Writes from other modules must use `record()`.
 
-## Architectural rules
+Apply migrations in an existing Docker environment:
 
-Other modules must communicate through public services or queries.
-Do not import another module's models or internal domain code.
+```bash
+docker compose exec backend python manage.py migrate --noinput
+```
 
-## Future implementation
-
-TODO: Module owner defines business operations, model ownership,
-API endpoints, tests, and applicable audit events.
-
-Do not treat this scaffold as implemented business functionality.
-
-## Audit events
-
-No audit events are implemented as part of SET-14.
-Document emitted event names here when the module's
-business workflows are implemented.
+Requires the US-01 accounts migrations. Audit setup needs no manual SQL.
+The search API and screen belong to #550.
