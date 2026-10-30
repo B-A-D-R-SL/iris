@@ -48,7 +48,7 @@ uv run --env-file .env run.py --reader azure-layout --split dev --record tests/f
 uv run --env-file .env run.py --reader vlm --split dev --out results/vlm-dev.csv
 ```
 
-**Freeze before the held-out runs.** The dev split is for tuning the parser and the prompt. Before the held-out runs, freeze the code, the prompt and the model settings, and note the commit (each summary's settings block records it). If anything changes afterwards, rerun both full passes. Before freezing, check the chosen Gemini model's guidance on temperature: if it recommends the default, change `TEMPERATURE` in `vlm_reader.py` before the held-out runs and note it in `results/summary.md`.
+**Freeze before the held-out runs.** The dev split is for tuning the parser and the prompt. Before the held-out runs, freeze the code, the prompt and the model settings, and note the commit (each summary's settings block records it). If anything changes afterwards, rerun both full passes. The Gemini reader sends no temperature, top_p, top_k or thinking setting, so the model's defaults apply: Google's Gemini 3.x guidance says these parameters "are no longer recommended" and to remove them from requests. If you switch to a model whose guidance differs, set them in `vlm_reader.py` before the held-out runs and note it in `results/summary.md`.
 
 **Full runs.** The pass criteria use the held-out notices; `--split all` reads all 50 files. Run it twice per reader to see whether the answers repeat:
 

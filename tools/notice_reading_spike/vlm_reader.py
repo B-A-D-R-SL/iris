@@ -29,7 +29,9 @@ logger = logging.getLogger(__name__)
 REGION = "northamerica-northeast1"  # Montreal: the only region allowed for this reader
 TIMEOUT_MS = 60_000  # US-22 budget per notice (the SDK timeout is in milliseconds)
 PDF_SCALE = 150 / 72  # render PDF pages at 150 dpi
-TEMPERATURE = 0.0  # README: check the chosen model's guidance before freezing the settings
+# Google: temperature, top_p and top_k "are no longer recommended for all Gemini 3.x models";
+# none is sent, so the model's own defaults apply.
+TEMPERATURE = "model default (not set by the reader)"
 THINKING = "model default (not set by the reader)"  # no thinking_config is sent
 _SERVICE_ERRORS = (errors.APIError, httpx.TransportError, GoogleAuthError)
 _ENV_PROJECT = "GOOGLE_CLOUD_PROJECT"
@@ -198,7 +200,7 @@ class VlmReader:
         return {
             "model": self.model,
             "region": REGION,
-            "temperature": str(TEMPERATURE),
+            "temperature": TEMPERATURE,
             "thinking": THINKING,
         }
 
@@ -214,7 +216,6 @@ class VlmReader:
         parts = [types.Part.from_bytes(data=image, mime_type=mime) for image in images]
         config = types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
-            temperature=TEMPERATURE,
             response_mime_type="application/json",
             response_json_schema=RESPONSE_SCHEMA,
             http_options=types.HttpOptions(timeout=TIMEOUT_MS),

@@ -166,7 +166,7 @@ def test_read_notice_sends_images_and_computes_cost_from_usage():
     assert image_part.inline_data.mime_type == "image/png"
     config = call["config"]
     assert config.system_instruction == SYSTEM_PROMPT
-    assert config.temperature == 0
+    assert config.temperature is None
     assert config.response_mime_type == "application/json"
     assert config.http_options.timeout == 60_000
     assert not config.tools
@@ -238,18 +238,24 @@ def test_settings_record_model_region_temperature_and_thinking():
     assert reader.settings == {
         "model": "gemini-test",
         "region": "northamerica-northeast1",
-        "temperature": "0.0",
+        "temperature": "model default (not set by the reader)",
         "thinking": "model default (not set by the reader)",
     }
 
 
-def test_read_notice_sends_the_temperature_its_settings_report():
+def test_read_notice_sends_no_sampling_or_thinking_setting_as_its_settings_report():
+    """Google: temperature, top_p and top_k are no longer recommended for Gemini 3.x."""
     client = FakeClient(response(payload()))
     reader = VlmReader(client, "m", 1.0, 1.0)
     reader.read_notice(PNG, "image/png")
     config = client.models.calls[0]["config"]
-    assert str(config.temperature) == reader.settings["temperature"]
-    assert config.thinking_config is None  # matches "model default (not set by the reader)"
+    assert (config.temperature, config.top_p, config.top_k) == (None, None, None)
+    assert config.thinking_config is None
+    assert (
+        reader.settings["temperature"]
+        == reader.settings["thinking"]
+        == ("model default (not set by the reader)")
+    )
 
 
 def _env(monkeypatch, **overrides: str | None) -> None:
