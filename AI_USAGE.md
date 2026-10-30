@@ -322,8 +322,8 @@ At least half of the AI-assisted features need an example here. For each one:
   - Mark requested controlled handling of missing or unexpected posting-rule
     keys. These now return HTTP 503, with service tests and English/French API
     tests confirming that no listing is saved.
-  - Mark requested fresh test and coverage measurements. Updated the guide
-    from 214 tests and 90.11% coverage to 228 tests and 90.01%.
+  
+   
   
 
 ### SET-16 Design system, translations and app shell (#407)
