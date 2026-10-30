@@ -4,7 +4,6 @@
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
-from uuid import UUID
 
 MINIMUM_POSITIVE_INTEGER = 1
 ALLOWED_UNITS = frozenset({"item", "bundle"})
@@ -12,7 +11,7 @@ ALLOWED_UNITS = frozenset({"item", "bundle"})
 
 @dataclass(frozen=True)
 class ListingInput:
-    category: UUID
+    category: str  # the category's stable code, for example "bakery"
     title: str
     quantity: int
     pickup_start: datetime

@@ -145,13 +145,13 @@ That adapter is still pending.
 
 ## 6. Request and response examples
 
-This JSON is a template. Replace every `<...>` value with a real category UUID
+This JSON is a template. Replace every `<...>` value with a real category code
 or future ISO datetime before using it. It also requires a valid session,
 CSRF token, account assignment, rule versions, and safety integration.
 
 ```json
 {
-  "category": "<existing active category UUID>",
+  "category": "<existing active category code, for example bakery>",
   "title": "Surplus bread",
   "quantity": 5,
   "unit": "item",

@@ -127,7 +127,7 @@ def test_us33_requires_an_existing_active_category(
     case = posting_case
     data = case.data
     if missing:
-        data = replace(data, category=uuid4())
+        data = replace(data, category="no_such_category")
     else:
         case.category.is_active = False
         case.category.save()

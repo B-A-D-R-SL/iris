@@ -152,7 +152,7 @@ def post_listing(
 
             listing = Listing(
                 store_id=store,
-                category_id=data.category,
+                category_id=category["id"],
                 title=data.title.strip(),
                 description=data.description,
                 quantity_total=data.quantity,
