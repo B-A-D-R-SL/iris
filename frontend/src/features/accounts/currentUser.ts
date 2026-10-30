@@ -22,8 +22,7 @@ export const ROLES = [
 type CurrentUserResponse =
   paths["/api/me/"]["get"]["responses"][200]["content"]["application/json"];
 
-// The API schema currently says `string`; the UI supports the two project languages.
-export type CurrentUser = CurrentUserResponse & { language: "fr" | "en" };
+export type CurrentUser = CurrentUserResponse;
 
 export const CURRENT_USER_QUERY_KEY = ["current-user"] as const;
 

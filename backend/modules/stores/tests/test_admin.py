@@ -16,6 +16,7 @@ from django.test import Client, RequestFactory, override_settings
 from django.urls import reverse
 from django.utils.translation import override
 
+from modules.accounts.tests.factories import UserFactory
 from modules.stores.models import Store
 from modules.stores.tests.factories import StoreFactory
 
@@ -210,11 +211,7 @@ def test_non_admins_have_no_store_admin_permissions() -> None:
     assert not store_admin.has_view_permission(request)
     assert not store_admin.has_change_permission(request)
 
-    staff_user = get_user_model()._default_manager.create_user(
-        email="staff@example.test",
-        password="local-test-password",
-        is_staff=True,
-    )
+    staff_user = UserFactory.create(is_staff=True)
     staff_user.user_permissions.set(
         Permission.objects.filter(codename__in=["view_store", "change_store"])
     )
@@ -222,8 +219,6 @@ def test_non_admins_have_no_store_admin_permissions() -> None:
     assert not store_admin.has_view_permission(request)
     assert not store_admin.has_change_permission(request)
 
-    request.user = get_user_model()._default_manager.create_user(
-        email="non-admin@example.test", password="local-test-password"
-    )
+    request.user = UserFactory.create()
     assert not store_admin.has_view_permission(request)
     assert not store_admin.has_change_permission(request)

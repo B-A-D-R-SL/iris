@@ -6,6 +6,7 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
+from modules.accounts.tests.factories import UserFactory
 from modules.rules.domain.schemas import DEFAULT_RULE_VALUES
 from modules.rules.models import RuleSetVersion
 from modules.rules.queries import active
@@ -17,11 +18,8 @@ def at(year: int, month: int, day: int) -> datetime:
 
 
 @pytest.fixture
-def publisher(django_user_model):
-    return django_user_model.objects.create_user(
-        email="rule-publisher@example.test",
-        password="not-used-by-this-test",
-    )
+def publisher():
+    return UserFactory()
 
 
 @pytest.mark.django_db

@@ -12,12 +12,14 @@ from django.db import IntegrityError, close_old_connections, connection, transac
 from django.test import Client
 
 from modules.accounts.models import User
+from modules.accounts.tests.factories import UserFactory
 from modules.stores.tests.factories import StoreFactory
 
 pytestmark = pytest.mark.django_db
 LOGIN = "/api/auth/browser/v1/auth/login"
 SESSION = "/api/auth/browser/v1/auth/session"
 PASSWORD = "test-password-424"
+USER_EMAIL = "generated-0@example.test"
 
 
 @pytest.fixture(autouse=True)
@@ -29,12 +31,10 @@ def clear_auth_cache(db):
 
 @pytest.fixture
 def user():
-    return User.objects.create_user(
-        "alice@example.test", PASSWORD, first_name="Alice", last_name="Tremblay"
-    )
+    return UserFactory(__sequence=0, password=PASSWORD)
 
 
-def login(client, email="alice@example.test", password=PASSWORD):
+def login(client, email=USER_EMAIL, password=PASSWORD):
     return client.post(
         LOGIN, {"email": email, "password": password}, content_type="application/json"
     )
@@ -53,7 +53,7 @@ def test_user_creation_and_password_hash(user):
     assert user.password != PASSWORD
     assert user.check_password(PASSWORD)
     assert not user.check_password("incorrect")
-    assert User.objects.get_by_natural_key("ALICE@EXAMPLE.TEST") == user
+    assert User.objects.get_by_natural_key(USER_EMAIL.upper()) == user
     assert set(User.Role.values) == {
         "beneficiary",
         "store_staff",
@@ -63,7 +63,7 @@ def test_user_creation_and_password_hash(user):
     }
 
 
-@pytest.mark.parametrize("email", ["alice@example.test", "ALICE@EXAMPLE.TEST"])
+@pytest.mark.parametrize("email", [USER_EMAIL, USER_EMAIL.upper()])
 def test_email_uniqueness_enforced_in_database(user, email):
     with transaction.atomic(), pytest.raises(IntegrityError):
         User.objects.create(email=email)
@@ -86,7 +86,7 @@ def test_superuser_creation():
 
 
 def test_login_creates_session_and_updates_last_login(client, user):
-    response = login(client, email="ALICE@EXAMPLE.TEST")
+    response = login(client, email=USER_EMAIL.upper())
     assert response.status_code == 200
     assert response.json()["meta"]["is_authenticated"] is True
     assert client.session["_auth_user_id"] == str(user.pk)
@@ -211,7 +211,7 @@ def test_lockout_lasts_fifteen_minutes_after_fifth_failure(client, user, monkeyp
         now[0] = start + offset
         # Reopen the backend to model another worker using the same database cache.
         caches.close_all()
-        blocked = login(Client(), email="ALICE@EXAMPLE.TEST")
+        blocked = login(Client(), email=USER_EMAIL.upper())
         assert blocked.status_code == 400
         assert blocked.json()["errors"][0]["code"] == "too_many_login_attempts"
     now[0] = start + 1380
@@ -313,7 +313,7 @@ def test_current_user_has_exact_response(client, user, role, assigned_store):
     assert response.status_code == 200
     assert response.json() == {
         "id": str(user.pk),
-        "name": "Alice Tremblay",
+        "name": "Example0 Person0",
         "role": role,
         "store": str(user.store_id) if assigned_store else None,
         "language": "en",

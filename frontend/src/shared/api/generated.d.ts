@@ -44,12 +44,18 @@ export interface components {
     CurrentUser: {
       /** Format: uuid */
       id: string;
-      language: string;
+      language: components["schemas"]["LanguageEnum"];
       name: string;
       role: components["schemas"]["RoleEnum"];
       /** Format: uuid */
       store: string | null;
     };
+    /**
+     * @description * `fr` - Français
+     * * `en` - English
+     * @enum {string}
+     */
+    LanguageEnum: "fr" | "en";
     /**
      * @description * `beneficiary` - Beneficiary
      * * `store_staff` - Store Staff
