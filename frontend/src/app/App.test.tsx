@@ -49,10 +49,19 @@ describe("public area", () => {
     expect(screen.getByRole("link", { name: "Become a partner" })).toBeInTheDocument();
   });
 
-  it("sends a signed-in user from the welcome page to their own home", async () => {
-    renderApp("/", "store_staff");
-    expect(await screen.findByRole("heading", { name: "Aujourd'hui" })).toBeInTheDocument();
-  });
+  it.each([
+    ["beneficiary", "Accueil"],
+    ["store_staff", "Aujourd'hui"],
+    ["store_manager", "Aujourd'hui"],
+    ["intake_worker", "Foyers"],
+    ["admin", "Foyers"],
+  ] as const)(
+    "sends signed-in %s from the welcome page to their own area",
+    async (role, heading) => {
+      renderApp("/", role);
+      expect(await screen.findByRole("heading", { name: heading })).toBeInTheDocument();
+    },
+  );
 
   it("explains an unknown address", async () => {
     renderApp("/nowhere", "signed-out");

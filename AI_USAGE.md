@@ -29,6 +29,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| T-01.01.1 Sign-in and sign-out tests (#423) | `backend/modules/accounts/tests/test_accounts.py`, `frontend/src/app/App.test.tsx`, `AI_USAGE.md` | 50% or more AI-generated additions | Not opened |
 | T-01.01.2 User model and sign-in API (#424) | `backend/modules/accounts/`, authentication settings/routes, development administrator command, affected regression tests, `backend/{pyproject.toml,uv.lock}`, generated API types | 50% or more AI-generated (generated migrations, lockfile and API declarations exempt) | Not opened |
 | T-00.01.1 Backend project (#374) | `backend/iris/settings/`, `backend/manage.py`, `backend/pyproject.toml`, `backend/tests/test_backend_config.py`, `backend/.env.example` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | T-00.01.2 Frontend project (#375) | `frontend/src/`, `frontend/package.json`, `frontend/vite.config.ts`, `frontend/eslint.config.js`, `frontend/.prettierrc.json`, `backend/iris/{views.py,urls.py}` | 50% or more AI-generated | Not yet opened (`setup` branch) |
@@ -56,6 +57,20 @@ At least half of the AI-assisted features need an example here. For each one:
 - **What the AI produced:** files, commit or pull request
 - **How we verified it:** the automated tests or the review comment that checked it
 - **Problems found and corrections:** what was wrong or rejected, and what we changed
+
+### T-01.01.1 Sign-in and sign-out tests (#423)
+
+- **Leon's direction:** implement the approved test plan and use `/staff/households` as the staff landing path, as updated in US-01.
+- **What the AI produced:** expanded account API tests to exercise real sign-in, current-user lookup, and sign-out for all five roles; added a shared-browser-session logout test; expanded the app routing test to cover every role's landing area.
+- **How we verified it:** all 34 focused account tests and 54 focused app/navigation tests passed. The accounts module reached 100% coverage in the focused backend run; Ruff, ESLint, TypeScript, and formatting checks passed. Only test files changed for this task, so changed-production-code coverage does not apply.
+- **Remaining screen work:** the `/sign-in` route is still a placeholder. Form interaction, localized errors, and sign-out control tests belong with T-01.01.3 when those controls exist.
+
+### T-01.01.2 Local Argon2 lockfile correction (#424)
+
+- **Leon's direction:** restore the local development database after the switch to `accounts.User`, then reseed the SET-08 rules and US-11 B.A.D.R. Store.
+- **What the AI produced:** regenerated `backend/uv.lock` to include the `argon2-cffi` dependency already declared in `backend/pyproject.toml`. The lockfile is generated and exempt from a first-line AI note.
+- **How we verified it:** backed up the old database, recreated only the PostgreSQL volume, confirmed the migration order, rebuilt the backend with Argon2, checked the lockfile, verified administrator authentication and the health endpoint, and confirmed nine rule types, seven LICO sizes, and one active B.A.D.R. Store.
+- **Problem found and correction:** the fresh database migrated correctly, but `create_dev_admin` then failed because the previous lockfile omitted Argon2. Regenerating the lockfile fixed backend startup.
 
 ### SET-15 OpenAPI and TypeScript generation (#406)
 

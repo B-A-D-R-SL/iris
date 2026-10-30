@@ -97,6 +97,41 @@ def test_login_creates_session_and_updates_last_login(client, user):
     assert cookie["samesite"] == "Lax"
 
 
+@pytest.mark.parametrize("role", User.Role.values)
+def test_every_role_can_sign_in_and_out_through_the_api(client, user, role):
+    user.role = role
+    if role in {User.Role.STORE_STAFF, User.Role.STORE_MANAGER}:
+        user.store = StoreFactory()
+    if role in {User.Role.INTAKE_WORKER, User.Role.ADMIN}:
+        user.is_staff = True
+    if role == User.Role.ADMIN:
+        user.is_superuser = True
+    user.save()
+
+    assert client.get("/api/me/").status_code == 401
+    assert client.get(SESSION).status_code == 401
+    refused = login(client, password="incorrect")
+    assert refused.status_code == 400
+    assert refused.json()["errors"][0]["code"] == "email_password_mismatch"
+
+    signed_in = login(client)
+    assert signed_in.status_code == 200
+    assert client.get(SESSION).json()["meta"]["is_authenticated"] is True
+    current_user = client.get("/api/me/")
+    assert current_user.status_code == 200
+    assert current_user.json()["id"] == str(user.pk)
+    assert current_user.json()["role"] == role
+    assert current_user.json()["store"] == (
+        str(user.store_id) if user.store_id else None
+    )
+    user.refresh_from_db()
+    assert user.last_login is not None
+
+    assert client.delete(SESSION).status_code == 401
+    assert client.get(SESSION).status_code == 401
+    assert client.get("/api/me/").status_code == 401
+
+
 @pytest.mark.parametrize("language", ["fr", "en"])
 def test_incorrect_credentials_have_generic_errors(client, user, language):
     client.defaults["HTTP_ACCEPT_LANGUAGE"] = language
@@ -206,6 +241,20 @@ def test_logout_invalidates_session(client, user):
     assert client.delete(SESSION).status_code == 401
     assert "_auth_user_id" not in client.session
     assert client.get("/api/me/").status_code == 401
+
+
+def test_logout_invalidates_the_session_shared_by_browser_tabs(client, user):
+    assert login(client).status_code == 200
+    other_tab = Client()
+    other_tab.cookies.update(client.cookies)
+    other_browser = Client()
+    assert login(other_browser).status_code == 200
+    assert other_tab.get("/api/me/").status_code == 200
+    assert other_browser.get("/api/me/").status_code == 200
+
+    assert client.delete(SESSION).status_code == 401
+    assert other_tab.get("/api/me/").status_code == 401
+    assert other_browser.get("/api/me/").status_code == 200
 
 
 @pytest.mark.parametrize("role", User.Role.values)
