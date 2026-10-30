@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Link, Outlet, useLocation } from "react-router";
 
 import { useCurrentUser } from "../../features/accounts/currentUser";
+import { SignOutButton } from "../../shared/auth/SignOutButton";
 import { LanguageSwitch } from "../../shared/ui";
 import { activeNavPath, navFor } from "../navigation";
 import classes from "./layouts.module.css";
@@ -41,6 +42,7 @@ export function StaffLayout() {
             <Wordmark subtitle={t("app.staffBar.workspace")} strong />
           </div>
           <LanguageSwitch />
+          <SignOutButton />
           {user && (
             <Box className={classes.staffUser} visibleFrom="sm">
               <IconUserCircle size={24} stroke={2} aria-hidden />

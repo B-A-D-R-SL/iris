@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 
 import { useCurrentUser } from "../../features/accounts/currentUser";
+import { SignOutButton } from "../../shared/auth/SignOutButton";
 import { logger } from "../../shared/logger";
 import classes from "./layouts.module.css";
 
@@ -48,7 +49,7 @@ function AccountMenu() {
   const next = i18n.resolvedLanguage === "en" ? "fr" : "en";
 
   return (
-    <Menu position="bottom-end" width={220}>
+    <Menu position="bottom-end" width={220} closeOnItemClick={false}>
       <Menu.Target>
         <ActionIcon variant="subtle" size={48} aria-label={t("app.appBar.account")}>
           <IconUserCircle size={24} stroke={2} aria-hidden />
@@ -63,6 +64,7 @@ function AccountMenu() {
         >
           {t("app.language.switchTo")}
         </Menu.Item>
+        <SignOutButton menu />
       </Menu.Dropdown>
     </Menu>
   );

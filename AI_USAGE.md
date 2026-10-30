@@ -16,6 +16,7 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | ChatGPT (OpenAI) | Drafted T-02.11.1 tests for the future US-11 Store model, B.A.D.R. seed, and Django admin access under Leon's direction; documented the later Store REST API test plan. | Leon Kojakian (#439) |
 | ChatGPT (OpenAI) | Implemented the US-11 Store model, migration, admin registration, service, and test factory from Leon's approved T-02.11.2 plan. | Leon Kojakian (#441) |
 | ChatGPT (OpenAI) | Implemented the idempotent B.A.D.R. Store seed command and expanded its tests from Leon's approved T-02.11.3 plan. | Leon Kojakian (#442) |
+| ChatGPT (OpenAI) | Implemented the T-01.01.3 sign-in screen, browser session handling, sign-out controls, translations, and frontend tests under Leon's approved plan. | Leon Kojakian (#425) |
 
 ## How we declare AI-generated code
 
@@ -31,6 +32,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | --- | --- | --- | --- |
 | T-01.01.1 Sign-in and sign-out tests (#423) | `backend/modules/accounts/tests/test_accounts.py`, `frontend/src/app/App.test.tsx`, `AI_USAGE.md` | 50% or more AI-generated additions | Not opened |
 | T-01.01.2 User model and sign-in API (#424) | `backend/modules/accounts/`, authentication settings/routes, development administrator command, affected regression tests, `backend/{pyproject.toml,uv.lock}`, generated API types | 50% or more AI-generated (generated migrations, lockfile and API declarations exempt) | Not opened |
+| T-01.01.3 Sign-in screen and session handling (#425) | `frontend/src/areas/public/pages/SignIn.tsx`, `frontend/src/shared/auth/`, app providers and layouts, current-user query, French/English translations, frontend tests, `AI_USAGE.md` | 50% or more AI-generated additions | Not opened |
 | T-00.01.1 Backend project (#374) | `backend/iris/settings/`, `backend/manage.py`, `backend/pyproject.toml`, `backend/tests/test_backend_config.py`, `backend/.env.example` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | T-00.01.2 Frontend project (#375) | `frontend/src/`, `frontend/package.json`, `frontend/vite.config.ts`, `frontend/eslint.config.js`, `frontend/.prettierrc.json`, `backend/iris/{views.py,urls.py}` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | T-00.01.3 Docker Compose and README (#376) | `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, `backend/adapters/mailer/`, `backend/iris/management/commands/create_dev_admin.py`, `backend/tests/test_platform_setup.py`, `.env.example`, `README.md` | 50% or more AI-generated | Not yet opened (`setup` branch) |
@@ -63,7 +65,14 @@ At least half of the AI-assisted features need an example here. For each one:
 - **Leon's direction:** implement the approved test plan and use `/staff/households` as the staff landing path, as updated in US-01.
 - **What the AI produced:** expanded account API tests to exercise real sign-in, current-user lookup, and sign-out for all five roles; added a shared-browser-session logout test; expanded the app routing test to cover every role's landing area.
 - **How we verified it:** all 34 focused account tests and 54 focused app/navigation tests passed. The accounts module reached 100% coverage in the focused backend run; Ruff, ESLint, TypeScript, and formatting checks passed. Only test files changed for this task, so changed-production-code coverage does not apply.
-- **Remaining screen work:** the `/sign-in` route is still a placeholder. Form interaction, localized errors, and sign-out control tests belong with T-01.01.3 when those controls exist.
+- **Follow-on screen work:** the form, localized errors, and sign-out controls were delivered in T-01.01.3.
+
+### T-01.01.3 Sign-in screen and session handling (#425)
+
+- **Leon's direction:** implement the approved frontend plan on the US-01 branch, using `/staff/households` for staff and the existing allauth browser-session API.
+- **What the AI produced:** the French/English sign-in form; CSRF-aware password and conditional six-digit MFA requests; a TanStack Query AuthProvider using `/api/me/`; role redirects; shared sign-out controls for household, store, staff, and public layouts; cross-tab sign-out notification; and frontend tests for those paths and error cases. The `/api/me/` handling follows PR #607's US-01 follow-up: 401/403 mean signed out, 404 is an error, and the user type comes from the generated OpenAPI declaration. The code field appears only if allauth issues an MFA challenge; staff MFA enrollment is tracked by US-09 (#436).
+- **How we verified it:** all 183 frontend tests passed, including the new authentication tests and an accessibility check. Full frontend statement coverage was 92.96%; the new sign-in page reached 93.61% and the new shared auth module 88.11%. TypeScript, ESLint, Prettier, and the production build passed.
+- **Problems found and corrections:** fixed an unsupported TypeScript parameter property, split the auth context from the provider for React Fast Refresh lint, and flattened new translation keys to comply with the existing three-part key rule.
 
 ### T-01.01.2 Local Argon2 lockfile correction (#424)
 
