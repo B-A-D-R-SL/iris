@@ -11,8 +11,7 @@ class AuthCache(DatabaseCache):
 
     def _cull(self, db: str, cursor: CursorWrapper, now: datetime, num: int) -> None:
         connection = connections[db]
-        table = connection.ops.quote_name(self.cache_model_class._meta.db_table)
         cursor.execute(
-            f"DELETE FROM {table} WHERE expires < %s",
+            "DELETE FROM accounts_auth_cache WHERE expires < %s",
             [connection.ops.adapt_datetimefield_value(now)],
         )

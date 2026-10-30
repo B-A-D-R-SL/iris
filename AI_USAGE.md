@@ -31,9 +31,9 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
-| T-01.01.1 Sign-in and sign-out tests (#423) | `backend/modules/accounts/tests/test_accounts.py`, `frontend/src/app/App.test.tsx`, `AI_USAGE.md` | 50% or more AI-generated additions | Not opened |
-| T-01.01.2 User model and sign-in API (#424) | `backend/modules/accounts/`, authentication settings/routes, development administrator command, affected regression tests, `backend/{pyproject.toml,uv.lock}`, generated API types | 50% or more AI-generated (generated migrations, lockfile and API declarations exempt) | Not opened |
-| T-01.01.3 Sign-in screen and session handling (#425) | `frontend/src/areas/public/pages/SignIn.tsx`, `frontend/src/shared/auth/`, app providers and layouts, current-user query, French/English translations, frontend tests, `AI_USAGE.md` | 50% or more AI-generated additions | Not opened |
+| T-01.01.1 Sign-in and sign-out tests (#423) | `backend/modules/accounts/tests/test_accounts.py`, `frontend/src/app/App.test.tsx`, `AI_USAGE.md` | 50% or more AI-generated additions | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
+| T-01.01.2 User model and sign-in API (#424) | `backend/modules/accounts/`, authentication settings/routes, development administrator command, affected regression tests, `backend/{pyproject.toml,uv.lock}`, generated API types | 50% or more AI-generated (generated migrations, lockfile and API declarations exempt) | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
+| T-01.01.3 Sign-in screen and session handling (#425) | `frontend/src/areas/public/pages/SignIn.tsx`, `frontend/src/shared/auth/`, app providers and layouts, current-user query, French/English translations, frontend tests, `AI_USAGE.md` | 50% or more AI-generated additions | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
 | T-00.01.1 Backend project (#374) | `backend/iris/settings/`, `backend/manage.py`, `backend/pyproject.toml`, `backend/tests/test_backend_config.py`, `backend/.env.example` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | T-00.01.2 Frontend project (#375) | `frontend/src/`, `frontend/package.json`, `frontend/vite.config.ts`, `frontend/eslint.config.js`, `frontend/.prettierrc.json`, `backend/iris/{views.py,urls.py}` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | T-00.01.3 Docker Compose and README (#376) | `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, `backend/adapters/mailer/`, `backend/iris/management/commands/create_dev_admin.py`, `backend/tests/test_platform_setup.py`, `.env.example`, `README.md` | 50% or more AI-generated | Not yet opened (`setup` branch) |
@@ -83,6 +83,7 @@ At least half of the AI-assisted features need an example here. For each one:
 - **What the AI produced:** regenerated `backend/uv.lock` to include the `argon2-cffi` dependency already declared in `backend/pyproject.toml`. The lockfile is generated and exempt from a first-line AI note.
 - **How we verified it:** backed up the old database, recreated only the PostgreSQL volume, confirmed the migration order, rebuilt the backend with Argon2, checked the lockfile, verified administrator authentication and the health endpoint, and confirmed nine rule types, seven LICO sizes, and one active B.A.D.R. Store.
 - **Problem found and correction:** the fresh database migrated correctly, but `create_dev_admin` then failed because the previous lockfile omitted Argon2. Regenerating the lockfile fixed backend startup.
+- **PR #610 security follow-up:** Sonar flagged a dynamically formatted table name in `AuthCache._cull`. The AI replaced it with static SQL for the cache table created by the accounts migration, retaining a parameterized expiry time. All 34 account tests passed against PostgreSQL; Ruff lint and formatting checks passed. The PR quality gate must rerun after the change is pushed.
 
 ### T-00.01.4 Categories reference module (#377) and SET-14 Module skeletons (#405)
 
