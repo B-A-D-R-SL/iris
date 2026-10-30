@@ -115,3 +115,4 @@ Whichever option is chosen, no real notice goes to a service until all of these 
 - `TruthReader` becomes the fake reader for the application's tests, so no test calls a service.
 - If Gemini is chosen, the LLM security checks apply: the model has no tools, its output is validated before use, untrusted text in a notice is never treated as instructions, and no secret goes in a prompt.
 - If Gemini is chosen, B.A.D.R. holds a second vendor account, contract and bill, outside the Microsoft nonprofit credits.
+- If Document Intelligence is chosen, it runs in Canada Central (Toronto), the only Canadian region that offered it on 2026-10-30, while the rest of Iris runs in Canada East ([evidence document](../04-data/notice-reading-privacy-inputs.md), note 1). Notices then leave Québec on their way to the reader, and [ADR 0001](0001-tech-stack.md), which lists Document Intelligence among the Canada East services, needs correcting.

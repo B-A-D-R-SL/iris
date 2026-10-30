@@ -11,7 +11,7 @@ Read next: the [planning note](../../docs/06-planning/set-19-notice-reading-spik
 
 You need an Azure subscription (a student one or B.A.D.R.'s), a Google Cloud account, the Google Cloud CLI (`gcloud`, [install](https://cloud.google.com/sdk/docs/install)) for the sign-in in step 3, and [uv](https://docs.astral.sh/uv/). Run every command below from this folder (`tools/notice_reading_spike`). uv installs Python 3.13 and the dependencies into `.venv` on the first run.
 
-1. **Document Intelligence.** In the Azure portal, create a Document Intelligence resource on the free tier (F0). When Canada Central or Canada East is offered, pick one. Copy the endpoint and one key from "Keys and Endpoint".
+1. **Document Intelligence.** In the Azure portal, create a Document Intelligence resource on the free tier (F0) in Canada Central, the only Canadian region that offered it on 2026-10-30. Copy the endpoint and one key from "Keys and Endpoint".
 2. **Vertex AI.** In Google Cloud, create a project, link a billing account and enable the Vertex AI API. In Model Garden, look at the models offered in Montréal (`northamerica-northeast1`) and pick the newest Gemini Flash.
 3. **Sign in to Google.** Run `gcloud auth application-default login`. Vertex AI uses these Application Default Credentials; no Google key goes in `.env`.
 4. **Fill `.env`.** Run `cp .env.example .env`, then fill every empty value. `.env` is ignored by git; never commit it.
