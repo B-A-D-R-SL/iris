@@ -46,3 +46,19 @@ def deactivate_category(category_id: UUID) -> Category:
     category.is_active = False
 
     return save_category(category)
+
+
+@transaction.atomic
+def get_or_create_category(category: Category) -> tuple[Category, bool]:
+    """Validate and create a category, safely handling concurrent seeds."""
+    category.full_clean(validate_unique=False)
+    return Category.objects.get_or_create(
+        code=category.code,
+        defaults={
+            "name_fr": category.name_fr,
+            "name_en": category.name_en,
+            "is_food": category.is_food,
+            "default_value_cents": category.default_value_cents,
+            "is_active": category.is_active,
+        },
+    )

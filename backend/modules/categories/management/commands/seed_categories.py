@@ -10,7 +10,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from modules.categories.models import Category
-from modules.categories.services import save_category
+from modules.categories.services import get_or_create_category
 
 SEED_PATH = Path(__file__).resolve().parents[2] / "data" / "categories.yaml"
 
@@ -76,24 +76,15 @@ class Command(BaseCommand):
         """Create categories atomically without overwriting staff edits."""
         rows = load_category_data(SEED_PATH)
 
-        existing_codes = set(
-            Category.objects.filter(code__in=[row["code"] for row in rows]).values_list(
-                "code", flat=True
-            )
-        )
-
         created = 0
 
         for row in rows:
-            if row["code"] in existing_codes:
-                continue
-
             try:
-                save_category(Category(**row))
+                _, was_created = get_or_create_category(Category(**row))
             except ValidationError as exc:
                 raise CommandError(f"Invalid category {row['code']}: {exc}") from exc
 
-            created += 1
+            created += int(was_created)
 
         self.stdout.write(
             self.style.SUCCESS(

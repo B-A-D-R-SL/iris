@@ -69,6 +69,10 @@ The API does not directly construct database queries.
 - Prevents changing an existing category's stable code.
 - Runs inside a database transaction.
 
+`get_or_create_category(category)`
+- Validates category fields and safely creates missing categories.
+- Preserves existing records when seed commands overlap.
+
 `deactivate_category(category_id)`
 - Deactivates a category without deleting its record.
 - Preserves existing data for historical references.

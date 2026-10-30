@@ -20,6 +20,7 @@ Own the categories feature boundary within the Iris modular monolith.
 ## Public functions
 
 - `services.save_category(category)`
+- `services.get_or_create_category(category)`
 - `services.deactivate_category(category_id)`
 - `queries.list_active_categories()`
 - `queries.get_active_category(code)`

@@ -10,6 +10,7 @@ from django.core.management.base import CommandError
 
 from modules.categories.management.commands import seed_categories
 from modules.categories.models import Category
+from modules.categories.services import get_or_create_category
 
 
 @pytest.mark.django_db
@@ -84,3 +85,27 @@ def test_seed_rolls_back_on_invalid_category(
         call_command("seed_categories", stdout=StringIO())
 
     assert Category.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_get_or_create_category_preserves_existing_values() -> None:
+    """Repeated creation should return the existing record unchanged."""
+    candidate = Category(
+        code="bakery",
+        name_fr="Boulangerie",
+        name_en="Bakery",
+        is_food=True,
+        default_value_cents=400,
+        is_active=True,
+    )
+
+    first, created = get_or_create_category(candidate)
+    assert created is True
+
+    candidate.name_en = "Changed by seed"
+    second, created_again = get_or_create_category(candidate)
+
+    assert created_again is False
+    assert second.pk == first.pk
+    assert second.name_en == "Bakery"
+    assert Category.objects.count() == 1
