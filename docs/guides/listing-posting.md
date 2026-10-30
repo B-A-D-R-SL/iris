@@ -10,7 +10,7 @@ loaves of bread available for pickup. The backend checks the request and saves
 the listing through `POST /api/store/listings/`.
 
 **The posting backend and its tests are implemented, but the complete user
-workflow still needs account, safety, photo-storage, and frontend integration.**
+workflow still needs account, safety, and photo-storage integration.**
 The tests use explicit stand-ins for those unfinished dependencies.
 
 ## 1. What can someone do today?
@@ -18,14 +18,15 @@ The tests use explicit stand-ins for those unfinished dependencies.
 | Part | Current behavior |
 | --- | --- |
 | Posting endpoint | Accepts and validates a request, checks permissions, and can save a published listing when its required dependencies are available. |
-| Posting form | This work adds no form or screen. The frontend form is a separate task, #495. |
+| Posting form | Implemented at `/store/listings/new`, including category selection, pickup fields, confirmation, and publication/error feedback. |
+| Frontend API client | Implemented: sends JSON or multipart data to the posting endpoint with CSRF and language headers, and maps 400 field errors back to the form. |
 | Real accounts | The current default Django users lack the required role/store assignments. They are refused; test assignments are not installed in the running app. |
 | Safety checks | The backend calls the separate US-34 checker. If it is missing, posting is refused. This work does not implement its food-date or prohibited-category decisions. |
 | Photos | Size, declared type, and JPEG/PNG signatures are checked. Saving photos needs a real private-storage adapter; tests use a fake. |
 | Tests | Can exercise the backend with temporary PostgreSQL records and fake integrations, without waiting for those integrations to be finished. |
 
-A passing test suite therefore does not mean a person can already sign in and
-publish through a finished screen. In the current app, an ordinary account
+The form and API client are implemented, but live publication still depends
+on account and safety integration. In the current app, an ordinary account
 receives a permission refusal before it reaches the missing safety integration.
 
 ## 2. The main ideas
@@ -104,6 +105,8 @@ posting service/API work.
 | [Rule schemas/defaults](../../backend/modules/rules/domain/schemas.py) | Define configurable posting limits and validate rule configuration. |
 | [French source catalog](../../backend/modules/listings/locale/fr/LC_MESSAGES/django.po) | Translate backend messages. The accompanying `.mo` is its compiled runtime catalog. |
 | [Generated TypeScript types](../../frontend/src/shared/api/generated.d.ts) | Describe the API to frontend code. Generated types do not create a screen. |
+| [Posting form](../../frontend/src/areas/store/pages/NewListing.tsx) and [form helpers](../../frontend/src/areas/store/pages/newListingForm.ts) | Collect required, correctly formatted values and display the API's posting-limit and safety errors. |
+| [Frontend posting client](../../frontend/src/features/listings/api.ts) | Submit the request with session/CSRF and language handling; expose API failures to the form. |
 
 The `__init__.py` files mark the API and domain directories as Python packages.
 They do not contain the posting rules or database operations.
@@ -270,17 +273,17 @@ than editing generated types by hand.
 
 ### Recorded verification
 
-The last implementation verification recorded **228 backend tests passing
-with 90.01% coverage**, above the 70% gate. Pure posting rules had 100% coverage.
-These are historical results from the implementation run, not a new test run
-for this documentation change. Counts may change as teammates add tests.
+PR review verification on 2026-10-30 recorded **255 backend tests passing
+with 90.38% coverage**, above the 70% gate. Pure posting rules had 100% coverage.
+The frontend suite passed **227 tests**, including five additional regression
+cases beyond the previously reported 222. Counts may change as teammates add tests.
 
-Ruff lint/format, mypy (91 source files), the existing import-linter contract,
-Django system/migration checks, OpenAPI validation, and generated-type drift
-checks passed. Generator tests recorded seven passes and one expected
-Python-only skip in schema-stdin mode. All 11 frontend tests, type checking,
-production build, ESLint, generated-file formatting, and Git whitespace checks
-also passed.
+This review pass checked Ruff lint/format, mypy, import-linter contracts,
+frontend type checking, production build, ESLint, changed-file formatting,
+and Git whitespace. Earlier implementation verification also passed Django
+system/migration checks, OpenAPI validation, and generated-type drift checks.
+Those earlier generator tests recorded seven passes and one expected
+Python-only skip in schema-stdin mode.
 
 Earlier wider checks reported unrelated frontend CRLF formatting differences
 and dependency-audit findings. They were outside these fixes; the results
@@ -300,9 +303,7 @@ above do not claim that every repository-wide audit or hosted CI check passed.
 4. **Rule versions:** seed/publish the required rules when the integrations
    are ready. The existing `seed_rules` command supports the posting defaults;
    tests publish their own temporary versions.
-5. **Posting form (#495):** send the documented values, include session/CSRF
-   handling, and show field errors. Authorization and safety remain on the server.
-6. **Review and acceptance:** teammate review, hosted CI, and the remaining
+5. **Review and acceptance:** teammate review, hosted CI, and the remaining
    story acceptance checks before considering the complete workflow finished.
 
 For the wider design, read the [architecture](../04-architecture/architecture.md),

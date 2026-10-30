@@ -177,8 +177,10 @@ def test_us33_uses_latest_effective_rule_versions(
 
 def test_us33_never_publishes_when_safety_dependency_is_missing(
     posting_case: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     case = posting_case
+    monkeypatch.setitem(sys.modules, "modules.listings.domain.safety", None)
     with pytest.raises(services.PostingUnavailable, match="safety"):
         services.post_listing(case.store.pk, case.user, case.data)
     assert not Listing.objects.exists()

@@ -8,13 +8,13 @@
  * http://localhost:5173/store/listings/new?participant=P1 in the browser's phone view.
  */
 import { execFileSync } from "node:child_process";
-import { appendFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 import { createPreviewApi } from "./preview-api.mjs";
 import { RUNS_FILE } from "./runs-file.mjs";
-import { describeRun, summarize, TARGET_SECONDS } from "./runs.mjs";
+import { describeRun, parseRuns, summarize, TARGET_SECONDS } from "./runs.mjs";
 
 const { values } = parseArgs({
   options: {
@@ -51,9 +51,10 @@ const categories = JSON.parse(
   ),
 );
 
-const runs = [];
+const runs = existsSync(RUNS_FILE) ? parseRuns(readFileSync(RUNS_FILE, "utf8")) : [];
 const server = createPreviewApi({
   categories,
+  previousRuns: runs,
   onRestart: (participant) =>
     console.log(`${participant}: page reloaded, the running clock was dropped`),
   onOpen: (participant) => console.log(`${participant}: form loaded, the clock is running`),

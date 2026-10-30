@@ -9,8 +9,8 @@ export interface IntegerFieldProps extends BaseFieldProps {
   /** A whole number, or "" while the input is empty. */
   value?: number | string;
   onChange: (value: number | string) => void;
-  min: number;
-  max: number;
+  min?: number;
+  max?: number;
 }
 
 /**
@@ -23,8 +23,8 @@ export function IntegerField(props: IntegerFieldProps) {
   const wrapper = useFieldWrapper(props);
   const current = value === "" ? null : Number(value);
   const step = (delta: number) => {
-    const next = current === null || Number.isNaN(current) ? min : current + delta;
-    onChange(Math.min(max, Math.max(min, next)));
+    const next = current === null || Number.isNaN(current) ? (min ?? 0) : current + delta;
+    onChange(Math.min(max ?? Infinity, Math.max(min ?? -Infinity, next)));
   };
   const button = (delta: -1 | 1) => (
     <ActionIcon
@@ -34,7 +34,9 @@ export function IntegerField(props: IntegerFieldProps) {
         label: props.label,
       })}
       disabled={
-        props.disabled || (current !== null && (delta < 0 ? current <= min : current >= max))
+        props.disabled ||
+        (current !== null &&
+          (delta < 0 ? min !== undefined && current <= min : max !== undefined && current >= max))
       }
       onClick={() => step(delta)}
     >
@@ -54,7 +56,7 @@ export function IntegerField(props: IntegerFieldProps) {
       min={min}
       max={max}
       allowDecimal={false}
-      allowNegative={false}
+      allowNegative={min === undefined || min < 0}
       hideControls
       inputMode="numeric"
       leftSection={button(-1)}

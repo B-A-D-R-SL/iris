@@ -1,8 +1,8 @@
 // AI contribution: 50% or more AI-generated
 /**
  * Values, defaults and checks of the posting form (forms-and-fields.md, "Listing form").
- * The limits mirror the default `listing_posting` rules; the server stays the
- * authority, and its messages replace these when an active rule version differs.
+ * Only required fields and formats are checked here. Posting limits and safety
+ * decisions belong to the API; its 400 messages appear on the matching fields.
  */
 import dayjs, { type Dayjs } from "dayjs";
 import type { ReactNode } from "react";
@@ -10,27 +10,12 @@ import type { ReactNode } from "react";
 import type { NewListing } from "../../../features/listings/api";
 import {
   allOf,
-  hasLength,
   isAcceptedFile,
   isDateInRange,
-  isMoneyInRange,
   isRequired,
   validationMessage,
   type Rule,
 } from "../../../shared/forms";
-
-export const LIMITS = {
-  titleMin: 2,
-  titleMax: 80,
-  descriptionMax: 500,
-  quantityMax: 999,
-  maxPerHousehold: 10,
-  estimatedValueMaxCents: 100_000,
-  startMaxDays: 7,
-  minMinutes: 30,
-  maxMinutes: 12 * 60,
-  photoMaxMb: 5,
-} as const;
 
 export const PHOTO_TYPES = ["image/jpeg", "image/png"] as const;
 
@@ -90,12 +75,12 @@ function at(date: string | null, time: string): Dayjs | null {
   return dayjs(`${date}T${time}`);
 }
 
-function integerIn(min: number, max: number, messageKey: string): Rule<number | string> {
+function integerFormat(): Rule<number | string> {
   return (value) => {
     const number = Number(value);
-    return value !== "" && Number.isInteger(number) && number >= min && number <= max
+    return String(value).trim() !== "" && Number.isSafeInteger(number)
       ? null
-      : validationMessage(messageKey);
+      : validationMessage("shared.validation.integer");
   };
 }
 
@@ -103,68 +88,37 @@ const required = isRequired();
 
 /**
  * Rules for @mantine/form. `isFood` tells whether a category code needs a
- * best-before date; `clock` is the current time (replaced in tests).
+ * best-before date. Date ordering and pickup limits are checked by the API.
  */
-export function listingRules(isFood: (code: string) => boolean, clock: () => Dayjs = dayjs) {
+export function listingRules(isFood: (code: string) => boolean) {
   return {
-    photo: isAcceptedFile({ types: PHOTO_TYPES, maxMb: LIMITS.photoMaxMb }),
-    title: allOf(required, hasLength({ min: LIMITS.titleMin, max: LIMITS.titleMax })),
+    photo: isAcceptedFile({ types: PHOTO_TYPES }),
+    title: required,
     category: (value: string) =>
       value ? null : validationMessage("store.newListing.categoryError"),
-    description: hasLength({ max: LIMITS.descriptionMax }),
-    quantity: integerIn(1, LIMITS.quantityMax, "store.newListing.quantityError"),
-    maxPerHousehold: integerIn(1, LIMITS.maxPerHousehold, "store.newListing.maxPerHouseholdError"),
+    quantity: integerFormat(),
+    maxPerHousehold: integerFormat(),
 
     otherDate: (value: string | null, values: ListingFormValues): ReactNode => {
       if (values.day !== "other") return null;
-      const now = clock();
-      return allOf(
-        required,
-        isDateInRange({
-          min: now.format(DATE),
-          max: now.add(LIMITS.startMaxDays, "day").format(DATE),
-        }),
-      )(value);
+      return allOf(required, isDateInRange())(value);
     },
 
-    startTime: (value: string, values: ListingFormValues): ReactNode => {
-      const now = clock();
-      const date = pickupDate(values, now);
-      if (!date) return null; // The missing date has its own message.
-      const start = at(date, value);
-      if (!start) return validationMessage("store.newListing.timeError");
-      if (start.isBefore(now)) return validationMessage("store.newListing.startPastError");
-      // Elapsed hours, like the server: a daylight-saving change does not stretch the week.
-      if (start.isAfter(now.add(LIMITS.startMaxDays * 24, "hour"))) {
-        return validationMessage("store.newListing.startTooFarError");
-      }
-      return null;
-    },
+    startTime: (value: string): ReactNode =>
+      TIME.test(value) ? null : validationMessage("store.newListing.timeError"),
 
-    endTime: (value: string, values: ListingFormValues): ReactNode => {
-      const date = pickupDate(values, clock());
-      const end = at(date, value);
-      if (date && !end) return validationMessage("store.newListing.timeError");
-      const start = at(date, values.startTime);
-      if (!start || !end) return null;
-      // Elapsed minutes, so a daylight-saving change counts like the server does.
-      const minutes = end.diff(start, "minute");
-      return minutes >= LIMITS.minMinutes && minutes <= LIMITS.maxMinutes
-        ? null
-        : validationMessage("store.newListing.durationError");
-    },
+    endTime: (value: string): ReactNode =>
+      TIME.test(value) ? null : validationMessage("store.newListing.timeError"),
 
     bestBefore: (value: string | null, values: ListingFormValues): ReactNode => {
       if (!isFood(values.category)) return null;
-      const invalid = allOf(required, isDateInRange())(value);
-      if (invalid) return invalid;
-      const pickupEnd = pickupDate(values, clock());
-      return pickupEnd && value !== null && value < pickupEnd
-        ? validationMessage("store.newListing.bestBeforeError", { date: dayjs(pickupEnd).toDate() })
-        : null;
+      return allOf(required, isDateInRange())(value);
     },
 
-    estimatedValue: isMoneyInRange({ maxCents: LIMITS.estimatedValueMaxCents }),
+    estimatedValue: (value: number | null): ReactNode =>
+      value === null || Number.isSafeInteger(value)
+        ? null
+        : validationMessage("shared.validation.integer"),
     safeAndAllowed: (value: boolean) =>
       value ? null : validationMessage("store.newListing.safeAndAllowedError"),
   };

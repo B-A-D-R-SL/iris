@@ -84,6 +84,15 @@ describe("createRunRecorder", () => {
     expect(run(recorder, "P1", 20)).toMatchObject({ run: 3, attempt: 2 });
   });
 
+  it("restores participant attempts and run numbers from saved history", () => {
+    const original = createRunRecorder();
+    const saved = [run(original, "P1", 48), run(original, "P2", 75), run(original, "P1", 20)];
+    const restored = createRunRecorder(parseRuns(saved.map((r) => JSON.stringify(r)).join("\n")));
+    expect(run(restored, "P1", 15)).toMatchObject({ run: 4, participant: "P1", attempt: 3 });
+    expect(run(restored, "P2", 25)).toMatchObject({ run: 5, participant: "P2", attempt: 2 });
+    expect(run(restored, "P3", 50)).toMatchObject({ run: 6, participant: "P3", attempt: 1 });
+  });
+
   it("ignores a post whose form never loaded", () => {
     const recorder = createRunRecorder();
     expect(recorder.published("P1", OPENED, CORRECT)).toBeNull();
@@ -104,6 +113,18 @@ describe("createRunRecorder", () => {
 });
 
 describe("median and summary", () => {
+  it("counts a participant once when old saved sessions contain duplicate first attempts", () => {
+    const first = run(createRunRecorder(), "P1", 48);
+    const duplicate = run(createRunRecorder(), "P1", 10);
+    const second = run(createRunRecorder(), "P2", 60);
+    expect(summarize([first, duplicate, second])).toMatchObject({
+      counted: [first, second],
+      median: 54,
+      met: true,
+    });
+    expect(markdownReport([first, duplicate, second])).toContain("| P1 | 1 | 10.0 | Yes | No |");
+  });
+
   it("takes the middle value, or the mean of the two middle values", () => {
     expect(median([])).toBeNull();
     expect(median([70, 40, 50])).toBe(50);

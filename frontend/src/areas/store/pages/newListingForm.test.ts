@@ -12,14 +12,10 @@ import {
   type ListingFormValues,
 } from "./newListingForm";
 
-// Thursday 12 November 2026, 09:00 in the test machine's time zone: no daylight-saving
-// change in the next 7 days, so the limits below hold in any time zone.
+// Thursday 12 November 2026, 09:00 in the test machine's time zone.
 const NOW = dayjs("2026-11-12T09:00");
 const FOOD = new Set(["bakery"]);
-const rules = listingRules(
-  (code) => FOOD.has(code),
-  () => NOW,
-);
+const rules = listingRules((code) => FOOD.has(code));
 
 const valid: ListingFormValues = {
   ...DEFAULT_VALUES,
@@ -69,89 +65,97 @@ describe("posting form rules", () => {
     }
   });
 
-  it("requires a 2 to 80 character title and a category", () => {
+  it("requires a title and category, leaving title limits to the API", () => {
     expect(check("title", { title: "" })).toBe("shared.validation.required");
-    expect(check("title", { title: " X " })).toBe("shared.validation.textLength");
-    expect(check("title", { title: "x".repeat(81) })).toBe("shared.validation.textLength");
+    expect(check("title", { title: "   " })).toBe("shared.validation.required");
+    expect(check("title", { title: " X " })).toBeNull();
+    expect(check("title", { title: "x".repeat(81) })).toBeNull();
     expect(check("title", { title: "x".repeat(80) })).toBeNull();
     expect(check("category", { category: "" })).toBe("store.newListing.categoryError");
   });
 
-  it("keeps the description to 500 characters", () => {
-    expect(check("description", { description: "x".repeat(500) })).toBeNull();
-    expect(check("description", { description: "x".repeat(501) })).toBe(
-      "shared.validation.textMax",
-    );
+  it("keeps the full description for the API to validate", () => {
+    const description = "x".repeat(501);
+    expect(toNewListing({ ...valid, description }, false, NOW).description).toBe(description);
   });
 
-  it.each([0, 1000, "", 2.5])("refuses the quantity %s", (quantity) => {
-    expect(check("quantity", { quantity })).toBe("store.newListing.quantityError");
-  });
+  it.each(["", " ", 2.5, Infinity, "not a number"])(
+    "refuses a non-integer quantity %s",
+    (quantity) => {
+      expect(check("quantity", { quantity })).toBe("shared.validation.integer");
+      expect(check("maxPerHousehold", { maxPerHousehold: quantity })).toBe(
+        "shared.validation.integer",
+      );
+    },
+  );
 
-  it("accepts quantities 1 to 999 and 1 to 10 per household", () => {
+  it("leaves quantity and household limits to the API", () => {
     expect(check("quantity", { quantity: 999 })).toBeNull();
     expect(check("maxPerHousehold", { maxPerHousehold: 10 })).toBeNull();
-    expect(check("maxPerHousehold", { maxPerHousehold: 11 })).toBe(
-      "store.newListing.maxPerHouseholdError",
-    );
+    expect(check("quantity", { quantity: 0 })).toBeNull();
+    expect(check("quantity", { quantity: -1 })).toBeNull();
+    expect(check("quantity", { quantity: 1000 })).toBeNull();
+    expect(check("maxPerHousehold", { maxPerHousehold: 11 })).toBeNull();
+    expect(check("maxPerHousehold", { maxPerHousehold: 0 })).toBeNull();
   });
 
-  it("refuses a pickup that already started or starts more than 7 days ahead", () => {
-    expect(check("startTime", { startTime: "08:59" })).toBe("store.newListing.startPastError");
+  it("checks time format without deciding when pickup is allowed", () => {
+    expect(check("startTime", { startTime: "08:59" })).toBeNull();
     expect(check("startTime", { startTime: "09:00" })).toBeNull();
     const inSevenDays = { day: "other" as const, otherDate: "2026-11-19" };
     expect(check("startTime", { ...inSevenDays, startTime: "09:00" })).toBeNull();
-    expect(check("startTime", { ...inSevenDays, startTime: "09:01" })).toBe(
-      "store.newListing.startTooFarError",
-    );
+    expect(check("startTime", { ...inSevenDays, startTime: "09:01" })).toBeNull();
+    expect(check("startTime", { startTime: "25:00" })).toBe("store.newListing.timeError");
+    expect(check("startTime", { startTime: "" })).toBe("store.newListing.timeError");
   });
 
-  it("asks for a date when 'Autre date' is chosen, within 7 days", () => {
+  it("requires a calendar date for 'Autre date' without pickup-day limits", () => {
     expect(check("otherDate", { day: "other", otherDate: null })).toBe(
       "shared.validation.required",
     );
-    expect(check("otherDate", { day: "other", otherDate: "2026-11-20" })).toBe(
-      "shared.validation.dateMax",
+    expect(check("otherDate", { day: "other", otherDate: "2026-11-20" })).toBeNull();
+    expect(check("otherDate", { day: "other", otherDate: "2026-11-11" })).toBeNull();
+    expect(check("otherDate", { day: "other", otherDate: "2026-02-31" })).toBe(
+      "shared.validation.date",
     );
-    expect(check("otherDate", { day: "other", otherDate: "2026-11-11" })).toBe(
-      "shared.validation.dateMin",
-    );
-    // The start time waits for the date instead of repeating its error.
     expect(check("startTime", { day: "other", otherDate: null })).toBeNull();
   });
 
-  it("keeps the pickup between 30 minutes and 12 hours", () => {
-    expect(check("endTime", { endTime: "16:29" })).toBe("store.newListing.durationError");
+  it("leaves pickup ordering and duration to the API", () => {
+    expect(check("endTime", { endTime: "16:29" })).toBeNull();
     expect(check("endTime", { endTime: "16:30" })).toBeNull();
     expect(check("endTime", { startTime: "10:00", endTime: "22:00" })).toBeNull();
-    expect(check("endTime", { startTime: "10:00", endTime: "22:01" })).toBe(
-      "store.newListing.durationError",
-    );
-    expect(check("endTime", { endTime: "15:00" })).toBe("store.newListing.durationError");
+    expect(check("endTime", { startTime: "10:00", endTime: "22:01" })).toBeNull();
+    expect(check("endTime", { endTime: "15:00" })).toBeNull();
     expect(check("endTime", { endTime: "" })).toBe("store.newListing.timeError");
   });
 
-  it("asks for a best-before date on or after the pickup day, for food only", () => {
+  it("requires a calendar best-before date for food, leaving safety decisions to the API", () => {
     expect(check("bestBefore", { category: "hygiene", bestBefore: null })).toBeNull();
     expect(check("bestBefore", { category: "bakery", bestBefore: null })).toBe(
       "shared.validation.required",
     );
-    expect(check("bestBefore", { category: "bakery", bestBefore: "2026-11-11" })).toBe(
-      "store.newListing.bestBeforeError",
+    expect(check("bestBefore", { category: "bakery", bestBefore: "2026-11-11" })).toBeNull();
+    expect(check("bestBefore", { category: "bakery", bestBefore: "2026-02-31" })).toBe(
+      "shared.validation.date",
     );
     expect(check("bestBefore", { category: "bakery", bestBefore: "2026-11-12" })).toBeNull();
     expect(
       check("bestBefore", { category: "bakery", day: "tomorrow", bestBefore: "2026-11-12" }),
-    ).toBe("store.newListing.bestBeforeError");
+    ).toBeNull();
   });
 
-  it("limits the photo and the estimated value, and requires the confirmation", () => {
+  it("checks file and integer-cent formats without imposing posting limits", () => {
     const gif = new File(["gif"], "pain.gif", { type: "image/gif" });
     expect(check("photo", { photo: gif })).toBe("shared.validation.fileType");
     expect(check("estimatedValue", { estimatedValue: 100_000 })).toBeNull();
-    expect(check("estimatedValue", { estimatedValue: 100_001 })).toBe(
-      "shared.validation.moneyRange",
-    );
+    const largePhoto = new File([new ArrayBuffer(5 * 1024 * 1024 + 1)], "photo.png", {
+      type: "image/png",
+    });
+    expect(check("photo", { photo: largePhoto })).toBeNull();
+    expect(check("estimatedValue", { estimatedValue: 100_001 })).toBeNull();
+    expect(check("estimatedValue", { estimatedValue: -1 })).toBeNull();
+    expect(check("estimatedValue", { estimatedValue: 0.5 })).toBe("shared.validation.integer");
     expect(check("safeAndAllowed", { safeAndAllowed: false })).toBe(
       "store.newListing.safeAndAllowedError",
     );

@@ -21,12 +21,13 @@ let server;
 afterEach(() => new Promise((resolve) => (server ? server.close(resolve) : resolve())));
 
 /** Starts the preview on a free port with a clock the test controls. */
-async function start() {
+async function start(previousRuns = []) {
   const clock = { now: OPENED };
   const runs = [];
   const opened = [];
   server = createPreviewApi({
     categories: CATEGORIES,
+    previousRuns,
     clock: () => clock.now,
     onOpen: (participant) => opened.push(participant),
     onRun: (run) => runs.push(run),
@@ -84,6 +85,19 @@ describe("preview API", () => {
     expect(runs).toEqual([
       expect.objectContaining({ run: 1, participant: "P1", seconds: 41.2, differences: [] }),
     ]);
+  });
+
+  it("continues saved attempts after the preview server restarts", async () => {
+    const { runs, port } = await start([{ run: 3, participant: "P1", attempt: 2 }]);
+    const referer = `${FORM}?participant=P1`;
+    await call(port, "GET", "/api/me/", { referer });
+    await call(port, "GET", "/api/categories/", { referer });
+    await call(port, "POST", "/api/store/listings/", {
+      referer,
+      contentType: "application/json",
+      body: "{}",
+    });
+    expect(runs).toEqual([expect.objectContaining({ run: 4, participant: "P1", attempt: 3 })]);
   });
 
   it("drops the idle time before a reload", async () => {

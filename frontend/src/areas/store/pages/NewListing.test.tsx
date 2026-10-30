@@ -173,8 +173,21 @@ describe("Post a listing (US-33)", () => {
     await expectNoAxeViolations(container);
   });
 
-  it("refuses a pickup shorter than 30 minutes and a best-before date before it ends", async () => {
-    const fetchMock = mockApi();
+  it("sends formatted dates to the API and shows its pickup and safety refusals", async () => {
+    const fetchMock = mockApi({
+      post: () =>
+        Response.json(
+          {
+            code: "validation_error",
+            message: "Vérifiez les champs indiqués.",
+            fields: {
+              pickup_end: ["Durée refusée par le serveur."],
+              best_before: ["Date refusée par le serveur."],
+            },
+          },
+          { status: 400 },
+        ),
+    });
     await renderForm();
     await fillRequiredFields();
     await chooseCategory("Boulangerie");
@@ -183,22 +196,54 @@ describe("Post a listing (US-33)", () => {
     await publish();
 
     expect(await screen.findByText("Vérifiez 2 champs")).toBeVisible();
-    expect(screen.getByText("La cueillette dure de 30 min à 12 h.")).toBeVisible();
-    expect(
-      screen.getByText(/^Choisissez le .* ou après \(fin de la cueillette\)\.$/),
-    ).toBeVisible();
-    expect(wasPosted(fetchMock)).toBe(false);
+    expect(screen.getByText("Durée refusée par le serveur.")).toBeVisible();
+    expect(screen.getByText("Date refusée par le serveur.")).toBeVisible();
+    expect(postedBody(fetchMock)).toMatchObject({
+      pickup_end: expect.stringMatching(/T16:15:00/),
+      best_before: "2026-11-11",
+    });
   });
 
-  it("keeps the steppers within their limits", async () => {
+  it("does not clamp the steppers to hard-coded posting limits", async () => {
     mockApi();
     await renderForm();
     const decrease = screen.getByRole("button", { name: "Diminuer (Maximum par foyer)" });
     const increase = screen.getByRole("button", { name: "Augmenter (Maximum par foyer)" });
-    expect(decrease).toBeDisabled();
+    expect(decrease).toBeEnabled();
     for (let click = 0; click < 9; click += 1) await userEvent.click(increase);
     expect(screen.getByLabelText("Maximum par foyer")).toHaveValue("10");
-    expect(increase).toBeDisabled();
+    expect(increase).toBeEnabled();
+    await userEvent.click(increase);
+    expect(screen.getByLabelText("Maximum par foyer")).toHaveValue("11");
+  });
+
+  it("sends values beyond default limits and displays the API's field errors", async () => {
+    const fetchMock = mockApi({
+      post: () =>
+        Response.json(
+          {
+            code: "validation_error",
+            message: "Vérifiez les champs indiqués.",
+            fields: { quantity: ["Quantité refusée par le serveur."] },
+          },
+          { status: 400 },
+        ),
+    });
+    await renderForm();
+    await fillRequiredFields();
+    fireEvent.change(screen.getByLabelText("Titre"), { target: { value: "x".repeat(81) } });
+    fireEvent.change(screen.getByLabelText(/^Description/), { target: { value: "x".repeat(501) } });
+    const quantity = screen.getByLabelText("Quantité");
+    await userEvent.clear(quantity);
+    await userEvent.type(quantity, "1000");
+    await publish();
+
+    expect(await screen.findByText("Quantité refusée par le serveur.")).toBeVisible();
+    expect(postedBody(fetchMock)).toMatchObject({
+      title: "x".repeat(81),
+      description: "x".repeat(501),
+      quantity: 1000,
+    });
   });
 
   it("shows the server's message under the field it refused", async () => {

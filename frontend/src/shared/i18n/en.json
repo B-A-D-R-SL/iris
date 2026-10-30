@@ -444,6 +444,7 @@
       "postalCode": "Enter a Canadian postal code, for example H2X 1Y4.",
       "phone": "Enter a 10-digit number, for example (514) 555-0123.",
       "moneyRange": "Enter an amount from {{min, currency(currency: CAD; currencyDisplay: narrowSymbol)}} to {{max, currency(currency: CAD; currencyDisplay: narrowSymbol)}}.",
+      "integer": "Enter a whole number.",
       "date": "Enter a date as YYYY-MM-DD.",
       "dateMin": "Choose {{date}} or later.",
       "dateMax": "Choose {{date}} or earlier.",

@@ -18,7 +18,6 @@ import {
 import { TimeInput } from "@mantine/dates";
 import { useForm } from "@mantine/form";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import dayjs from "dayjs";
 import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -31,7 +30,6 @@ import { CategoryPicker } from "../components/CategoryPicker";
 import classes from "./NewListing.module.css";
 import {
   DEFAULT_VALUES,
-  LIMITS,
   PHOTO_TYPES,
   listingRules,
   serverErrors,
@@ -115,7 +113,6 @@ function NewListingForm({ categories }: { categories: readonly Category[] }) {
 
   const { values } = form;
   const errorCount = Object.values(form.errors).filter(Boolean).length;
-  const today = dayjs();
   const dayLabelId = useId();
   const unitLabelId = useId();
   const pickupTitleId = useId();
@@ -170,14 +167,12 @@ function NewListingForm({ categories }: { categories: readonly Category[] }) {
           label={t("store.newListing.photo")}
           optional
           accept={PHOTO_TYPES}
-          maxMb={LIMITS.photoMaxMb}
           buttonLabel={t("store.newListing.photoButton")}
           {...form.getInputProps("photo")}
         />
         <TextField
           label={t("store.newListing.title")}
           placeholder={t("store.newListing.titlePlaceholder")}
-          maxLength={LIMITS.titleMax}
           {...form.getInputProps("title")}
         />
         <CategoryPicker
@@ -190,15 +185,12 @@ function NewListingForm({ categories }: { categories: readonly Category[] }) {
           label={t("store.newListing.description")}
           optional
           multiline
-          maxLength={LIMITS.descriptionMax}
           placeholder={t("store.newListing.descriptionPlaceholder")}
           {...form.getInputProps("description")}
         />
         <IntegerField
           label={t("store.newListing.quantity")}
           description={t("store.newListing.quantityHelp")}
-          min={1}
-          max={LIMITS.quantityMax}
           {...form.getInputProps("quantity")}
         />
         <Input.Wrapper
@@ -223,8 +215,6 @@ function NewListingForm({ categories }: { categories: readonly Category[] }) {
         <IntegerField
           label={t("store.newListing.maxPerHousehold")}
           description={t("store.newListing.maxPerHouseholdHelp")}
-          min={1}
-          max={LIMITS.maxPerHousehold}
           {...form.getInputProps("maxPerHousehold")}
         />
 
@@ -254,12 +244,7 @@ function NewListingForm({ categories }: { categories: readonly Category[] }) {
             </Chip.Group>
           </div>
           {values.day === "other" && (
-            <DateField
-              label={t("store.newListing.date")}
-              minDate={today.format("YYYY-MM-DD")}
-              maxDate={today.add(LIMITS.startMaxDays, "day").format("YYYY-MM-DD")}
-              {...form.getInputProps("otherDate")}
-            />
+            <DateField label={t("store.newListing.date")} {...form.getInputProps("otherDate")} />
           )}
           <div>
             <Group grow align="flex-start" gap="sm">
@@ -295,6 +280,7 @@ function NewListingForm({ categories }: { categories: readonly Category[] }) {
         <MoneyField
           label={t("store.newListing.estimatedValue")}
           optional
+          allowNegative
           {...form.getInputProps("estimatedValue")}
         />
         <Checkbox

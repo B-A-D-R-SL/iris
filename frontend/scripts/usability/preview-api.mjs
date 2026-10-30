@@ -49,12 +49,13 @@ export function listingFrom(body, contentType) {
  */
 export function createPreviewApi({
   categories,
+  previousRuns = [],
   clock = Date.now,
   onRestart = () => {},
   onOpen = () => {},
   onRun = () => {},
 }) {
-  const recorder = createRunRecorder();
+  const recorder = createRunRecorder(previousRuns);
 
   return createServer(async (request, response) => {
     const send = (status, body) => {

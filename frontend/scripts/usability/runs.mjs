@@ -55,10 +55,14 @@ export function scenarioDifferences(listing, openedAt) {
 }
 
 /** Turns form loads and accepted posts (times in milliseconds) into numbered runs. */
-export function createRunRecorder() {
+export function createRunRecorder(previousRuns = []) {
   const openedAt = new Map();
   const attempts = new Map();
-  let total = 0;
+  let total = previousRuns.length;
+  for (const run of previousRuns) {
+    total = Math.max(total, run.run);
+    attempts.set(run.participant, Math.max(attempts.get(run.participant) ?? 0, run.attempt));
+  }
 
   return {
     /**
@@ -112,9 +116,19 @@ export function median(values) {
 
 /** The first attempt of each participant (P1, P2…): first use is what the target is about. */
 export function countedRuns(runs) {
-  return runs
-    .filter((run) => run.participant !== "practice" && run.attempt === 1)
-    .sort((a, b) => Number(a.participant.slice(1)) - Number(b.participant.slice(1)));
+  const firstAttempts = new Map();
+  for (const run of runs) {
+    if (
+      run.participant !== "practice" &&
+      run.attempt === 1 &&
+      !firstAttempts.has(run.participant)
+    ) {
+      firstAttempts.set(run.participant, run);
+    }
+  }
+  return [...firstAttempts.values()].sort(
+    (a, b) => Number(a.participant.slice(1)) - Number(b.participant.slice(1)),
+  );
 }
 
 export function summarize(runs) {

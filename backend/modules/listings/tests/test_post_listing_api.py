@@ -2,6 +2,7 @@
 """HTTP-to-PostgreSQL checks with explicit test-only account/safety stand-ins."""
 
 import json
+import sys
 from copy import deepcopy
 from types import SimpleNamespace
 from typing import Any
@@ -265,7 +266,9 @@ def test_us33_api_applies_safety_refusals(
 
 def test_us33_api_missing_safety_returns_503_without_publishing(
     posting_case: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setitem(sys.modules, "modules.listings.domain.safety", None)
     client = APIClient()
     client.force_authenticate(user=posting_case.user)
     response = client.post(
