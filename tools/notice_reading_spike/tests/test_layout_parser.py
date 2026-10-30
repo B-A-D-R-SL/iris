@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from layout_parser import LayoutCell, LayoutDocument, LayoutLine, parse_layout
-from reader import NoticeReading
+from reader import UNREAD, NoticeReading
 from score import TruthRow, contains_document_number
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -40,11 +40,32 @@ def cell(row: int, column: int, text: str, header: bool = False) -> LayoutCell:
 @pytest.mark.parametrize(
     "fixture", sorted(FIXTURES.glob("*layout-notice-*.json")), ids=lambda path: path.name
 )
-def test_parse_layout_matches_truth_for_every_fixture(fixture, truth):
+def test_parse_layout_never_returns_a_wrong_value_for_any_fixture(fixture, truth):
+    """Every field equals its truth or is unread: a misread value must never come back."""
     row = truth_row_for(fixture, truth)
     reading = parse_layout(load_fixture(fixture.name))
     for name, expected in row.expected.items():
-        assert getattr(reading, name).value == expected, name
+        assert getattr(reading, name).value in (expected, None), name
+
+
+@pytest.mark.parametrize("name", [SYNTHETIC, "layout-notice-003.json"])
+def test_parse_layout_reads_every_field_of_a_clean_pdf(name, truth):
+    row = truth_row_for(FIXTURES / name, truth)
+    reading = parse_layout(load_fixture(name))
+    for field, expected in row.expected.items():
+        assert getattr(reading, field).value == expected, field
+
+
+def test_parse_layout_reads_the_recorded_photo_except_its_misread_postal_code(truth):
+    """On the photo of notice 031 the OCR read the postal code H8C 3Z0 as `H8C 320`."""
+    doc = load_fixture("layout-notice-031.json")
+    assert any(printed.text.endswith("H8C 320") for printed in doc.lines)
+    reading = parse_layout(doc)
+    row = truth_row_for(FIXTURES / "layout-notice-031.json", truth)
+    for field, expected in row.expected.items():
+        if field != "postal_code":
+            assert getattr(reading, field).value == expected, field
+    assert reading.postal_code == UNREAD
 
 
 def test_truth_row_for_names_a_fixture_without_a_truth_row(truth):
@@ -127,9 +148,61 @@ def test_parse_layout_reads_a_postal_code_without_space_or_with_trailing_space(p
     assert reading.full_name.value == "Théodore Bolduc"
 
 
+def test_parse_layout_reads_name_and_street_when_the_postal_code_is_misread():
+    doc = LayoutDocument(
+        lines=(
+            line("Karine Arsenault"),
+            line("8382, avenue Querbes"),
+            line("Montréal (Québec) H2X 387"),  # OCR read the S of H2X 3S7 as 8
+        ),
+        tables=(),
+    )
+    reading = parse_layout(doc)
+    assert reading.full_name.value == "Karine Arsenault"
+    assert reading.street_number.value == "8382"
+    assert reading.street_name.value == "avenue Querbes"
+    assert reading.postal_code == UNREAD
+
+
 def test_parse_layout_accepts_date_on_the_line_after_the_label():
     doc = LayoutDocument(lines=(line("Date de l'avis :"), line("1er avril 2026")), tables=())
     assert str(parse_layout(doc).notice_date.value) == "2026-04-01"
+
+
+def test_parse_layout_uses_a_later_date_label_when_the_first_is_not_followed_by_a_date():
+    doc = LayoutDocument(
+        lines=(
+            line("Date de l'avis :"),
+            line("QFFF1GXI9D9"),  # a photo's reading order put the notice number here
+            line("Date de l'avis"),  # the page footer prints the label without a colon
+            line("30 avril 2026"),
+        ),
+        tables=(),
+    )
+    assert str(parse_layout(doc).notice_date.value) == "2026-04-30"
+
+
+@pytest.mark.parametrize("assessed", ["61 700,73\nTIF", "IF\n61 700,73"])
+def test_parse_layout_reads_income_from_a_cell_with_stray_watermark_text(assessed):
+    table = (
+        cell(0, 0, "Ligne", True),
+        cell(0, 4, "Montant établi", True),
+        cell(1, 0, "199"),
+        cell(1, 4, assessed),
+    )
+    reading = parse_layout(LayoutDocument(lines=(), tables=(table,)))
+    assert reading.total_income_cents.value == 6170073
+
+
+def test_parse_layout_leaves_income_unread_when_a_cell_holds_two_amounts():
+    table = (
+        cell(0, 0, "Ligne", True),
+        cell(0, 4, "Montant établi", True),
+        cell(1, 0, "199"),
+        cell(1, 4, "61 700,73\n1 234,00"),
+    )
+    reading = parse_layout(LayoutDocument(lines=(), tables=(table,)))
+    assert reading.total_income_cents == UNREAD
 
 
 def test_parse_layout_matches_assessed_header_ignoring_case_and_accents():

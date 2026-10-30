@@ -20,9 +20,11 @@ from fields import (
 )
 from reader import UNREAD, NoticeReading, ReadField
 
-_POSTAL_LINE = re.compile(r"\(Qu[ée]bec\)\s+([A-Z]\d[A-Z]\s?\d[A-Z]\d)\s*$")
+# Postal-code shaped, not validated: OCR can misread one character (3Z0 as 320), and the
+# name and street above it should still be read; the code itself is then left unread.
+_POSTAL_LINE = re.compile(r"\(Qu[ée]bec\)\s+([A-Za-z0-9]{3}\s?[A-Za-z0-9]{3})\s*$")
 _TAX_YEAR = re.compile(r"Ann[ée]e d['’]imposition\s+(\d{4})")
-_DATE_LABEL = re.compile(r"Date de l['’]avis\s*:\s*(.*)$")
+_DATE_LABEL = re.compile(r"Date de l['’]avis\s*:?\s*(.*)$")  # page footers print no colon
 _INCOME_LINE = "199"
 _ASSESSED_HEADER = "etabli"  # "Montant établi", compared without accents and case
 SHAPE_ERROR = "unexpected AnalyzeResult shape"
@@ -129,10 +131,11 @@ def _address_fields(
     postal_line: LayoutLine, street_line: LayoutLine, postal: str
 ) -> dict[str, ReadField]:
     start = postal_line.text.rindex(postal)
+    code = normalize_postal_code(postal)
     fields = {
-        "postal_code": ReadField(
-            normalize_postal_code(postal), postal_line.confidence(start, start + len(postal))
-        )
+        "postal_code": ReadField(code, postal_line.confidence(start, start + len(postal)))
+        if code
+        else UNREAD
     }
     parts = _street_parts(street_line)
     if len(parts) < 2:
@@ -172,7 +175,7 @@ def _tax_year(doc: LayoutDocument) -> ReadField[int]:
 
 
 def _notice_date(doc: LayoutDocument) -> ReadField:
-    """The date after `Date de l'avis :`, on the same line or the next one."""
+    """The first date after a `Date de l'avis` label, on the same line or the next one."""
     for index, line in enumerate(doc.lines):
         match = _DATE_LABEL.search(line.text)
         if not match:
@@ -198,6 +201,14 @@ def _assessed_column(table: tuple[LayoutCell, ...]) -> int | None:
     return None
 
 
+def _amount_in(text: str) -> int | None:
+    """The one amount in a cell; other lines (watermark text OCR put in the cell) are ignored."""
+    amounts = [
+        cents for part in text.splitlines() if (cents := parse_amount_cents(part)) is not None
+    ]
+    return amounts[0] if len(amounts) == 1 else None
+
+
 def _total_income(doc: LayoutDocument) -> ReadField[int]:
     """Line 199 in the `Montant établi` column (not `Montant déclaré`)."""
     for table in doc.tables:
@@ -207,7 +218,7 @@ def _total_income(doc: LayoutDocument) -> ReadField[int]:
         rows = {c.row for c in table if c.column == 0 and c.text == _INCOME_LINE}
         for cell in table:
             if cell.row in rows and cell.column == column:
-                cents = parse_amount_cents(cell.text)
+                cents = _amount_in(cell.text)
                 if cents is not None:
                     return ReadField(cents, cell.confidence)
     return UNREAD
