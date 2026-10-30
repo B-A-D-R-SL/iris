@@ -97,6 +97,19 @@
       "title": "Admissibilité"
     }
   },
+  "category": {
+    "list": {
+      "description": "Catégories actives disponibles pour les dons.",
+      "name": "Nom",
+      "code": "Code",
+      "type": "Type",
+      "defaultValue": "Valeur par défaut",
+      "food": "Alimentaire",
+      "nonFood": "Non alimentaire",
+      "empty": "Aucune catégorie disponible",
+      "emptyDescription": "Il n'y a actuellement aucune catégorie active."
+    }
+  },
   "listing": {
     "status": {
       "published": "Publiée",
