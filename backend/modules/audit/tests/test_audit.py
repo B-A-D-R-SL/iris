@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, connection, transaction
+from django.db import IntegrityError, OperationalError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
@@ -79,6 +79,51 @@ def test_record_snapshots_each_role(actor, event_inputs, role):
     assert event.actor.role == actor.role
 
 
+@pytest.mark.parametrize("outcome", ["approved", "rejected", "review_required"])
+def test_record_decision(event_inputs, outcome):
+    event_inputs.update(action="decision", metadata={"outcome": outcome})
+    event = services.record(**event_inputs)
+    event.refresh_from_db()
+    assert event.action == "decision"
+    assert event.metadata == {"outcome": outcome}
+
+
+@pytest.mark.parametrize("target_id", [1, "external-123"])
+def test_record_accepts_other_record_identifiers(event_inputs, target_id):
+    event_inputs["target_id"] = target_id
+    assert services.record(**event_inputs).target_id == str(target_id)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("actor", None),
+        ("action", ""),
+        ("action", "unsupported"),
+        ("target_type", ""),
+        ("target_type", "Household Name"),
+        ("target_type", "household\n"),
+        ("target_type", "x" * 65),
+        ("target_id", None),
+        ("target_id", True),
+        ("target_id", ""),
+        ("target_id", "   "),
+        ("target_id", "x" * 65),
+        ("metadata", None),
+        ("metadata", []),
+        ("metadata", {"outcome": "personal free text"}),
+        ("metadata", {"outcome": {"sin": "000000000"}}),
+        ("metadata", {"outcome": ["approved"]}),
+    ],
+)
+def test_record_rejects_invalid_inputs_without_writing(event_inputs, field, value):
+    event_inputs[field] = value
+    with pytest.raises(ValidationError) as error:
+        services.record(**event_inputs)
+    assert field in error.value.message_dict
+    assert not AuditEvent.objects.exists()
+
+
 @pytest.mark.parametrize(
     "key",
     [
@@ -97,6 +142,39 @@ def test_record_rejects_personal_metadata(event_inputs, key):
     with pytest.raises(ValidationError, match="metadata"):
         services.record(**event_inputs)
     assert not AuditEvent.objects.exists()
+
+
+def test_record_rejects_unsaved_actor(django_user_model, event_inputs):
+    event_inputs["actor"] = django_user_model(email="unsaved@example.test")
+    with pytest.raises(ValidationError, match="actor"):
+        services.record(**event_inputs)
+    assert not AuditEvent.objects.exists()
+
+
+def test_record_rejects_invalid_actor_role(actor, event_inputs):
+    actor.role = "unknown"
+    with pytest.raises(ValidationError):
+        services.record(**event_inputs)
+    assert not AuditEvent.objects.exists()
+
+
+def test_record_rolls_back_with_callers_transaction(actor, event_inputs):
+    with pytest.raises(RuntimeError), transaction.atomic():
+        actor.role = "admin"
+        actor.save(update_fields=["role"])
+        services.record(**event_inputs)
+        raise RuntimeError("Caller failed")
+
+    actor.refresh_from_db()
+    assert actor.role == "intake_worker"
+    assert not AuditEvent.objects.exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_record_commits_with_callers_transaction(event_inputs):
+    with transaction.atomic():
+        event = services.record(**event_inputs)
+    assert AuditEvent.objects.filter(pk=event.pk).exists()
 
 
 @pytest.mark.parametrize(
@@ -160,6 +238,29 @@ def test_target_type_validation_rejects_free_text(target_type):
     field = AuditEvent._meta.get_field("target_type")
     with pytest.raises(ValidationError):
         field.clean(target_type, None)
+
+
+def test_record_rejects_deleted_actor(actor, event_inputs):
+    actor_id = actor.pk
+    actor.delete()
+    actor.pk = actor_id
+
+    with pytest.raises(ValidationError, match="actor"):
+        services.record(**event_inputs)
+    assert not AuditEvent.objects.exists()
+
+
+def test_record_propagates_database_failure(event_inputs, monkeypatch):
+    def fail_save(self):
+        raise OperationalError("Database unavailable")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(AuditEvent, "save", fail_save)
+        with pytest.raises(OperationalError, match="Database unavailable"):
+            services.record(**event_inputs)
+
+    assert not AuditEvent.objects.exists()
+    assert services.record(**event_inputs).pk is not None
 
 
 @pytest.mark.django_db(transaction=True)

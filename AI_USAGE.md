@@ -65,6 +65,12 @@ At least half of the AI-assisted features need an example here. For each one:
 - **How we verified it:** the automated tests or the review comment that checked it
 - **Problems found and corrections:** what was wrong or rejected, and what we changed
 
+### T-09.62.1–2 Audit tests and service (#548, #549)
+
+- **What the AI produced:** the append-only AuditEvent model, public `record()` service, PostgreSQL trigger migrations, concise module README, and unit/integration tests. Existing accounts code was reused; #550 is excluded.
+- **How we verified it:** 56 audit tests and all 185 backend tests passed in Docker with PostgreSQL. Audit coverage was 100%; total backend coverage was 89.30%. Ruff, mypy, all three module-boundary contracts, Django checks, and migration consistency checks passed. The current database migrated successfully; trigger reversal and reapplication were tested only on the isolated test database.
+- **Problems found and corrections:** tightened target-type validation to reject a trailing newline and recorded the change in a migration. Local dependency caches required source-directory targets for lint and typing checks. No databases or volumes were recreated.
+
 ### T-01.01.1 Sign-in and sign-out tests (#423)
 
 - **Leon's direction:** implement the approved test plan and use `/staff/households` as the staff landing path, as updated in US-01.
