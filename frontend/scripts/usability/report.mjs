@@ -2,13 +2,13 @@
 /**
  * Prints the time-to-post results table and median from the preview's runs:
  *
- *   node scripts/usability/report.mjs [usability-runs.jsonl]
+ *   node scripts/usability/report.mjs
  *
  * Paste the output into the Results section of docs/usability/time-to-post.md.
  */
 import { readFileSync } from "node:fs";
 
+import { RUNS_FILE } from "./runs-file.mjs";
 import { markdownReport, parseRuns } from "./runs.mjs";
 
-const file = process.argv[2] ?? "usability-runs.jsonl";
-process.stdout.write(markdownReport(parseRuns(readFileSync(file, "utf8"))));
+process.stdout.write(markdownReport(parseRuns(readFileSync(RUNS_FILE, "utf8"))));
