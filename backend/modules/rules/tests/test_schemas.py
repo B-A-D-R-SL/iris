@@ -1,12 +1,12 @@
 from copy import deepcopy
 
 import pytest
-from django.core.exceptions import ValidationError
 
 from modules.rules.domain.schemas import (
     DEFAULT_RULE_VALUES,
     RULE_SCHEMAS,
     RULE_TYPES,
+    RuleValidationError,
     validate_rule_values,
 )
 
@@ -85,14 +85,14 @@ def test_default_values_satisfy_each_rule_schema(rule_type: str) -> None:
 def test_invalid_values_are_refused_with_a_clear_message(
     rule_type: str, values: dict[str, object], message: str
 ) -> None:
-    with pytest.raises(ValidationError) as caught:
+    with pytest.raises(RuleValidationError) as caught:
         validate_rule_values(rule_type, values)
 
-    assert message in caught.value.message_dict["values"][0]
+    assert message in caught.value.errors["values"][0]
 
 
 def test_unknown_rule_type_is_refused() -> None:
-    with pytest.raises(ValidationError, match="Unknown rule type 'unknown'"):
+    with pytest.raises(RuleValidationError, match="Unknown rule type 'unknown'"):
         validate_rule_values("unknown", {})
 
 

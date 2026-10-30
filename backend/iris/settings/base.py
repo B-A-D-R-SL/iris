@@ -55,10 +55,21 @@ INSTALLED_APPS = [
     # Background jobs
     "procrastinate.contrib.django",
     # Iris modules
-    "modules.rules.apps.RulesConfig",
+    "modules.accounts.apps.AccountsConfig",
+    "modules.audit.apps.AuditConfig",
     "modules.categories.apps.CategoriesConfig",
-    "modules.stores.apps.StoresConfig",
+    "modules.documents.apps.DocumentsConfig",
+    "modules.eligibility.apps.EligibilityConfig",
+    "modules.households.apps.HouseholdsConfig",
     "modules.listings.apps.ListingsConfig",
+    "modules.notifications.apps.NotificationsConfig",
+    "modules.priority.apps.PriorityConfig",
+    "modules.privacy.apps.PrivacyConfig",
+    "modules.reporting.apps.ReportingConfig",
+    "modules.reservations.apps.ReservationsConfig",
+    "modules.review.apps.ReviewConfig",
+    "modules.rules.apps.RulesConfig",
+    "modules.stores.apps.StoresConfig",
 ]
 
 MIDDLEWARE = [

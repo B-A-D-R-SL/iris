@@ -10,6 +10,8 @@ from iris.views import health
 urlpatterns = [
     # Health check
     path("api/health/", health, name="health"),
+    # Public listing categories
+    path("api/categories/", include("modules.categories.api.urls")),
     # Django admin
     path("admin/", admin.site.urls),
     # Authentication: allauth's own versioned app/browser subpaths live here.
