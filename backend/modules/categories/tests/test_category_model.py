@@ -1,5 +1,5 @@
 # AI contribution: 50% or more AI-generated
-"""Database rules of the minimal Category model needed by listings."""
+"""Database rules of the Category model that listings depend on."""
 
 from pathlib import Path
 from typing import cast
@@ -33,9 +33,8 @@ def test_every_seed_category_fits_the_model() -> None:
 
 @pytest.mark.django_db
 def test_database_rejects_a_negative_default_value() -> None:
-    with pytest.raises(
-        IntegrityError, match="categories_default_value_cents_non_negative"
-    ):
+    # PositiveBigIntegerField adds the database check; PostgreSQL names it.
+    with pytest.raises(IntegrityError, match="default_value_cents"):
         CategoryFactory(default_value_cents=-1)
 
 

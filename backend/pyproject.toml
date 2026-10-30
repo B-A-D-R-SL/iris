@@ -12,6 +12,7 @@ dependencies = [
     "jsonschema>=4.26,<5",
     "procrastinate[django]>=3.10.0",
     "psycopg[binary]>=3.3.6",
+    "pyyaml>=6,<7",
 ]
 
 [dependency-groups]
@@ -44,10 +45,10 @@ ignore_missing_imports = true
 module = ["allauth.*"]
 ignore_missing_imports = true
 
-# DRF ships no typing metadata; keep checking our code without adding runtime
-# dependencies or suppressing errors in the listing modules themselves.
+# Django REST Framework does not ship type information.
+# Keep this exception scoped to its package.
 [[tool.mypy.overrides]]
-module = ["rest_framework.*"]
+module = ["rest_framework", "rest_framework.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
@@ -66,15 +67,141 @@ show_missing = true
 skip_covered = true
 
 [tool.importlinter]
-root_packages = ["iris", "adapters"]
+root_packages = ["iris", "adapters", "modules"]
+include_external_packages = true
 
-# Module boundary checks. SET-14 adds the contracts for backend/modules/
-# (modules talk only through services.py and queries.py; domain/ imports no Django).
+# Contract 1: Adapters must not depend on the Django project.
 [[tool.importlinter.contracts]]
 name = "Adapters do not depend on the Django project package"
 type = "forbidden"
 source_modules = ["adapters"]
 forbidden_modules = ["iris"]
+
+# Contract 2: Django modules follow the approved dependency graph.
+# Cross-module imports are permitted only through the services.py
+# and queries.py interfaces of explicitly authorized modules.
+[[tool.importlinter.contracts]]
+name = "Modules communicate only through public services and queries"
+type = "independence"
+modules = [
+    "modules.accounts",
+    "modules.stores",
+    "modules.categories",
+    "modules.rules",
+    "modules.households",
+    "modules.documents",
+    "modules.eligibility",
+    "modules.listings",
+    "modules.reservations",
+    "modules.priority",
+    "modules.review",
+    "modules.audit",
+    "modules.notifications",
+    "modules.reporting",
+    "modules.privacy",
+]
+
+# Shared infrastructure interfaces, available to every module.
+ignore_imports = [
+    "modules.** -> modules.audit.services",
+    "modules.** -> modules.audit.queries",
+    "modules.** -> modules.rules.services",
+    "modules.** -> modules.rules.queries",
+    "modules.** -> modules.notifications.services",
+    "modules.** -> modules.notifications.queries",
+
+    # stores -> accounts
+    "modules.stores.** -> modules.accounts.services",
+    "modules.stores.** -> modules.accounts.queries",
+
+    # households -> documents, eligibility, priority, review
+    "modules.households.** -> modules.documents.services",
+    "modules.households.** -> modules.documents.queries",
+    "modules.households.** -> modules.eligibility.services",
+    "modules.households.** -> modules.eligibility.queries",
+    "modules.households.** -> modules.priority.services",
+    "modules.households.** -> modules.priority.queries",
+    "modules.households.** -> modules.review.services",
+    "modules.households.** -> modules.review.queries",
+
+    # eligibility -> households
+    "modules.eligibility.** -> modules.households.services",
+    "modules.eligibility.** -> modules.households.queries",
+
+    # listings -> categories, stores, priority
+    "modules.listings.** -> modules.categories.services",
+    "modules.listings.** -> modules.categories.queries",
+    "modules.listings.** -> modules.stores.services",
+    "modules.listings.** -> modules.stores.queries",
+    "modules.listings.** -> modules.priority.services",
+    "modules.listings.** -> modules.priority.queries",
+
+    # listings tests -> test setup only: the public services take model
+    # instances, so building categories, stores and rule versions needs these.
+    "modules.listings.tests.** -> modules.categories.models",
+    "modules.listings.tests.** -> modules.categories.tests.factories",
+    "modules.listings.tests.** -> modules.stores.models",
+    "modules.listings.tests.** -> modules.stores.tests.factories",
+    "modules.listings.tests.** -> modules.rules.models",
+    "modules.listings.tests.** -> modules.rules.domain.schemas",
+
+    # reservations -> listings, households, priority
+    "modules.reservations.** -> modules.listings.services",
+    "modules.reservations.** -> modules.listings.queries",
+    "modules.reservations.** -> modules.households.services",
+    "modules.reservations.** -> modules.households.queries",
+    "modules.reservations.** -> modules.priority.services",
+    "modules.reservations.** -> modules.priority.queries",
+
+    # priority -> households, eligibility, review
+    "modules.priority.** -> modules.households.services",
+    "modules.priority.** -> modules.households.queries",
+    "modules.priority.** -> modules.eligibility.services",
+    "modules.priority.** -> modules.eligibility.queries",
+    "modules.priority.** -> modules.review.services",
+    "modules.priority.** -> modules.review.queries",
+
+    # review -> households
+    "modules.review.** -> modules.households.services",
+    "modules.review.** -> modules.households.queries",
+
+    # privacy -> accounts, households
+    "modules.privacy.** -> modules.accounts.services",
+    "modules.privacy.** -> modules.accounts.queries",
+    "modules.privacy.** -> modules.households.services",
+    "modules.privacy.** -> modules.households.queries",
+
+    # reporting -> households, listings, reservations, stores
+    "modules.reporting.** -> modules.households.services",
+    "modules.reporting.** -> modules.households.queries",
+    "modules.reporting.** -> modules.listings.services",
+    "modules.reporting.** -> modules.listings.queries",
+    "modules.reporting.** -> modules.reservations.services",
+    "modules.reporting.** -> modules.reservations.queries",
+    "modules.reporting.** -> modules.stores.services",
+    "modules.reporting.** -> modules.stores.queries",
+]
+
+unmatched_ignore_imports_alerting = "none"
+
+# Contract 3: Domain business rules must remain pure Python.
+# Domain code must not depend on Django, HTTP frameworks,
+# database models, service layers, or infrastructure.
+[[tool.importlinter.contracts]]
+name = "Domain logic has no framework or infrastructure dependencies"
+type = "forbidden"
+source_modules = ["modules.*.domain"]
+forbidden_modules = [
+    "django",
+    "rest_framework",
+    "drf_spectacular",
+    "iris",
+    "modules.*.api",
+    "modules.*.models",
+    "modules.*.services",
+    "modules.*.queries",
+    "modules.*.tasks",
+]
 
 [tool.ruff.lint]
 # Windows Docker bind mounts may report Python files as executable.

@@ -30,19 +30,6 @@ function flatten(tree: TranslationTree, prefix = ""): Record<string, string> {
 
 const english = flatten(en);
 const french = flatten(fr);
-const originalKeys = [
-  "title",
-  "description",
-  "language",
-  "status",
-  "backend.label",
-  "backend.checking",
-  "backend.online",
-  "backend.offline",
-];
-
-// Original homepage keys predate the area.screen.element convention.
-const legacyKeys = new Set(originalKeys);
 
 describe("SET-13 translations", () => {
   it("has exactly the same keys in French and English", () => {
@@ -73,7 +60,6 @@ describe("SET-13 translations", () => {
       ["fr", french],
     ] as const) {
       for (const key of Object.keys(entries)) {
-        if (legacyKeys.has(key)) continue;
         const parts = key.split(".");
         const isOptionGroup = optionGroups.has(parts.slice(0, 3).join("."));
         expect(parts.length, `${language}: ${key}`).toBe(isOptionGroup ? 4 : 3);
@@ -85,29 +71,11 @@ describe("SET-13 translations", () => {
     }
   });
 
-  it("preserves the original homepage and backend translations", () => {
-    expect(Object.fromEntries(originalKeys.map((key) => [key, english[key]]))).toEqual({
-      title: "Welcome to Iris",
-      description:
-        "A solidarity redistribution platform connecting communities and making resource sharing easier.",
-      language: "Français",
-      status: "Project setup in progress",
-      "backend.label": "Server status",
-      "backend.checking": "Checking...",
-      "backend.online": "Connected",
-      "backend.offline": "Unavailable",
-    });
-    expect(Object.fromEntries(originalKeys.map((key) => [key, french[key]]))).toEqual({
-      title: "Bienvenue sur Iris",
-      description:
-        "Une plateforme de redistribution solidaire pour connecter les communautés et faciliter le partage des ressources.",
-      language: "English",
-      status: "Configuration du projet en cours",
-      "backend.label": "État du serveur",
-      "backend.checking": "Vérification...",
-      "backend.online": "Connecté",
-      "backend.offline": "Indisponible",
-    });
+  it("keeps the welcome title and names the other language on the switch (SET-16)", () => {
+    expect(english["public.welcome.title"]).toBe("Welcome to Iris");
+    expect(french["public.welcome.title"]).toBe("Bienvenue sur Iris");
+    expect(english["app.language.switchTo"]).toBe("Français");
+    expect(french["app.language.switchTo"]).toBe("English");
   });
 
   it("matches selected glossary and form labels", () => {
@@ -133,7 +101,7 @@ describe("SET-13 translations", () => {
 
     expect(i18n.getFixedT("en")("auth.login.title")).toBe("Sign in");
     expect(i18n.getFixedT("fr")("auth.login.title")).toBe("Connexion");
-    expect(i18n.getFixedT("en")("backend.online")).toBe("Connected");
-    expect(i18n.getFixedT("fr")("backend.online")).toBe("Connecté");
+    expect(i18n.getFixedT("en")("app.householdNav.listings")).toBe("Listings");
+    expect(i18n.getFixedT("fr")("app.householdNav.listings")).toBe("Offres");
   });
 });

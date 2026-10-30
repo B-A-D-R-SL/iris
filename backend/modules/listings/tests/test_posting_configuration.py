@@ -4,9 +4,12 @@
 from copy import deepcopy
 
 import pytest
-from django.core.exceptions import ValidationError
 
-from modules.rules.domain.schemas import DEFAULT_RULE_VALUES, validate_rule_values
+from modules.rules.domain.schemas import (
+    DEFAULT_RULE_VALUES,
+    RuleValidationError,
+    validate_rule_values,
+)
 
 
 @pytest.mark.parametrize(
@@ -27,7 +30,7 @@ def test_us33_posting_configuration_rejects_invalid_limits(
     field: str, invalid: int
 ) -> None:
     values = {**deepcopy(DEFAULT_RULE_VALUES["listing_posting"]), field: invalid}
-    with pytest.raises(ValidationError):
+    with pytest.raises(RuleValidationError):
         validate_rule_values("listing_posting", values)
 
 
@@ -39,7 +42,7 @@ def test_us33_posting_configuration_rejects_invalid_limits(
     ],
 )
 def test_us33_posting_minimums_cannot_exceed_maximums(changes: dict[str, int]) -> None:
-    with pytest.raises(ValidationError, match="minimums"):
+    with pytest.raises(RuleValidationError, match="minimums"):
         validate_rule_values(
             "listing_posting", {**DEFAULT_RULE_VALUES["listing_posting"], **changes}
         )

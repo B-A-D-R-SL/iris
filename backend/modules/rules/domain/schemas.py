@@ -3,11 +3,19 @@
 
 from typing import Any, Final
 
-from django.core.exceptions import ValidationError
 from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import ValidationError as JSONSchemaValidationError
 
 JSONSchema = dict[str, Any]
+
+
+class RuleValidationError(ValueError):
+    """Framework-independent validation failure for rule values."""
+
+    def __init__(self, errors: dict[str, str | list[str]]) -> None:
+        self.errors = errors
+        super().__init__(str(errors))
+
 
 RULE_TYPES: Final = (
     "lico_thresholds",
@@ -258,7 +266,7 @@ def validate_rule_values(rule_type: str, values: dict[str, Any]) -> None:
     validator = _VALIDATORS.get(rule_type)
     if validator is None:
         supported = ", ".join(RULE_TYPES)
-        raise ValidationError(
+        raise RuleValidationError(
             {
                 "rule_type": f"Unknown rule type '{rule_type}'. Expected one of: {supported}."
             }
@@ -266,12 +274,16 @@ def validate_rule_values(rule_type: str, values: dict[str, Any]) -> None:
 
     errors = sorted(validator.iter_errors(values), key=_error_sort_key)
     if errors:
-        raise ValidationError({"values": [_format_error(error) for error in errors]})
+        raise RuleValidationError(
+            {"values": [_format_error(error) for error in errors]}
+        )
     if rule_type == "listing_posting" and (
         values["title_min_length"] > values["title_max_length"]
         or values["pickup_min_minutes"] > values["pickup_max_minutes"]
     ):
-        raise ValidationError({"values": ["Posting minimums cannot exceed maximums."]})
+        raise RuleValidationError(
+            {"values": ["Posting minimums cannot exceed maximums."]}
+        )
 
 
 def _error_sort_key(error: JSONSchemaValidationError) -> tuple[str, str]:

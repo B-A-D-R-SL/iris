@@ -1,0 +1,35 @@
+/* AI contribution: 50% or more AI-generated */
+/* Values from the Figma Components page (SET-11). */
+
+.input {
+  border-color: var(--mantine-color-gray-4);
+}
+
+.input[data-error] {
+  /* Error = 2 px border + icon + bold message (never colour alone). */
+  border-width: 2px;
+}
+
+.input[data-disabled] {
+  background-color: var(--mantine-color-gray-0);
+  color: var(--mantine-color-gray-7);
+}
+
+.label {
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 500;
+}
+
+.description {
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-gray-7);
+}
+
+.error {
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 600;
+}
+
+.alertTitle {
+  font-weight: 600;
+}

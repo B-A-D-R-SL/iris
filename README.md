@@ -2,6 +2,10 @@
 
 Iris is a solidarity redistribution platform for sharing food and goods across communities, developed for **Concordia University's SOEN 490 capstone**.
 
+## Documentation
+- [Project wiki](https://github.com/B-A-D-R-SL/iris/wiki)
+- [Project board](https://github.com/orgs/B-A-D-R-SL/projects/1)
+
 ## Project Overview
 
 - **Frontend:** React 19, TypeScript, Vite, Mantine UI, French/English support.
