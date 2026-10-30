@@ -154,6 +154,7 @@ describe("store area", () => {
     expect(await screen.findByText("Camille R.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("menuitem", { name: "English" }));
     expect(await screen.findByRole("heading", { name: "Today" })).toBeInTheDocument();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 });
 

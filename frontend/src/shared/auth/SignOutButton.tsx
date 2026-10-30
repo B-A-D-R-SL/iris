@@ -32,6 +32,7 @@ export function SignOutButton({ menu = false }: { menu?: boolean }) {
     <>
       {menu ? (
         <Menu.Item
+          closeMenuOnClick={false}
           leftSection={<IconLogout size={18} stroke={2} aria-hidden />}
           disabled={pending}
           onClick={() => void onSignOut()}

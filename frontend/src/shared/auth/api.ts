@@ -2,7 +2,8 @@
 /** Browser session requests use Django's CSRF cookie, never a stored auth token. */
 const AUTH = "/api/auth/browser/v1/auth";
 
-export type AuthErrorCode = "invalid_credentials" | "locked" | "invalid_code" | "unavailable";
+export type AuthErrorCode =
+  "invalid_credentials" | "locked" | "invalid_code" | "unavailable" | "profile_unavailable";
 
 export class AuthError extends Error {
   readonly code: AuthErrorCode;

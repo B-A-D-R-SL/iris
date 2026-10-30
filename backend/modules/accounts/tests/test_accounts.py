@@ -151,6 +151,49 @@ def test_inactive_user_cannot_login(client, user):
     assert client.get("/api/me/").status_code == 401
 
 
+def test_admin_login_uses_rate_limited_sign_in(client, user):
+    user.role = User.Role.ADMIN
+    user.is_staff = True
+    user.is_superuser = True
+    user.save(update_fields=["role", "is_staff", "is_superuser"])
+
+    assert client.get("/admin/login/").status_code == 200
+    response = client.post(
+        "/admin/login/", {"username": user.email, "password": PASSWORD}
+    )
+    assert response.status_code == 302
+    assert client.get("/admin/").status_code == 200
+
+
+def test_admin_and_app_sign_in_share_failed_attempts(client, user):
+    user.role = User.Role.ADMIN
+    user.is_staff = True
+    user.is_superuser = True
+    user.save(update_fields=["role", "is_staff", "is_superuser"])
+
+    for _ in range(4):
+        assert (
+            client.post(
+                "/admin/login/", {"username": user.email, "password": "incorrect"}
+            ).status_code
+            == 200
+        )
+    assert login(client, password="incorrect").status_code == 400
+    blocked = client.post(
+        "/admin/login/", {"username": user.email, "password": PASSWORD}
+    )
+    assert blocked.status_code == 200
+    assert "_auth_user_id" not in client.session
+
+
+def test_non_staff_user_cannot_sign_in_to_admin(client, user):
+    response = client.post(
+        "/admin/login/", {"username": user.email, "password": PASSWORD}
+    )
+    assert response.status_code == 200
+    assert "_auth_user_id" not in client.session
+
+
 def test_lockout_lasts_fifteen_minutes_after_fifth_failure(client, user, monkeypatch):
     now = [time.time()]
     start = now[0]

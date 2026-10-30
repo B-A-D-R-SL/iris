@@ -19,12 +19,13 @@ type ErrorKey =
 export function SignIn() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user, signIn, verifyCode } = useAuth();
+  const { user, signIn, verifyCode, retryProfile } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<Step>("password");
   const [error, setError] = useState<ErrorKey | null>(null);
+  const [profileUnavailable, setProfileUnavailable] = useState(false);
   const [pending, setPending] = useState(false);
   const errorRef = useRef<HTMLDivElement>(null);
   const passwordWrapper = useFieldWrapper({ label: t("auth.login.password") });
@@ -38,6 +39,20 @@ export function SignIn() {
 
   function showError(next: ErrorKey) {
     setError(next);
+  }
+
+  async function recoverProfile() {
+    setPending(true);
+    setError(null);
+    try {
+      const current = await retryProfile();
+      setProfileUnavailable(false);
+      navigate(homePathFor(current.role), { replace: true });
+    } catch {
+      showError("unavailable");
+    } finally {
+      setPending(false);
+    }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -71,6 +86,7 @@ export function SignIn() {
       }
     } catch (caught) {
       if (caught instanceof AuthError) {
+        if (caught.code === "profile_unavailable") setProfileUnavailable(true);
         showError(
           caught.code === "locked"
             ? "locked"
@@ -95,6 +111,16 @@ export function SignIn() {
         <div ref={errorRef} tabIndex={-1}>
           <Notice type="error">{t(`auth.login.${error}`)}</Notice>
         </div>
+      )}
+      {profileUnavailable && (
+        <Button
+          type="button"
+          variant="light"
+          loading={pending}
+          onClick={() => void recoverProfile()}
+        >
+          {t("shared.states.retry")}
+        </Button>
       )}
       <form onSubmit={(event) => void submit(event)} noValidate>
         <Stack gap="md">

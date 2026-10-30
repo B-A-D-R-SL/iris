@@ -8,7 +8,7 @@ import {
   fetchCurrentUser,
   useCurrentUser,
 } from "../../features/accounts/currentUser";
-import { loginWithCode, loginWithPassword, logout } from "./api";
+import { AuthError, loginWithCode, loginWithPassword, logout } from "./api";
 import { AuthContext, type AuthContextValue } from "./authContext";
 
 const AUTH_EVENT_KEY = "iris:auth-change";
@@ -44,13 +44,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function loadSignedInUser(): Promise<NonNullable<AuthContextValue["user"]>> {
-    await queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY, refetchType: "none" });
-    const current = await queryClient.fetchQuery({
-      queryKey: CURRENT_USER_QUERY_KEY,
-      queryFn: fetchCurrentUser,
-      staleTime: 0,
-    });
-    if (!current) throw new Error("Authenticated user unavailable");
+    let current: AuthContextValue["user"];
+    try {
+      await queryClient.invalidateQueries({
+        queryKey: CURRENT_USER_QUERY_KEY,
+        refetchType: "none",
+      });
+      current = await queryClient.fetchQuery({
+        queryKey: CURRENT_USER_QUERY_KEY,
+        queryFn: fetchCurrentUser,
+        staleTime: 0,
+      });
+    } catch {
+      throw new AuthError("profile_unavailable");
+    }
+    if (!current) throw new AuthError("profile_unavailable");
     notifyTabs("signed-in");
     return current;
   }
@@ -66,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await loginWithCode(code, language);
       return loadSignedInUser();
     },
+    retryProfile: loadSignedInUser,
     async signOut() {
       await logout(language);
       await queryClient.cancelQueries({ queryKey: CURRENT_USER_QUERY_KEY });

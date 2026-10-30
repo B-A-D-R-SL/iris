@@ -49,7 +49,7 @@ function AccountMenu() {
   const next = i18n.resolvedLanguage === "en" ? "fr" : "en";
 
   return (
-    <Menu position="bottom-end" width={220} closeOnItemClick={false}>
+    <Menu position="bottom-end" width={220}>
       <Menu.Target>
         <ActionIcon variant="subtle" size={48} aria-label={t("app.appBar.account")}>
           <IconUserCircle size={24} stroke={2} aria-hidden />

@@ -6,6 +6,9 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from iris.views import health
+from modules.accounts.admin import RateLimitedAdminAuthenticationForm
+
+admin.site.login_form = RateLimitedAdminAuthenticationForm
 
 urlpatterns = [
     # Health check

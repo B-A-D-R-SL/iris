@@ -94,6 +94,37 @@ describe("US-01 sign-in screen", () => {
     );
   });
 
+  it("retries the profile lookup without submitting the password again", async () => {
+    let signedIn = false;
+    let profileAvailable = false;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/me/") {
+        if (!signedIn) return new Response(null, { status: 401 });
+        return profileAvailable
+          ? Response.json(testUser("beneficiary"))
+          : new Response(null, { status: 503 });
+      }
+      if (url.endsWith("/auth/login") && options?.method === "POST") {
+        signedIn = true;
+        return Response.json({});
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderSignIn();
+    await screen.findByRole("heading", { name: "Connexion" });
+    await enterCredentials();
+    expect(await screen.findByRole("alert")).toHaveTextContent("indisponible");
+
+    profileAvailable = true;
+    await userEvent.click(screen.getByRole("button", { name: "Réessayer" }));
+    await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/home"));
+    expect(
+      fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/auth/login")),
+    ).toHaveLength(1);
+  });
+
   it("shows the lockout notice returned by allauth", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       if (String(input) === "/api/me/") return new Response(null, { status: 401 });
@@ -197,6 +228,25 @@ describe("US-01 sign-in screen", () => {
     await userEvent.click(screen.getByRole("menuitem", { name: "Déconnexion" }));
     await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/sign-in"));
     expect(signedIn).toBe(false);
+  });
+
+  it("keeps a failed sign-out message visible in the account menu", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
+        if (String(input) === "/api/me/") return Response.json(testUser("beneficiary"));
+        if (String(input).endsWith("/auth/session") && options?.method === "DELETE") {
+          return new Response(null, { status: 503 });
+        }
+        return new Response(null, { status: 404 });
+      }),
+    );
+    renderWithProviders(<App />, { route: "/home" });
+    await screen.findByRole("heading", { name: "Accueil" });
+    await userEvent.click(screen.getByRole("button", { name: "Mon compte" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Déconnexion" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("déconnexion");
+    expect(screen.getByRole("menu")).toBeInTheDocument();
   });
 
   it("leaves protected pages when another tab signs out", async () => {
