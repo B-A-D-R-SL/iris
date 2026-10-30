@@ -45,7 +45,6 @@ export interface components {
     NewListing: {
       /** Format: date */
       best_before?: string | null;
-      /** Format: uuid */
       category: string;
       description?: string | null;
       estimated_value_cents?: number | null;
@@ -69,7 +68,6 @@ export interface components {
     PostedListing: {
       /** Format: date */
       best_before: string | null;
-      /** Format: uuid */
       category: string;
       description: string | null;
       estimated_value_cents: number | null;

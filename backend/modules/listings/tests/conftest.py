@@ -40,7 +40,7 @@ def posting_case(db: Any, monkeypatch: pytest.MonkeyPatch) -> Iterator[SimpleNam
             effective_from=NOW - timedelta(days=1),
         )
     data = ListingInput(
-        category=category.pk,
+        category=category.code,
         title="Surplus bread",
         quantity=5,
         pickup_start=NOW + timedelta(hours=1),

@@ -4,7 +4,6 @@
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -26,7 +25,7 @@ LIMITS = PostingLimits(
     photo_max_dimension=1280,
 )
 DATA = ListingInput(
-    category=uuid4(),
+    category="bakery",
     title="Bread",
     quantity=1,
     pickup_start=NOW + timedelta(hours=1),

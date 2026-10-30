@@ -25,7 +25,7 @@ from modules.rules.models import RuleSetVersion
 def payload(case: SimpleNamespace) -> dict[str, Any]:
     return {
         "title": case.data.title,
-        "category": str(case.category.pk),
+        "category": case.category.code,
         "quantity": case.data.quantity,
         "pickup_start": case.data.pickup_start.isoformat(),
         "pickup_end": case.data.pickup_end.isoformat(),
@@ -60,6 +60,8 @@ def test_us33_api_publishes_and_returns_store_location(
     assert body["quantity"] == saved.quantity_total == 5
     assert body["quantity_reserved"] == 0
     assert body["status"] == "published"
+    assert body["category"] == case.category.code
+    assert saved.category_id == case.category.pk
     assert body["location"] == {
         "street_number": case.store.street_number,
         "street_name": case.store.street_name,
@@ -209,7 +211,8 @@ def test_us33_api_refuses_server_owned_fields(
         ({"unit": "box"}, "unit"),
         ({"estimated_value_cents": -1}, "estimated_value_cents"),
         ({"safe_and_allowed": False}, "safe_and_allowed"),
-        ({"category": "not-a-uuid"}, "category"),
+        ({"category": "no_such_category"}, "category"),
+        ({"category": ""}, "category"),
         ({"pickup_start": "2026-10-27T20:00:00"}, "pickup_start"),
         ({"pickup_end": "2026-10-27T19:01:00Z"}, "pickup_end"),
     ],

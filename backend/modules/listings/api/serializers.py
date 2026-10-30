@@ -39,7 +39,8 @@ class PhotoUploadField(serializers.FileField):
 
 
 class NewListingSerializer(serializers.Serializer):
-    category = serializers.UUIDField()
+    # The public categories API exposes codes, never database IDs.
+    category = serializers.CharField(max_length=64)
     store = serializers.UUIDField(required=False)
     title = serializers.CharField()
     description = serializers.CharField(
@@ -79,7 +80,7 @@ class StoreAddressSerializer(serializers.Serializer):
 class PostedListingSerializer(serializers.ModelSerializer):
     quantity = serializers.IntegerField(source="quantity_total")
     store = serializers.UUIDField(source="store_id")
-    category = serializers.UUIDField(source="category_id")
+    category = serializers.CharField(source="category.code")
     pickup_start = AwareDateTimeField()
     pickup_end = AwareDateTimeField()
     published_at = AwareDateTimeField()

@@ -2,7 +2,6 @@
 """Read-only access to listing categories."""
 
 from typing import Any
-from uuid import UUID
 
 from django.db.models import QuerySet
 
@@ -23,11 +22,11 @@ def get_active_category(code: str) -> Category:
     return Category.objects.get(code=code, is_active=True)
 
 
-def for_listing_post(category_id: UUID) -> dict[str, Any] | None:
+def for_listing_post(code: str) -> dict[str, Any] | None:
     """Return a locked category snapshot suitable for pure safety rules."""
     result = (
         Category.objects.select_for_update()
-        .filter(pk=category_id)
+        .filter(code=code)
         .values("id", "code", "is_food", "is_active", "default_value_cents")
         .first()
     )
