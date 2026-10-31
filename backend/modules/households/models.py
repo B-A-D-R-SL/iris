@@ -61,7 +61,7 @@ class Household(models.Model):
         validators=[
             RegexValidator(
                 E164_PHONE_NUMBER_PATTERN,
-                "Enter a phone number in E.164 format.",
+                _("Enter a phone number in E.164 format."),
             )
         ],
     )

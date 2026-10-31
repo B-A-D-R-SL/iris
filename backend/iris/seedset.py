@@ -19,7 +19,6 @@ LISTING_QUANTITY_TOTAL = 8
 RESERVATION_QUANTITY = 1
 STORE_COUNT = PARTNER_STORE_COUNT + 1
 FICTIONAL_NOTE = "Donnée fictive pour la démonstration."
-SEED_PASSWORD = "iris-seed-password"
 POSTAL_CODE = "H0H 0H0"
 STREET_NAME = "rue Exemple"
 CITY = "Montreal"

@@ -18,7 +18,9 @@ It also runs the existing seeds it depends on: rule versions (`seed_rules`), lis
 | Listings | 30 | Six on each of the five stores |
 | Reservations | 40 | Only on approved household files |
 
-Every seed account uses the password `iris-seed-password` and preferred language `fr`. Docker still creates the separate local operator `admin@iris.local`. That account is not part of this dataset.
+Seed accounts use French. They are not Django superusers. Docker still creates the separate local operator `admin@iris.local`.
+
+On a development machine (`DEBUG` on), accounts get the password `iris-seed-password` unless `SEED_PASSWORD` is set. On staging, set `SEED_PASSWORD` in the environment. The command will not create accounts there without it, and that value is not a Django superuser password.
 
 ## Household status spread
 
@@ -61,4 +63,4 @@ After migrations, from the backend container:
 python manage.py seed
 ```
 
-The command is safe on an empty database and on staging. Rows that already exist, including a B.A.D.R. store that staff have edited, are left as they are.
+The command is safe on an empty database and on staging. Each seeded account, partner store, household, and listing has a fixed id, so a later edit to an email, phone, or title is kept and the next run does not insert a copy. Approved household files expire after `file_validity.approved_months`.
