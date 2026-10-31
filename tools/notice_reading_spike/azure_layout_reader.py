@@ -29,6 +29,7 @@ _ENV_PRICE = "AZURE_DI_PRICE_PER_PAGE_USD"
 
 
 def _require_env(name: str) -> str:
+    """The value of an environment variable; ValueError when it is unset or blank."""
     value = os.environ.get(name, "").strip()
     if not value:
         raise ValueError(f"environment variable {name} is not set")
@@ -66,6 +67,7 @@ class AzureLayoutReader:
         return cls(client, price, urlparse(endpoint).hostname or "unknown")
 
     def read_notice(self, content: bytes, content_type: str) -> NoticeReading:
+        """Analyze the notice with Document Intelligence layout, parse it and delete the result."""
         # content_type is not passed on: the SDK (1.0.2) sends bytes as application/octet-stream
         # and ignores it.
         self.last_cost_usd = 0.0

@@ -86,6 +86,7 @@ class FileScore:
     confident_wrong_fields: tuple[str, ...]
 
     def all_correct(self, fields: tuple[str, ...]) -> bool:
+        """True when every listed field was read correctly."""
         return all(self.outcomes[name] == CORRECT for name in fields)
 
 
@@ -116,6 +117,7 @@ def _normalize(text: str) -> str:
 
 
 def _outcome(name: str, expected: object, value: object) -> str:
+    """Score one field value against the expected one: correct, wrong or missing."""
     if value is None:
         return MISSING
     if name in _NORMALIZED_FIELDS:
@@ -167,10 +169,12 @@ def contains_document_number(reading: NoticeReading) -> bool:
 
 
 def _percent(correct: int, total: int) -> str:
+    """A percentage with its counts, or `n/a` when the total is zero."""
     return "n/a" if total == 0 else f"{100 * correct / total:.1f}% ({correct}/{total})"
 
 
 def _accuracy(scores: list[FileScore], fields: tuple[str, ...]) -> str:
+    """The share of scored files whose listed fields are all correct."""
     return _percent(sum(score.all_correct(fields) for score in scores), len(scores))
 
 
@@ -186,6 +190,7 @@ def _stem(file: str) -> str:
 def _scored(
     records: list[RunRecord], truth: dict[str, TruthRow]
 ) -> list[tuple[RunRecord, TruthRow]]:
+    """The records that have a truth row, each paired with it."""
     return [(record, truth[record.file]) for record in records if record.file in truth]
 
 
@@ -195,6 +200,7 @@ def _accuracy_table(pairs: list[tuple[RunRecord, TruthRow]]) -> list[str]:
     heldout = [(r, t) for r, t in readable if r.file not in DEV_FILES]
 
     def scores(selected: list[tuple[RunRecord, TruthRow]]) -> list[FileScore]:
+        """The score of each selected record against its truth row."""
         return [score_reading(t, r.reading) for r, t in selected]
 
     groups = (
@@ -215,6 +221,7 @@ def _accuracy_table(pairs: list[tuple[RunRecord, TruthRow]]) -> list[str]:
 
 
 def _truth_lines(pairs: list[tuple[RunRecord, TruthRow]]) -> list[str]:
+    """Summary lines for changed-return income accuracy and the unreadable notice."""
     changed = [
         score_reading(t, r.reading) for r, t in pairs if _stem(r.file) in CHANGED_RETURN_STEMS
     ]
@@ -231,6 +238,7 @@ def _truth_lines(pairs: list[tuple[RunRecord, TruthRow]]) -> list[str]:
 
 
 def _run_lines(records: list[RunRecord]) -> list[str]:
+    """Summary lines for failures, document number leaks, time and cost."""
     leaks = sum(r.reading is not None and contains_document_number(r.reading) for r in records)
     seconds = [r.seconds for r in records]
     return [
@@ -243,6 +251,7 @@ def _run_lines(records: list[RunRecord]) -> list[str]:
 
 
 def _unscored_lines(records: list[RunRecord]) -> list[str]:
+    """Summary lines listing each file's confident fields, with no truth to score against."""
     lines = [
         f"Fields returned at confidence >= {CONFIDENT:.2f}, per file (no truth available):",
         "",

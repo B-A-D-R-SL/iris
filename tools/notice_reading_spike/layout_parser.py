@@ -86,10 +86,12 @@ class LayoutDocument:
 
 
 def _inside(offset: int, spans: list[dict[str, int]]) -> bool:
+    """True when the offset falls inside any of the spans."""
     return any(s["offset"] <= offset < s["offset"] + s["length"] for s in spans)
 
 
 def _line(raw: dict[str, Any], words: list[tuple[int, int, float]]) -> LayoutLine:
+    """Build a LayoutLine from a raw line, keeping the words whose offsets lie in its spans."""
     spans = raw["spans"]
     base = spans[0]["offset"]
     inside = tuple(
@@ -101,6 +103,7 @@ def _line(raw: dict[str, Any], words: list[tuple[int, int, float]]) -> LayoutLin
 
 
 def _cell(raw: dict[str, Any], words: list[tuple[int, int, float]]) -> LayoutCell:
+    """Build a LayoutCell from a raw cell with the lowest confidence of the words inside it."""
     spans = raw.get("spans") or []
     found = [conf for offset, _, conf in words if _inside(offset, spans)]
     return LayoutCell(
@@ -131,6 +134,7 @@ def _unit_of(part: str) -> str | None:
 def _address_fields(
     postal_line: LayoutLine, street_line: LayoutLine, postal: str
 ) -> dict[str, ReadField]:
+    """Postal code, street number, street name and unit read from the two address lines."""
     start = postal_line.text.rindex(postal)
     code = normalize_postal_code(postal)
     fields = {
@@ -168,6 +172,7 @@ def _envelope_fields(doc: LayoutDocument) -> dict[str, ReadField]:
 
 
 def _tax_year(doc: LayoutDocument) -> ReadField[int]:
+    """The tax year from the first line that states it; UNREAD if none does."""
     for line in doc.lines:
         match = _TAX_YEAR.search(line.text)
         if match:
@@ -195,6 +200,7 @@ def _notice_date(doc: LayoutDocument) -> ReadField:
 
 
 def _assessed_column(table: tuple[LayoutCell, ...]) -> int | None:
+    """Index of the `Montant établi` column from its header cell, None if there is none."""
     for cell in table:
         header = cell.is_header or cell.row == 0
         if header and _ASSESSED_HEADER in strip_accents(cell.text).casefold():

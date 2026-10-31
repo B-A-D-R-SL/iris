@@ -135,10 +135,12 @@ def _record_name(path: Path, root: Path) -> str:
 
 
 def _cost(reader: DocumentReader) -> float:
+    """The cost of the last read in USD, 0.0 for a reader that does not meter it."""
     return reader.last_cost_usd if isinstance(reader, MeteredReader) else 0.0
 
 
 def _read_one(reader: DocumentReader, path: Path, root: Path) -> RunRecord:
+    """Read one file, timing it; a reader failure becomes an error name on the record."""
     content = path.read_bytes()
     content_type = content_type_for(path)
     reading: NoticeReading | None = None
@@ -159,6 +161,7 @@ def _read_one(reader: DocumentReader, path: Path, root: Path) -> RunRecord:
 
 
 def _record_raw_result(reader: RecordingReader, path: Path, record_dir: Path) -> None:
+    """Write the reader's raw result for a file into record_dir, when it kept one."""
     if reader.last_result is not None:
         record_dir.mkdir(parents=True, exist_ok=True)
         target = record_dir / f"layout-{path.stem}.json"
@@ -188,6 +191,7 @@ def select_files(split: str, truth: dict[str, TruthRow], root: Path) -> list[Pat
 
 
 def _cell(value: object) -> str:
+    """A CSV cell: the value as text, empty for None."""
     return "" if value is None else str(value)
 
 
@@ -235,6 +239,7 @@ def _quiet_service_loggers() -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """Parse the command line, read the chosen files and write the CSV and Markdown summary."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     _quiet_service_loggers()
     args = _parse_args(argv)

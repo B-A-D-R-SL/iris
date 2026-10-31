@@ -84,6 +84,7 @@ RESPONSE_SCHEMA: dict[str, Any] = {
 
 
 def _require_env(name: str) -> str:
+    """The value of an environment variable; ValueError when it is unset or blank."""
     value = os.environ.get(name, "").strip()
     if not value:
         raise ValueError(f"environment variable {name} is not set")
@@ -91,6 +92,7 @@ def _require_env(name: str) -> str:
 
 
 def _price_env(name: str) -> float:
+    """An environment variable as a float; ValueError when it is unset or not a number."""
     try:
         return float(_require_env(name))
     except ValueError:
@@ -205,6 +207,7 @@ class VlmReader:
         }
 
     def read_notice(self, content: bytes, content_type: str) -> NoticeReading:
+        """Send the notice images to Gemini on Vertex AI and parse its JSON answer."""
         self.last_cost_usd = 0.0
         try:
             images = to_images(content, content_type)
@@ -232,6 +235,7 @@ class VlmReader:
 
     @staticmethod
     def _json_answer(response: Any) -> dict:
+        """The model's answer as a JSON object; DocumentReadError when it is not one."""
         try:
             answer = json.loads(response.text or "")
         except json.JSONDecodeError:

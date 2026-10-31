@@ -14,6 +14,7 @@ class TruthReader:
     """Identifies a notice by the SHA-256 of its bytes and returns its truth at confidence 1.0."""
 
     def __init__(self, truth: dict[str, TruthRow], notices_dir: Path) -> None:
+        """Index the notices by the SHA-256 of their bytes, each with its truth row."""
         self.last_cost_usd = 0.0
         self._by_hash = {
             hashlib.sha256((notices_dir / name).read_bytes()).hexdigest(): row
@@ -21,6 +22,7 @@ class TruthReader:
         }
 
     def read_notice(self, content: bytes, content_type: str) -> NoticeReading:
+        """Return the truth for the notice whose bytes match; DocumentReadError if unknown."""
         row = self._by_hash.get(hashlib.sha256(content).hexdigest())
         if row is None:
             raise DocumentReadError("unknown document")
