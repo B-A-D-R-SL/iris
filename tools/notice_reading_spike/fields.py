@@ -12,7 +12,7 @@ _DATE = re.compile(r"(\d{1,2})(?:er)?\s+([a-z]+)\s+(\d{4})")
 _POSTAL = re.compile(r"([A-Z]\d[A-Z])\s?(\d[A-Z]\d)")
 # "app. 106", "apt. 4B", "unité 12" or "# 7"; \b keeps words like "appartement" whole
 _UNIT_MARKER = re.compile(r"(?:(?:app|apt|unit[eé])(?:\.|\b)|#)\s*", re.IGNORECASE)
-_SPACES = re.compile(r"[\s  ]+")
+_SPACES = re.compile(r"\s+")  # \s already matches the no-break spaces U+00A0 and U+202F
 _MONTHS = {
     name: number
     for number, name in enumerate(

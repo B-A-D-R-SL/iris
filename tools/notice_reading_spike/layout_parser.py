@@ -24,7 +24,8 @@ from reader import UNREAD, NoticeReading, ReadField
 # name and street above it should still be read; the code itself is then left unread.
 _POSTAL_LINE = re.compile(r"\(Qu[ée]bec\)\s+([A-Za-z0-9]{3}\s?[A-Za-z0-9]{3})\s*$")
 _TAX_YEAR = re.compile(r"Ann[ée]e d['’]imposition\s+(\d{4})")
-_DATE_LABEL = re.compile(r"Date de l['’]avis\s*:?\s*(.*)$")  # page footers print no colon
+# Possessive \s*+ cannot backtrack; page footers print the label without a colon
+_DATE_LABEL = re.compile(r"Date de l['’]avis\s*+(?::\s*+)?(.*)$")
 _INCOME_LINE = "199"
 _ASSESSED_HEADER = "etabli"  # "Montant établi", compared without accents and case
 SHAPE_ERROR = "unexpected AnalyzeResult shape"
