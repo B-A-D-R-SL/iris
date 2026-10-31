@@ -1,7 +1,7 @@
 # Households module
 
 **Owner pair:** Registration
-**Status:** SET-14 architecture skeleton
+**Status:** Household file table added for the SET-18 seed. Registration workflows are still open.
 
 ## Responsibility
 
@@ -19,7 +19,7 @@ Own the households feature boundary within the Iris modular monolith.
 
 ## Public functions
 
-No public functions implemented yet.
+No public write functions yet. `Household` stores the file columns from the database design so `manage.py seed` can insert fictional files. Members and registration services are still to be added.
 
 ## Architectural rules
 
