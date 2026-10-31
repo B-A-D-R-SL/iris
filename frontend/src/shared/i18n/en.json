@@ -1,14 +1,4 @@
 {
-  "title": "Welcome to Iris",
-  "description": "A solidarity redistribution platform connecting communities and making resource sharing easier.",
-  "language": "Français",
-  "status": "Project setup in progress",
-  "backend": {
-    "label": "Server status",
-    "checking": "Checking...",
-    "online": "Connected",
-    "offline": "Unavailable"
-  },
   "household": {
     "status": {
       "draft": "Draft",
@@ -105,6 +95,19 @@
       "taxYear": "Tax year",
       "lowIncomeCutoff": "Low income cut-off (LICO)",
       "title": "Eligibility"
+    }
+  },
+  "category": {
+    "list": {
+      "description": "Active categories available for donated goods.",
+      "name": "Name",
+      "code": "Code",
+      "type": "Type",
+      "defaultValue": "Default value",
+      "food": "Food",
+      "nonFood": "Non-food",
+      "empty": "No categories available",
+      "emptyDescription": "There are currently no active categories."
     }
   },
   "listing": {
@@ -318,6 +321,111 @@
         "good": "Good",
         "fair": "Fair"
       }
+    }
+  },
+  "app": {
+    "brand": {
+      "byBadr": "by B.A.D.R.",
+      "home": "Iris, home"
+    },
+    "language": {
+      "switchTo": "Français"
+    },
+    "appBar": {
+      "back": "Back",
+      "account": "My account"
+    },
+    "mainNav": {
+      "label": "Main navigation"
+    },
+    "householdNav": {
+      "home": "Home",
+      "listings": "Listings",
+      "reservations": "Reservations",
+      "profile": "Profile"
+    },
+    "storeNav": {
+      "today": "Today",
+      "confirm": "Confirm",
+      "post": "Post",
+      "myListings": "My listings"
+    },
+    "staffBar": {
+      "workspace": "Staff workspace · B.A.D.R.",
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu"
+    },
+    "staffNav": {
+      "workspace": "Your workspace",
+      "households": "Households",
+      "reviews": "Reviews",
+      "walkIn": "Walk-in registration",
+      "partners": "Partners",
+      "stores": "Stores",
+      "categories": "Categories",
+      "auditLog": "Audit log",
+      "accessNotice": "Authorized staff access only"
+    },
+    "placeholder": {
+      "title": "Coming soon",
+      "description": "This screen is being built."
+    },
+    "notFound": {
+      "title": "Page not found",
+      "description": "This address does not match any Iris page.",
+      "backHome": "Back to home"
+    },
+    "crash": {
+      "title": "Something went wrong",
+      "description": "Reload the page. If the problem continues, try again later.",
+      "reload": "Reload the page"
+    }
+  },
+  "public": {
+    "welcome": {
+      "title": "Welcome to Iris",
+      "intro": "Iris lets low-income households reserve, for free, surplus goods offered by B.A.D.R. and its partner stores, then pick them up with a code.",
+      "householdTitle": "For households",
+      "householdText": "B.A.D.R. checks your income with your notice of assessment. Once your file is approved, you reserve listings near you.",
+      "apply": "Register my household",
+      "partnerTitle": "For businesses",
+      "partnerText": "Give your surplus instead of throwing it away. B.A.D.R. reviews every partner application."
+    }
+  },
+  "shared": {
+    "form": {
+      "optional": "(optional)",
+      "requiredNotice": "All fields are required unless marked “optional”."
+    },
+    "validation": {
+      "required": "Fill in this field.",
+      "textLength": "Enter {{min}} to {{max}} characters.",
+      "textMax": "Enter at most {{max}} characters.",
+      "postalCode": "Enter a Canadian postal code, for example H2X 1Y4.",
+      "phone": "Enter a 10-digit number, for example (514) 555-0123.",
+      "moneyRange": "Enter an amount from {{min, currency(currency: CAD; currencyDisplay: narrowSymbol)}} to {{max, currency(currency: CAD; currencyDisplay: narrowSymbol)}}.",
+      "date": "Enter a date as YYYY-MM-DD.",
+      "dateMin": "Choose {{date}} or later.",
+      "dateMax": "Choose {{date}} or earlier.",
+      "fileType": "Choose a {{types}} file.",
+      "fileSize": "Choose a file of {{max}} MB or less."
+    },
+    "dateField": {
+      "placeholder": "YYYY-MM-DD",
+      "clear": "Clear date"
+    },
+    "fileUpload": {
+      "choose": "Choose a file",
+      "limits": "{{types}}, {{max}} MB maximum",
+      "size": "{{size, number(maximumFractionDigits: 1)}} MB",
+      "change": "Change",
+      "remove": "Remove"
+    },
+    "states": {
+      "loading": "Loading…",
+      "errorTitle": "This page could not be shown",
+      "errorDescription": "Check your Internet connection, then try again.",
+      "retry": "Try again"
     }
   }
 }

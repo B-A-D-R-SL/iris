@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from modules.rules.domain.schemas import validate_rule_values
+from modules.rules.domain.schemas import RuleValidationError, validate_rule_values
 from modules.rules.models import RuleSetVersion
 
 
@@ -60,7 +60,11 @@ def _validate_rule_type(rule_type: str) -> str:
 def _validate_values(rule_type: str, values: dict[str, Any]) -> None:
     if not isinstance(values, dict):
         raise ValidationError("Rule values must be a JSON object.")
-    validate_rule_values(rule_type, values)
+
+    try:
+        validate_rule_values(rule_type, values)
+    except RuleValidationError as exc:
+        raise ValidationError(exc.errors) from exc
 
 
 def _validate_effective_from(effective_from: datetime) -> None:
