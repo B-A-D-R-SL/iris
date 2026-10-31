@@ -13,11 +13,13 @@ from pathlib import Path
 import pytest
 from conftest import make_reading, make_row
 
+import run
 from azure_layout_reader import AzureLayoutReader
 from reader import DocumentReadError, NoticeReading
 from run import (
     READERS,
     SERVICE_LOGGERS,
+    contained,
     content_type_for,
     git_commit,
     main,
@@ -29,6 +31,13 @@ from score import DEV_FILES, summarize
 from truth_reader import TruthReader
 
 HOST = "example.cognitiveservices.azure.com"
+
+
+@pytest.fixture
+def allow_tmp_paths(tmp_path, monkeypatch):
+    """Let main() read and write under tmp_path, as it does under the repository."""
+    monkeypatch.setattr(run, "INPUT_ROOT", tmp_path)
+    monkeypatch.setattr(run, "OUTPUT_ROOT", tmp_path)
 
 
 class FlakyReader:
@@ -179,7 +188,7 @@ def test_select_files_splits_dev_and_heldout(truth, notices_dir):
     assert not set(dev) & set(heldout)
 
 
-def test_main_writes_csv_and_summary_without_logging_values(tmp_path, caplog):
+def test_main_writes_csv_and_summary_without_logging_values(tmp_path, caplog, allow_tmp_paths):
     out = tmp_path / "truth.csv"
     with caplog.at_level(logging.INFO):
         main(["--reader", "truth", "--split", "dev", "--out", str(out)])
@@ -201,7 +210,7 @@ def test_main_writes_csv_and_summary_without_logging_values(tmp_path, caplog):
     assert "- notice-050 outcome: n/a" in summary  # the dev split has no unreadable photo
 
 
-def test_main_keeps_service_sdk_loggers_at_warning(tmp_path):
+def test_main_keeps_service_sdk_loggers_at_warning(tmp_path, allow_tmp_paths):
     main(["--reader", "truth", "--split", "dev", "--out", str(tmp_path / "x.csv")])
     assert {logging.getLogger(name).level for name in SERVICE_LOGGERS} == {logging.WARNING}
     assert set(SERVICE_LOGGERS) >= {"azure", "google", "google_genai", "httpx"}
@@ -212,7 +221,7 @@ def test_main_keeps_service_sdk_loggers_at_warning(tmp_path):
     [("missing.pdf", "not a file: .*missing.pdf"), ("scan.gif", "unsupported file type: .gif")],
 )
 def test_main_rejects_an_invalid_files_path_before_any_reader_call(
-    tmp_path, monkeypatch, bad_name, message
+    tmp_path, monkeypatch, bad_name, message, allow_tmp_paths
 ):
     factory = CountingFactory()
     monkeypatch.setitem(READERS, "truth", factory)
@@ -224,7 +233,7 @@ def test_main_rejects_an_invalid_files_path_before_any_reader_call(
     assert factory.reader.calls == 0
 
 
-def test_main_refuses_record_with_files(tmp_path, monkeypatch):
+def test_main_refuses_record_with_files(tmp_path, monkeypatch, allow_tmp_paths):
     factory = CountingFactory()
     monkeypatch.setitem(READERS, "truth", factory)
     sample = _write_files(tmp_path, ["sample.pdf"])[0]
@@ -296,13 +305,15 @@ def test_run_settings_for_a_reader_without_settings_has_commit_reader_and_date(
     assert list(settings) == ["commit", "reader", "date"]
 
 
-def test_main_with_files_outside_the_notices_folder_runs_unscored(tmp_path, notices_dir):
+def test_main_with_files_outside_the_notices_folder_runs_unscored(
+    tmp_path, notices_dir, allow_tmp_paths
+):
     out = tmp_path / "files.csv"
     copy = tmp_path / "sample.pdf"  # same bytes as a mock notice, so the truth reader answers
     copy.write_bytes((notices_dir / "pdf" / "notice-001.pdf").read_bytes())
     main(["--reader", "truth", "--files", str(copy), "--out", str(out)])
     summary = out.with_suffix(".summary.md").read_text(encoding="utf-8")
-    assert f"- {copy.as_posix()}: full_name, street_number" in summary
+    assert "- sample.pdf: full_name, street_number" in summary  # relative to the input root
     assert "| name |" not in summary
 
 
@@ -353,9 +364,47 @@ def test_run_files_records_a_raw_result_the_parser_rejected(tmp_path):
     assert saved == {"unexpected": "shape"}
 
 
-def test_main_record_fails_clearly_for_a_reader_without_raw_results(tmp_path):
+def test_main_record_fails_clearly_for_a_reader_without_raw_results(tmp_path, allow_tmp_paths):
     with pytest.raises(SystemExit, match="--record"):
         main(
             ["--reader", "truth", "--split", "dev", "--out", str(tmp_path / "x.csv")]
             + ["--record", str(tmp_path / "rec")]
         )
+
+
+def test_main_refuses_a_files_path_outside_the_repository(tmp_path, monkeypatch):
+    factory = CountingFactory()
+    monkeypatch.setitem(READERS, "truth", factory)
+    sample = _write_files(tmp_path, ["sample.pdf"])[0]
+    out = run.OUTPUT_ROOT / "private" / "never-written.csv"
+    with pytest.raises(SystemExit, match="sample.pdf is outside"):
+        main(["--reader", "truth", "--files", str(sample), "--out", str(out)])
+    assert factory.built == 0
+    assert not out.exists()
+
+
+def test_main_refuses_an_output_path_outside_the_spike_folder(tmp_path, monkeypatch):
+    factory = CountingFactory()
+    monkeypatch.setitem(READERS, "truth", factory)
+    with pytest.raises(SystemExit, match="x.csv is outside"):
+        main(["--reader", "truth", "--split", "dev", "--out", str(tmp_path / "x.csv")])
+    assert factory.built == 0
+    assert not (tmp_path / "x.csv").exists()
+
+
+def test_main_refuses_a_record_folder_outside_the_spike_folder(tmp_path, monkeypatch):
+    factory = CountingFactory()
+    monkeypatch.setitem(READERS, "truth", factory)
+    out = run.OUTPUT_ROOT / "private" / "never-written.csv"
+    argv = ["--reader", "truth", "--split", "dev", "--out", str(out)]
+    with pytest.raises(SystemExit, match="rec is outside"):
+        main(argv + ["--record", str(tmp_path / "rec")])
+    assert factory.built == 0
+    assert not (tmp_path / "rec").exists()
+
+
+def test_contained_resolves_a_path_inside_its_root_and_refuses_an_escape():
+    root = run.OUTPUT_ROOT
+    assert contained(root / "results" / ".." / "README.md", root) == root / "README.md"
+    with pytest.raises(ValueError, match="is outside"):
+        contained(root / ".." / ".." / "README.md", root)

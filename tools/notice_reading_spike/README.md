@@ -61,10 +61,10 @@ uv run --env-file .env run.py --reader vlm --split all --out results/vlm-2.csv
 
 Write the analysis by hand on the wiki's [Notice Reading – Results](https://github.com/B-A-D-R-SL/iris/wiki/Notice-Reading-%E2%80%93-Results) page: repeatability between the two runs, and held-out against dev accuracy. Commit `results/` (mock data only).
 
-**Real-notice conditions.** `--files` reads any PDF, PNG or JPEG; every path is checked before the first call. Download the public redacted sample notice published by Carte loisir ([PDF](https://www.carteloisir.ca/app/uploads/cal/exemples/avis-de-cotisation-pour-deficience-grave-et-prolongee-des-fonctions-mentales-ou-physiques-revenu-quebec.pdf)) to a folder outside the repository, never inside it, and never commit it. Use that path in the command below (`../../../notice-sample/redacted.pdf` is only an example). Also read two mockup screenshots that are not notices. Write the `--files` outputs to a folder outside the repository too (the example uses the sample's folder):
+**Real-notice conditions.** `--files` reads any PDF, PNG or JPEG; every path is checked before the first call. Download the public redacted sample notice published by Carte loisir ([PDF](https://www.carteloisir.ca/app/uploads/cal/exemples/avis-de-cotisation-pour-deficience-grave-et-prolongee-des-fonctions-mentales-ou-physiques-revenu-quebec.pdf)) into `private/redacted.pdf` in this folder. This folder's `.gitignore` keeps `private/` out of git: never put the sample anywhere else in the repository, and never commit it. Also read two mockup screenshots that are not notices. Write the `--files` outputs to `private/` too:
 
 ```sh
-uv run --env-file .env run.py --reader vlm --files ../../../notice-sample/redacted.pdf "../../docs/03-design/mockups/Registration.png" "../../docs/03-design/mockups/Store - Post a listing.png" --out ../../../notice-sample/vlm-real.csv
+uv run --env-file .env run.py --reader vlm --files private/redacted.pdf "../../docs/03-design/mockups/Registration.png" "../../docs/03-design/mockups/Store - Post a listing.png" --out private/vlm-real.csv
 ```
 
 Repeat with `--reader azure-layout`. Files outside the mock set have no truth row, so read their CSV rows by eye. The mockups should return no value at confidence 0.90 or more. Copy only the per-file lists of confident fields from these summaries into the wiki's results page, never the CSVs.
@@ -73,9 +73,9 @@ Repeat with `--reader azure-layout`. Files outside the mock set have no truth ro
 | --- | --- |
 | `--reader` | `truth` (replays `truth.csv`, checks the harness itself, no account), `azure-layout` or `vlm` |
 | `--split` | `dev`, `heldout` or `all`: which mock notices to read |
-| `--files PATH...` | Read these files instead of a split; write `--out` outside the repository |
-| `--record DIR` | Save each raw service response as `layout-<file>.json` (`azure-layout` with `--split` only) |
-| `--out CSV` | Where to write the results |
+| `--files PATH...` | Read these files instead of a split; each must be inside the repository, and `--out` should go to `private/` |
+| `--record DIR` | Save each raw service response as `layout-<file>.json` (`azure-layout` with `--split` only); must be inside this folder |
+| `--out CSV` | Where to write the results; must be inside this folder |
 
 ## After the first live Gemini call
 
@@ -106,7 +106,7 @@ If you change the model, recheck its rows on the wiki's [Law 25 evidence](https:
 
 - Delete the Document Intelligence resource and the Google Cloud project. If you must keep them, revoke the Azure key and disable the Vertex AI API.
 - Delete `.env`, and run `gcloud auth application-default revoke`.
-- Delete the downloaded redacted sample.
+- Delete the `private/` folder (the redacted sample and its outputs).
 
 ## Files
 

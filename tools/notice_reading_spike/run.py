@@ -3,6 +3,8 @@
 
 Usage: uv run run.py --reader truth|azure-layout|vlm (--split dev|heldout|all | --files PATH...)
        --out results/x.csv [--record DIR (with --split only)]
+
+--files paths must be inside the repository, and --out and --record inside this folder.
 """
 
 from __future__ import annotations
@@ -12,6 +14,7 @@ import csv
 import datetime as dt
 import json
 import logging
+import os
 import subprocess
 import time
 from collections.abc import Callable
@@ -37,6 +40,8 @@ logger = logging.getLogger(__name__)
 
 HERE = Path(__file__).resolve().parent
 NOTICES_DIR = HERE.parents[1] / "mock-data" / "notices"
+INPUT_ROOT = HERE.parents[1]  # --files may only read inside the repository
+OUTPUT_ROOT = HERE  # --out and --record may only write inside this folder
 CONTENT_TYPES = {
     ".pdf": "application/pdf",
     ".png": "image/png",
@@ -65,6 +70,19 @@ def content_type_for(path: Path) -> str:
         return CONTENT_TYPES[path.suffix.lower()]
     except KeyError:
         raise ValueError(f"unsupported file type: {path.suffix or path.name}") from None
+
+
+def contained(path: Path, root: Path) -> Path:
+    """`path` resolved, if it is inside `root`; ValueError otherwise, so no CLI path escapes."""
+    real = os.path.realpath(path)
+    base = os.path.realpath(root)
+    try:
+        inside = os.path.commonpath([real, base]) == base
+    except ValueError:  # on another drive (Windows)
+        inside = False
+    if not inside:
+        raise ValueError(f"{path} is outside {root}")
+    return Path(real)
 
 
 def check_files(files: list[Path]) -> None:
@@ -107,10 +125,13 @@ def run_settings(reader_name: str, reader: DocumentReader) -> dict[str, str]:
 
 
 def _record_name(path: Path, root: Path) -> str:
-    try:
-        return path.resolve().relative_to(root.resolve()).as_posix()
-    except ValueError:
-        return path.as_posix()
+    """The file's name in the results: relative to the notices folder, else to the repository."""
+    for base in (root, INPUT_ROOT):
+        try:
+            return path.resolve().relative_to(base.resolve()).as_posix()
+        except ValueError:
+            continue
+    return path.as_posix()
 
 
 def _cost(reader: DocumentReader) -> float:
@@ -220,23 +241,29 @@ def main(argv: list[str] | None = None) -> None:
     if args.record and args.files:
         raise SystemExit("error: --record cannot be used with --files (mock notices only)")
     truth = load_truth(NOTICES_DIR / "truth.csv")
-    files = args.files or select_files(args.split, truth, NOTICES_DIR)
     try:
+        files = (
+            [contained(path, INPUT_ROOT) for path in args.files]
+            if args.files
+            else select_files(args.split, truth, NOTICES_DIR)
+        )
+        out = contained(args.out, OUTPUT_ROOT)
+        record_dir = contained(args.record, OUTPUT_ROOT) if args.record else None
         check_files(files)
         reader = READERS[args.reader]()
     except ValueError as exc:
         raise SystemExit(f"error: {exc}") from exc
-    if args.record and not isinstance(reader, RecordingReader):
+    if record_dir and not isinstance(reader, RecordingReader):
         raise SystemExit(
             f"error: --record needs a reader that keeps raw results, not {args.reader}"
         )
     settings = run_settings(args.reader, reader)
-    records = run_files(reader, files, NOTICES_DIR, args.record)
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    write_csv(records, truth, args.out)
-    summary_path = args.out.with_suffix(".summary.md")
+    records = run_files(reader, files, NOTICES_DIR, record_dir)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    write_csv(records, truth, out)
+    summary_path = out.with_suffix(".summary.md")
     summary_path.write_text(summarize(records, truth, settings), encoding="utf-8")
-    logger.info("wrote %s and %s", args.out, summary_path)
+    logger.info("wrote %s and %s", out, summary_path)
 
 
 if __name__ == "__main__":
