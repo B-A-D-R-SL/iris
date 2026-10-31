@@ -10,6 +10,7 @@ export { TextField, type TextFieldProps } from "./TextField";
 export {
   allOf,
   hasLength,
+  isEmail,
   isAcceptedFile,
   isDateInRange,
   isMoneyInRange,

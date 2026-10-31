@@ -24,6 +24,10 @@ export default function App() {
         <Route index element={<WelcomePage />} />
         <Route path="sign-in" element={<SignIn />} />
         <Route
+          path="forgot-password"
+          element={<PlaceholderScreen titleKey="auth.common.forgotPassword" />}
+        />
+        <Route
           path="sign-up"
           element={<PlaceholderScreen titleKey="auth.common.createAccount" />}
         />

@@ -11,7 +11,7 @@ conventions are the team's API contract; they are not a claim that every rule
 or endpoint is implemented. The endpoint catalog retains the draft's methods,
 paths, roles, and purposes, with a separate status column.
 
-Status refers to the current SET-15 working tree, not a deployed release:
+Status refers to the current working tree, not a deployed release:
 
 - **Implemented:** the endpoint and its response are present. The health check
   is a plain Django view returning JSON; it is described in OpenAPI without
@@ -21,9 +21,9 @@ Status refers to the current SET-15 working tree, not a deployed release:
 - **Planned:** no corresponding application endpoint is registered in this
   checkout. The listed role and purpose describe intended behavior.
 
-The existing infrastructure endpoints `/api/schema/` and `/api/docs/` are
-implemented. The schema describes health and the schema endpoint itself; it
-does not currently describe allauth operations or the planned business APIs.
+The infrastructure endpoints `/api/schema/` and `/api/docs/` are implemented.
+The schema describes health, `/api/me/`, categories, and the schema endpoint;
+it does not describe allauth operations or the planned business APIs.
 `pnpm gen:api` produces the generated declarations, and the existing CI workflow
 is configured to reject missing or outdated generated types. See the
 [generation guide](../guides/api-generation.md).
@@ -32,10 +32,8 @@ The current frontend health consumer still declares its own `HealthResponse`
 and validates responses at runtime. Generated types are available; existing
 consumers have not been rewritten to use them.
 
-Categories compliance remains dependent on
+Categories were added by
 [reference module #377](https://github.com/B-A-D-R-SL/iris/issues/377).
-There is no categories endpoint in this checkout, so that acceptance criterion
-remains incomplete.
 
 ## Conventions
 
@@ -59,15 +57,16 @@ remains incomplete.
 | Method         | Path                     | Who    | Purpose            | Status      |
 | -------------- | ------------------------ | ------ | ------------------ | ----------- |
 | GET            | `/api/health/`           | Anyone | `{"status": "ok"}` | Implemented |
-| GET            | `/api/categories/`       | Anyone | Active categories  | Planned     |
+| GET            | `/api/categories/`       | Anyone | Active categories  | Implemented |
 | GET/POST/PATCH | `/api/staff/categories/` | Admin  | Manage categories  | Planned     |
 
 ### Accounts
 
 | Method          | Path                                | Who                 | Purpose                                                                                             | Status  |
 | --------------- | ----------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------- | ------- |
-| *               | `/api/auth/...`                     | Anyone              | django-allauth headless: sign-in, sign-out, sign-up, email confirmation, password reset, two-factor | Partial |
-| GET/PATCH       | `/api/me/`                          | Signed in           | Current user; change language, phone                                                                | Planned |
+| *               | `/api/auth/...`                     | Anyone              | django-allauth headless: browser sign-in and sign-out work; public sign-up is closed until US-02; other flows remain planned | Partial |
+| GET             | `/api/me/`                          | Signed in           | Current user's id, name, role, store, and language                                                 | Implemented |
+| PATCH           | `/api/me/`                          | Signed in           | Change language and phone                                                                          | Planned |
 | GET/POST        | `/api/staff/invitations/`           | Admin               | Invite intake workers and admins                                                                    | Planned |
 | POST            | `/api/invitations/accept/`          | Anyone with a token | Accept an invitation, set password                                                                  | Planned |
 | GET/POST/DELETE | `/api/store/team/`                  | Store manager       | Store staff of own store                                                                            | Planned |
@@ -188,19 +187,16 @@ a complete JSON payload.
 
 The backend mounts django-allauth headless once at `/api/auth/`; its actual
 subpaths include `/api/auth/browser/v1/...` and `/api/auth/app/v1/...`.
-DRF's defaults currently enable both `SessionAuthentication` and
-`BasicAuthentication`, while the draft specifies session cookies plus the
-`X-CSRFToken` header.
+The browser frontend uses the browser/v1 sign-in and session routes with a
+session cookie and the CSRF cookie's value in `X-CSRFToken`. DRF uses the
+accounts module's session authentication class; BasicAuthentication is disabled.
 
-**Team decision pending:** confirm the public browser/app authentication
-surface and reconcile the additional DRF authentication method with the
-session-cookie contract. Authentication, CSRF, and permission settings remain
-unchanged. See [authentication routing](../guides/auth-routing.md).
+**Team decision pending:** confirm whether the versioned app authentication
+surface should remain public. See [authentication routing](../guides/auth-routing.md).
 
 DRF defaults to `IsAuthenticated`, but this is not the role-and-ownership
-matrix required by the draft. The referenced `business-rules.md` permission
-matrix is not present in this checkout; its intended documentation location is
-`docs/02-requirements/business-rules.md`. Role and ownership checks and the
+matrix required by the draft. The [business rules permission matrix](../02-requirements/business-rules.md)
+defines the intended role and ownership checks for the
 matrix remain dependencies of the planned endpoints. The draft's `Who`
 column does not establish that framework authentication operations all have
 identical access requirements.
@@ -228,13 +224,12 @@ established by the current configuration.
 
 ### UUID identifiers
 
-The draft specifies UUID strings. The existing Django user and rule-version
-models use integer primary keys, and their proposed business APIs are not
-implemented.
+The draft specifies UUID strings. `accounts.User` uses a UUID primary key and
+`GET /api/me/` serializes it as a UUID string. Rule versions retain integer
+primary keys and do not expose a public business API yet.
 
 **Team decision pending:** confirm how public UUID identifiers map to those
-existing models. This document does not authorize a model change, migration,
-or replacement of existing identifiers.
+rule versions. This document does not authorize replacing their identifiers.
 
 ### Draft path ambiguities
 

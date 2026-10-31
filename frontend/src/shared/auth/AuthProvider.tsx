@@ -1,5 +1,5 @@
 // AI contribution: 50% or more AI-generated
-import { useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useEffect, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -8,10 +8,20 @@ import {
   fetchCurrentUser,
   useCurrentUser,
 } from "../../features/accounts/currentUser";
+import { logger } from "../logger";
 import { AuthError, loginWithCode, loginWithPassword, logout } from "./api";
 import { AuthContext, type AuthContextValue } from "./authContext";
 
 const AUTH_EVENT_KEY = "iris:auth-change";
+
+/** Drop responses cached for the previous user and mark the session as signed out. */
+async function clearSessionData(queryClient: QueryClient) {
+  await queryClient.cancelQueries();
+  queryClient.removeQueries({
+    predicate: (query) => query.queryKey[0] !== CURRENT_USER_QUERY_KEY[0],
+  });
+  queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
+}
 
 /** Reuse the existing /api/me/ query for every screen and react to other tabs. */
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -23,9 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     function onStorage(event: StorageEvent) {
       if (event.key !== AUTH_EVENT_KEY) return;
       if (event.newValue?.startsWith("signed-out:")) {
-        void queryClient.cancelQueries({ queryKey: CURRENT_USER_QUERY_KEY }).then(() => {
-          queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
-        });
+        void clearSessionData(queryClient);
       } else if (event.newValue?.startsWith("signed-in:")) {
         void queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY });
       }
@@ -40,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(AUTH_EVENT_KEY, `${state}:${crypto.randomUUID()}`);
     } catch {
       // The backend still revokes the session if browser storage is unavailable.
+      logger.warning("auth_tab_sync_unavailable");
     }
   }
 
@@ -77,8 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     retryProfile: loadSignedInUser,
     async signOut() {
       await logout(language);
-      await queryClient.cancelQueries({ queryKey: CURRENT_USER_QUERY_KEY });
-      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
+      await clearSessionData(queryClient);
       notifyTabs("signed-out");
     },
   };

@@ -53,7 +53,7 @@ class User(AbstractUser):
         max_length=20, choices=Role.choices, default=Role.BENEFICIARY
     )
     store = models.ForeignKey(
-        "stores.Store", null=True, blank=True, on_delete=models.SET_NULL
+        "stores.Store", null=True, blank=True, on_delete=models.PROTECT
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -66,5 +66,10 @@ class User(AbstractUser):
         constraints = [  # noqa: RUF012 - Django model metadata.
             models.UniqueConstraint(
                 Lower("email"), name="accounts_user_email_ci_unique"
-            )
+            ),
+            models.CheckConstraint(
+                condition=models.Q(store__isnull=False)
+                | ~models.Q(role__in=["store_staff", "store_manager"]),
+                name="accounts_user_store_required_for_store_roles",
+            ),
         ]

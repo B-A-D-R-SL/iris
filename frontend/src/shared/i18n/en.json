@@ -190,7 +190,8 @@
       "invalidCode": "Enter a valid 6-digit verification code.",
       "invalidCredentials": "The email address or password is incorrect.",
       "locked": "Too many attempts. Try again in 15 minutes.",
-      "unavailable": "Sign in is unavailable. Please try again."
+      "unavailable": "Sign in is unavailable. Please try again.",
+      "useAnotherAccount": "Use a different account"
     },
     "signup": {
       "email": "Email address",
@@ -404,10 +405,12 @@
   "shared": {
     "form": {
       "optional": "(optional)",
-      "requiredNotice": "All fields are required unless marked “optional”."
+      "requiredNotice": "All fields are required unless marked “optional”.",
+      "errorCount": "Fields to correct: {{count}}."
     },
     "validation": {
       "required": "Fill in this field.",
+      "email": "Enter a valid email address.",
       "textLength": "Enter {{min}} to {{max}} characters.",
       "textMax": "Enter at most {{max}} characters.",
       "postalCode": "Enter a Canadian postal code, for example H2X 1Y4.",

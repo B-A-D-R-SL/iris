@@ -7,8 +7,11 @@ from datetime import UTC, datetime
 import pytest
 from django.conf import settings
 from django.contrib.auth.hashers import identify_hasher
+from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache, caches
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, close_old_connections, connection, transaction
+from django.db.models.deletion import ProtectedError
 from django.test import Client
 
 from modules.accounts.models import User
@@ -18,6 +21,7 @@ from modules.stores.tests.factories import StoreFactory
 pytestmark = pytest.mark.django_db
 LOGIN = "/api/auth/browser/v1/auth/login"
 SESSION = "/api/auth/browser/v1/auth/session"
+SIGNUP = "/api/auth/browser/v1/auth/signup"
 PASSWORD = "test-password-424"
 USER_EMAIL = "generated-0@example.test"
 
@@ -85,6 +89,36 @@ def test_superuser_creation():
         User.objects.create_superuser("invalid@example.test", is_staff=False)
 
 
+def test_passwords_need_at_least_ten_characters():
+    with pytest.raises(ValidationError):
+        validate_password("shortpass")
+
+
+def test_public_sign_up_is_closed(client):
+    response = client.post(
+        SIGNUP,
+        {"email": "new-household@example.test", "password": PASSWORD},
+        content_type="application/json",
+    )
+    assert response.status_code == 403
+    assert not User.objects.filter(email="new-household@example.test").exists()
+
+
+@pytest.mark.parametrize("role", [User.Role.STORE_STAFF, User.Role.STORE_MANAGER])
+def test_store_roles_require_a_store(user, role):
+    user.role = role
+    with pytest.raises(IntegrityError), transaction.atomic():
+        user.save()
+
+
+def test_assigned_store_cannot_be_deleted(user):
+    store = StoreFactory()
+    user.store = store
+    user.save(update_fields=["store"])
+    with pytest.raises(ProtectedError):
+        store.delete()
+
+
 def test_login_creates_session_and_updates_last_login(client, user):
     response = login(client, email=USER_EMAIL.upper())
     assert response.status_code == 200
@@ -149,6 +183,24 @@ def test_inactive_user_cannot_login(client, user):
     assert login(client).status_code == 401
     assert "_auth_user_id" not in client.session
     assert client.get("/api/me/").status_code == 401
+
+
+def test_failed_sign_ins_are_limited_per_ip(client):
+    for index in range(10):
+        login(client, email=f"unknown-{index}@example.test", password="incorrect")
+    refused = login(client, email="unknown-10@example.test", password="incorrect")
+    assert refused.status_code == 400
+    assert refused.json()["errors"][0]["code"] == "too_many_login_attempts"
+
+
+def test_auth_logs_do_not_identify_the_account(client, user, caplog):
+    with caplog.at_level("INFO", logger="iris.auth"):
+        for _ in range(6):
+            login(client, password="incorrect")
+    events = [record.event for record in caplog.records if record.name == "iris.auth"]
+    assert "sign_in_failed" in events
+    assert "sign_in_rate_limited" in events
+    assert USER_EMAIL not in caplog.text
 
 
 def test_admin_login_uses_rate_limited_sign_in(client, user):
@@ -305,7 +357,7 @@ def test_logout_invalidates_the_session_shared_by_browser_tabs(client, user):
 def test_current_user_has_exact_response(client, user, role, assigned_store):
     user.role = role
     user.preferred_language = "en"
-    if assigned_store:
+    if assigned_store or role in {User.Role.STORE_STAFF, User.Role.STORE_MANAGER}:
         user.store = StoreFactory()
     user.save()
     client.force_login(user)
@@ -315,7 +367,7 @@ def test_current_user_has_exact_response(client, user, role, assigned_store):
         "id": str(user.pk),
         "name": "Example0 Person0",
         "role": role,
-        "store": str(user.store_id) if assigned_store else None,
+        "store": str(user.store_id) if user.store_id else None,
         "language": "en",
     }
     assert client.patch("/api/me/", {}).status_code == 405

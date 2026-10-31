@@ -78,7 +78,8 @@ export async function loginWithPassword(
   language: string,
 ): Promise<"authenticated" | "mfa_required"> {
   const response = await send("POST", "/login", language, { email, password });
-  if (response.ok) return "authenticated";
+  // A live browser session can remain after a failed /api/me/ lookup.
+  if (response.ok || response.status === 409) return "authenticated";
   const body = await readBody(response);
   if (response.status === 401 && body.data?.flows?.some((flow) => flow.id === "mfa_authenticate")) {
     return "mfa_required";

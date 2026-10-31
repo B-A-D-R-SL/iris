@@ -29,6 +29,7 @@ How to build a screen that fits Iris. Everything here follows the
 
 Menus and guards already exist. `src/app/navigation.ts` decides which roles see which tab;
 `RequireRole` sends signed-out visitors to `/sign-in` and other roles to their own home.
+After sign-in, it returns a visitor to the requested protected path when the role permits it.
 These only shape the interface: **every endpoint must still check permissions on the server.**
 
 ## Theme
@@ -106,8 +107,7 @@ await expectNoAxeViolations(container);                 // WCAG checks (NFR-03)
 "Add to home screen" / "Install"; iOS uses `apple-touch-icon.png` from Safari's share menu.
 Browsers only offer installation over HTTPS (or `localhost`), so test it on staging.
 
-## Not done here
+## Follow-up work
 
-- Persisting the chosen language in the profile (US-08) and signing out (T-01.01.3).
-- `/api/me/` comes from US-01. Until it is on `main`, everyone is treated as signed out; after it
-  merges, replace the hand-written `CurrentUser` type with the generated one.
+- Persisting the chosen language in the profile belongs to US-08.
+- US-01 implements sign-out and `/api/me/`; `CurrentUser` uses the generated API type.

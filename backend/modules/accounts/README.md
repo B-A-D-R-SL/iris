@@ -2,7 +2,7 @@
 # Accounts module
 
 **Owner pair:** Platform & setup
-**Status:** US-01 sign-in and current-user endpoint implemented; other account workflows pending
+**Status:** US-01 browser sign-in, sign-out, and current-user endpoint implemented; other account workflows pending
 
 ## Responsibility
 
@@ -21,7 +21,12 @@ Own the accounts feature boundary within the Iris modular monolith.
 ## Public functions
 
 No cross-module service or query functions are implemented yet. The module owns
-the `User` model and serves the authenticated `GET /api/me/` endpoint.
+the `User` model, serves the authenticated `GET /api/me/` endpoint, and enforces
+browser sign-in limits through its allauth adapter. Public signup remains closed
+until US-02 adds email verification.
+The `AuthCache` stores failed-attempt counters in PostgreSQL so workers share
+the five-attempt, 15-minute lockout. The Django admin uses
+`RateLimitedAdminAuthenticationForm` and shares that limit with browser sign-in.
 
 ## Architectural rules
 
@@ -36,6 +41,5 @@ Other accounts workflows remain scaffolds.
 
 ## Audit events
 
-No audit events are implemented as part of SET-14.
-Document emitted event names here when the module's
-business workflows are implemented.
+Authentication logs `sign_in_failed` and `sign_in_rate_limited` without account
+identifiers. Document later business audit events when their workflows are added.

@@ -1,4 +1,5 @@
 // AI contribution: 50% or more AI-generated
+import { QueryClient } from "@tanstack/react-query";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -39,6 +40,8 @@ describe("US-01 sign-in screen", () => {
     await screen.findByRole("heading", { name: "Connexion" });
     await userEvent.click(screen.getByRole("button", { name: "Connexion" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Entrez votre courriel");
+    expect(screen.getByRole("alert")).toHaveTextContent("Corrigez 2 champs");
+    expect(screen.getAllByText("Remplissez ce champ.")).toHaveLength(2);
     await userEvent.type(screen.getByRole("textbox", { name: "Courriel" }), "invalid");
     await userEvent.type(screen.getByLabelText("Mot de passe"), "secret");
     await userEvent.click(screen.getByRole("button", { name: "Connexion" }));
@@ -269,5 +272,136 @@ describe("US-01 sign-in screen", () => {
       }),
     );
     await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/sign-in"));
+  });
+
+  it("clears cached account data after local sign-out", async () => {
+    let signedIn = true;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input) === "/api/me/") {
+          return signedIn
+            ? Response.json(testUser("beneficiary"))
+            : new Response(null, { status: 401 });
+        }
+        if (String(input).endsWith("/auth/session")) {
+          signedIn = false;
+          return new Response(null, { status: 401 });
+        }
+        return new Response(null, { status: 404 });
+      }),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    renderWithProviders(<App />, { route: "/home", queryClient });
+    await screen.findByRole("heading", { name: "Accueil" });
+    queryClient.setQueryData(["private-list"], { items: ["previous account"] });
+    await userEvent.click(screen.getByRole("button", { name: "Mon compte" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Déconnexion" }));
+    await waitFor(() => expect(queryClient.getQueryData(["private-list"])).toBeUndefined());
+  });
+
+  it("clears cached account data when another tab signs out", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(testUser("admin"))),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    renderWithProviders(<App />, { route: "/staff/households", queryClient });
+    await screen.findByRole("heading", { name: "Foyers" });
+    queryClient.setQueryData(["private-list"], { items: ["previous account"] });
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: "iris:auth-change",
+        newValue: "signed-out:other-tab",
+      }),
+    );
+    await waitFor(() => expect(queryClient.getQueryData(["private-list"])).toBeUndefined());
+  });
+
+  it("returns to a protected deep link after sign-in", async () => {
+    let signedIn = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input) === "/api/me/") {
+          return signedIn
+            ? Response.json(testUser("store_manager"))
+            : new Response(null, { status: 401 });
+        }
+        if (String(input).endsWith("/auth/login")) {
+          signedIn = true;
+          return Response.json({});
+        }
+        return new Response(null, { status: 404 });
+      }),
+    );
+    renderWithProviders(
+      <>
+        <App />
+        <CurrentPath />
+      </>,
+      { route: "/store/listings/new" },
+    );
+    await screen.findByRole("heading", { name: "Connexion" });
+    await enterCredentials();
+    await waitFor(() =>
+      expect(screen.getByTestId("current-path")).toHaveTextContent("/store/listings/new"),
+    );
+  });
+
+  it("continues from an already-authenticated login response", async () => {
+    let signedIn = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input) === "/api/me/") {
+          return signedIn
+            ? Response.json(testUser("beneficiary"))
+            : new Response(null, { status: 401 });
+        }
+        if (String(input).endsWith("/auth/login")) {
+          signedIn = true;
+          return Response.json({ errors: [{ code: "already_authenticated" }] }, { status: 409 });
+        }
+        return new Response(null, { status: 404 });
+      }),
+    );
+    renderSignIn();
+    await screen.findByRole("heading", { name: "Connexion" });
+    await enterCredentials();
+    await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/home"));
+  });
+
+  it("lets the user leave the MFA code step", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input) === "/api/me/") return new Response(null, { status: 401 });
+        return Response.json({ data: { flows: [{ id: "mfa_authenticate" }] } }, { status: 401 });
+      }),
+    );
+    renderSignIn();
+    await screen.findByRole("heading", { name: "Connexion" });
+    await enterCredentials();
+    await screen.findByRole("textbox", { name: "Code de vérification" });
+    await userEvent.click(screen.getByRole("button", { name: "Utiliser un autre compte" }));
+    expect(screen.getByRole("textbox", { name: "Courriel" })).toBeInTheDocument();
+  });
+
+  it("provides recovery, registration and partner links", async () => {
+    renderSignIn();
+    await screen.findByRole("heading", { name: "Connexion" });
+    expect(screen.getByRole("link", { name: "Mot de passe oublié?" })).toHaveAttribute(
+      "href",
+      "/forgot-password",
+    );
+    expect(screen.getByRole("link", { name: "Créer un compte" })).toHaveAttribute(
+      "href",
+      "/sign-up",
+    );
+    expect(screen.getByRole("link", { name: /devenir partenaire/i })).toHaveAttribute(
+      "href",
+      "/partner/apply",
+    );
   });
 });
