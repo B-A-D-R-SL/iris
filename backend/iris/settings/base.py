@@ -129,6 +129,10 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "Iris API",
     "DESCRIPTION": "Backend API for the Iris redistribution platform.",
     "VERSION": "1.0.0",
+    # Explicit shared enum for the account and household language fields.
+    "ENUM_NAME_OVERRIDES": {
+        "LanguageEnum": [("fr", "Français"), ("en", "English")],
+    },
     # Document the Django health view without changing its authentication or behavior.
     "APPEND_PATHS": {
         "/api/health/": {

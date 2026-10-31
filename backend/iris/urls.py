@@ -14,6 +14,7 @@ urlpatterns = [
     # Health check
     path("api/health/", health, name="health"),
     path("api/", include("modules.accounts.api.urls")),
+    path("api/", include("modules.households.api.urls")),
     # Public listing categories
     path("api/categories/", include("modules.categories.api.urls")),
     # Django admin
