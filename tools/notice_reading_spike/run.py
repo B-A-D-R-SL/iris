@@ -5,6 +5,7 @@ Usage: uv run run.py --reader truth|azure-layout|vlm (--split dev|heldout|all | 
        --out results/x.csv [--record DIR (with --split only)]
 
 --files must be inside the repository; --out (a .csv file) and --record inside this folder.
+With --files, --out must be inside private/, which git ignores.
 """
 
 from __future__ import annotations
@@ -42,6 +43,7 @@ HERE = Path(__file__).resolve().parent
 NOTICES_DIR = HERE.parents[1] / "mock-data" / "notices"
 INPUT_ROOT = HERE.parents[1]  # --files may only read inside the repository
 OUTPUT_ROOT = HERE  # --out and --record may only write inside this folder
+PRIVATE_ROOT = HERE / "private"  # with --files, --out must be here: ignored by git, never committed
 CONTENT_TYPES = {
     ".pdf": "application/pdf",
     ".png": "image/png",
@@ -250,7 +252,7 @@ def main(argv: list[str] | None = None) -> None:
             if args.files
             else select_files(args.split, truth, NOTICES_DIR)
         )
-        out = contained(args.out, OUTPUT_ROOT)
+        out = contained(args.out, PRIVATE_ROOT if args.files else OUTPUT_ROOT)
         if out.suffix.lower() != ".csv":
             raise ValueError("--out must be a .csv file")  # never overwrite code or docs
         record_dir = contained(args.record, OUTPUT_ROOT) if args.record else None

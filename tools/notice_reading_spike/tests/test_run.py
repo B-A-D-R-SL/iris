@@ -38,6 +38,7 @@ def allow_tmp_paths(tmp_path, monkeypatch):
     """Let main() read and write under tmp_path, as it does under the repository."""
     monkeypatch.setattr(run, "INPUT_ROOT", tmp_path)
     monkeypatch.setattr(run, "OUTPUT_ROOT", tmp_path)
+    monkeypatch.setattr(run, "PRIVATE_ROOT", tmp_path)
 
 
 class FlakyReader:
@@ -401,6 +402,20 @@ def test_main_refuses_a_record_folder_outside_the_spike_folder(tmp_path, monkeyp
         main(argv + ["--record", str(tmp_path / "rec")])
     assert factory.built == 0
     assert not (tmp_path / "rec").exists()
+
+
+def test_main_refuses_a_files_output_outside_the_private_folder(
+    tmp_path, monkeypatch, allow_tmp_paths
+):
+    factory = CountingFactory()
+    monkeypatch.setitem(READERS, "truth", factory)
+    monkeypatch.setattr(run, "PRIVATE_ROOT", tmp_path / "private")
+    sample = _write_files(tmp_path, ["sample.pdf"])[0]
+    out = tmp_path / "results" / "real.csv"  # committed folder: no real notice's values here
+    with pytest.raises(SystemExit, match="real.csv is outside"):
+        main(["--reader", "truth", "--files", str(sample), "--out", str(out)])
+    assert factory.built == 0
+    assert not out.exists()
 
 
 def test_contained_resolves_a_path_inside_its_root_and_refuses_an_escape():
