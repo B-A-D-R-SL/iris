@@ -50,9 +50,12 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-12 Listing categories and safety lists (#403) | `docs/02-requirements/business-rules.md` (Listings section), `backend/modules/categories/data/categories.yaml` | 50% or more AI-generated | Not yet opened (`feature/SET-12` branch) |
 | SET-02 CI workflow and branch protection (#378, #379, #380, #381) | `.github/workflows/ci.yml`, `backend/pyproject.toml` (coverage and import-linter settings), `frontend/vite.config.ts` (coverage settings), `frontend/package.json` (scripts), `README.md` (checks and CI section) | 50% or more AI-generated | Not yet opened |
 | SET-15 OpenAPI and TypeScript generation (#406), partial implementation | `backend/iris/settings/base.py`, `backend/tests/test_api_schema.py`, `frontend/scripts/{gen-api,test-api-generation}.mjs`, `frontend/src/shared/api/generated.d.ts`, `frontend/src/test/api-types.typecheck.ts`, `frontend/package.json`, `frontend/pnpm-lock.yaml`, `.github/workflows/ci.yml`, `docs/guides/api-generation.md`, `docs/03-design/api.md`, `AI_USAGE.md`, `README.md` | 50% or more AI-generated | [#604](https://github.com/B-A-D-R-SL/iris/pull/604); categories compliance (#377) and documented team decisions remain pending |
+| T-05.33.2 Listing model (#493) | `backend/modules/listings/{__init__.py,apps.py,models.py,migrations/0001_initial.py,tests/}`, `backend/modules/categories/tests/{factories.py,test_category_model.py}` (its minimal Category model and migration were replaced by #377's when `main` was merged into `US-33-post-a-listing`), `backend/iris/settings/base.py` | 50% or more AI-generated (generated migrations exempt) | Not yet opened (`US-33-post-a-listing` branch) |
 | SET-16 Design system, translations and app shell (#407) | `frontend/src/app/` (theme, providers, routes, layouts, navigation, guards, error boundary), `frontend/src/areas/public/WelcomePage.tsx`, `frontend/src/features/accounts/currentUser.ts`, `frontend/src/shared/{forms,ui}/`, `frontend/src/shared/i18n/{fr,en}.json`, `frontend/src/test/`, `frontend/public/{manifest.webmanifest,favicon.svg,icons/}`, `frontend/index.html`, `frontend/package.json`, `docs/guides/design-system.md`; built from the Figma Components page (SET-11) | 50% or more AI-generated (lock file and generated icons exempt) | Not yet opened (`SET-16-design-system-translations-and-app-shell` branch) |
 | T-00.01.4 Categories reference module (#377) | `backend/modules/categories/`, `frontend/src/features/categories/`, `backend/iris/urls.py`, `frontend/src/app/App.tsx`, translations, API types, and `docs/guides/reference-module.md` | 50% or more AI-generated | Pending PR (`feature/SET-14`) |
 | SET-14 Module skeletons and boundary checks (#405) | `backend/modules/` (15 module structures and READMEs), `backend/iris/settings/base.py`, `backend/pyproject.toml`, and architecture-related Rules changes | 50% or more AI-generated | Pending PR (`feature/SET-14`) |
+| T-05.33.4 Posting form (#495) | `frontend/src/areas/store/{pages/NewListing.tsx,pages/newListingForm.ts,components/CategoryPicker.tsx}` and their CSS and tests, `frontend/src/features/listings/`, `frontend/src/shared/forms/IntegerField.tsx`, `frontend/src/shared/api/csrf.ts`, translations, `frontend/src/app/App.tsx`; the category-code change in `backend/modules/listings/` (serializers, service, domain input, tests) and `backend/modules/categories/queries.py`; regenerated API types; `docs/guides/{listing-posting,design-system}.md` | 50% or more AI-generated | Not yet opened (`US-33-post-a-listing` branch) |
+| T-05.33.5 Time-to-post check (#496) | `docs/usability/time-to-post.md` (study plan and results template), `frontend/scripts/usability/` (preview API, timing rules, report, tests), `frontend/package.json` (scripts), `frontend/.gitignore` | 50% or more AI-generated; the times and observations come from the sessions | Not yet opened (`US-33-post-a-listing` branch) |
 
 ## Examples, verification and corrections
 
@@ -306,6 +309,44 @@ At least half of the AI-assisted features need an example here. For each one:
   - The YAML keys first followed the team draft schema, including `sort_order`, while the SET-05 branch used other names (`french_label`, `food_indicator`, `active_indicator`) and no sort order. Agreed with the SET-05 owner: keep `name_fr`, `name_en`, `is_food`, `is_active` (consistent with `is_active` and `is_badr` on other tables) and drop `sort_order`.
   - The sentence on the `listing_safety` setting (`prohibited_category_codes`, empty by default) comes from the unmerged SET-07 branch, not the team draft; to be confirmed with the SET-07 owner.
 
+
+### T-05.33.3 Posting service/API and T-05.33.1 tests (#494, #492)
+
+- **What the AI produced:** with OpenAI Codex, the independent listing-posting
+  backend and tests (50% or more AI-generated): validation, role/store permission
+  checks, database operations, safety/photo integration interfaces, the POST
+  endpoint, translated errors, generated API types, and documentation. Mark
+  required compliance with the repository architecture and testing without
+  integrating Vlad's account code or implementing Ryan's safety checker.
+
+- **How we verified it:** Codex ran the checks under Mark's direction against
+  local PostgreSQL. All 228 backend tests passed with 90.01% coverage, exceeding
+  the 70% gate. Ruff lint and formatting, mypy across 91 files, the existing
+  import-linter contract, Django system checks, and missing-migration checks
+  passed. OpenAPI validation and generated-type drift checks passed; API
+  generator tests recorded seven passes and one expected Python-only skip.
+  All 11 frontend tests, TypeScript checking, production build, ESLint,
+  generated-declaration formatting, and Git whitespace checking passed.
+  Tests cover validation boundaries, permissions, server-controlled fields,
+  database writes, rule versions, safety refusals, upload checks, cleanup,
+  translated responses, and CSRF enforcement. all implemented files have been reviewed.
+
+- **Problems found and corrections:**
+  - Mark requested explanations of every changed file and questioned the
+    dependencies, database requirements, injection protection, and backend
+    translations. The decisions and remaining integration boundaries were
+    explained against the repository documentation.
+  - Mark identified a leading blank line that failed formatting. Removed it
+    using Ruff and reran the static checks.
+  - Mark requested removal of the private photo-storage reference from
+    responses. Removed it, updated schema assertions, and regenerated API types.
+  - Mark requested checking actual JPEG/PNG signatures instead of trusting
+    only the declared content type. Added signature checks and mismatch tests,
+    and updated existing photo fixtures.
+  - Mark requested controlled handling of missing or unexpected posting-rule
+    keys. These now return HTTP 503, with service tests and English/French API
+    tests confirming that no listing is saved.
+
 ### SET-16 Design system, translations and app shell (#407)
 
 - **What the AI produced:** with Claude Code, under Anthony Monaco's direction: the Mantine theme built from the Figma Components page of the owner's SET-11 wireframes, layouts for the public, household, store and staff areas with role-based navigation and route guards, the six shared form fields (`TextField`, `DateField`, `PostalCodeField`, `PhoneField`, `MoneyField`, `FileUpload`) with French and English validation messages, loading, empty and error states, the welcome page, the web app manifest and icons, tests and `docs/guides/design-system.md`.
@@ -319,3 +360,24 @@ At least half of the AI-assisted features need an example here. For each one:
   - The 360 px screenshots showed the staff header cutting off the language switch and a long side-nav label overflowing its row; both layouts were fixed and checked again.
   - `vitest-axe` (last released in 2022) was replaced by `axe-core`, which it only wraps.
   - The placeholder colour is darker than in the wireframes (`#6c757d` instead of `#868e96`) to meet the 4.5:1 contrast of NFR-03.
+
+### T-05.33.4 Posting form (#495)
+
+- **What the AI produced:** with Claude Code, under Anthony Monaco's direction: the one-screen, phone-first posting form at `/store/listings/new` following his SET-11 "Store - Post a listing" flow (bottom-sheet category picker with food first, − / + steppers, day chips, unit switch, best-before date for food only, error summary, publish bar that stays above the tab bar), the API client with CSRF and `Accept-Language`, a shared `IntegerField`, French and English texts, and tests. Before the form, `main` was merged into `US-33-post-a-listing` to bring in SET-16 and SET-14.
+- **Owner's decisions:** change the posting API to take the category **code**, because `GET /api/categories/` deliberately exposes no database IDs; add test-only import-linter exceptions for the listings tests rather than loosen SET-14's contract for every module; show "L'adresse de votre commerce" instead of the real address until a store endpoint exists; leave everything uncommitted for review.
+- **How we verified it:** 32 new Vitest tests (form rules, payload, API client and the whole screen through the router, including axe checks) and all 204 frontend tests pass; TypeScript, ESLint, Prettier and the production build pass. Backend: 255 tests pass (90.3% coverage); Ruff, mypy, import-linter, `manage.py check` and `makemigrations --check` pass; API types regenerated and the drift check passes. Anthony reviewed the code before committing it and checked the screen in his browser through the preview API; the one-hand check is part of T-05.33.5's sessions.
+- **Problems found and corrections:**
+  - The 7-days-ahead check first added calendar days, which is one hour off from the server's elapsed-time rule across a daylight-saving change (1 November 2026); it now adds 168 hours, and the tests use a week without a change so they pass in any time zone.
+  - The best-before date picker first had a minimum date, so an earlier date was silently dropped and the field said "Remplissez ce champ."; without it the date stays visible with its explanation, as in the SET-11 error state.
+  - ESLint's React Compiler rules refused reading a ref inside the submit handler; scrolling to the notices now happens in an effect, after they render.
+  - The merge with `main` registered the categories app twice and broke the listings tests against SET-14's new rules; the duplicates were removed and the tests adapted (`RuleValidationError`, constraint name).
+
+### T-05.33.5 Time-to-post check (#496)
+
+- **What the AI produced:** with Claude Code, under Anthony Monaco's direction: the study plan in `docs/usability/time-to-post.md` (set-up, French scenario card, procedure, results and fixes templates, limitations) and the tools in `frontend/scripts/usability/`: a preview API that answers as a store worker until US-01, times each participant from the form appearing to the accepted post, checks the post against the scenario and prints the median, plus a report script and 18 unit tests.
+- **Owner's decisions:** time runs automatically in the preview (stopwatch as backup); run the sessions in the browser's phone view on a PC rather than on phones; one food listing for everyone; commit the tools with tests so the team can rerun the study.
+- **How we verified it:** the 18 tool tests pass with the 204 existing frontend tests. End to end, a page opened in headless Edge as `?participant=P1` started P1's clock through Vite's proxy, a post was timed and matched the scenario, and the report printed the table. Anthony reviewed the code and ran a practice session with the preview. The sessions themselves, and so the times, are his to run.
+- **Problems found and corrections:**
+  - The categories are refetched when the tab becomes visible again, so "first request after the page loads" could have started a clock early; each participant now has their own clock, started by their page's first load and keyed by the code in the page address.
+  - Anthony's practice run showed a new clock starting when he came back to the browser, and pressing F5 did not restart it; a page reload (its `/api/me/` request) now drops the running clock, and the preview prints it.
+  - Vitest's Node environment cannot load the shared test set-up (it needs `document`); the tool tests run in the default jsdom environment, where Node's `http` still works.

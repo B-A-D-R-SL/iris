@@ -8,6 +8,7 @@ import { Navigate, Route, Routes } from "react-router";
 
 import { WelcomePage } from "../areas/public/WelcomePage";
 import { SignIn } from "../areas/public/pages/SignIn";
+import { NewListing } from "../areas/store/pages/NewListing";
 import { MobileAreaLayout } from "./layouts/MobileAreaLayout";
 import { PublicLayout } from "./layouts/PublicLayout";
 import { StaffLayout } from "./layouts/StaffLayout";
@@ -79,10 +80,7 @@ export default function App() {
             path="store/confirm"
             element={<PlaceholderScreen titleKey="reservation.common.confirmPickup" appBar />}
           />
-          <Route
-            path="store/listings/new"
-            element={<PlaceholderScreen titleKey="listing.common.postListing" appBar />}
-          />
+          <Route path="store/listings/new" element={<NewListing />} />
           <Route
             path="store/listings"
             element={<PlaceholderScreen titleKey="app.storeNav.myListings" appBar />}

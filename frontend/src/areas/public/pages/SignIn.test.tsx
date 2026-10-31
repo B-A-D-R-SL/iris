@@ -99,7 +99,8 @@ describe("US-01 sign-in screen", () => {
 
   it("rejects a whitespace-only password without sending a sign-in request", async () => {
     const fetchMock = vi.fn(
-      async (_input: RequestInfo | URL) => new Response(null, { status: 401 }),
+      async (input: RequestInfo | URL) =>
+        new Response(null, { status: String(input) === "/api/me/" ? 401 : 404 }),
     );
     vi.stubGlobal("fetch", fetchMock);
     renderSignIn();

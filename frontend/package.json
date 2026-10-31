@@ -13,6 +13,8 @@
     "test:coverage": "vitest run --coverage",
     "gen:api": "node scripts/gen-api.mjs",
     "test:api": "node scripts/test-api-generation.mjs",
+    "usability:preview": "node scripts/usability/preview.mjs",
+    "usability:report": "node scripts/usability/report.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

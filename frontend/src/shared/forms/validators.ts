@@ -123,14 +123,14 @@ export function isAcceptedFile({
   maxMb,
 }: {
   types: readonly string[];
-  maxMb: number;
+  maxMb?: number;
 }): Rule<File | null> {
   return (file) => {
     if (file === null) return null;
     if (!types.includes(file.type)) {
       return validationMessage("shared.validation.fileType", { types: fileTypeNames(types) });
     }
-    if (file.size > maxMb * BYTES_PER_MB) {
+    if (maxMb !== undefined && file.size > maxMb * BYTES_PER_MB) {
       return validationMessage("shared.validation.fileSize", { max: maxMb });
     }
     return null;

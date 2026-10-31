@@ -68,6 +68,7 @@ const form = useForm({
 | `PostalCodeField` | `"H2X 1Y4"` (uppercase, one space) |
 | `PhoneField` | `"+15145550123"` (E.164) once 10 digits are typed |
 | `MoneyField` | integer cents or `null` (shown `0,00 $` / `$0.00`) |
+| `IntegerField` | a whole number between `min` and `max`, with − and + buttons for one thumb |
 | `FileUpload` | a `File` or `null`; check it with `isAcceptedFile({ types, maxMb })` |
 
 - Fields are required unless `optional`; the label then ends with « (facultatif) ».

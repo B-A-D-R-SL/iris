@@ -13,3 +13,4 @@ class SessionAuthentication(DRFSessionAuthentication):
 
 class SessionAuthenticationScheme(SessionScheme):
     target_class = "modules.accounts.authentication.SessionAuthentication"
+    name = "irisSessionAuth"
