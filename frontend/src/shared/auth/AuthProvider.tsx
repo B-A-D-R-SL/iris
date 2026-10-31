@@ -23,12 +23,8 @@ async function clearSessionData(queryClient: QueryClient) {
   queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
 }
 
-/** Reuse the existing /api/me/ query for every screen and react to other tabs. */
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const queryClient = useQueryClient();
-  const { i18n } = useTranslation();
-  const { data: user } = useCurrentUser();
-
+/** Listen for session changes and notify other tabs without sharing account data. */
+function useAuthTabSync(queryClient: QueryClient) {
   useEffect(() => {
     function onStorage(event: StorageEvent) {
       if (event.key !== AUTH_EVENT_KEY) return;
@@ -52,38 +48,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function loadSignedInUser(): Promise<NonNullable<AuthContextValue["user"]>> {
-    let current: AuthContextValue["user"];
-    try {
-      await queryClient.invalidateQueries({
-        queryKey: CURRENT_USER_QUERY_KEY,
-        refetchType: "none",
-      });
-      current = await queryClient.fetchQuery({
-        queryKey: CURRENT_USER_QUERY_KEY,
-        queryFn: fetchCurrentUser,
-        staleTime: 0,
-      });
-    } catch {
-      throw new AuthError("profile_unavailable");
-    }
-    if (!current) throw new AuthError("profile_unavailable");
-    notifyTabs("signed-in");
-    return current;
+  return notifyTabs;
+}
+
+async function loadSignedInUser(
+  queryClient: QueryClient,
+  notifyTabs: (state: "signed-in" | "signed-out") => void,
+): Promise<NonNullable<AuthContextValue["user"]>> {
+  let current: AuthContextValue["user"];
+  try {
+    await queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY, refetchType: "none" });
+    current = await queryClient.fetchQuery({
+      queryKey: CURRENT_USER_QUERY_KEY,
+      queryFn: fetchCurrentUser,
+      staleTime: 0,
+    });
+  } catch {
+    throw new AuthError("profile_unavailable");
   }
+  if (!current) throw new AuthError("profile_unavailable");
+  notifyTabs("signed-in");
+  return current;
+}
+
+/** Reuse the existing /api/me/ query for every screen and react to other tabs. */
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
+  const { i18n } = useTranslation();
+  const { data: user } = useCurrentUser();
+  const notifyTabs = useAuthTabSync(queryClient);
+  const loadUser = () => loadSignedInUser(queryClient, notifyTabs);
 
   const language = i18n.resolvedLanguage ?? "fr";
   const value: AuthContextValue = {
     user,
     async signIn(email, password) {
       const result = await loginWithPassword(email, password, language);
-      return result === "mfa_required" ? result : loadSignedInUser();
+      return result === "mfa_required" ? result : loadUser();
     },
     async verifyCode(code) {
       await loginWithCode(code, language);
-      return loadSignedInUser();
+      return loadUser();
     },
-    retryProfile: loadSignedInUser,
+    retryProfile: loadUser,
     async signOut() {
       await logout(language);
       await clearSessionData(queryClient);
