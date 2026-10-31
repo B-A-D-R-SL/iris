@@ -75,7 +75,7 @@ Repeat with `--reader azure-layout`. Files outside the mock set have no truth ro
 | `--split` | `dev`, `heldout` or `all`: which mock notices to read |
 | `--files PATH...` | Read these files instead of a split; each must be inside the repository, and `--out` should go to `private/` |
 | `--record DIR` | Save each raw service response as `layout-<file>.json` (`azure-layout` with `--split` only); must be inside this folder |
-| `--out CSV` | Where to write the results; must be inside this folder |
+| `--out CSV` | Where to write the results; must be a `.csv` file inside this folder |
 
 ## After the first live Gemini call
 

@@ -408,3 +408,14 @@ def test_contained_resolves_a_path_inside_its_root_and_refuses_an_escape():
     assert contained(root / "results" / ".." / "README.md", root) == root / "README.md"
     with pytest.raises(ValueError, match="is outside"):
         contained(root / ".." / ".." / "README.md", root)
+
+
+@pytest.mark.parametrize("name", ["run.py", "notes.txt", "results"])
+def test_main_refuses_an_output_that_is_not_a_csv(tmp_path, monkeypatch, allow_tmp_paths, name):
+    factory = CountingFactory()
+    monkeypatch.setitem(READERS, "truth", factory)
+    target = tmp_path / name
+    with pytest.raises(SystemExit, match="--out must be a .csv file"):
+        main(["--reader", "truth", "--split", "dev", "--out", str(target)])
+    assert factory.built == 0
+    assert not target.exists()
