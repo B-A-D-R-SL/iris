@@ -12,7 +12,7 @@ Read next: [Notice Reading](https://github.com/B-A-D-R-SL/iris/wiki/Notice-Readi
 You need an Azure subscription (a student one or B.A.D.R.'s), a Google Cloud account, the Google Cloud CLI (`gcloud`, [install](https://cloud.google.com/sdk/docs/install)) for the sign-in in step 3, and [uv](https://docs.astral.sh/uv/). Run every command below from this folder (`tools/notice_reading_spike`). uv installs Python 3.13 and the dependencies into `.venv` on the first run.
 
 1. **Document Intelligence.** In the Azure portal, create a Document Intelligence resource on the free tier (F0) in Canada Central, the only Canadian region that offered it on 2026-10-30. Copy the endpoint and one key from "Keys and Endpoint".
-2. **Vertex AI.** In Google Cloud, create a project, link a billing account and enable the Vertex AI API. In Model Garden, look at the models offered in Montréal (`northamerica-northeast1`) and pick the newest Gemini Flash.
+2. **Vertex AI.** In Google Cloud, create a project, link a billing account and enable the Vertex AI API. In Model Garden, check that Gemini 3.5 Flash is offered in Montréal (`northamerica-northeast1`).
 3. **Sign in to Google.** Run `gcloud auth application-default login`. Vertex AI uses these Application Default Credentials; no Google key goes in `.env`.
 4. **Fill `.env`.** Run `cp .env.example .env`, then fill every empty value. `.env` is ignored by git; never commit it.
 
@@ -21,7 +21,7 @@ You need an Azure subscription (a student one or B.A.D.R.'s), a Google Cloud acc
 | `AZURE_DI_ENDPOINT`, `AZURE_DI_KEY` | From the Document Intelligence resource |
 | `AZURE_DI_PRICE_PER_PAGE_USD` | The layout price per page on Azure's pricing page |
 | `GOOGLE_CLOUD_PROJECT` | The Google Cloud project ID |
-| `VERTEX_MODEL` | The Gemini Flash model ID chosen in step 2 |
+| `VERTEX_MODEL` | `gemini-3.5-flash`, the only Gemini Flash model whose processing Google commits to Canada; the reader refuses any other |
 | `VERTEX_INPUT_PRICE_PER_MTOK_USD`, `VERTEX_OUTPUT_PRICE_PER_MTOK_USD` | That model's price per million input and output tokens |
 | `VERTEX_LOCATION` | Keep `northamerica-northeast1`; the reader refuses any other value |
 

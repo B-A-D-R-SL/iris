@@ -27,6 +27,8 @@ from reader import UNREAD, DocumentReadError, NoticeReading, ReadField
 logger = logging.getLogger(__name__)
 
 REGION = "northamerica-northeast1"  # Montreal: the only region allowed for this reader
+# Google commits processing to Canada per model; 3.6 to 3.8 Flash are US and EU only (ADR 0005)
+MODEL = "gemini-3.5-flash"
 TIMEOUT_MS = 60_000  # US-22 budget per notice (the SDK timeout is in milliseconds)
 PDF_SCALE = 150 / 72  # render PDF pages at 150 dpi
 # Google: temperature, top_p and top_k "are no longer recommended for all Gemini 3.x models";
@@ -192,6 +194,11 @@ class VlmReader:
             raise ValueError(
                 f"{_ENV_LOCATION} must be {REGION}: the project's data-location "
                 "requirement restricts this reader to the Montréal region"
+            )
+        if model != MODEL:
+            raise ValueError(
+                f"{_ENV_MODEL} must be {MODEL}: the only Gemini Flash model whose processing "
+                "Google commits to Canada"
             )
         client = genai.Client(vertexai=True, project=project, location=location)
         return cls(client, model, input_price, output_price)

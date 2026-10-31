@@ -292,7 +292,7 @@ def test_read_notice_sends_no_sampling_or_thinking_setting_as_its_settings_repor
 def _env(monkeypatch, **overrides: str | None) -> None:
     values = {
         "GOOGLE_CLOUD_PROJECT": "iris-spike",
-        "VERTEX_MODEL": "gemini-test",
+        "VERTEX_MODEL": "gemini-3.5-flash",
         "VERTEX_LOCATION": "northamerica-northeast1",
         "VERTEX_INPUT_PRICE_PER_MTOK_USD": "0.30",
         "VERTEX_OUTPUT_PRICE_PER_MTOK_USD": "2.50",
@@ -308,6 +308,12 @@ def _env(monkeypatch, **overrides: str | None) -> None:
 def test_from_env_refuses_a_location_other_than_montreal(monkeypatch):
     _env(monkeypatch, VERTEX_LOCATION="us-central1")
     with pytest.raises(ValueError, match="northamerica-northeast1"):
+        VlmReader.from_env()
+
+
+def test_from_env_refuses_a_model_without_processing_committed_to_canada(monkeypatch):
+    _env(monkeypatch, VERTEX_MODEL="gemini-3.8-flash")  # committed to the US and EU only
+    with pytest.raises(ValueError, match="VERTEX_MODEL must be gemini-3.5-flash"):
         VlmReader.from_env()
 
 
@@ -339,7 +345,7 @@ def test_from_env_builds_a_vertex_client_in_montreal(monkeypatch):
         "location": "northamerica-northeast1",
     }
     assert (reader.model, reader.input_price_per_mtok, reader.output_price_per_mtok) == (
-        "gemini-test",
+        "gemini-3.5-flash",
         0.30,
         2.50,
     )
