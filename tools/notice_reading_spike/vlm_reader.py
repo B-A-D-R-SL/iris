@@ -241,11 +241,21 @@ class VlmReader:
         return answer
 
     def _cost(self, response: Any) -> float:
+        """USD for the call, from its token counts; 0.0 with a warning when they are not usable."""
         usage = response.usage_metadata
-        if usage is None:
+        counts = (
+            (None, None)
+            if usage is None
+            else (usage.prompt_token_count, usage.candidates_token_count)
+        )
+        if None in counts:
+            logger.warning("vlm_usage_missing")  # a billed call must not look free unnoticed
             return 0.0
-        prompt_tokens = usage.prompt_token_count or 0
-        output_tokens = (usage.candidates_token_count or 0) + (usage.thoughts_token_count or 0)
+        if any(isinstance(n, bool) or not isinstance(n, int) or n < 0 for n in counts):
+            logger.warning("vlm_usage_malformed")
+            return 0.0
+        prompt_tokens, candidate_tokens = counts
+        output_tokens = candidate_tokens + (usage.thoughts_token_count or 0)  # no thinking: None
         return (
             prompt_tokens * self.input_price_per_mtok + output_tokens * self.output_price_per_mtok
         ) / 1_000_000

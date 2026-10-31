@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -224,12 +225,42 @@ def test_read_notice_resets_cost_when_the_next_call_fails():
     assert reader.last_cost_usd == 0.0
 
 
-def test_read_notice_cost_is_zero_when_usage_is_missing():
+def test_read_notice_warns_and_reports_zero_cost_when_usage_is_missing(caplog):
     reply = response(payload())
     reply.usage_metadata = None
     reader = VlmReader(FakeClient(reply), "m", 1.0, 1.0)
-    reader.read_notice(PNG, "image/png")
+    with caplog.at_level(logging.WARNING):
+        reader.read_notice(PNG, "image/png")
     assert reader.last_cost_usd == 0.0
+    assert "vlm_usage_missing" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("prompt", "candidates", "event"),
+    [
+        (None, 200, "vlm_usage_missing"),
+        (1000, None, "vlm_usage_missing"),
+        (-5, 200, "vlm_usage_malformed"),
+        (True, 200, "vlm_usage_malformed"),
+    ],
+)
+def test_read_notice_warns_on_incomplete_or_malformed_token_counts(
+    caplog, prompt, candidates, event
+):
+    reply = response(payload(), prompt=prompt, candidates=candidates)
+    reader = VlmReader(FakeClient(reply), "m", 1.0, 1.0)
+    with caplog.at_level(logging.WARNING):
+        reader.read_notice(PNG, "image/png")
+    assert reader.last_cost_usd == 0.0
+    assert event in caplog.text
+
+
+def test_read_notice_counts_missing_thinking_tokens_as_zero(caplog):
+    reader = VlmReader(FakeClient(response(payload(), thoughts=None)), "m", 1.0, 4.0)
+    with caplog.at_level(logging.WARNING):
+        reader.read_notice(PNG, "image/png")
+    assert reader.last_cost_usd == pytest.approx(1000 * 1.0 / 1e6 + 200 * 4.0 / 1e6)
+    assert "vlm_usage" not in caplog.text
 
 
 def test_settings_record_model_region_temperature_and_thinking():
