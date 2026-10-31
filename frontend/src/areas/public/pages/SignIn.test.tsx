@@ -97,6 +97,49 @@ describe("US-01 sign-in screen", () => {
     );
   });
 
+  it("rejects a whitespace-only password without sending a sign-in request", async () => {
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL) => new Response(null, { status: 401 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderSignIn();
+    await screen.findByRole("heading", { name: "Connexion" });
+    await userEvent.type(screen.getByRole("textbox", { name: "Courriel" }), "user@example.test");
+    await userEvent.type(screen.getByLabelText("Mot de passe"), "   ");
+    await userEvent.click(screen.getByRole("button", { name: "Connexion" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Corrigez 1 champ.");
+    expect(fetchMock.mock.calls.every(([url]) => String(url) === "/api/me/")).toBe(true);
+  });
+
+  it("clears previous-user cached responses before loading a new profile", async () => {
+    let signedIn = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input) === "/api/me/") {
+          return signedIn
+            ? Response.json(testUser("beneficiary"))
+            : new Response(null, { status: 401 });
+        }
+        if (String(input).endsWith("/auth/login")) {
+          signedIn = true;
+          return Response.json({});
+        }
+        return new Response(null, { status: 404 });
+      }),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    renderWithProviders(<App />, { route: "/sign-in", queryClient });
+    await screen.findByRole("heading", { name: "Connexion" });
+    queryClient.setQueryData(["private-list"], { items: ["previous account"] });
+
+    await enterCredentials();
+
+    await screen.findByRole("heading", { name: "Accueil" });
+    expect(queryClient.getQueryData(["private-list"])).toBeUndefined();
+  });
+
   it("retries the profile lookup without submitting the password again", async () => {
     let signedIn = false;
     let profileAvailable = false;

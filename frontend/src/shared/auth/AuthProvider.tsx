@@ -14,12 +14,17 @@ import { AuthContext, type AuthContextValue } from "./authContext";
 
 const AUTH_EVENT_KEY = "iris:auth-change";
 
-/** Drop responses cached for the previous user and mark the session as signed out. */
-async function clearSessionData(queryClient: QueryClient) {
+/** Cancel requests and drop data that belongs to a previous user. */
+async function clearCachedQueries(queryClient: QueryClient) {
   await queryClient.cancelQueries();
   queryClient.removeQueries({
     predicate: (query) => query.queryKey[0] !== CURRENT_USER_QUERY_KEY[0],
   });
+}
+
+/** Drop responses cached for the previous user and mark the session as signed out. */
+async function clearSessionData(queryClient: QueryClient) {
+  await clearCachedQueries(queryClient);
   queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
 }
 
@@ -57,6 +62,7 @@ async function loadSignedInUser(
 ): Promise<NonNullable<AuthContextValue["user"]>> {
   let current: AuthContextValue["user"];
   try {
+    await clearCachedQueries(queryClient);
     await queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY, refetchType: "none" });
     current = await queryClient.fetchQuery({
       queryKey: CURRENT_USER_QUERY_KEY,

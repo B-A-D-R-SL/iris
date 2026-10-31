@@ -406,7 +406,8 @@
     "form": {
       "optional": "(optional)",
       "requiredNotice": "All fields are required unless marked “optional”.",
-      "errorCount": "Fields to correct: {{count}}."
+      "errorCountOne": "Field to correct: {{count}}.",
+      "errorCountOther": "Fields to correct: {{count}}."
     },
     "validation": {
       "required": "Fill in this field.",

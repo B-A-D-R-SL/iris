@@ -406,7 +406,8 @@
     "form": {
       "optional": "(facultatif)",
       "requiredNotice": "Tous les champs sont obligatoires, sauf ceux marqués « facultatif ».",
-      "errorCount": "Corrigez {{count}} champs."
+      "errorCountOne": "Corrigez {{count}} champ.",
+      "errorCountOther": "Corrigez {{count}} champs."
     },
     "validation": {
       "required": "Remplissez ce champ.",

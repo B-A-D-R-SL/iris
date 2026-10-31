@@ -44,7 +44,7 @@ A person who can sign in to Iris.
 | phone | string | — | Contact phone number. |
 | preferred_language | string | — | `fr` or `en`; default `fr`. |
 | role | string | — | `beneficiary`, `store_staff`, `store_manager`, `intake_worker`, or `admin`. |
-| store | reference | Foreign key | Required for store staff and managers; NULL for other roles. Deletion is protected while users reference the store. |
+| store | reference | Foreign key | Required for store staff and managers; nullable for other roles. Deletion is protected while users reference the store. |
 | is_active | boolean | — | Whether the account is active. |
 
 **Documented constraints and business rules**

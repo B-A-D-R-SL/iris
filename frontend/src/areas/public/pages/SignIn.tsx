@@ -28,7 +28,7 @@ const ERROR_KEYS: Partial<Record<AuthErrorCode, ErrorKey>> = {
 /** Check the visible step before sending credentials to the server. */
 function validateStep(step: Step, email: string, password: string, code: string): ErrorKey | null {
   if (step === "code") return /^\d{6}$/.test(code) ? null : "invalidCode";
-  if (!email.trim() || !password) return "required";
+  if (!email.trim() || !password.trim()) return "required";
   return isEmail()(email) ? "invalidEmail" : null;
 }
 
@@ -108,9 +108,10 @@ async function submitCredentials(event: FormEvent<HTMLFormElement>, actions: Sig
   const { state, auth, destination, navigate } = actions;
   const { step, form } = state;
   state.setError(null);
+  const { hasErrors } = await form.validate();
   const invalid = validateStep(step, form.values.email, form.values.password, form.values.code);
-  if ((await form.validate()).hasErrors && invalid) {
-    state.setError(invalid);
+  if (hasErrors || invalid) {
+    state.setError(invalid ?? "required");
     return;
   }
   state.setPending(true);
@@ -262,7 +263,12 @@ export function SignIn() {
             type="error"
             title={
               Object.keys(flow.form.errors).length > 0
-                ? t("shared.form.errorCount", { count: Object.keys(flow.form.errors).length })
+                ? t(
+                    Object.keys(flow.form.errors).length === 1
+                      ? "shared.form.errorCountOne"
+                      : "shared.form.errorCountOther",
+                    { count: Object.keys(flow.form.errors).length },
+                  )
                 : undefined
             }
           >
