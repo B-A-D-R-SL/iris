@@ -1,4 +1,4 @@
-
+# AI contribution: 50% or more AI-generated
 [project]
 name = "backend"
 version = "0.1.0"
@@ -135,6 +135,15 @@ ignore_imports = [
     "modules.listings.** -> modules.stores.queries",
     "modules.listings.** -> modules.priority.services",
     "modules.listings.** -> modules.priority.queries",
+
+    # listings tests -> test setup only: the public services take model
+    # instances, so building categories, stores and rule versions needs these.
+    "modules.listings.tests.** -> modules.categories.models",
+    "modules.listings.tests.** -> modules.categories.tests.factories",
+    "modules.listings.tests.** -> modules.stores.models",
+    "modules.listings.tests.** -> modules.stores.tests.factories",
+    "modules.listings.tests.** -> modules.rules.models",
+    "modules.listings.tests.** -> modules.rules.domain.schemas",
 
     # reservations -> listings, households, priority
     "modules.reservations.** -> modules.listings.services",

@@ -1,0 +1,83 @@
+# AI contribution: 50% or more AI-generated
+msgid ""
+msgstr ""
+"Project-Id-Version: Iris\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Enter a title of %(title_min_length)s to %(title_max_length)s characters."
+msgstr "Entrez un titre de %(title_min_length)s à %(title_max_length)s caractères."
+
+msgid "Enter at most %(description_max_length)s characters."
+msgstr "Entrez au plus %(description_max_length)s caractères."
+
+msgid "Enter a quantity from 1 to %(quantity_max)s."
+msgstr "Entrez une quantité de 1 à %(quantity_max)s."
+
+msgid "Choose item or bundle."
+msgstr "Choisissez article ou lot."
+
+msgid "Enter a household limit from 1 to %(max_per_household)s."
+msgstr "Entrez un maximum par foyer de 1 à %(max_per_household)s."
+
+msgid "Enter a value from 0 to %(estimated_value_max_cents)s cents."
+msgstr "Entrez une valeur de 0 à %(estimated_value_max_cents)s cents."
+
+msgid "Tick this box to publish."
+msgstr "Cochez cette case pour publier."
+
+msgid "Include a timezone offset in the pickup time."
+msgstr "Précisez le fuseau horaire dans l’heure de cueillette."
+
+msgid "Choose a pickup start between now and %(pickup_start_max_days)s days ahead."
+msgstr "Choisissez un début de cueillette entre maintenant et dans %(pickup_start_max_days)s jours."
+
+msgid "The pickup must last %(pickup_min_minutes)s to %(pickup_max_minutes)s minutes."
+msgstr "La cueillette doit durer de %(pickup_min_minutes)s à %(pickup_max_minutes)s minutes."
+
+msgid "This listing was refused by the safety checks."
+msgstr "Cette offre a été refusée par les vérifications de sécurité."
+
+msgid "An active store account is required to post a listing."
+msgstr "Un compte de commerce actif est requis pour publier une offre."
+
+msgid "You can only post for your own store."
+msgstr "Vous pouvez publier uniquement pour votre propre commerce."
+
+msgid "Your store must be active to post a listing."
+msgstr "Votre commerce doit être actif pour publier une offre."
+
+msgid "Choose an active category."
+msgstr "Choisissez une catégorie active."
+
+msgid "Listing rules must be seeded before posting."
+msgstr "Les règles des offres doivent être initialisées avant de publier."
+
+msgid "Listing posting rules need configuration."
+msgstr "Les règles de publication des offres doivent être configurées."
+
+msgid "Listing safety checks are not available yet."
+msgstr "Les vérifications de sécurité des offres ne sont pas encore disponibles."
+
+msgid "The listing safety integration needs configuration."
+msgstr "L’intégration des vérifications de sécurité des offres doit être configurée."
+
+msgid "Listing photo storage is not available yet."
+msgstr "Le stockage des photos des offres n’est pas encore disponible."
+
+msgid "Choose a JPEG or PNG image."
+msgstr "Choisissez une image JPEG ou PNG."
+
+msgid "The image exceeds the allowed file size."
+msgstr "L’image dépasse la taille de fichier permise."
+
+msgid "This field cannot be submitted."
+msgstr "Ce champ ne peut pas être envoyé."
+
+msgid "Check the highlighted fields."
+msgstr "Vérifiez les champs indiqués."
+
+msgid "The request was refused."
+msgstr "La demande a été refusée."
