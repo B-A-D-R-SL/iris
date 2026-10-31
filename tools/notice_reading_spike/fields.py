@@ -12,7 +12,6 @@ _DATE = re.compile(r"(\d{1,2})(?:er)?\s+([a-z]+)\s+(\d{4})")
 _POSTAL = re.compile(r"([A-Z]\d[A-Z])\s?(\d[A-Z]\d)")
 # "app. 106", "apt. 4B", "unité 12" or "# 7"; \b keeps words like "appartement" whole
 _UNIT_MARKER = re.compile(r"(?:(?:app|apt|unit[eé])(?:\.|\b)|#)\s*", re.IGNORECASE)
-_SPACES = re.compile(r"\s+")  # \s already matches the no-break spaces U+00A0 and U+202F
 _MONTHS = {
     name: number
     for number, name in enumerate(
@@ -43,7 +42,7 @@ def strip_accents(text: str) -> str:
 
 def parse_amount_cents(text: str) -> int | None:
     """Parse "23 456,78" or "23 456,78 $" into cents; None when it is not an amount."""
-    compact = _SPACES.sub("", text.replace("$", ""))
+    compact = "".join(text.replace("$", "").split())  # split() also drops no-break spaces
     if not _AMOUNT.fullmatch(compact):
         return None
     whole, _, fraction = compact.partition(",")
@@ -52,7 +51,7 @@ def parse_amount_cents(text: str) -> int | None:
 
 def parse_french_date(text: str) -> dt.date | None:
     """Parse "28 mars 2026" or "1er avril 2026"; a missing accent in the month is accepted."""
-    match = _DATE.fullmatch(_SPACES.sub(" ", strip_accents(text).strip().casefold()))
+    match = _DATE.fullmatch(" ".join(strip_accents(text).casefold().split()))
     if match is None:
         return None
     day, month_name, year = match.groups()
