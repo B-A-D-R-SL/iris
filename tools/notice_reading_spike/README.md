@@ -5,7 +5,7 @@ Spike SET-19 ([#410](https://github.com/B-A-D-R-SL/iris/issues/410)) compares tw
 
 The two options get different PDF input: Document Intelligence receives the original PDF, with its text layer; Gemini receives 150-dpi PNG renders of each page, so it sees only the visible text.
 
-Read next: the [planning note](../../docs/06-planning/set-19-notice-reading-spike.md), the [draft ADR 0005](../../docs/adr/0005-notice-reading.md) (pass criteria and decision) and the [Law 25 evidence](../../docs/04-data/notice-reading-privacy-inputs.md). The spike sends the mock notices and the public redacted sample (no personal data) to the services, and never a real notice.
+Read next: [Notice Reading](https://github.com/B-A-D-R-SL/iris/wiki/Notice-Reading) on the wiki (overview, with the [results](https://github.com/B-A-D-R-SL/iris/wiki/Notice-Reading-%E2%80%93-Results) and the [Law 25 evidence](https://github.com/B-A-D-R-SL/iris/wiki/Notice-Reading-%E2%80%93-Law-25-Evidence)) and the [draft ADR 0005](../../docs/adr/0005-notice-reading.md) (pass criteria and decision). The spike sends the mock notices and the public redacted sample (no personal data) to the services, and never a real notice.
 
 ## Setup
 
@@ -36,7 +36,7 @@ uv run pytest
 uv run ruff check . && uv run ruff format --check .
 ```
 
-**Record fixtures.** `--record` saves the full raw service response, including every number printed on the notice. Use it only on the mock notices, never on a real document; `run.py` refuses it together with `--files`. Run the dev split, keep notices 003 and 031 and delete the other six files. Recorded files are named `layout-notice-NNN.json` and sit beside the synthetic `tests/fixtures/synthetic-layout-notice-003.json`, which stays. Commit the two kept files, then run `uv run pytest` again: the truth test checks every fixture. If a recording does not parse to its truth, fix the parser using dev files only, or remove that recording and note why in `results/summary.md`.
+**Record fixtures.** `--record` saves the full raw service response, including every number printed on the notice. Use it only on the mock notices, never on a real document; `run.py` refuses it together with `--files`. Run the dev split, keep notices 003 and 031 and delete the other six files. Recorded files are named `layout-notice-NNN.json` and sit beside the synthetic `tests/fixtures/synthetic-layout-notice-003.json`, which stays. Commit the two kept files, then run `uv run pytest` again: the truth test checks every fixture. If a recording does not parse to its truth, fix the parser using dev files only, or remove that recording and note why on the wiki's results page.
 
 ```sh
 uv run --env-file .env run.py --reader azure-layout --split dev --record tests/fixtures/ --out results/azure-dev.csv
@@ -48,7 +48,7 @@ uv run --env-file .env run.py --reader azure-layout --split dev --record tests/f
 uv run --env-file .env run.py --reader vlm --split dev --out results/vlm-dev.csv
 ```
 
-**Freeze before the held-out runs.** The dev split is for tuning the parser and the prompt. Before the held-out runs, freeze the code, the prompt and the model settings, and note the commit (each summary's settings block records it). If anything changes afterwards, rerun both full passes. The Gemini reader sends no temperature, top_p, top_k or thinking setting, so the model's defaults apply: Google's Gemini 3.x guidance says these parameters "are no longer recommended" and to remove them from requests. If you switch to a model whose guidance differs, set them in `vlm_reader.py` before the held-out runs and note it in `results/summary.md`.
+**Freeze before the held-out runs.** The dev split is for tuning the parser and the prompt. Before the held-out runs, freeze the code, the prompt and the model settings, and note the commit (each summary's settings block records it). If anything changes afterwards, rerun both full passes. The Gemini reader sends no temperature, top_p, top_k or thinking setting, so the model's defaults apply: Google's Gemini 3.x guidance says these parameters "are no longer recommended" and to remove them from requests. If you switch to a model whose guidance differs, set them in `vlm_reader.py` before the held-out runs and note it on the wiki's results page.
 
 **Full runs.** The pass criteria use the held-out notices; `--split all` reads all 50 files. Run it twice per reader to see whether the answers repeat:
 
@@ -59,7 +59,7 @@ uv run --env-file .env run.py --reader vlm --split all --out results/vlm-1.csv
 uv run --env-file .env run.py --reader vlm --split all --out results/vlm-2.csv
 ```
 
-Write `results/summary.md` by hand: repeatability between the two runs, and held-out against dev accuracy. Commit `results/` (mock data only).
+Write the analysis by hand on the wiki's [Notice Reading – Results](https://github.com/B-A-D-R-SL/iris/wiki/Notice-Reading-%E2%80%93-Results) page: repeatability between the two runs, and held-out against dev accuracy. Commit `results/` (mock data only).
 
 **Real-notice conditions.** `--files` reads any PDF, PNG or JPEG; every path is checked before the first call. Download the public redacted sample notice published by Carte loisir ([PDF](https://www.carteloisir.ca/app/uploads/cal/exemples/avis-de-cotisation-pour-deficience-grave-et-prolongee-des-fonctions-mentales-ou-physiques-revenu-quebec.pdf)) to a folder outside the repository, never inside it, and never commit it. Use that path in the command below (`../../../notice-sample/redacted.pdf` is only an example). Also read two mockup screenshots that are not notices. Write the `--files` outputs to a folder outside the repository too (the example uses the sample's folder):
 
@@ -67,7 +67,7 @@ Write `results/summary.md` by hand: repeatability between the two runs, and held
 uv run --env-file .env run.py --reader vlm --files ../../../notice-sample/redacted.pdf "../../docs/03-design/mockups/Registration.png" "../../docs/03-design/mockups/Store - Post a listing.png" --out ../../../notice-sample/vlm-real.csv
 ```
 
-Repeat with `--reader azure-layout`. Files outside the mock set have no truth row, so read their CSV rows by eye. The mockups should return no value at confidence 0.90 or more. Copy only the per-file lists of confident fields from these summaries into `results/summary.md`, never the CSVs.
+Repeat with `--reader azure-layout`. Files outside the mock set have no truth row, so read their CSV rows by eye. The mockups should return no value at confidence 0.90 or more. Copy only the per-file lists of confident fields from these summaries into the wiki's results page, never the CSVs.
 
 | Flag | Meaning |
 | --- | --- |
@@ -81,7 +81,7 @@ Repeat with `--reader azure-layout`. Files outside the mock set have no truth ro
 
 The offline tests cannot check that Vertex AI accepts the JSON response schema (`response_json_schema` with nullable text). If the first call fails with a schema error, fix that before measuring.
 
-The [Law 25 evidence](../../docs/04-data/notice-reading-privacy-inputs.md) has Gemini rows marked Unknown, because Google's documentation site could not be fetched when it was written. Read the pages it lists and update those rows before the decision.
+If you change the model, recheck its rows on the wiki's [Law 25 evidence](https://github.com/B-A-D-R-SL/iris/wiki/Notice-Reading-%E2%80%93-Law-25-Evidence) page: the Canadian processing commitment and the security controls are listed per model.
 
 ## What this spike cannot test
 
@@ -94,12 +94,12 @@ The [Law 25 evidence](../../docs/04-data/notice-reading-privacy-inputs.md) has G
 
 1. Provision both services and fill `.env` (Setup).
 2. Record fixtures, commit the two kept files, rerun `uv run pytest`.
-3. Dev smoke run, then two full runs per reader into `results/`; write `results/summary.md`.
-4. Real-notice conditions with `--files`; add the findings to `results/summary.md`.
+3. Dev smoke run, then two full runs per reader into `results/`; write the analysis on the wiki's results page.
+4. Real-notice conditions with `--files`; add the findings to the wiki's results page.
 5. Fill the results table and the decision in [ADR 0005](../../docs/adr/0005-notice-reading.md).
-6. Set the status in the [planning note](../../docs/06-planning/set-19-notice-reading-spike.md).
+6. Set the status on the wiki's [Notice Reading](https://github.com/B-A-D-R-SL/iris/wiki/Notice-Reading) page.
 7. Add the `document_reader` row to [`architecture.md`](../../docs/04-architecture/architecture.md).
-8. Update the Gemini rows of the [Law 25 evidence](../../docs/04-data/notice-reading-privacy-inputs.md).
+8. Check the provider rows of the wiki's [Law 25 evidence](https://github.com/B-A-D-R-SL/iris/wiki/Notice-Reading-%E2%80%93-Law-25-Evidence) page.
 9. Clean up (below), then open the pull request.
 
 ## Clean up after measuring

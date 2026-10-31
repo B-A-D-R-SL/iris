@@ -7,12 +7,12 @@ Status: Proposed · Date: 2026-10-23 · Results: 2026-10-30
 
 Iris reads the household income from a Revenu Québec notice of assessment (US-22), so that staff do not retype it and automatic approval can rely on it. Four constraints shape the choice:
 
-- **Law 25:** the notice is personal and financial information. The [evidence document](../04-data/notice-reading-privacy-inputs.md) lists what ss. 17 and 18.3 ask for, including written terms with the provider; B.A.D.R.'s privacy officer decides how they apply.
+- **Law 25:** the notice is personal and financial information. The [evidence document](https://github.com/B-A-D-R-SL/iris/wiki/Notice-Reading-%E2%80%93-Law-25-Evidence) lists what ss. 17 and 18.3 ask for, including written terms with the provider; B.A.D.R.'s privacy officer decides how they apply.
 - **Canadian processing:** the team requires AI reading to run in a Canadian region.
 - **Budget:** the team caps an environment at 60 USD per month and plans 35 to 50 USD for hosting ([architecture draft](../04-architecture/architecture-initial-draft.md)), and a result must arrive within 60 seconds per notice.
 - **Wrong values are costly:** a wrong income at high confidence could auto-approve a household, so the confidence threshold (0.90) is a rule setting.
 
-Spike SET-19 ([#410](https://github.com/B-A-D-R-SL/iris/issues/410)) measures two options on 50 fictional notices. Method and runbook: [planning note](../06-planning/set-19-notice-reading-spike.md), [harness README](../../tools/notice_reading_spike/README.md).
+Spike SET-19 ([#410](https://github.com/B-A-D-R-SL/iris/issues/410)) measures two options on 50 fictional notices. Overview: [Notice Reading](https://github.com/B-A-D-R-SL/iris/wiki/Notice-Reading) on the wiki; runbook: [harness README](../../tools/notice_reading_spike/README.md).
 
 ## Options compared
 
@@ -83,9 +83,9 @@ The name is returned as printed because the notice prints one string and compoun
 | A. Document Intelligence | 100% (29/29) | 100% (12/12) | 0 | 90.2%, **80.5% (fails)**, 100%, 100% | Unreadable photo and 2 wrong documents: 0 values at ≥ 0.90 | 0 | 38.2 s (free-tier waits; median 5.6 s) | 0.017 USD at the paid rate | Canada Central (Toronto) / Canada Central, the only Canadian region offering it: outside Québec | Deletes each result after reading (tested); a Core Online Service, so the contract keeps data at rest in the Canada Geo; training on our data unknown; covered by the Microsoft credits; terms for legal review |
 | B. Gemini on Vertex AI | 100% (29/29); run 1: 96.6%, one failed call | 100% (12/12) | 0 | 100% each; run 1: 97.6% each, same failed call | Unreadable photo and 2 wrong documents: 0 values at ≥ 0.90 | 0 | 5.1 s (run 1: 9.5 s) | 0.014 USD | Montréal endpoint / Montréal endpoint; Google commits processing to Canada, not Québec | No training on our data; caching can be turned off; prompts flagged for abuse may be kept 90 days and read by Google staff unless B.A.D.R. has a Google Cloud Master Agreement; contracting company in Toronto; second vendor outside the credits; terms for legal review |
 
-Held-out mock notices (29 PDFs, 12 readable photos), two full runs per option on 2026-10-30 at frozen commit `f6c30d2`; A's two runs were identical, so one figure is shown, and B's figures are run 2 with run 1 noted where it differs. The wrong documents (two app screenshots) were read in a separate run with the same reader code. Neither option returned a wrong value for any field. The data location column gives the region the spike used and the region production would use. The Law 25 column summarizes the [evidence document](../04-data/notice-reading-privacy-inputs.md), which holds the quoted sources and is not repeated here.
+Held-out mock notices (29 PDFs, 12 readable photos), two full runs per option on 2026-10-30 at frozen commit `f6c30d2`; A's two runs were identical, so one figure is shown, and B's figures are run 2 with run 1 noted where it differs. The wrong documents (two app screenshots) were read in a separate run with the same reader code. Neither option returned a wrong value for any field. The data location column gives the region the spike used and the region production would use. The Law 25 column summarizes the [evidence document](https://github.com/B-A-D-R-SL/iris/wiki/Notice-Reading-%E2%80%93-Law-25-Evidence), which holds the quoted sources and is not repeated here.
 
-Analysis, failure causes and limits: [results summary](../../tools/notice_reading_spike/results/summary.md). In short:
+Analysis, failure causes and limits: [results analysis](https://github.com/B-A-D-R-SL/iris/wiki/Notice-Reading-%E2%80%93-Results). In short:
 
 - **A** misses names and addresses when the OCR splits the envelope's last line (4 of 29 PDFs), and misreads letters in photo postal codes (4 of 12 held-out photos). Both leave fields unread, never wrong. It also gives confidence below 0.90 to correct values, so 13 of 41 notices would go to staff review under US-24's rule.
 - **B** read every field of every readable notice it received. It had one transient call failure in 100 calls and reports confidence 0.99 or 1.0 on everything, so its confidence cannot tell a good reading from a bad one. On the public redacted sample, whose name is replaced by the printed placeholder `Nom Prénom`, it returned that placeholder as the name at confidence 0.90.
@@ -115,7 +115,7 @@ Whichever option is chosen, no real notice goes to a service until all of these 
 
 | Alternative | Why not |
 | --- | --- |
-| Azure-hosted vision language model | Not confirmed that one is offered with processing in Canada (evidence document, [still unknown](../04-data/notice-reading-privacy-inputs.md#still-unknown-and-what-badr-should-read)). Before deciding, check the Azure AI Foundry model catalog filtered on Canada East and Canada Central with deployment type Standard |
+| Azure-hosted vision language model | Not confirmed that one is offered with processing in Canada (evidence document, [still unknown](https://github.com/B-A-D-R-SL/iris/wiki/Notice-Reading-%E2%80%93-Law-25-Evidence#still-unknown-and-what-badr-should-read)). Before deciding, check the Azure AI Foundry model catalog filtered on Canada East and Canada Central with deployment type Standard |
 | Document Intelligence custom neural model | Needs labelled real notices to train, and we may use only fictional ones |
 | Self-hosted open-weights vision model | A GPU server costs more than the whole budget, and B.A.D.R. cannot run it |
 | US-hosted models | Break the Canadian processing requirement |
@@ -129,4 +129,4 @@ Whichever option is chosen, no real notice goes to a service until all of these 
 - If Gemini is chosen, B.A.D.R. holds a second vendor account, contract and bill, outside the Microsoft nonprofit credits.
 - If Gemini is chosen, US-22 retries a failed call with backoff before falling back to manual entry, and US-24 does not rely on Gemini's confidence alone for the income: it reported 0.99 or 1.0 on every value in the spike.
 - If Gemini is chosen, B.A.D.R.'s project turns off Google's prompt caching (a per-project `cacheConfig` setting), the counterpart of Document Intelligence's delete call.
-- If Document Intelligence is chosen, it runs in Canada Central (Toronto), the only Canadian region that offered it on 2026-10-30, while the rest of Iris runs in Canada East ([evidence document](../04-data/notice-reading-privacy-inputs.md), note 1). Notices then leave Québec on their way to the reader, and [ADR 0001](0001-tech-stack.md), which lists Document Intelligence among the Canada East services, needs correcting.
+- If Document Intelligence is chosen, it runs in Canada Central (Toronto), the only Canadian region that offered it on 2026-10-30, while the rest of Iris runs in Canada East ([evidence document](https://github.com/B-A-D-R-SL/iris/wiki/Notice-Reading-%E2%80%93-Law-25-Evidence), note 1). Notices then leave Québec on their way to the reader, and [ADR 0001](0001-tech-stack.md), which lists Document Intelligence among the Canada East services, needs correcting.
