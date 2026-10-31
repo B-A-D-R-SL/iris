@@ -110,11 +110,14 @@ Eligibility, ownership and stock decisions remain on the backend.
 | --- | --- | --- |
 | file_store | Private Azure Blob Storage | Azurite and a test fake |
 | mailer | Azure Communication Services | Mailpit and a test fake |
+| document_reader | Proposed in [ADR 0005](../adr/0005-notice-reading.md): Gemini on Vertex AI, Montréal; fallback Azure AI Document Intelligence, Canada Central. Pending B.A.D.R.'s decision | A fake returning the values in `mock-data/notices/truth.csv` |
 
 Adapters keep provider-specific calls outside `domain/`.
 
 The later `document_reader` interface is not invoked by the Release 1
-staff-entry flow.
+staff-entry flow. Its interface and the provider comparison are in
+[ADR 0005](../adr/0005-notice-reading.md); US-22 builds it in
+`backend/adapters/document_reader/`.
 
 ## Diagrams
 
