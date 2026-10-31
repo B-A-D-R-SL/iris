@@ -74,13 +74,11 @@ def content_type_for(path: Path) -> str:
 
 def contained(path: Path, root: Path) -> Path:
     """`path` resolved, if it is inside `root`; ValueError otherwise, so no CLI path escapes."""
-    real = os.path.realpath(path)
     base = os.path.realpath(root)
-    try:
-        inside = os.path.commonpath([real, base]) == base
-    except ValueError:  # on another drive (Windows)
-        inside = False
-    if not inside:
+    real = os.path.realpath(path)
+    if os.path.splitdrive(real)[0].lower() != os.path.splitdrive(base)[0].lower():
+        raise ValueError(f"{path} is outside {root}")  # another drive (Windows)
+    if os.path.commonpath([base, real]) != base:
         raise ValueError(f"{path} is outside {root}")
     return Path(real)
 
