@@ -51,9 +51,15 @@ def test_parse_french_date_rejects_invalid(text):
     assert parse_french_date(text) is None
 
 
-def test_normalize_postal_code():
+def test_normalize_postal_code_uppercases_and_inserts_the_space():
     assert normalize_postal_code("h2x4n1") == "H2X 4N1"
+
+
+def test_normalize_postal_code_trims_surrounding_spaces():
     assert normalize_postal_code(" H2X 4N1 ") == "H2X 4N1"
+
+
+def test_normalize_postal_code_rejects_an_incomplete_code():
     assert normalize_postal_code("H2X 4N") is None
 
 
