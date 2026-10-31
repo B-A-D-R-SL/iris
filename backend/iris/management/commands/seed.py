@@ -389,14 +389,18 @@ def _ensure_reservation(
     staff: User,
     moment: Any,
 ) -> Reservation:
-    """Insert one reservation. The pickup code stays unique on its listing."""
-    existing = Reservation.objects.filter(
-        listing=listing, pickup_code=planned.pickup_code
-    ).first()
+    """Insert one reservation. A later edit to the pickup code is kept."""
+    seed_id = _seed_id("reservation", str(planned.number))
+    existing = Reservation.objects.filter(pk=seed_id).first()
+    if existing is None:
+        existing = Reservation.objects.filter(
+            listing=listing, pickup_code=planned.pickup_code
+        ).first()
     if existing is not None:
         return existing
     picked_up = planned.status == ReservationStatus.PICKED_UP
     reservation = Reservation(
+        id=seed_id,
         listing=listing,
         household=household,
         quantity=planned.quantity,
@@ -410,15 +414,13 @@ def _ensure_reservation(
     )
     reservation.full_clean()
     saved, _created = Reservation.objects.get_or_create(
-        listing=listing,
-        pickup_code=planned.pickup_code,
-        defaults=_fields(reservation, exclude={"listing", "pickup_code"}),
+        pk=seed_id, defaults=_fields(reservation)
     )
     return saved
 
 
 def _seed_id(kind: str, key: str) -> uuid.UUID:
-    """Stable primary key. Editing a phone, email, or title does not change it."""
+    """Stable primary key. Editing a phone, email, title, or pickup code does not change it."""
     return uuid.uuid5(SEED_NAMESPACE, f"{kind}:{key}")
 
 

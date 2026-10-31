@@ -129,7 +129,7 @@ def test_second_seed_run_adds_no_rows(seeded: None) -> None:
 
 @pytest.mark.django_db
 def test_second_seed_run_keeps_edited_rows(seed_password: None) -> None:
-    """Edits to a phone, title, email, or address survive the next run."""
+    """Edits to a phone, title, email, address, or pickup code survive the next run."""
     store, _created = ensure_badr_store()
     store.pickup_instructions = "Déjà modifié sur le staging."
     store.save(update_fields=["pickup_instructions"])
@@ -146,11 +146,15 @@ def test_second_seed_run_keeps_edited_rows(seed_password: None) -> None:
     partner.email = "modifie@example.test"
     partner.name = "Nom modifié"
     partner.save(update_fields=["email", "name"])
+    reservation = Reservation.objects.get(pickup_code="000001")
+    reservation.pickup_code = "ZZZZZZ"
+    reservation.save(update_fields=["pickup_code"])
 
     call_command("seed", stdout=StringIO())
 
     assert Household.objects.count() == 50
     assert Listing.objects.count() == 30
+    assert Reservation.objects.count() == 40
     assert Store.objects.filter(is_badr=False).count() == 4
     household.refresh_from_db()
     listing.refresh_from_db()
@@ -161,6 +165,8 @@ def test_second_seed_run_keeps_edited_rows(seed_password: None) -> None:
     assert listing.title == "Titre modifié"
     assert partner.email == "modifie@example.test"
     assert partner.name == "Nom modifié"
+    reservation.refresh_from_db()
+    assert reservation.pickup_code == "ZZZZZZ"
     assert store.pickup_instructions == "Déjà modifié sur le staging."
 
 

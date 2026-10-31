@@ -35,7 +35,7 @@ On a development machine (`DEBUG` on), accounts get the password `iris-seed-pass
 | `suspended` | 6 |
 | `rejected` | 6 |
 
-Approved files expire in 365 days. Renewal-needed files are already past their expiry. Suspended files expire in 30 days.
+Approved files expire after `file_validity.approved_months` (12 months in the default rules). Renewal-needed files are already past their expiry. Suspended files expire in 30 days.
 
 ## Reservation status spread
 
@@ -63,4 +63,4 @@ After migrations, from the backend container:
 python manage.py seed
 ```
 
-The command is safe on an empty database and on staging. Each seeded account, partner store, household, and listing has a fixed id, so a later edit to an email, phone, or title is kept and the next run does not insert a copy. Approved household files expire after `file_validity.approved_months`.
+The command is safe on an empty database and on staging. Each seeded account, partner store, household, listing, and reservation has a fixed id, so a later edit to an email, phone, title, or pickup code is kept and the next run does not insert a copy. Approved household files expire after `file_validity.approved_months`.
