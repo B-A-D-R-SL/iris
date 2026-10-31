@@ -55,4 +55,4 @@ Every miss by either reader was a field left unread; no field of any notice came
 - With 41 held-out notices, one notice moves a score by about 2.4 points; option A's name score (90.2%) is one notice above the line.
 - A perfect score on 41 notices still allows an error rate of up to about 7% (rule of three, 95% confidence).
 - Not run yet: the redacted real notice and the two wrong documents (README, "Real-notice conditions").
-- The Law 25 comparison is separate: [evidence document](../../../docs/04-data/notice-reading-privacy-inputs.md). Google commits the Montréal endpoint's processing to Canada, not Québec, and its abuse-monitoring terms were read only as a summary.
+- The Law 25 comparison is separate: [evidence document](../../../docs/04-data/notice-reading-privacy-inputs.md). Google commits the Montréal endpoint's processing to Canada, not Québec, and prompts its classifiers flag may be kept up to 90 days and read by Google staff unless B.A.D.R. has a Google Cloud Master Agreement.
