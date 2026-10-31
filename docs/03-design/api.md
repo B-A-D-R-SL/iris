@@ -107,11 +107,16 @@ remains incomplete.
 
 ### Listings and reservations
 
+US-33 adds a partial posting backend on its feature branch. Account, safety
+and photo-storage integrations remain pending; see the
+[posting implementation and handoff](../guides/listing-posting.md). Its tests
+use explicit stand-ins and do not establish completed production integration.
+
 | Method   | Path                                       | Who                  | Purpose                                          | Status  |
 | -------- | ------------------------------------------ | -------------------- | ------------------------------------------------ | ------- |
 | GET      | `/api/listings/?category=&store=&today=`   | Approved beneficiary | Visible listings (tier timing applied)           | Planned |
 | GET      | `/api/listings/{id}/`                      | Approved beneficiary | Listing detail                                   | Planned |
-| GET/POST | `/api/store/listings/`                     | Store staff          | Own store's listings; post a listing             | Planned |
+| GET/POST | `/api/store/listings/`                     | Store staff          | Own store's listings; post a listing             | Partial: POST backend; integrations pending; GET planned |
 | PATCH    | `/api/store/listings/{id}/`                | Store staff          | Edit (quantity ≥ reserved)                       | Planned |
 | POST     | `/api/store/listings/{id}/cancel/`         | Store staff          | Cancel; reservations cancelled without strikes   | Planned |
 | POST     | `/api/reservations/`                       | Approved beneficiary | `{listing_id, quantity}` → reservation with code | Planned |

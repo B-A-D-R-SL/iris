@@ -10,6 +10,7 @@ export interface MoneyFieldProps extends BaseFieldProps {
   /** Integer cents (Rule: money is integer cents), or null when empty. */
   value?: number | null;
   onChange: (value: number | null) => void;
+  allowNegative?: boolean;
 }
 
 type InputValue = number | string;
@@ -48,7 +49,7 @@ export function MoneyField(props: MoneyFieldProps) {
       onValueChange={handleValueChange}
       decimalScale={2}
       fixedDecimalScale
-      allowNegative={false}
+      allowNegative={props.allowNegative ?? false}
       hideControls
       inputMode="decimal"
       thousandSeparator={french ? " " : ","}

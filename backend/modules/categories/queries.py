@@ -1,6 +1,8 @@
 # AI contribution: 50% or more AI-generated
 """Read-only access to listing categories."""
 
+from typing import Any
+
 from django.db.models import QuerySet
 
 from modules.categories.models import Category
@@ -18,3 +20,14 @@ def get_active_category(code: str) -> Category:
     or inactive.
     """
     return Category.objects.get(code=code, is_active=True)
+
+
+def for_listing_post(code: str) -> dict[str, Any] | None:
+    """Return a locked category snapshot suitable for pure safety rules."""
+    result = (
+        Category.objects.select_for_update()
+        .filter(code=code)
+        .values("id", "code", "is_food", "is_active", "default_value_cents")
+        .first()
+    )
+    return dict(result) if result is not None else None

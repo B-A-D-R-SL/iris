@@ -24,6 +24,10 @@ export interface paths {
      */
     get: operations["schema_retrieve"];
   };
+  "/api/store/listings/": {
+    /** Post a listing for the signed-in user's active store */
+    post: operations["store_listings_create"];
+  };
 }
 
 export type webhooks = Record<string, never>;
@@ -38,6 +42,82 @@ export interface components {
       name_en: string;
       name_fr: string;
     };
+    NewListing: {
+      /** Format: date */
+      best_before?: string | null;
+      category: string;
+      description?: string | null;
+      estimated_value_cents?: number | null;
+      /** @default 1 */
+      max_per_household?: number;
+      /** Format: binary */
+      photo?: string | null;
+      /** Format: date-time */
+      pickup_end: string;
+      /** Format: date-time */
+      pickup_start: string;
+      /** @default 1 */
+      quantity?: number;
+      safe_and_allowed: boolean;
+      /** Format: uuid */
+      store?: string;
+      title: string;
+      /** @default item */
+      unit?: string;
+    };
+    PostedListing: {
+      /** Format: date */
+      best_before: string | null;
+      category: string;
+      description: string | null;
+      estimated_value_cents: number | null;
+      /** Format: uuid */
+      id: string;
+      location: components["schemas"]["StoreAddress"];
+      max_per_household: number;
+      /** Format: date-time */
+      pickup_end: string;
+      /** Format: date-time */
+      pickup_start: string;
+      /** Format: date-time */
+      published_at: string;
+      quantity: number;
+      quantity_reserved: number;
+      /** Format: date-time */
+      safe_confirmed_at: string;
+      status: components["schemas"]["StatusEnum"];
+      /** Format: uuid */
+      store: string;
+      title: string;
+      unit: components["schemas"]["UnitEnum"];
+    };
+    PostingError: {
+      code: string;
+      fields: {
+        [key: string]: string[];
+      };
+      message: string;
+    };
+    /**
+     * @description * `published` - Published
+     * * `closed` - Closed
+     * * `cancelled` - Cancelled
+     * @enum {string}
+     */
+    StatusEnum: "published" | "closed" | "cancelled";
+    StoreAddress: {
+      city: string;
+      postal_code: string;
+      street_name: string;
+      street_number: string;
+      unit: string | null;
+    };
+    /**
+     * @description * `item` - Item
+     * * `bundle` - Bundle
+     * @enum {string}
+     */
+    UnitEnum: "item" | "bundle";
   };
   responses: never;
   parameters: never;
@@ -109,6 +189,38 @@ export interface operations {
           "application/yaml": {
             [key: string]: unknown;
           };
+        };
+      };
+    };
+  };
+  /** Post a listing for the signed-in user's active store */
+  store_listings_create: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NewListing"];
+        "application/x-www-form-urlencoded": components["schemas"]["NewListing"];
+        "multipart/form-data": components["schemas"]["NewListing"];
+      };
+    };
+    responses: {
+      201: {
+        content: {
+          "application/json": components["schemas"]["PostedListing"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["PostingError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["PostingError"];
+        };
+      };
+      503: {
+        content: {
+          "application/json": components["schemas"]["PostingError"];
         };
       };
     };
