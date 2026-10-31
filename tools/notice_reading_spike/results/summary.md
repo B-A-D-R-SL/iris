@@ -42,7 +42,7 @@ Every miss by either reader was a field left unread; no field of any notice came
 
 1. **One transient failure (notice 022, run 1).** Google refused the call with a 4xx error after 1.1 s; replayed alone, it succeeded, and run 2 read it correctly. US-22 needs a retry with backoff.
 2. **Confidence carries no information.** Every value it returned had confidence 0.99 or 1.0, apart from an empty unit at confidence 0 on the unreadable notice 050 in run 1. It made no reading errors here, so these runs cannot show whether it would also say 1.0 when wrong; US-24 should not rely on its confidence alone for the income.
-3. **Model lifetime.** Google's Gemini API page now routes `gemini-3.5-flash` to `gemini-3.6-flash`, and only 3.5 Flash is offered in Montréal for this project. If Google retires it in Montréal before a successor arrives there, option B has no model to run on.
+3. **Model lifetime.** Google's Gemini API page now routes `gemini-3.5-flash` to `gemini-3.6-flash`, and Google's data residency table commits processing to Canada for 3.5 Flash only (3.6 to 3.8 Flash: US and EU). If Google retires it in Montréal before a successor arrives there, option B has no model to run on.
 
 ## Repeatability and tuning
 
