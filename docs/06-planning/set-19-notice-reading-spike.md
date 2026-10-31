@@ -36,4 +36,4 @@ Iris must read the household income from a Revenu Québec notice of assessment (
 
 ## Status
 
-Measured on 2026-10-30 ([results](../../tools/notice_reading_spike/results/summary.md)). Gemini passed every criterion measured; Document Intelligence failed the address criterion (80.5%). Recommendation in ADR 0005: Gemini, still Proposed. Still to do: real-notice conditions, B.A.D.R.'s choice of Google agreement (abuse-monitoring exemption), and B.A.D.R.'s decision.
+Measured on 2026-10-30 ([results](../../tools/notice_reading_spike/results/summary.md)). Gemini passed every criterion measured; Document Intelligence failed the address criterion (80.5%). Recommendation in ADR 0005: Gemini, still Proposed. Real-notice conditions run the same day. Still to do: B.A.D.R.'s choice of Google agreement (abuse-monitoring exemption) and B.A.D.R.'s decision.

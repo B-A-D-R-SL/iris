@@ -20,14 +20,14 @@ Runs of 2026-10-30, mock notices only. Code, prompt and settings frozen at commi
 | Tax year | ≥ 90% | **100%** | **97.6%** (40/41) | **100%** |
 | Notice date | ≥ 90% | **100%** | **97.6%** (40/41) | **100%** |
 | Unreadable photo (notice 050) | no value at ≥ 0.90 | **0** | **0** | **0** |
-| Wrong documents | no value at ≥ 0.90 | not run yet | not run yet | not run yet |
+| Wrong documents (2 app screenshots; one separate run per reader) | no value at ≥ 0.90 | **0** (nothing returned) | **0** (nothing returned) | (same run) |
 | Document numbers returned | 0 | **0** | **0** | **0** |
 | Time p95 | ≤ 60 s | **38.2 s** (median 5.6 s) | **9.5 s** (median 4.1 s) | **5.1 s** (median 3.6 s) |
 | Cost per notice | ≤ 0.05 USD | **0.017 USD** at the paid rate (F0 is free) | **0.014 USD** | **0.014 USD** |
 
 Every miss by either reader was a field left unread; no field of any notice came back with a wrong value, at any confidence. Gemini's run-1 misses are all one notice (022), whose call failed.
 
-**Result:** Gemini passes every criterion measured so far. Document Intelligence fails the address criterion (80.5%), passes the name criterion only on PDFs and photos combined, and passes the rest.
+**Result:** Gemini passes every measured criterion. Document Intelligence fails the address criterion (80.5%), passes the name criterion only on PDFs and photos combined, and passes the rest.
 
 ## What went wrong, and why
 
@@ -49,10 +49,24 @@ Every miss by either reader was a field left unread; no field of any notice came
 - **Run 1 against run 2.** Document Intelligence returned the same value and confidence for all 400 fields. Gemini differed only on notice 022 (failed in run 1) and on the unit of the unreadable notice 050 (empty at confidence 0 in run 1, not returned in run 2).
 - **Dev against held-out.** Document Intelligence did better on the 8 dev files it was tuned on (name 100%) than on the held-out files (name 90.2%): the line-split failure did not occur in the 5 dev PDFs. Gemini scored the same on both. This is the overfitting risk of a label-keyed parser, and the reason the held-out split exists.
 
+## Real-notice conditions
+
+Run on 2026-10-30 with `--files`, reader code unchanged since the freeze. Outputs were kept outside the repository; only the fields returned at confidence 0.90 or more are copied here.
+
+| File | Document Intelligence | Gemini |
+| --- | --- | --- |
+| Public redacted sample (Carte loisir, tax year 2018, two pages) | tax year, notice date | name, unit, tax year, notice date |
+| `Registration.png` (app screenshot, not a notice) | nothing returned | nothing returned |
+| `Store - Post a listing.png` (app screenshot, not a notice) | nothing returned | nothing returned |
+
+- **An older real layout.** Both read the tax year (2018) and the notice date (2019-03-28) as printed, on a layout neither was tuned on. The sample's income amounts and address are blanked out; neither reader returned an income or an address.
+- **A placeholder read as a name.** The publisher replaced the name with the printed text `Nom Prénom`. Gemini returned it as the name at confidence 0.90, the US-24 threshold. That is what is printed, but it shows that Gemini's confidence cannot tell a placeholder from a person's name: US-24's check of the notice name against the declared name is what catches it. Gemini also returned "no unit" at confidence 1.0 for an address it could not see.
+- **Wrong documents.** Neither reader returned any field for the two app screenshots.
+
 ## Limits of this evidence
 
 - All 50 notices come from our own generator, so they share one layout and one font. Real notices will vary more, which matters most for option A's parser.
 - With 41 held-out notices, one notice moves a score by about 2.4 points; option A's name score (90.2%) is one notice above the line.
 - A perfect score on 41 notices still allows an error rate of up to about 7% (rule of three, 95% confidence).
-- Not run yet: the redacted real notice and the two wrong documents (README, "Real-notice conditions").
+- Only one real notice was read, and its personal fields are blanked out, so these runs say nothing about accuracy on real names, addresses or incomes.
 - The Law 25 comparison is separate: [evidence document](../../../docs/04-data/notice-reading-privacy-inputs.md). Google commits the Montréal endpoint's processing to Canada, not Québec, and prompts its classifiers flag may be kept up to 90 days and read by Google staff unless B.A.D.R. has a Google Cloud Master Agreement.
