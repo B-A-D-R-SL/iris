@@ -16,6 +16,7 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | ChatGPT (OpenAI) | Drafted T-02.11.1 tests for the future US-11 Store model, B.A.D.R. seed, and Django admin access under Leon's direction; documented the later Store REST API test plan. | Leon Kojakian (#439) |
 | ChatGPT (OpenAI) | Implemented the US-11 Store model, migration, admin registration, service, and test factory from Leon's approved T-02.11.2 plan. | Leon Kojakian (#441) |
 | ChatGPT (OpenAI) | Implemented the idempotent B.A.D.R. Store seed command and expanded its tests from Leon's approved T-02.11.3 plan. | Leon Kojakian (#442) |
+| ChatGPT (OpenAI) | Implemented the T-01.01.3 sign-in screen, browser session handling, sign-out controls, translations, and frontend tests under Leon's approved plan. | Leon Kojakian (#425) |
 | ChatGPT (OpenAI) | Implemented and reviewed the Categories reference module (#377), Django module scaffolding, import-boundary checks, documentation, and tests for SET-14 (#405). | Owner of #377 and #405 |
 
 ## How we declare AI-generated code
@@ -30,6 +31,9 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| T-01.01.1 Sign-in and sign-out tests (#423) | `backend/modules/accounts/tests/test_accounts.py`, `frontend/src/app/App.test.tsx`, `AI_USAGE.md` | 50% or more AI-generated | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
+| T-01.01.2 User model and sign-in API (#424) | `backend/modules/accounts/`, authentication settings/routes, development administrator command, affected regression tests, `backend/{pyproject.toml,uv.lock}`, generated API types, `docs/03-design/{api,database-schema}.md`, `docs/guides/auth-routing.md` | 50% or more AI-generated for the marked source files, including `backend/pyproject.toml`; Below 50% AI-generated for `backend/modules/rules/tests/test_rule_set_versions.py`; generated migrations, lockfile and API declarations exempt | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
+| T-01.01.3 Sign-in screen and session handling (#425) | `frontend/src/areas/public/pages/SignIn.tsx`, `frontend/src/shared/{auth,forms}/`, app providers and layouts, current-user query, French/English translations, frontend tests, `docs/guides/design-system.md`, `AI_USAGE.md` | 50% or more AI-generated | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
 | T-00.01.1 Backend project (#374) | `backend/iris/settings/`, `backend/manage.py`, `backend/pyproject.toml`, `backend/tests/test_backend_config.py`, `backend/.env.example` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | T-00.01.2 Frontend project (#375) | `frontend/src/`, `frontend/package.json`, `frontend/vite.config.ts`, `frontend/eslint.config.js`, `frontend/.prettierrc.json`, `backend/iris/{views.py,urls.py}` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | T-00.01.3 Docker Compose and README (#376) | `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, `backend/adapters/mailer/`, `backend/iris/management/commands/create_dev_admin.py`, `backend/tests/test_platform_setup.py`, `.env.example`, `README.md` | 50% or more AI-generated | Not yet opened (`setup` branch) |
@@ -61,6 +65,26 @@ At least half of the AI-assisted features need an example here. For each one:
 - **What the AI produced:** files, commit or pull request
 - **How we verified it:** the automated tests or the review comment that checked it
 - **Problems found and corrections:** what was wrong or rejected, and what we changed
+
+### T-01.01.1 Sign-in and sign-out tests (#423)
+
+- **Leon's direction:** implement the approved test plan and use `/staff/households` as the staff landing path, as updated in US-01.
+- **What the AI produced:** expanded account API tests to exercise real sign-in, current-user lookup, and sign-out for all five roles; added a shared-browser-session logout test; expanded the app routing test to cover every role's landing area.
+- **How we verified it:** all 34 focused account tests and 54 focused app/navigation tests passed. The accounts module reached 100% coverage in the focused backend run; Ruff, ESLint, TypeScript, and formatting checks passed. Only test files changed for this task, so changed-production-code coverage does not apply.
+- **Problems found and corrections:** the first routing expectations used a generic staff path; Leon supplied the updated `/staff/households` path from US-01, and the tests were corrected before the screen was built.
+- **Follow-on screen work:** the form, localized errors, and sign-out controls were delivered in T-01.01.3.
+
+### T-01.01.3 Sign-in screen and session handling (#425)
+
+**Leon's direction and AI output:** Leon approved the frontend plan and specified `/staff/households` for staff. The AI built a bilingual sign-in form, CSRF-aware allauth requests, a conditional MFA code step, role redirects, a TanStack Query session provider, and sign-out controls. The `/api/me/` type comes from generated OpenAPI declarations; staff MFA enrollment belongs to US-09 (#436). The work is in [US-01 PR #610](https://github.com/B-A-D-R-SL/iris/pull/610).
+
+**Verification, problems and corrections:** The first 183 frontend tests passed with 92.96% overall statement coverage; the sign-in page reached 93.61%. Review found an inaccessible live session after a failed profile lookup, stale cached data after sign-out, and missing deep-link handling; the AI added a profile-only retry, cache clearing, redirects, and tests. After these fixes, 202 frontend tests, TypeScript, ESLint, Prettier, and the build passed. Earlier corrections fixed a TypeScript parameter property, Fast Refresh lint, and translation-key shape.
+
+### T-01.01.2 User model and authentication (#424)
+
+**Leon's direction and AI output:** Leon approved the custom-user plan and reviewed the migration impact. The AI built `accounts.User`, the allauth adapter with a shared five-attempt lockout, PostgreSQL `AuthCache`, the rate-limited admin form, the `/api/me/` endpoint and serializer, and account tests. It also added `UserFactory` and generated `fr | en` API types in [US-01 PR #610](https://github.com/B-A-D-R-SL/iris/pull/610).
+
+**Verification, problems and corrections:** The backend suite initially passed 129 tests against PostgreSQL; after review fixes, 135 passed. Ruff, mypy, import-linter, and API type drift checks passed. Leon backed up and recreated his local database after the custom-user migration changed its dependency order, then verified the admin, nine rule types, seven LICO sizes, and B.A.D.R. Store. Startup exposed a missing Argon2 lockfile entry; the AI regenerated `backend/uv.lock`. Review also found a dynamic cache-table SQL string and an admin lockout bypass; static SQL and a shared admin authentication form fixed them.
 
 ### T-00.01.4 Categories reference module (#377) and SET-14 Module skeletons (#405)
 
@@ -322,9 +346,6 @@ At least half of the AI-assisted features need an example here. For each one:
   - Mark requested controlled handling of missing or unexpected posting-rule
     keys. These now return HTTP 503, with service tests and English/French API
     tests confirming that no listing is saved.
-  
-   
-  
 
 ### SET-16 Design system, translations and app shell (#407)
 

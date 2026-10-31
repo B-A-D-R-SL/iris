@@ -36,22 +36,25 @@ A person who can sign in to Iris.
 
 | Field | Logical type | Key | Details |
 | --- | --- | --- | --- |
-| email | string | Unique key | Unique sign-in email. |
+| id | UUID | Primary key | Stable public user identifier. |
+| email | string | Unique key | Case-insensitive unique sign-in email. |
 | password | string | — | Django-managed encoded password hash, including hashing metadata; never the plain-text password. Django standard field: NULL is not allowed. |
 | first_name | string | — | User first name. |
 | last_name | string | — | User last name. |
 | phone | string | — | Contact phone number. |
-| preferred_language | string | — | French or English. |
-| role | string | — | User role. |
-| store | reference | Foreign key | Optional store assignment. NULL is allowed by the documented User model. |
+| preferred_language | string | — | `fr` or `en`; default `fr`. |
+| role | string | — | `beneficiary`, `store_staff`, `store_manager`, `intake_worker`, or `admin`. |
+| store | reference | Foreign key | Required for store staff and managers; nullable for other roles. Deletion is protected while users reference the store. |
 | is_active | boolean | — | Whether the account is active. |
 
 **Documented constraints and business rules**
 
 | Rule | Enforcement |
 | --- | --- |
-| Email must be unique. | Database unique constraint. |
+| Email must be unique regardless of case. | Database unique constraint on lowercased email. |
 | Passwords are stored as Django-managed hashes; inactive accounts cannot sign in. | Django/allauth authentication. |
+| Store staff and managers must have a store. | Database check constraint. |
+| A store referenced by a user cannot be deleted. | Protected foreign key. |
 
 **Documented indexes**
 
@@ -500,7 +503,7 @@ The field tables and diagram contain the same fields, logical types, key labels,
 ```mermaid
 %%{init: {"theme": "base", "themeVariables": {"background": "#0b1220", "primaryColor": "#163354", "primaryTextColor": "#ffffff", "primaryBorderColor": "#64748b", "lineColor": "#a0aec0", "textColor": "#ffffff", "rowOdd": "#14283e", "rowEven": "#14283e"}}}%%
 erDiagram
-    Store o|--o{ User : "optional store assignment"
+    Store o|--o{ User : "required for store roles"
     Store o|--o{ Invitation : "optional store assignment"
     Household ||--o{ Member : "contains"
     Member ||--o{ IncomeNotice : "provides"
@@ -513,14 +516,15 @@ erDiagram
 
 
     User {
-        string email UK "Unique sign-in email."
+        string id PK "UUID user identifier."
+        string email UK "Case-insensitive unique sign-in email."
         string password "Django-managed encoded password hash, including hashing metadata; never the plain-text password. Django standard field: NULL is not allowed."
         string first_name "User first name."
         string last_name "User last name."
         string phone "Contact phone number."
         string preferred_language "French or English."
         string role "User role."
-        reference store FK "Optional store assignment. NULL is allowed by the documented User model."
+        reference store FK "Required for store roles; nullable otherwise."
         boolean is_active "Whether the account is active."
     }
 

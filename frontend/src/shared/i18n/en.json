@@ -181,7 +181,17 @@
       "email": "Email address",
       "password": "Password",
       "code": "Verification code",
-      "title": "Sign in"
+      "title": "Sign in",
+      "verify": "Verify code",
+      "codeHelp": "Enter the 6-digit code from your authenticator app.",
+      "signOutError": "Could not sign out. Please try again.",
+      "required": "Enter your email address and password.",
+      "invalidEmail": "Enter a valid email address.",
+      "invalidCode": "Enter a valid 6-digit verification code.",
+      "invalidCredentials": "The email address or password is incorrect.",
+      "locked": "Too many attempts. Try again in 15 minutes.",
+      "unavailable": "Sign in is unavailable. Please try again.",
+      "useAnotherAccount": "Use a different account"
     },
     "signup": {
       "email": "Email address",
@@ -435,10 +445,13 @@
   "shared": {
     "form": {
       "optional": "(optional)",
-      "requiredNotice": "All fields are required unless marked “optional”."
+      "requiredNotice": "All fields are required unless marked “optional”.",
+      "errorCountOne": "Field to correct: {{count}}.",
+      "errorCountOther": "Fields to correct: {{count}}."
     },
     "validation": {
       "required": "Fill in this field.",
+      "email": "Enter a valid email address.",
       "textLength": "Enter {{min}} to {{max}} characters.",
       "textMax": "Enter at most {{max}} characters.",
       "postalCode": "Enter a Canadian postal code, for example H2X 1Y4.",

@@ -4,6 +4,7 @@ name = "backend"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
+    "argon2-cffi>=25.1.0",
     "django>=6.1,<6.2",
     "django-allauth[headless]>=65.19.7",
     "django-environ>=0.14.0",
@@ -103,6 +104,10 @@ modules = [
 
 # Shared infrastructure interfaces, available to every module.
 ignore_imports = [
+    # Cross-module test fixtures do not create a production module dependency.
+    "modules.accounts.tests.test_accounts -> modules.stores.tests.factories",
+    "modules.rules.tests.test_rule_set_versions -> modules.accounts.tests.factories",
+    "modules.stores.tests.test_admin -> modules.accounts.tests.factories",
     "modules.** -> modules.audit.services",
     "modules.** -> modules.audit.queries",
     "modules.** -> modules.rules.services",

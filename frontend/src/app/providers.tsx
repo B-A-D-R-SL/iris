@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import "../shared/i18n/dates";
+import { AuthProvider } from "../shared/auth/AuthProvider";
 import { AppErrorBoundary } from "./AppErrorBoundary";
 import { cssVariablesResolver, theme } from "./theme";
 
@@ -44,7 +45,9 @@ export function AppProviders({
     >
       <LocalizedDates>
         <QueryClientProvider client={queryClient}>
-          <AppErrorBoundary>{children}</AppErrorBoundary>
+          <AuthProvider>
+            <AppErrorBoundary>{children}</AppErrorBoundary>
+          </AuthProvider>
         </QueryClientProvider>
       </LocalizedDates>
     </MantineProvider>

@@ -6,10 +6,14 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from iris.views import health
+from modules.accounts.admin import RateLimitedAdminAuthenticationForm
+
+admin.site.login_form = RateLimitedAdminAuthenticationForm
 
 urlpatterns = [
     # Health check
     path("api/health/", health, name="health"),
+    path("api/", include("modules.accounts.api.urls")),
     # Public listing categories
     path("api/categories/", include("modules.categories.api.urls")),
     # Django admin
