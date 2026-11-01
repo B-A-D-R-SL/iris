@@ -278,6 +278,16 @@ def test_non_admins_cannot_see_partner_applications(client: Client) -> None:
     response = client.get(reverse("admin:stores_partnerapplication_changelist"))
     assert response.status_code == 403
 
+    # An ordinary signed-in user (not staff) is sent to the admin sign-in page.
+    ordinary_user = UserFactory.create()
+    request.user = ordinary_user
+    assert not application_admin.has_module_permission(request)
+    assert not application_admin.has_view_permission(request)
+    client.force_login(ordinary_user)
+    response = client.get(reverse("admin:stores_partnerapplication_changelist"))
+    assert response.status_code == 302
+    assert response["Location"].startswith(reverse("admin:login"))
+
 
 @pytest.mark.django_db
 def test_store_application_link_is_read_only_in_admin(client: Client) -> None:

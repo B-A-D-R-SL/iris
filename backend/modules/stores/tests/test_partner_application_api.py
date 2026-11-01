@@ -15,6 +15,7 @@ from rest_framework.test import APIClient
 
 from modules.accounts.tests.factories import UserFactory
 from modules.categories.tests.factories import CategoryFactory
+from modules.stores.api.views import _without_port
 from modules.stores.models import ApplicationStatus, PartnerApplication
 from modules.stores.tests.factories import PartnerApplicationFactory, StoreFactory
 
@@ -279,6 +280,62 @@ def test_forged_forwarded_header_does_not_reset_the_limit() -> None:
         client, payload(), REMOTE_ADDR="10.0.0.1", HTTP_X_FORWARDED_FOR="9.9.9.99"
     )
     assert response.status_code == 429
+
+
+def test_signing_in_does_not_reset_the_ip_limit() -> None:
+    client = APIClient()
+    for _ in range(5):
+        post(client, {}, REMOTE_ADDR="10.0.0.1")
+    client.force_authenticate(UserFactory())
+    assert post(client, payload(), REMOTE_ADDR="10.0.0.1").status_code == 429
+
+
+def test_signed_in_users_on_one_ip_share_the_limit() -> None:
+    first, second, third = APIClient(), APIClient(), APIClient()
+    for client in (first, second, third):
+        client.force_authenticate(UserFactory())
+    for index, client in enumerate((first, first, first, second, second)):
+        email = f"owner-{index}@example.test"
+        response = post(client, payload(contact_email=email), REMOTE_ADDR="10.0.0.1")
+        assert response.status_code == 201
+    assert post(third, payload(), REMOTE_ADDR="10.0.0.1").status_code == 429
+
+
+def test_port_in_forwarded_address_does_not_reset_the_limit(settings: Any) -> None:
+    # Behind one proxy, the client address may arrive as "ip:port", and the
+    # port changes with every connection.
+    settings.REST_FRAMEWORK = {**settings.REST_FRAMEWORK, "NUM_PROXIES": 1}
+    client = APIClient()
+    for index in range(5):
+        post(
+            client,
+            {},
+            REMOTE_ADDR="10.0.0.9",
+            HTTP_X_FORWARDED_FOR=f"9.9.9.9:{1000 + index}",
+        )
+    blocked = post(
+        client, payload(), REMOTE_ADDR="10.0.0.9", HTTP_X_FORWARDED_FOR="9.9.9.9:2222"
+    )
+    assert blocked.status_code == 429
+    other_client = post(
+        client, payload(), REMOTE_ADDR="10.0.0.9", HTTP_X_FORWARDED_FOR="9.9.9.8:1111"
+    )
+    assert other_client.status_code == 201
+
+
+@pytest.mark.parametrize(
+    ("address", "expected"),
+    [
+        ("203.0.113.5", "203.0.113.5"),
+        ("203.0.113.5:54321", "203.0.113.5"),
+        ("2001:db8::1", "2001:db8::1"),
+        ("[2001:db8::1]:54321", "2001:db8::1"),
+    ],
+)
+def test_throttle_ignores_the_port_of_a_client_address(
+    address: str, expected: str
+) -> None:
+    assert _without_port(address) == expected
 
 
 def test_schema_documents_the_public_endpoint(client: Client) -> None:
