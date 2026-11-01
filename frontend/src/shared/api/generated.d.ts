@@ -18,6 +18,13 @@ export interface paths {
   "/api/me/": {
     get: operations["me_retrieve"];
   };
+  "/api/partner-applications/": {
+    /**
+     * Apply to become a partner store
+     * @description Public form, no account needed. Limited to 5 requests per hour per IP address. The contact receives a confirmation email.
+     */
+    post: operations["partner_applications_create"];
+  };
   "/api/schema/": {
     /**
      * @description OpenApi3 schema for this API. Format can be selected via content negotiation.
@@ -37,6 +44,30 @@ export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
+    /**
+     * @description * `grocery` - Épicerie
+     * * `supermarket` - Supermarché
+     * * `bakery` - Boulangerie
+     * * `restaurant` - Restaurant
+     * * `cafe` - Café
+     * * `convenience_store` - Dépanneur
+     * * `pharmacy` - Pharmacie
+     * * `farm_producer` - Ferme ou producteur
+     * * `community_organization` - Organisme communautaire
+     * * `other` - Autre
+     * @enum {string}
+     */
+    BusinessTypeEnum:
+      | "grocery"
+      | "supermarket"
+      | "bakery"
+      | "restaurant"
+      | "cafe"
+      | "convenience_store"
+      | "pharmacy"
+      | "farm_producer"
+      | "community_organization"
+      | "other";
     /** @description Expose public category fields without internal database IDs. */
     Category: {
       code: string;
@@ -54,6 +85,14 @@ export interface components {
       /** Format: uuid */
       store: string | null;
     };
+    /**
+     * @description * `daily` - Chaque jour
+     * * `weekly` - Chaque semaine
+     * * `monthly` - Chaque mois
+     * * `occasional` - À l’occasion
+     * @enum {string}
+     */
+    ExpectedFrequencyEnum: "daily" | "weekly" | "monthly" | "occasional";
     /**
      * @description * `fr` - Français
      * * `en` - English
@@ -82,6 +121,36 @@ export interface components {
       title: string;
       /** @default item */
       unit?: string;
+    };
+    /** @description Submitted partner form; field rules from forms-and-fields.md. */
+    PartnerApplication: {
+      business_name: string;
+      business_type: components["schemas"]["BusinessTypeEnum"];
+      city: string;
+      consent_contact: boolean;
+      /** Format: email */
+      contact_email: string;
+      contact_first_name: string;
+      contact_last_name: string;
+      contact_phone: string;
+      contact_role?: string | null;
+      expected_frequency: components["schemas"]["ExpectedFrequencyEnum"];
+      goods_categories: string[];
+      message?: string | null;
+      neq?: string | null;
+      opening_hours: string;
+      postal_code: string;
+      street_name: string;
+      street_number: string;
+      unit?: string | null;
+      website?: string | null;
+    };
+    PartnerApplicationError: {
+      code: string;
+      fields: {
+        [key: string]: string[];
+      };
+      message: string;
     };
     PostedListing: {
       /** Format: date */
@@ -138,6 +207,14 @@ export interface components {
       street_name: string;
       street_number: string;
       unit: string | null;
+    };
+    /** @description What the applicant gets back; no personal data is echoed. */
+    SubmittedPartnerApplication: {
+      /** Format: date-time */
+      created_at: string;
+      /** Format: uuid */
+      id: string;
+      status: string;
     };
     /**
      * @description * `item` - Item
@@ -198,6 +275,41 @@ export interface operations {
       /** @description Authentication required. */
       401: {
         content: never;
+      };
+    };
+  };
+  /**
+   * Apply to become a partner store
+   * @description Public form, no account needed. Limited to 5 requests per hour per IP address. The contact receives a confirmation email.
+   */
+  partner_applications_create: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PartnerApplication"];
+        "application/x-www-form-urlencoded": components["schemas"]["PartnerApplication"];
+        "multipart/form-data": components["schemas"]["PartnerApplication"];
+      };
+    };
+    responses: {
+      201: {
+        content: {
+          "application/json": components["schemas"]["SubmittedPartnerApplication"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      409: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      429: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
       };
     };
   };
