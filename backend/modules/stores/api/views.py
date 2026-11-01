@@ -13,8 +13,8 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
-from rest_framework.views import exception_handler
+from rest_framework.throttling import SimpleRateThrottle
+from rest_framework.views import APIView, exception_handler
 
 from modules.stores import services
 from modules.stores.api.serializers import (
@@ -22,6 +22,30 @@ from modules.stores.api.serializers import (
     PartnerApplicationSerializer,
     SubmittedPartnerApplicationSerializer,
 )
+
+
+def _without_port(address: str) -> str:
+    """Drop a port from "1.2.3.4:5678" or "[2001:db8::1]:5678"; keep bare IPv6."""
+    if address.startswith("[") and "]" in address:
+        return address[1 : address.index("]")]
+    if address.count(":") == 1:
+        return address.split(":", 1)[0]
+    return address
+
+
+class PartnerApplicationThrottle(SimpleRateThrottle):
+    """5 requests per hour per client IP, whether or not the caller is signed in.
+
+    DRF's ScopedRateThrottle counts signed-in users by account, which would give
+    each account its own allowance on a shared IP. A forwarded address may carry
+    the connection's port, which changes on every connection, so it is dropped.
+    """
+
+    scope = "partner_applications"
+
+    def get_cache_key(self, request: Request, view: APIView) -> str:
+        ident = _without_port(self.get_ident(request))
+        return self.cache_format % {"scope": self.scope, "ident": ident}
 
 
 class ApplicationAlreadyOpenError(APIException):
@@ -75,8 +99,7 @@ def application_exception_handler(
 class PartnerApplicationCreateView(GenericAPIView):
     serializer_class = PartnerApplicationSerializer
     permission_classes = (AllowAny,)
-    throttle_classes = (ScopedRateThrottle,)
-    throttle_scope = "partner_applications"
+    throttle_classes = (PartnerApplicationThrottle,)
     http_method_names = ("post", "options")
 
     def get_exception_handler(self) -> Any:
