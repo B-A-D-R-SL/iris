@@ -118,6 +118,9 @@ ignore_imports = [
     # stores -> accounts
     "modules.stores.** -> modules.accounts.services",
     "modules.stores.** -> modules.accounts.queries",
+    # stores -> categories: partner applications list active category codes (US-12)
+    "modules.stores.** -> modules.categories.queries",
+    "modules.stores.tests.** -> modules.categories.tests.factories",
 
     # households -> documents, eligibility, priority, review
     "modules.households.** -> modules.documents.services",
