@@ -88,8 +88,12 @@ Categories were added by
 
 Public: no account, anonymous visitors and every role may submit. A signed-in
 session must still send `X-CSRFToken`. Rate-limited to **5 requests per hour per
-IP address**, counting refused requests too. Messages follow `Accept-Language`,
-which is also stored as the language of the contact's emails.
+client IP address**, shared by anonymous and signed-in callers; a port in the
+forwarded address is ignored. Every request that reaches the endpoint counts,
+including those refused with 400 or 409. A signed-in session refused for a missing
+CSRF token (403) is stopped before the limit and is not counted; it saves nothing.
+Messages follow `Accept-Language`, which is also stored as the language of the
+contact's emails (French if the header is missing or not French or English).
 
 Request (JSON). Fields and rules are those of the
 [partner application form](../02-requirements/forms-and-fields.md#partner-application-form);
