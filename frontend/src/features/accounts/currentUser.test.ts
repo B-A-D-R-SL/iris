@@ -22,14 +22,14 @@ describe("fetchCurrentUser", () => {
     expect(fetch).toHaveBeenCalledWith("/api/me/", expect.anything());
   });
 
-  it.each([401, 403, 404])("treats %d as signed out", async (status) => {
+  it.each([401, 403])("treats %d as signed out", async (status) => {
     respondWith(new Response(null, { status }));
     await expect(fetchCurrentUser()).resolves.toBeNull();
   });
 
-  it("fails on a server error so the screen can offer a retry", async () => {
-    respondWith(new Response(null, { status: 500 }));
-    await expect(fetchCurrentUser()).rejects.toThrow("Current user unavailable: 500");
+  it.each([404, 500])("fails on %d so the screen can offer a retry", async (status) => {
+    respondWith(new Response(null, { status }));
+    await expect(fetchCurrentUser()).rejects.toThrow(`Current user unavailable: ${status}`);
   });
 
   it.each([

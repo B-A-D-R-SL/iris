@@ -181,7 +181,17 @@
       "email": "Courriel",
       "password": "Mot de passe",
       "code": "Code de vérification",
-      "title": "Connexion"
+      "title": "Connexion",
+      "verify": "Vérifier le code",
+      "codeHelp": "Entrez le code à 6 chiffres de votre application d’authentification.",
+      "signOutError": "La déconnexion a échoué. Réessayez.",
+      "required": "Entrez votre courriel et votre mot de passe.",
+      "invalidEmail": "Entrez un courriel valide.",
+      "invalidCode": "Entrez un code de vérification valide à 6 chiffres.",
+      "invalidCredentials": "Le courriel ou le mot de passe est incorrect.",
+      "locked": "Trop de tentatives. Réessayez dans 15 minutes.",
+      "unavailable": "La connexion est indisponible. Réessayez.",
+      "useAnotherAccount": "Utiliser un autre compte"
     },
     "signup": {
       "email": "Courriel",
@@ -435,10 +445,13 @@
   "shared": {
     "form": {
       "optional": "(facultatif)",
-      "requiredNotice": "Tous les champs sont obligatoires, sauf ceux marqués « facultatif »."
+      "requiredNotice": "Tous les champs sont obligatoires, sauf ceux marqués « facultatif ».",
+      "errorCountOne": "Corrigez {{count}} champ.",
+      "errorCountOther": "Corrigez {{count}} champs."
     },
     "validation": {
       "required": "Remplissez ce champ.",
+      "email": "Entrez un courriel valide.",
       "textLength": "Entrez de {{min}} à {{max}} caractères.",
       "textMax": "Entrez au plus {{max}} caractères.",
       "postalCode": "Entrez un code postal canadien, par exemple H2X 1Y4.",

@@ -3,6 +3,8 @@ import { AppShell, Container } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { Link, Outlet } from "react-router";
 
+import { useAuth } from "../../shared/auth/authContext";
+import { SignOutButton } from "../../shared/auth/SignOutButton";
 import { LanguageSwitch } from "../../shared/ui";
 import classes from "./layouts.module.css";
 import { Wordmark } from "./Wordmark";
@@ -10,6 +12,7 @@ import { Wordmark } from "./Wordmark";
 /** Pages without sign-in: welcome, sign-in, become a partner (Figma app bar "Public"). */
 export function PublicLayout() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   return (
     <AppShell header={{ height: 56 }}>
       <AppShell.Header>
@@ -18,6 +21,7 @@ export function PublicLayout() {
             <Wordmark subtitle={t("app.brand.byBadr")} />
           </Link>
           <LanguageSwitch />
+          {user && <SignOutButton />}
         </div>
       </AppShell.Header>
       <AppShell.Main>

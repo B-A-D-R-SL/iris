@@ -1,5 +1,8 @@
 # AI contribution: 50% or more AI-generated
-"""Future API routes for accounts.
+"""URL routes for account endpoints."""
 
-TODO: Define routes when module endpoints are implemented.
-"""
+from django.urls import path
+
+from modules.accounts.api.views import current_user
+
+urlpatterns = [path("me/", current_user, name="current-user")]

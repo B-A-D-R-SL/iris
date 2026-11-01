@@ -15,6 +15,9 @@ export interface paths {
      */
     get: operations["health_retrieve"];
   };
+  "/api/me/": {
+    get: operations["me_retrieve"];
+  };
   "/api/schema/": {
     /**
      * @description OpenApi3 schema for this API. Format can be selected via content negotiation.
@@ -42,6 +45,21 @@ export interface components {
       name_en: string;
       name_fr: string;
     };
+    CurrentUser: {
+      /** Format: uuid */
+      id: string;
+      language: components["schemas"]["LanguageEnum"];
+      name: string;
+      role: components["schemas"]["RoleEnum"];
+      /** Format: uuid */
+      store: string | null;
+    };
+    /**
+     * @description * `fr` - Français
+     * * `en` - English
+     * @enum {string}
+     */
+    LanguageEnum: "fr" | "en";
     NewListing: {
       /** Format: date */
       best_before?: string | null;
@@ -98,6 +116,15 @@ export interface components {
       };
       message: string;
     };
+    /**
+     * @description * `beneficiary` - Beneficiary
+     * * `store_staff` - Store Staff
+     * * `store_manager` - Store Manager
+     * * `intake_worker` - Intake Worker
+     * * `admin` - Admin
+     * @enum {string}
+     */
+    RoleEnum: "beneficiary" | "store_staff" | "store_manager" | "intake_worker" | "admin";
     /**
      * @description * `published` - Published
      * * `closed` - Closed
@@ -158,6 +185,19 @@ export interface operations {
             status: "ok";
           };
         };
+      };
+    };
+  };
+  me_retrieve: {
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["CurrentUser"];
+        };
+      };
+      /** @description Authentication required. */
+      401: {
+        content: never;
       };
     };
   };

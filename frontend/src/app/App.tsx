@@ -7,6 +7,7 @@
 import { Navigate, Route, Routes } from "react-router";
 
 import { WelcomePage } from "../areas/public/WelcomePage";
+import { SignIn } from "../areas/public/pages/SignIn";
 import { NewListing } from "../areas/store/pages/NewListing";
 import { MobileAreaLayout } from "./layouts/MobileAreaLayout";
 import { PublicLayout } from "./layouts/PublicLayout";
@@ -22,7 +23,11 @@ export default function App() {
     <Routes>
       <Route element={<PublicLayout />}>
         <Route index element={<WelcomePage />} />
-        <Route path="sign-in" element={<PlaceholderScreen titleKey="auth.login.title" />} />
+        <Route path="sign-in" element={<SignIn />} />
+        <Route
+          path="forgot-password"
+          element={<PlaceholderScreen titleKey="auth.common.forgotPassword" />}
+        />
         <Route
           path="sign-up"
           element={<PlaceholderScreen titleKey="auth.common.createAccount" />}

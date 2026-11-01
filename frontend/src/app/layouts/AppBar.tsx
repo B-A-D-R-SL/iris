@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 
 import { useCurrentUser } from "../../features/accounts/currentUser";
+import { SignOutButton } from "../../shared/auth/SignOutButton";
 import { logger } from "../../shared/logger";
 import classes from "./layouts.module.css";
 
@@ -63,6 +64,7 @@ function AccountMenu() {
         >
           {t("app.language.switchTo")}
         </Menu.Item>
+        <SignOutButton menu />
       </Menu.Dropdown>
     </Menu>
   );
