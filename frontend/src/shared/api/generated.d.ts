@@ -27,12 +27,34 @@ export interface paths {
      */
     get: operations["schema_retrieve"];
   };
+  "/api/staff/audit/": {
+    /** Search audit events (admin only) */
+    get: operations["staff_audit_list"];
+  };
 }
 
 export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
+    /**
+     * @description * `view` - View
+     * * `decision` - Decision
+     * @enum {string}
+     */
+    ActionEnum: "view" | "decision";
+    AuditEvent: {
+      action: components["schemas"]["ActionEnum"];
+      /** Format: uuid */
+      actor: string;
+      actor_role: string;
+      /** Format: date-time */
+      created_at: string;
+      id: number;
+      metadata: unknown;
+      target_id: string;
+      target_type: string;
+    };
     /** @description Expose public category fields without internal database IDs. */
     Category: {
       code: string;
@@ -56,6 +78,21 @@ export interface components {
      * @enum {string}
      */
     LanguageEnum: "fr" | "en";
+    PaginatedAuditEventList: {
+      /** @example 123 */
+      count: number;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=4
+       */
+      next?: string | null;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=2
+       */
+      previous?: string | null;
+      results: components["schemas"]["AuditEvent"][];
+    };
     /**
      * @description * `beneficiary` - Beneficiary
      * * `store_staff` - Store Staff
@@ -149,6 +186,32 @@ export interface operations {
           "application/yaml": {
             [key: string]: unknown;
           };
+        };
+      };
+    };
+  };
+  /** Search audit events (admin only) */
+  staff_audit_list: {
+    parameters: {
+      query?: {
+        /** @description Staff user ID */
+        actor?: string;
+        /** @description First Montreal date, inclusive */
+        from?: string;
+        /** @description Household ID */
+        household?: string;
+        /** @description Un numéro de page de l'ensemble des résultats. */
+        page?: number;
+        /** @description Nombre de résultats à retourner par page. */
+        page_size?: number;
+        /** @description Last Montreal date, inclusive */
+        to?: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PaginatedAuditEventList"];
         };
       };
     };

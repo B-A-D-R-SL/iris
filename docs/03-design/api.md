@@ -140,7 +140,7 @@ remains incomplete.
 
 | Method | Path                                            | Who   | Purpose              | Status  |
 | ------ | ----------------------------------------------- | ----- | -------------------- | ------- |
-| GET    | `/api/staff/audit/?household=&actor=&from=&to=` | Admin | Audit search         | Planned |
+| GET    | `/api/staff/audit/?household=&actor=&from=&to=` | Admin | Audit search         | Implemented |
 | GET    | `/api/staff/reports/summary/?start=&end=`       | Admin | Dashboard metrics    | Planned |
 | GET    | `/api/staff/reports/export.csv?start=&end=`     | Admin | CSV (UTF-8 with BOM) | Planned |
 | GET    | `/api/staff/emails/?status=failed`              | Admin | Failed emails        | Planned |

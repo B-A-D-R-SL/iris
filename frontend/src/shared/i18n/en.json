@@ -1,4 +1,37 @@
 {
+  "audit": {
+    "search": {
+      "description": "Search by household ID, staff user ID, or date (Montreal time).",
+      "household": "Household ID",
+      "actor": "Staff user ID",
+      "from": "From date",
+      "to": "To date",
+      "submit": "Search",
+      "invalidId": "Enter a valid ID.",
+      "invalidRange": "The end date must not be before the start date.",
+      "empty": "No audit events found",
+      "count": "Total events: {{total}}",
+      "when": "Date and time",
+      "role": "Role",
+      "action": "Action",
+      "target": "Record",
+      "outcome": "Outcome",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {{page}}",
+      "roleAdmin": "Administrator",
+      "roleIntake": "Intake worker",
+      "roleStoreStaff": "Store staff",
+      "roleStoreManager": "Store manager",
+      "roleBeneficiary": "Household",
+      "actionView": "View",
+      "actionDecision": "Decision",
+      "outcomeApproved": "Approved",
+      "outcomeRejected": "Rejected",
+      "outcomeReview": "Review required",
+      "targetHousehold": "Household"
+    }
+  },
   "household": {
     "status": {
       "draft": "Draft",

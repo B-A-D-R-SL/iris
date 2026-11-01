@@ -55,8 +55,20 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-16 Design system, translations and app shell (#407) | `frontend/src/app/` (theme, providers, routes, layouts, navigation, guards, error boundary), `frontend/src/areas/public/WelcomePage.tsx`, `frontend/src/features/accounts/currentUser.ts`, `frontend/src/shared/{forms,ui}/`, `frontend/src/shared/i18n/{fr,en}.json`, `frontend/src/test/`, `frontend/public/{manifest.webmanifest,favicon.svg,icons/}`, `frontend/index.html`, `frontend/package.json`, `docs/guides/design-system.md`; built from the Figma Components page (SET-11) | 50% or more AI-generated (lock file and generated icons exempt) | Not yet opened (`SET-16-design-system-translations-and-app-shell` branch) |
 | T-00.01.4 Categories reference module (#377) | `backend/modules/categories/`, `frontend/src/features/categories/`, `backend/iris/urls.py`, `frontend/src/app/App.tsx`, translations, API types, and `docs/guides/reference-module.md` | 50% or more AI-generated | Pending PR (`feature/SET-14`) |
 | SET-14 Module skeletons and boundary checks (#405) | `backend/modules/` (15 module structures and READMEs), `backend/iris/settings/base.py`, `backend/pyproject.toml`, and architecture-related Rules changes | 50% or more AI-generated | Pending PR (`feature/SET-14`) |
+| T-09.62.3 Audit search (#550) | `backend/modules/audit/{api,queries.py,tests/test_search_api.py,README.md}`, `backend/iris/urls.py`, `frontend/src/areas/staff/pages/Audit*`, `frontend/src/app/App.tsx`, translations, generated API types, `docs/03-design/api.md`, `AI_USAGE.md` | Local US-62 story branch |
 
 ## Examples, verification and corrections
+
+### T-09.62.3 Audit search API and screen (#550)
+
+- **AI assistance:** ChatGPT/Codex helped write and review code for the
+  admin-only search API, filters, pagination and bilingual screen, including
+  implementation and tests, under Reuven's direction.
+- **Verification:** The search integration tests were run against a temporary
+  PostgreSQL 17 instance. Frontend tests, type checking, lint, build and schema
+  generation were run locally; teammate review remains outstanding.
+- **Limits:** Search accepts household and staff UUIDs rather than names. The
+  audit service and accounts work live on the parent story branch.
 
 At least half of the AI-assisted features need an example here. For each one:
 

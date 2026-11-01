@@ -34,4 +34,14 @@ docker compose exec backend python manage.py migrate --noinput
 ```
 
 Requires the US-01 accounts migrations. Audit setup needs no manual SQL.
-The search API and screen belong to #550.
+## Admin search
+
+`GET /api/staff/audit/` is restricted to active administrators. Optional
+`household` and `actor` parameters are UUIDs; `from` and `to` are inclusive
+ISO dates in the America/Montreal timezone. Household filtering matches only
+events with target type `household`. Results are newest first, with ID used as
+a tie-breaker. Pagination uses `page` and `page_size` (default 20, maximum 100)
+and returns `count`, `next`, `previous` and `results`. Dates in event responses
+are UTC; the screen displays Montreal time. Invalid identifiers, dates and
+reversed date ranges return HTTP 400. Search accepts IDs; name-based lookup is
+not part of this endpoint.
