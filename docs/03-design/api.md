@@ -92,8 +92,10 @@ client IP address**, shared by anonymous and signed-in callers; a port in the
 forwarded address is ignored. Every request that reaches the endpoint counts,
 including those refused with 400 or 409. A signed-in session refused for a missing
 CSRF token (403) is stopped before the limit and is not counted; it saves nothing.
-Messages follow `Accept-Language`, which is also stored as the language of the
-contact's emails (French if the header is missing or not French or English).
+Messages use the request's language: Django's `django_language` cookie if it holds
+French or English, otherwise `Accept-Language`, otherwise French. That language is
+also stored as the language of the contact's emails. The Iris frontend sends
+`Accept-Language` and does not set the cookie.
 
 Request (JSON). Fields and rules are those of the
 [partner application form](../02-requirements/forms-and-fields.md#partner-application-form);
