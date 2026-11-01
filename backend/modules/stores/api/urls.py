@@ -1,5 +1,10 @@
 # AI contribution: 50% or more AI-generated
-"""Future API routes for stores.
+"""Public partner application route; staff review routes arrive with US-13."""
 
-TODO: Define routes when module endpoints are implemented.
-"""
+from django.urls import path
+
+from modules.stores.api.views import PartnerApplicationCreateView
+
+urlpatterns = [
+    path("", PartnerApplicationCreateView.as_view(), name="partner-application-create")
+]
