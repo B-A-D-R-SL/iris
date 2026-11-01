@@ -18,6 +18,7 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | ChatGPT (OpenAI) | Implemented the idempotent B.A.D.R. Store seed command and expanded its tests from Leon's approved T-02.11.3 plan. | Leon Kojakian (#442) |
 | ChatGPT (OpenAI) | Implemented the T-01.01.3 sign-in screen, browser session handling, sign-out controls, translations, and frontend tests under Leon's approved plan. | Leon Kojakian (#425) |
 | ChatGPT (OpenAI) | Implemented and reviewed the Categories reference module (#377), Django module scaffolding, import-boundary checks, documentation, and tests for SET-14 (#405). | Owner of #377 and #405 |
+| Claude Code (Anthropic) | Analyzed US-12 against the team pack, then implemented the PartnerApplication model, Store link, submission service, public API, Django admin, translations and tests from Ryan's approved T-02.12.2/T-02.12.1 plan. | Ryan Cheung (#444, #445) |
 
 ## How we declare AI-generated code
 
@@ -56,6 +57,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-14 Module skeletons and boundary checks (#405) | `backend/modules/` (15 module structures and READMEs), `backend/iris/settings/base.py`, `backend/pyproject.toml`, and architecture-related Rules changes | 50% or more AI-generated | Pending PR (`feature/SET-14`) |
 | T-05.33.4 Posting form (#495) | `frontend/src/areas/store/{pages/NewListing.tsx,pages/newListingForm.ts,components/CategoryPicker.tsx}` and their CSS and tests, `frontend/src/features/listings/`, `frontend/src/shared/forms/IntegerField.tsx`, `frontend/src/shared/api/csrf.ts`, translations, `frontend/src/app/App.tsx`; the category-code change in `backend/modules/listings/` (serializers, service, domain input, tests) and `backend/modules/categories/queries.py`; regenerated API types; `docs/guides/{listing-posting,design-system}.md` | 50% or more AI-generated | Not yet opened (`US-33-post-a-listing` branch) |
 | T-05.33.5 Time-to-post check (#496) | `docs/usability/time-to-post.md` (study plan and results template), `frontend/scripts/usability/` (preview API, timing rules, report, tests), `frontend/package.json` (scripts), `frontend/.gitignore` | 50% or more AI-generated; the times and observations come from the sessions | Not yet opened (`US-33-post-a-listing` branch) |
+| T-02.12.2 PartnerApplication model and API (#445) | `backend/modules/stores/{models.py,services.py,admin.py,api/,locale/,README.md}`, `backend/iris/{urls.py,settings/base.py}` (route, throttle rate, `NUM_PROXIES`, `django.contrib.postgres`), `backend/pyproject.toml` (stores → categories boundary), regenerated API types, `docs/03-design/{api,database-schema}.md`, `docs/04-architecture/architecture.md` | 50% or more AI-generated (generated migration and API declarations exempt) | Not yet opened (`US-12-partner-application-api` branch) |
+| T-02.12.1 Unit tests: Business applies to become a partner (#444) | `backend/modules/stores/tests/{factories.py,test_partner_application_model.py,test_partner_application_service.py,test_partner_application_api.py,test_admin.py}` | 50% or more AI-generated | Not yet opened (`US-12-partner-application-api` branch) |
 
 ## Examples, verification and corrections
 
