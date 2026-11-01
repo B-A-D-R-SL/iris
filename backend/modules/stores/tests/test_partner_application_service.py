@@ -6,12 +6,12 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.core import mail
 from django.core.exceptions import ValidationError
 from django.db import close_old_connections, connection, transaction
 from django.utils import translation
 
-from modules.accounts.models import User
 from modules.categories.tests.factories import CategoryFactory
 from modules.stores import services
 from modules.stores.models import ApplicationStatus, PartnerApplication
@@ -77,7 +77,7 @@ def categories(db: Any) -> None:
 def test_submission_is_saved_as_submitted_without_an_account(
     django_capture_on_commit_callbacks: Any,
 ) -> None:
-    users_before = User.objects.count()
+    users_before = get_user_model()._default_manager.count()
     with django_capture_on_commit_callbacks(execute=True):
         application = services.submit_application(
             values(), language="en", mailer=RecordingMailer()
@@ -86,7 +86,9 @@ def test_submission_is_saved_as_submitted_without_an_account(
     assert application.status == ApplicationStatus.SUBMITTED
     assert application.language == "en"
     assert application.consent_contact is True
-    assert User.objects.count() == users_before  # no account at this step
+    assert (
+        get_user_model()._default_manager.count() == users_before
+    )  # no account at this step
 
 
 @pytest.mark.usefixtures("categories")

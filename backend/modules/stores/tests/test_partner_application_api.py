@@ -5,6 +5,7 @@ import json
 from typing import Any
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.core import mail
 from django.core.cache import cache
 from django.test import Client
@@ -12,7 +13,6 @@ from django.urls import reverse
 from django.utils import translation
 from rest_framework.test import APIClient
 
-from modules.accounts.models import User
 from modules.accounts.tests.factories import UserFactory
 from modules.categories.tests.factories import CategoryFactory
 from modules.stores.models import ApplicationStatus, PartnerApplication
@@ -99,10 +99,10 @@ def test_every_role_may_apply(role: str) -> None:
 
 
 def test_anonymous_visitor_may_apply_without_an_account() -> None:
-    users_before = User.objects.count()
+    users_before = get_user_model()._default_manager.count()
     client = APIClient(enforce_csrf_checks=True)
     assert post(client, payload()).status_code == 201
-    assert User.objects.count() == users_before
+    assert get_user_model()._default_manager.count() == users_before
 
 
 def test_signed_in_session_without_csrf_token_is_refused() -> None:
