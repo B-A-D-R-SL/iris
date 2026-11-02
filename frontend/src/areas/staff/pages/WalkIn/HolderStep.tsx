@@ -30,6 +30,10 @@ export function HolderStep({ form }: HolderStepProps) {
     type: "checkbox",
   });
 
+  const consentProps = form.getInputProps("consentGiven", {
+    type: "checkbox",
+  });
+
   return (
     <>
       <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
@@ -70,6 +74,15 @@ export function HolderStep({ form }: HolderStepProps) {
         aria-required
         label={t("staff.walkIn.identityCheckedInPerson")}
         description={t("staff.walkIn.identityHelp")}
+      />
+
+      <Checkbox
+        {...consentProps}
+        mt="md"
+        size="md"
+        aria-required
+        label={t("household.registrationConsent.consentDataProcessing")}
+        description={t("staff.walkIn.consentHelp")}
       />
     </>
   );
