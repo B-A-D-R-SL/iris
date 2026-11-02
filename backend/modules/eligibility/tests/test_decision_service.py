@@ -275,3 +275,37 @@ def test_incomplete_adult_evidence_is_rejected(
         decide_for_household(household.pk, staff)
 
     assert not EligibilityDecision.objects.exists()
+
+
+def test_official_2024_lico_seed_drives_persisted_decisions(
+    staff, household, confirmed_inputs
+):
+    from django.core.management import call_command
+
+    from modules.rules.queries import active
+
+    call_command("seed_rules", verbosity=0)
+
+    rule = active("lico_thresholds")
+    assert rule is not None
+    assert rule.values["year"] == 2024
+    assert rule.values["thresholds"]["3"] == 4_785_100
+
+    confirmed_inputs.adult_incomes_cents = [2_000_000, 2_785_100]
+    at_threshold = decide_for_household(household.pk, staff)
+
+    assert at_threshold.eligible is True
+    assert at_threshold.household_income_cents == 4_785_100
+    assert at_threshold.threshold_cents == 4_785_100
+    assert at_threshold.threshold_year == 2024
+    assert at_threshold.ruleset_version_id == rule.pk
+
+    confirmed_inputs.adult_incomes_cents = [2_000_000, 2_785_101]
+    above_threshold = decide_for_household(household.pk, staff)
+
+    assert above_threshold.eligible is False
+    assert above_threshold.household_income_cents == 4_785_101
+
+    at_threshold.refresh_from_db()
+    assert at_threshold.eligible is True
+    assert EligibilityDecision.objects.filter(household=household).count() == 2
