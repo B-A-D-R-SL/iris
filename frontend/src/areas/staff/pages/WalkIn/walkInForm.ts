@@ -1,6 +1,6 @@
 // AI contribution: 50% or more AI-generated
 /**
- * Values, checks and API mapping of the walk-in form (forms-and-fields.md,
+ * Values, checks and API mapping of the walk-in form (user story #461,
  * "Walk-in registration": registration steps 1 to 3 plus the photo ID check).
  * The server checks everything again; its 400 messages appear on the matching fields.
  */
@@ -27,7 +27,7 @@ import {
 export const STEPS = ["holder", "address", "members", "review"] as const;
 export type Step = (typeof STEPS)[number];
 
-/** 15 people at most, the holder included (forms-and-fields.md, step 3). */
+/** 15 people at most, the holder included (user story #461, step 3). */
 export const MAX_OTHER_MEMBERS = 14;
 
 export const RELATIONS: readonly MemberRelation[] = [
@@ -63,6 +63,8 @@ export interface WalkInFormValues {
   phone: string;
   preferredLanguage: "fr" | "en";
   identityChecked: boolean;
+  /** Data-processing consent: the notice was read aloud and the person agreed. */
+  consentGiven: boolean;
   streetNumber: string;
   streetName: string;
   unit: string;
@@ -79,6 +81,7 @@ export const DEFAULT_VALUES: WalkInFormValues = {
   phone: "",
   preferredLanguage: "fr",
   identityChecked: false,
+  consentGiven: false,
   streetNumber: "",
   streetName: "",
   unit: "",
@@ -104,6 +107,7 @@ export function fromDraft(draft: WalkInDraft): WalkInFormValues {
     phone: draft.phone,
     preferredLanguage: draft.preferred_language,
     identityChecked: draft.identity_checked_in_person,
+    consentGiven: draft.consent_data_processing_at !== null,
     streetNumber: draft.street_number,
     streetName: draft.street_name,
     unit: draft.unit ?? "",
@@ -140,6 +144,7 @@ export function toPayload(values: WalkInFormValues): WalkInInput {
       preferred_language: values.preferredLanguage,
     },
     identity_checked_in_person: values.identityChecked,
+    consent_data_processing: values.consentGiven,
     members: values.members.map((member) => ({
       first_name: member.firstName.trim(),
       last_name: member.lastName.trim(),
@@ -207,6 +212,9 @@ function holderErrors(values: WalkInFormValues, today: Dayjs, forDraft: boolean)
   if (!forDraft && !values.identityChecked) {
     errors.identityChecked = validationMessage("staff.walkIn.identityRequired");
   }
+  if (!forDraft && !values.consentGiven) {
+    errors.consentGiven = validationMessage("staff.walkIn.consentRequired");
+  }
   return errors;
 }
 
@@ -247,7 +255,7 @@ function memberErrors(values: WalkInFormValues, today: Dayjs): Errors {
 
 /**
  * Errors of one step. `forDraft` relaxes only what may wait in a draft:
- * the photo ID check, and an address that has not been started yet.
+ * the photo ID check, the consent, and an address that has not been started yet.
  */
 export function stepErrors(
   step: Step,
@@ -280,7 +288,7 @@ export function stepOf(field: string): Step {
 
 /** Where to resume a saved draft: the first step still missing information. */
 export function resumeStep(values: WalkInFormValues): Step {
-  if (!values.identityChecked) return "holder";
+  if (!values.identityChecked || !values.consentGiven) return "holder";
   if (!hasAddress(values)) return "address";
   return "members";
 }
@@ -289,6 +297,7 @@ export function resumeStep(values: WalkInFormValues): Step {
 export function stillToComplete(values: WalkInFormValues): string[] {
   const todo: string[] = [];
   if (!values.identityChecked) todo.push("staff.walkIn.todoIdentity");
+  if (!values.consentGiven) todo.push("staff.walkIn.todoConsent");
   if (!hasAddress(values)) todo.push("staff.walkIn.todoAddress");
   todo.push("staff.walkIn.todoNotices");
   return todo;
@@ -324,6 +333,7 @@ function formField(apiField: string): string | null {
   if (group === "holder" && rest && HOLDER_FIELDS[rest]) return HOLDER_FIELDS[rest];
   if (group === "address" && rest && ADDRESS_FIELDS[rest]) return ADDRESS_FIELDS[rest];
   if (apiField === "identity_checked_in_person") return "identityChecked";
+  if (apiField === "consent_data_processing") return "consentGiven";
   const member = /^members\[(\d+)\]\.(\w+)$/.exec(apiField);
   if (member && MEMBER_FIELDS[member[2]]) return `members.${member[1]}.${MEMBER_FIELDS[member[2]]}`;
   return null;
