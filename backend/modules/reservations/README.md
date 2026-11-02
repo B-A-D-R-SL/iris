@@ -1,7 +1,7 @@
 # Reservations module
 
 **Owner pair:** Goods
-**Status:** SET-14 architecture skeleton
+**Status:** Reservation table added for the SET-18 seed. Pickup workflows are still open.
 
 ## Responsibility
 
@@ -19,7 +19,7 @@ Own the reservations feature boundary within the Iris modular monolith.
 
 ## Public functions
 
-No public functions implemented yet.
+No public write functions yet. `Reservation` stores the columns from the database design so `manage.py seed` can insert fictional reservations. Pickup services are still to be added.
 
 ## Architectural rules
 

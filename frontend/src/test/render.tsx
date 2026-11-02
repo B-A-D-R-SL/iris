@@ -11,8 +11,13 @@ import { rootOptions } from "../app/rootOptions";
 import type { CurrentUser, Role } from "../features/accounts/currentUser";
 
 /** Renders like main.tsx: real providers and root options, and a router at `route`. */
-export function renderWithProviders(ui: ReactNode, { route = "/" }: { route?: string } = {}) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+export function renderWithProviders(
+  ui: ReactNode,
+  {
+    route = "/",
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+  }: { route?: string; queryClient?: QueryClient } = {},
+) {
   return render(
     <AppProviders queryClient={queryClient} env="test">
       <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>

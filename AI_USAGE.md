@@ -33,9 +33,9 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | --- | --- | --- | --- |
 | T-09.62.1 Audit tests (#548) | `backend/modules/audit/tests/test_audit.py` | 50% or more AI-generated | Not opened |
 | T-09.62.2 Audit model and service (#549) | `backend/modules/audit/{models.py,services.py,README.md,migrations/}` | 50% or more AI-generated (migrations exempt) | Not opened |
-| T-01.01.1 Sign-in and sign-out tests (#423) | `backend/modules/accounts/tests/test_accounts.py`, `frontend/src/app/App.test.tsx`, `AI_USAGE.md` | 50% or more AI-generated additions | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
-| T-01.01.2 User model and sign-in API (#424) | `backend/modules/accounts/`, authentication settings/routes, development administrator command, affected regression tests, `backend/{pyproject.toml,uv.lock}`, generated API types | 50% or more AI-generated (generated migrations, lockfile and API declarations exempt) | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
-| T-01.01.3 Sign-in screen and session handling (#425) | `frontend/src/areas/public/pages/SignIn.tsx`, `frontend/src/shared/auth/`, app providers and layouts, current-user query, French/English translations, frontend tests, `AI_USAGE.md` | 50% or more AI-generated additions | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
+| T-01.01.1 Sign-in and sign-out tests (#423) | `backend/modules/accounts/tests/test_accounts.py`, `frontend/src/app/App.test.tsx`, `AI_USAGE.md` | 50% or more AI-generated | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
+| T-01.01.2 User model and sign-in API (#424) | `backend/modules/accounts/`, authentication settings/routes, development administrator command, affected regression tests, `backend/{pyproject.toml,uv.lock}`, generated API types, `docs/03-design/{api,database-schema}.md`, `docs/guides/auth-routing.md` | 50% or more AI-generated for the marked source files, including `backend/pyproject.toml`; Below 50% AI-generated for `backend/modules/rules/tests/test_rule_set_versions.py`; generated migrations, lockfile and API declarations exempt | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
+| T-01.01.3 Sign-in screen and session handling (#425) | `frontend/src/areas/public/pages/SignIn.tsx`, `frontend/src/shared/{auth,forms}/`, app providers and layouts, current-user query, French/English translations, frontend tests, `docs/guides/design-system.md`, `AI_USAGE.md` | 50% or more AI-generated | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
 | T-00.01.1 Backend project (#374) | `backend/iris/settings/`, `backend/manage.py`, `backend/pyproject.toml`, `backend/tests/test_backend_config.py`, `backend/.env.example` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | T-00.01.2 Frontend project (#375) | `frontend/src/`, `frontend/package.json`, `frontend/vite.config.ts`, `frontend/eslint.config.js`, `frontend/.prettierrc.json`, `backend/iris/{views.py,urls.py}` | 50% or more AI-generated | Not yet opened (`setup` branch) |
 | T-00.01.3 Docker Compose and README (#376) | `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, `backend/adapters/mailer/`, `backend/iris/management/commands/create_dev_admin.py`, `backend/tests/test_platform_setup.py`, `.env.example`, `README.md` | 50% or more AI-generated | Not yet opened (`setup` branch) |
@@ -52,10 +52,15 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-12 Listing categories and safety lists (#403) | `docs/02-requirements/business-rules.md` (Listings section), `backend/modules/categories/data/categories.yaml` | 50% or more AI-generated | Not yet opened (`feature/SET-12` branch) |
 | SET-02 CI workflow and branch protection (#378, #379, #380, #381) | `.github/workflows/ci.yml`, `backend/pyproject.toml` (coverage and import-linter settings), `frontend/vite.config.ts` (coverage settings), `frontend/package.json` (scripts), `README.md` (checks and CI section) | 50% or more AI-generated | Not yet opened |
 | SET-15 OpenAPI and TypeScript generation (#406), partial implementation | `backend/iris/settings/base.py`, `backend/tests/test_api_schema.py`, `frontend/scripts/{gen-api,test-api-generation}.mjs`, `frontend/src/shared/api/generated.d.ts`, `frontend/src/test/api-types.typecheck.ts`, `frontend/package.json`, `frontend/pnpm-lock.yaml`, `.github/workflows/ci.yml`, `docs/guides/api-generation.md`, `docs/03-design/api.md`, `AI_USAGE.md`, `README.md` | 50% or more AI-generated | [#604](https://github.com/B-A-D-R-SL/iris/pull/604); categories compliance (#377) and documented team decisions remain pending |
+| T-05.33.2 Listing model (#493) | `backend/modules/listings/{__init__.py,apps.py,models.py,migrations/0001_initial.py,tests/}`, `backend/modules/categories/tests/{factories.py,test_category_model.py}` (its minimal Category model and migration were replaced by #377's when `main` was merged into `US-33-post-a-listing`), `backend/iris/settings/base.py` | 50% or more AI-generated (generated migrations exempt) | Not yet opened (`US-33-post-a-listing` branch) |
 | SET-16 Design system, translations and app shell (#407) | `frontend/src/app/` (theme, providers, routes, layouts, navigation, guards, error boundary), `frontend/src/areas/public/WelcomePage.tsx`, `frontend/src/features/accounts/currentUser.ts`, `frontend/src/shared/{forms,ui}/`, `frontend/src/shared/i18n/{fr,en}.json`, `frontend/src/test/`, `frontend/public/{manifest.webmanifest,favicon.svg,icons/}`, `frontend/index.html`, `frontend/package.json`, `docs/guides/design-system.md`; built from the Figma Components page (SET-11) | 50% or more AI-generated (lock file and generated icons exempt) | Not yet opened (`SET-16-design-system-translations-and-app-shell` branch) |
 | T-00.01.4 Categories reference module (#377) | `backend/modules/categories/`, `frontend/src/features/categories/`, `backend/iris/urls.py`, `frontend/src/app/App.tsx`, translations, API types, and `docs/guides/reference-module.md` | 50% or more AI-generated | Pending PR (`feature/SET-14`) |
 | SET-14 Module skeletons and boundary checks (#405) | `backend/modules/` (15 module structures and READMEs), `backend/iris/settings/base.py`, `backend/pyproject.toml`, and architecture-related Rules changes | 50% or more AI-generated | Pending PR (`feature/SET-14`) |
 | T-09.62.3 Audit search (#550) | `backend/modules/audit/{api,queries.py,tests/test_search_api.py,README.md}`, `backend/iris/urls.py`, `frontend/src/areas/staff/pages/Audit*`, `frontend/src/app/App.tsx`, translations, generated API types, `docs/03-design/api.md`, `AI_USAGE.md` | Local US-62 story branch |
+| T-05.33.4 Posting form (#495) | `frontend/src/areas/store/{pages/NewListing.tsx,pages/newListingForm.ts,components/CategoryPicker.tsx}` and their CSS and tests, `frontend/src/features/listings/`, `frontend/src/shared/forms/IntegerField.tsx`, `frontend/src/shared/api/csrf.ts`, translations, `frontend/src/app/App.tsx`; the category-code change in `backend/modules/listings/` (serializers, service, domain input, tests) and `backend/modules/categories/queries.py`; regenerated API types; `docs/guides/{listing-posting,design-system}.md` | 50% or more AI-generated | Not yet opened (`US-33-post-a-listing` branch) |
+| T-05.33.5 Time-to-post check (#496) | `docs/usability/time-to-post.md` (study plan and results template), `frontend/scripts/usability/` (preview API, timing rules, report, tests), `frontend/package.json` (scripts), `frontend/.gitignore` | 50% or more AI-generated; the times and observations come from the sessions | Not yet opened (`US-33-post-a-listing` branch) |
+| SET-18 Seed data generator (#409) | `backend/iris/seedset.py`, `backend/iris/management/commands/seed.py`, `backend/modules/households/models.py`, `backend/modules/reservations/models.py`, their migrations, `backend/tests/test_seed.py`, `backend/tests/test_seed_plan.py`, `docs/04-data/seed-data.md` | 50% or more AI-generated | Not yet opened (`SET-18-data-generator` branch) |
+| SET-19 AI reading spike (#410) | `tools/notice_reading_spike/{run.py,reader.py,fields.py,score.py,records.py,truth_reader.py,azure_layout_reader.py,layout_parser.py,vlm_reader.py,tests/,pyproject.toml,uv.lock,.python-version,.env.example,README.md}`, `docs/adr/0005-notice-reading.md`, the `document_reader` row in `docs/04-architecture/architecture.md`, `AI_USAGE.md`, and the wiki pages Notice Reading, Notice Reading – Results and Notice Reading – Law 25 Evidence | 50% or more AI-generated | [#612](https://github.com/B-A-D-R-SL/iris/pull/612) |
 
 ## Examples, verification and corrections
 
@@ -83,30 +88,31 @@ At least half of the AI-assisted features need an example here. For each one:
 - **How we verified it:** 56 audit tests and all 185 backend tests passed in Docker with PostgreSQL. Audit coverage was 100%; total backend coverage was 89.30%. Ruff, mypy, all three module-boundary contracts, Django checks, and migration consistency checks passed. The current database migrated successfully; trigger reversal and reapplication were tested only on the isolated test database.
 - **Problems found and corrections:** tightened target-type validation to reject a trailing newline and recorded the change in a migration. Local dependency caches required source-directory targets for lint and typing checks. No databases or volumes were recreated.
 
+### SET-18 Seed data generator (#409)
+
+- **What the AI produced:** the `seed` command, the fixed fictional plan (seed 18), household and reservation tables taken from the published schema, and `docs/04-data/seed-data.md`.
+- **How we verified it:** `test_seed_plan` checks the agreed counts, status spread, stock limits, and fictional contact details. `test_seed` runs `manage.py seed` on an empty database, checks 1 admin, 2 intake workers, B.A.D.R. plus 4 partner stores, 50 households, 30 listings, and 40 reservations, then runs it again and checks that edited rows are kept.
+- **Problems found and corrections:** household and reservation models did not exist yet, so the seed could not insert those rows. The tables follow `docs/03-design/database-schema.md`. Registration and pickup workflows are still owned by their own stories.
+
 ### T-01.01.1 Sign-in and sign-out tests (#423)
 
 - **Leon's direction:** implement the approved test plan and use `/staff/households` as the staff landing path, as updated in US-01.
 - **What the AI produced:** expanded account API tests to exercise real sign-in, current-user lookup, and sign-out for all five roles; added a shared-browser-session logout test; expanded the app routing test to cover every role's landing area.
 - **How we verified it:** all 34 focused account tests and 54 focused app/navigation tests passed. The accounts module reached 100% coverage in the focused backend run; Ruff, ESLint, TypeScript, and formatting checks passed. Only test files changed for this task, so changed-production-code coverage does not apply.
+- **Problems found and corrections:** the first routing expectations used a generic staff path; Leon supplied the updated `/staff/households` path from US-01, and the tests were corrected before the screen was built.
 - **Follow-on screen work:** the form, localized errors, and sign-out controls were delivered in T-01.01.3.
 
 ### T-01.01.3 Sign-in screen and session handling (#425)
 
-- **Leon's direction:** implement the approved frontend plan on the US-01 branch, using `/staff/households` for staff and the existing allauth browser-session API.
-- **What the AI produced:** the French/English sign-in form; CSRF-aware password and conditional six-digit MFA requests; a TanStack Query AuthProvider using `/api/me/`; role redirects; shared sign-out controls for household, store, staff, and public layouts; cross-tab sign-out notification; and frontend tests for those paths and error cases. The `/api/me/` handling follows PR #607's US-01 follow-up: 401/403 mean signed out, 404 is an error, and the user type comes from the generated OpenAPI declaration. The code field appears only if allauth issues an MFA challenge; staff MFA enrollment is tracked by US-09 (#436).
-- **How we verified it:** all 183 frontend tests passed, including the new authentication tests and an accessibility check. Full frontend statement coverage was 92.96%; the new sign-in page reached 93.61% and the new shared auth module 88.11%. TypeScript, ESLint, Prettier, and the production build passed.
-- **Problems found and corrections:** fixed an unsupported TypeScript parameter property, split the auth context from the provider for React Fast Refresh lint, and flattened new translation keys to comply with the existing three-part key rule.
-- **PR #610 review follow-up:** CodeRabbit found that a failed `/api/me/` lookup after successful authentication could leave a live session on the sign-in page. The AI added a profile-only retry action and a test that confirms it succeeds without another password request. The account menu now closes after language switching while keeping a failed sign-out message visible. All 44 focused frontend tests passed, along with TypeScript and ESLint checks.
+**Leon's direction and AI output:** Leon approved the frontend plan and specified `/staff/households` for staff. The AI built a bilingual sign-in form, CSRF-aware allauth requests, a conditional MFA code step, role redirects, a TanStack Query session provider, and sign-out controls. The `/api/me/` type comes from generated OpenAPI declarations; staff MFA enrollment belongs to US-09 (#436). The work is in [US-01 PR #610](https://github.com/B-A-D-R-SL/iris/pull/610).
 
-### T-01.01.2 Local Argon2 lockfile correction (#424)
+**Verification, problems and corrections:** The first 183 frontend tests passed with 92.96% overall statement coverage; the sign-in page reached 93.61%. Review found an inaccessible live session after a failed profile lookup, stale cached data after sign-out, and missing deep-link handling; the AI added a profile-only retry, cache clearing, redirects, and tests. After these fixes, 202 frontend tests, TypeScript, ESLint, Prettier, and the build passed. Earlier corrections fixed a TypeScript parameter property, Fast Refresh lint, and translation-key shape.
 
-- **Leon's direction:** restore the local development database after the switch to `accounts.User`, then reseed the SET-08 rules and US-11 B.A.D.R. Store.
-- **What the AI produced:** regenerated `backend/uv.lock` to include the `argon2-cffi` dependency already declared in `backend/pyproject.toml`. The lockfile is generated and exempt from a first-line AI note.
-- **How we verified it:** backed up the old database, recreated only the PostgreSQL volume, confirmed the migration order, rebuilt the backend with Argon2, checked the lockfile, verified administrator authentication and the health endpoint, and confirmed nine rule types, seven LICO sizes, and one active B.A.D.R. Store.
-- **Problem found and correction:** the fresh database migrated correctly, but `create_dev_admin` then failed because the previous lockfile omitted Argon2. Regenerating the lockfile fixed backend startup.
-- **PR #610 security follow-up:** Sonar flagged a dynamically formatted table name in `AuthCache._cull`. The AI replaced it with static SQL for the cache table created by the accounts migration, retaining a parameterized expiry time. All 34 account tests passed against PostgreSQL; Ruff lint and formatting checks passed. The PR quality gate must rerun after the change is pushed.
-- **PR #610 admin lockout follow-up:** CodeRabbit found that Django admin's login form bypassed the allauth attempt limit. The AI added an admin authentication form that calls the same account adapter, so admin and app logins share the five-attempt lockout. New tests cover successful admin access, non-staff refusal, and mixed admin/app failures; all 129 backend tests passed against PostgreSQL. Ruff and mypy checks passed on the changed backend code.
-- **PR #610 test data and API schema follow-up:** The AI added a synthetic `UserFactory` for the affected account, store-admin, and rules fixtures and documented their test-only module imports. The `/api/me/` serializer now uses the model's language choices; regenerated TypeScript types carry `fr | en` directly. Verification passed for 129 backend tests, 10 current-user frontend tests, API type drift, TypeScript, Ruff, mypy, import-linter, ESLint, and Prettier.
+### T-01.01.2 User model and authentication (#424)
+
+**Leon's direction and AI output:** Leon approved the custom-user plan and reviewed the migration impact. The AI built `accounts.User`, the allauth adapter with a shared five-attempt lockout, PostgreSQL `AuthCache`, the rate-limited admin form, the `/api/me/` endpoint and serializer, and account tests. It also added `UserFactory` and generated `fr | en` API types in [US-01 PR #610](https://github.com/B-A-D-R-SL/iris/pull/610).
+
+**Verification, problems and corrections:** The backend suite initially passed 129 tests against PostgreSQL; after review fixes, 135 passed. Ruff, mypy, import-linter, and API type drift checks passed. Leon backed up and recreated his local database after the custom-user migration changed its dependency order, then verified the admin, nine rule types, seven LICO sizes, and B.A.D.R. Store. Startup exposed a missing Argon2 lockfile entry; the AI regenerated `backend/uv.lock`. Review also found a dynamic cache-table SQL string and an admin lockout bypass; static SQL and a shared admin authentication form fixed them.
 
 ### T-00.01.4 Categories reference module (#377) and SET-14 Module skeletons (#405)
 
@@ -293,6 +299,44 @@ At least half of the AI-assisted features need an example here. For each one:
   - The YAML keys first followed the team draft schema, including `sort_order`, while the SET-05 branch used other names (`french_label`, `food_indicator`, `active_indicator`) and no sort order. Agreed with the SET-05 owner: keep `name_fr`, `name_en`, `is_food`, `is_active` (consistent with `is_active` and `is_badr` on other tables) and drop `sort_order`.
   - The sentence on the `listing_safety` setting (`prohibited_category_codes`, empty by default) comes from the unmerged SET-07 branch, not the team draft; to be confirmed with the SET-07 owner.
 
+
+### T-05.33.3 Posting service/API and T-05.33.1 tests (#494, #492)
+
+- **What the AI produced:** with OpenAI Codex, the independent listing-posting
+  backend and tests (50% or more AI-generated): validation, role/store permission
+  checks, database operations, safety/photo integration interfaces, the POST
+  endpoint, translated errors, generated API types, and documentation. Mark
+  required compliance with the repository architecture and testing without
+  integrating Vlad's account code or implementing Ryan's safety checker.
+
+- **How we verified it:** Codex ran the checks under Mark's direction against
+  local PostgreSQL. All 228 backend tests passed with 90.01% coverage, exceeding
+  the 70% gate. Ruff lint and formatting, mypy across 91 files, the existing
+  import-linter contract, Django system checks, and missing-migration checks
+  passed. OpenAPI validation and generated-type drift checks passed; API
+  generator tests recorded seven passes and one expected Python-only skip.
+  All 11 frontend tests, TypeScript checking, production build, ESLint,
+  generated-declaration formatting, and Git whitespace checking passed.
+  Tests cover validation boundaries, permissions, server-controlled fields,
+  database writes, rule versions, safety refusals, upload checks, cleanup,
+  translated responses, and CSRF enforcement. all implemented files have been reviewed.
+
+- **Problems found and corrections:**
+  - Mark requested explanations of every changed file and questioned the
+    dependencies, database requirements, injection protection, and backend
+    translations. The decisions and remaining integration boundaries were
+    explained against the repository documentation.
+  - Mark identified a leading blank line that failed formatting. Removed it
+    using Ruff and reran the static checks.
+  - Mark requested removal of the private photo-storage reference from
+    responses. Removed it, updated schema assertions, and regenerated API types.
+  - Mark requested checking actual JPEG/PNG signatures instead of trusting
+    only the declared content type. Added signature checks and mismatch tests,
+    and updated existing photo fixtures.
+  - Mark requested controlled handling of missing or unexpected posting-rule
+    keys. These now return HTTP 503, with service tests and English/French API
+    tests confirming that no listing is saved.
+
 ### SET-16 Design system, translations and app shell (#407)
 
 - **What the AI produced:** with Claude Code, under Anthony Monaco's direction: the Mantine theme built from the Figma Components page of the owner's SET-11 wireframes, layouts for the public, household, store and staff areas with role-based navigation and route guards, the six shared form fields (`TextField`, `DateField`, `PostalCodeField`, `PhoneField`, `MoneyField`, `FileUpload`) with French and English validation messages, loading, empty and error states, the welcome page, the web app manifest and icons, tests and `docs/guides/design-system.md`.
@@ -306,3 +350,39 @@ At least half of the AI-assisted features need an example here. For each one:
   - The 360 px screenshots showed the staff header cutting off the language switch and a long side-nav label overflowing its row; both layouts were fixed and checked again.
   - `vitest-axe` (last released in 2022) was replaced by `axe-core`, which it only wraps.
   - The placeholder colour is darker than in the wireframes (`#6c757d` instead of `#868e96`) to meet the 4.5:1 contrast of NFR-03.
+
+### T-05.33.4 Posting form (#495)
+
+- **What the AI produced:** with Claude Code, under Anthony Monaco's direction: the one-screen, phone-first posting form at `/store/listings/new` following his SET-11 "Store - Post a listing" flow (bottom-sheet category picker with food first, − / + steppers, day chips, unit switch, best-before date for food only, error summary, publish bar that stays above the tab bar), the API client with CSRF and `Accept-Language`, a shared `IntegerField`, French and English texts, and tests. Before the form, `main` was merged into `US-33-post-a-listing` to bring in SET-16 and SET-14.
+- **Owner's decisions:** change the posting API to take the category **code**, because `GET /api/categories/` deliberately exposes no database IDs; add test-only import-linter exceptions for the listings tests rather than loosen SET-14's contract for every module; show "L'adresse de votre commerce" instead of the real address until a store endpoint exists; leave everything uncommitted for review.
+- **How we verified it:** 32 new Vitest tests (form rules, payload, API client and the whole screen through the router, including axe checks) and all 204 frontend tests pass; TypeScript, ESLint, Prettier and the production build pass. Backend: 255 tests pass (90.3% coverage); Ruff, mypy, import-linter, `manage.py check` and `makemigrations --check` pass; API types regenerated and the drift check passes. Anthony reviewed the code before committing it and checked the screen in his browser through the preview API; the one-hand check is part of T-05.33.5's sessions.
+- **Problems found and corrections:**
+  - The 7-days-ahead check first added calendar days, which is one hour off from the server's elapsed-time rule across a daylight-saving change (1 November 2026); it now adds 168 hours, and the tests use a week without a change so they pass in any time zone.
+  - The best-before date picker first had a minimum date, so an earlier date was silently dropped and the field said "Remplissez ce champ."; without it the date stays visible with its explanation, as in the SET-11 error state.
+  - ESLint's React Compiler rules refused reading a ref inside the submit handler; scrolling to the notices now happens in an effect, after they render.
+  - The merge with `main` registered the categories app twice and broke the listings tests against SET-14's new rules; the duplicates were removed and the tests adapted (`RuleValidationError`, constraint name).
+
+### T-05.33.5 Time-to-post check (#496)
+
+- **What the AI produced:** with Claude Code, under Anthony Monaco's direction: the study plan in `docs/usability/time-to-post.md` (set-up, French scenario card, procedure, results and fixes templates, limitations) and the tools in `frontend/scripts/usability/`: a preview API that answers as a store worker until US-01, times each participant from the form appearing to the accepted post, checks the post against the scenario and prints the median, plus a report script and 18 unit tests.
+- **Owner's decisions:** time runs automatically in the preview (stopwatch as backup); run the sessions in the browser's phone view on a PC rather than on phones; one food listing for everyone; commit the tools with tests so the team can rerun the study.
+- **How we verified it:** the 18 tool tests pass with the 204 existing frontend tests. End to end, a page opened in headless Edge as `?participant=P1` started P1's clock through Vite's proxy, a post was timed and matched the scenario, and the report printed the table. Anthony reviewed the code and ran a practice session with the preview. The sessions themselves, and so the times, are his to run.
+- **Problems found and corrections:**
+  - The categories are refetched when the tab becomes visible again, so "first request after the page loads" could have started a clock early; each participant now has their own clock, started by their page's first load and keyed by the code in the page address.
+  - Anthony's practice run showed a new clock starting when he came back to the browser, and pressing F5 did not restart it; a page reload (its `/api/me/` request) now drops the running clock, and the preview prints it.
+  - Vitest's Node environment cannot load the shared test set-up (it needs `document`); the tool tests run in the default jsdom environment, where Node's `http` still works.
+
+### SET-19 AI reading spike (#410)
+
+- **Feature or task:** SET-19 (#410), compare Azure AI Document Intelligence and Gemini on Vertex AI (Montréal) for reading notices of assessment.
+- **What the AI produced:** with Claude Code, the benchmark harness in `tools/notice_reading_spike/` (reader interface, scorer, run loop, both service readers, the layout parser, tests), the runbook, the draft ADR 0005, and the wiki pages Notice Reading, Notice Reading – Results and Notice Reading – Law 25 Evidence. The work is in the `feature/SET-19` commits from `a2d8b4b` onwards; the commits that fixed problems are named below.
+- **How we verified it:** 173 offline pytest tests in `tools/notice_reading_spike/tests/`: the two service readers run through fake clients (request contents, error wrapping, timeouts, cost, deletion of the analyze result, strict validation of model output), and `test_score.py` checks the scoring rules (exact cents, name and street normalization, confident-and-wrong counts, held-out and dev columns). Ruff lint (complexity limit 15) and format checks pass. A run of the truth reader over all 50 mock notices checks the run loop and file handling; the truth reader returns the truth, so 100% is expected there and says nothing about the scoring rules. Each commit got an AI review (Claude Code) against its task's requirements before the next task started, and a final AI review covered the whole branch. The owner ran the live measurements (two full runs per reader on the 50 mock notices, then the real-notice conditions), copied the provider pages and screenshots that the Law 25 evidence quotes, and chose the model settings. A teammate's pull-request review is still to come.
+- **Problems found and corrections:**
+  - Law 25 evidence (`fe1226c`): two Azure rows were marked "Meets" while the document's own "still unknown" table said they could not be confirmed, one row relied on a sentence with no source, a legal reading was not marked for legal review, and the s. 18.3 breach-notice and verification duties were cited to the wrong subparagraph. All corrected; statuses now follow the quoted sources only.
+  - Gemini reader (`c5a5acf`): `httpx` and `google-auth` were imported directly but not declared as dependencies; an error message said "Law 25 allows no other region", which is wrong (the Canadian-region rule is the team's own requirement); the prompt's example amount was a real mock notice's value, which could bias that file's measurement. All corrected.
+  - Document Intelligence reader (`93fa674`): the SDK's behaviour was checked in the installed package instead of assumed, which showed that `poller.result(timeout=...)` returns None on timeout instead of raising; the reader now treats that as a timeout.
+  - Final branch review (`a305a42`, `517dcb9` and the evidence fix): the unit was scored unfairly against Gemini ("app. 106" against "106"), the summary columns did not match the pass criteria, runs recorded no settings or freeze rule, one unexpected error could end a paid run, and some document claims were unsourced or overstated. All corrected; the unit rule now lives in one shared function.
+  - Live dev runs (`a7620ca`): the AI-written layout parser missed fields on real Azure output: watermark text inside the income cell, one misread postal-code character that lost the whole envelope block, and a notice number after the first date label. Fixed and tested on the recorded responses. Look-alike character correction was rejected, because on notice 033 it would have produced a wrong postal code.
+  - Model settings (`00cccd7`): the AI had set temperature 0, which Google's Gemini 3.x guidance says not to set; the reader now sends no sampling parameters.
+  - Law 25 evidence: the AI first wrote that Gemini would keep notices in Québec. Google's data residency page commits the Montréal endpoint's processing only to Canada, so the evidence and the ADR were corrected.
+  - Rejected: the AI's first idea of testing on a team member's own real notice, because the team's rules allow generated data only.

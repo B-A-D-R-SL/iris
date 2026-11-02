@@ -13,7 +13,7 @@ export interface FileUploadProps extends BaseFieldProps {
   onChange: (file: File | null) => void;
   /** MIME types, for example ["image/jpeg", "image/png"]. Check them with isAcceptedFile too. */
   accept: readonly string[];
-  maxMb: number;
+  maxMb?: number;
   /** Text in the drop zone, for example "Prendre ou choisir une photo". */
   buttonLabel?: string;
   icon?: TablerIcon;
@@ -101,7 +101,7 @@ export function FileUpload(props: FileUploadProps) {
                 {props.buttonLabel ?? t("shared.fileUpload.choose")}
               </Text>
               <Text size="xs" c="gray.7">
-                {t("shared.fileUpload.limits", { types, max: maxMb })}
+                {maxMb === undefined ? types : t("shared.fileUpload.limits", { types, max: maxMb })}
               </Text>
             </UnstyledButton>
           )}

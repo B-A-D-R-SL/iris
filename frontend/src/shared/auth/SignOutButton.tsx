@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 
+import { logger } from "../logger";
 import { useAuth } from "./authContext";
 
 /** Shared sign-out action for public, mobile and staff layouts. */
@@ -22,6 +23,7 @@ export function SignOutButton({ menu = false }: { menu?: boolean }) {
       await signOut();
       navigate("/sign-in", { replace: true });
     } catch {
+      logger.warning("sign_out_failed");
       setFailed(true);
     } finally {
       setPending(false);

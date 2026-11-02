@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 
+
+# Time-to-post runs (docs/usability/time-to-post.md): copy the report into the document
+usability-runs.jsonl
