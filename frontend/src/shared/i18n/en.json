@@ -374,7 +374,12 @@
       "todoAddress": "Enter the address",
       "todoNotices": "Notices of assessment and approval (next step)",
       "resume": "Resume registration",
-      "backToHouseholds": "Back to households"
+      "backToHouseholds": "Back to households",
+      "consentHelp": "Read the notice aloud; the person agrees verbally. The time and the text version are saved.",
+      "consentRequired": "Read the notice aloud and record the person's consent before continuing.",
+      "consentYes": "Consent to data processing given",
+      "consentNo": "Consent not recorded yet",
+      "todoConsent": "Read the notice aloud and record consent"
     },
     "invitation": {
       "email": "Email address",

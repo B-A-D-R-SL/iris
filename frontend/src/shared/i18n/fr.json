@@ -374,7 +374,12 @@
       "todoAddress": "Entrer l'adresse",
       "todoNotices": "Avis de cotisation et approbation (prochaine étape)",
       "resume": "Reprendre l'inscription",
-      "backToHouseholds": "Retour aux foyers"
+      "backToHouseholds": "Retour aux foyers",
+      "consentHelp": "Lisez l'avis à voix haute; la personne donne son accord verbalement. L'heure et la version du texte sont enregistrées.",
+      "consentRequired": "Lisez l'avis à voix haute et notez le consentement de la personne avant de continuer.",
+      "consentYes": "Consentement au traitement des renseignements donné",
+      "consentNo": "Consentement pas encore noté",
+      "todoConsent": "Lire l'avis à voix haute et noter le consentement"
     },
     "invitation": {
       "email": "Courriel",
