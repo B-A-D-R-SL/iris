@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from modules.audit import services
 from modules.audit.models import AuditEvent
+from modules.stores.tests.factories import StoreFactory
 
 
 @pytest.fixture
@@ -68,7 +69,9 @@ def test_public_record_persists_event_in_postgresql(event_inputs):
 )
 def test_record_snapshots_each_role(actor, event_inputs, role):
     actor.role = role
-    actor.save(update_fields=["role"])
+    if role in {"store_staff", "store_manager"}:
+        actor.store = StoreFactory()
+    actor.save(update_fields=["role", "store"])
     event = services.record(**event_inputs)
 
     actor.role = "admin" if role != "admin" else "beneficiary"

@@ -1,4 +1,4 @@
-#Validation and read-only representation for audit search
+# Validation and read-only representation for audit search
 
 from datetime import UTC
 

@@ -1,4 +1,4 @@
-#Read-only audit search. Dates use the configured Montreal timezone
+# Read-only audit search. Dates use the configured Montreal timezone
 
 from datetime import date
 from uuid import UUID

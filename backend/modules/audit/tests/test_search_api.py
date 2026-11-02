@@ -8,6 +8,7 @@ import pytest
 from django.urls import reverse
 
 from modules.audit.services import record
+from modules.stores.tests.factories import StoreFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -23,7 +24,10 @@ def admin(django_user_model):
     "role", ["beneficiary", "store_staff", "store_manager", "intake_worker"]
 )
 def test_other_roles_cannot_search(client, django_user_model, role):
-    user = django_user_model.objects.create_user(f"{role}@example.test", role=role)
+    store = StoreFactory() if role in {"store_staff", "store_manager"} else None
+    user = django_user_model.objects.create_user(
+        f"{role}@example.test", role=role, store=store
+    )
     client.force_login(user)
     assert client.get(reverse("audit-search")).status_code == 403
 
