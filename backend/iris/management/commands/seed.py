@@ -247,6 +247,8 @@ def _ensure_household(
         address_key=planned.address_key,
         phone=planned.phone,
         created_by=created_by,
+        # US-17 model: a verifier means the photo ID was checked in person.
+        identity_checked_in_person=verified,
         verified_by=verified_by if verified else None,
         verified_at=moment if verified else None,
         approved_at=moment - APPROVAL_AGE if approved else None,
