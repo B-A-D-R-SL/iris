@@ -1,6 +1,8 @@
 <!-- AI contribution: 50% or more AI-generated -->
 # Households module — implementation for T-03.17.2 and T-03.17.3
 
+**Owner pair:** Registration
+
 The module owns `Household` and `Member` records. The holder is a `Member` with
 `relation=holder`; an online `accounts.User` is **not** created for a walk-in draft.
 `email` on `Household` is optional so counter-only beneficiaries do not need an
@@ -62,6 +64,17 @@ be created before address collection and later patched step by step.
 (`consent_data_processing_at`) and which text was read (`consent_text_version`,
 currently `2026-11-v1`); sending it again keeps the first time, and `false`
 clears both. US-20 may move consents to `privacy.ConsentRecord` later.
+
+## Migrations and the SET-18 seed
+
+SET-18 (#617) created the first `households` table (`0001_initial`) so
+`manage.py seed` could store fictional files, and the reservations migration
+depends on it. As decided on #461, that migration is kept and US-17 builds on
+it: `0002_walk_in_registration` aligns the table with the walk-in model, adds
+`Member` and `HouseholdDraftEvent`, and converts existing seeded rows (channel
+`walk-in` to `walk_in`, empty `unit` instead of NULL); `0003_household_consent`
+adds the consent fields. `HouseholdStatus` and `HouseholdChannel` remain as
+aliases of `Household.Status` and `Household.Channel` for the seed.
 
 ## Audit integration / US-62 dependency
 

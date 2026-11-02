@@ -216,3 +216,8 @@ class HouseholdDraftEvent(models.Model):
     action = models.CharField(max_length=12, choices=Action.choices)
     actor_role = models.CharField(max_length=20)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+# Names kept for the SET-18 seed (#617), which imports them from this module.
+HouseholdStatus = Household.Status
+HouseholdChannel = Household.Channel
