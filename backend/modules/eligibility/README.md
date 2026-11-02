@@ -44,7 +44,7 @@ That public query must return an object with:
 The reader must verify all of the following:
 
 1. Every adult is included; children do not contribute income.
-2. Each adult has an accepted, confirmed Revenu Qu?bec notice.
+2. Each adult has an accepted, confirmed Revenu Québec notice.
 3. The notice tax year meets the application's accepted-year rules.
 4. Missing, unconfirmed, outdated, or ambiguous evidence is rejected.
 5. A `did_not_file` declaration is sent for staff review, not counted as zero.
@@ -66,6 +66,4 @@ PostgreSQL trigger enforcing this rule.
 
 ## Audit events
 
-No audit events are implemented as part of SET-14.
-Document emitted event names here when the module's
-business workflows are implemented.
+Eligibility decision audit events must be recorded through audit.services.record() once US-62 is integrated. This is pending; decision records alone do not satisfy SEC-08.

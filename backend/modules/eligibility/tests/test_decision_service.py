@@ -45,7 +45,7 @@ def household(staff):
         status="draft",
         street_number="100",
         street_name="Rue Exemple",
-        city="Montr?al",
+        city="Montréal",
         postal_code="H2X 1Y4",
         address_key="100-rue-exemple-h2x1y4",
         phone="+15145550100",

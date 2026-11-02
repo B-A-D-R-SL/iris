@@ -1,8 +1,8 @@
-# US-16 Eligibility Engine ? Implementation Skeleton
+# US-16 Eligibility Engine - Implementation Skeleton
 
 Issues: #457 (story), #458 (tests), #459 (rule), #460 (service).
 
-## 1. Pure eligibility rule ? #459
+## 1. Pure eligibility rule - #459
 
 File: domain/eligibility.py
 
@@ -23,7 +23,7 @@ File: domain/eligibility.py
 
 No Django imports, database access, floats or hardcoded LICO values.
 
-## 2. Decision model ? #460
+## 2. Decision model - #460
 
 File: models.py
 
@@ -37,7 +37,7 @@ File: models.py
     Reject updates, bulk updates and deletion.
     Preserve the exact rule version used.
 
-## 3. Public decision service ? #460
+## 3. Public decision service - #460
 
 File: services.py
 
@@ -57,7 +57,7 @@ File: services.py
     Do not expose income details through logs or exceptions.
     Other modules call this service, not the domain directly.
 
-## 4. Verification ? #458
+## 4. Verification - #458
 
     Preserve existing 21 threshold boundary cases.
     Test households of size 8+ use threshold 7.
