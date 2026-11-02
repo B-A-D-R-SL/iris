@@ -224,7 +224,7 @@ def test_server_owned_fields_cannot_be_submitted(field: str) -> None:
 
 
 def test_open_application_with_same_email_returns_409() -> None:
-    # rule: AC3, an open application cannot be submitted twice
+    # rule: BR-PARTNER-01 (AC3), an open application cannot be submitted twice
     PartnerApplicationFactory(contact_email="owner@example.test")
     response = post(APIClient(), payload(contact_email="OWNER@example.test"))
     assert response.status_code == 409
@@ -237,12 +237,14 @@ def test_open_application_with_same_email_returns_409() -> None:
 
 
 def test_already_open_message_is_translated() -> None:
+    # rule: BR-PARTNER-01, explain the duplicate refusal in the request's language
     PartnerApplicationFactory(contact_email="owner@example.test")
     response = post(APIClient(), payload(), language="fr")
     assert response.json()["message"].startswith("Une demande est déjà en cours.")
 
 
 def test_decided_application_lets_the_contact_apply_again() -> None:
+    # rule: BR-PARTNER-01, a decided application does not block another submission
     PartnerApplicationFactory(
         contact_email="owner@example.test",
         status=ApplicationStatus.REJECTED,
@@ -252,7 +254,7 @@ def test_decided_application_lets_the_contact_apply_again() -> None:
 
 
 def test_sixth_request_in_an_hour_from_one_ip_is_throttled() -> None:
-    # rule: public form rate limit, 5 per hour per IP (SEC-04)
+    # rule: BR-PARTNER-02 (SEC-04), 5 requests per hour per client IP
     client = APIClient()
     for index in range(5):
         email = f"owner-{index}@example.test"
@@ -266,6 +268,7 @@ def test_sixth_request_in_an_hour_from_one_ip_is_throttled() -> None:
 
 
 def test_rate_limit_counts_rejected_requests_too() -> None:
+    # rule: BR-PARTNER-02, validation refusals consume the allowance
     client = APIClient()
     for _ in range(5):
         post(client, {}, REMOTE_ADDR="10.0.0.1")
@@ -273,6 +276,7 @@ def test_rate_limit_counts_rejected_requests_too() -> None:
 
 
 def test_forged_forwarded_header_does_not_reset_the_limit() -> None:
+    # rule: BR-PARTNER-02, untrusted forwarded headers cannot change the client IP
     client = APIClient()
     for index in range(5):
         post(client, {}, REMOTE_ADDR="10.0.0.1", HTTP_X_FORWARDED_FOR=f"9.9.9.{index}")
@@ -283,6 +287,7 @@ def test_forged_forwarded_header_does_not_reset_the_limit() -> None:
 
 
 def test_signing_in_does_not_reset_the_ip_limit() -> None:
+    # rule: BR-PARTNER-02, authentication does not create another allowance
     client = APIClient()
     for _ in range(5):
         post(client, {}, REMOTE_ADDR="10.0.0.1")
@@ -291,6 +296,7 @@ def test_signing_in_does_not_reset_the_ip_limit() -> None:
 
 
 def test_signed_in_users_on_one_ip_share_the_limit() -> None:
+    # rule: BR-PARTNER-02, accounts on one IP share the allowance
     first, second, third = APIClient(), APIClient(), APIClient()
     for client in (first, second, third):
         client.force_authenticate(UserFactory())
@@ -302,6 +308,7 @@ def test_signed_in_users_on_one_ip_share_the_limit() -> None:
 
 
 def test_port_in_forwarded_address_does_not_reset_the_limit(settings: Any) -> None:
+    # rule: BR-PARTNER-02, changing the connection port does not reset the allowance
     # Behind one proxy, the client address may arrive as "ip:port", and the
     # port changes with every connection.
     settings.REST_FRAMEWORK = {**settings.REST_FRAMEWORK, "NUM_PROXIES": 1}
@@ -335,6 +342,7 @@ def test_port_in_forwarded_address_does_not_reset_the_limit(settings: Any) -> No
 def test_throttle_ignores_the_port_of_a_client_address(
     address: str, expected: str
 ) -> None:
+    # rule: BR-PARTNER-02, normalize IPv4 and IPv6 addresses without their ports
     assert _without_port(address) == expected
 
 

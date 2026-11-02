@@ -4,7 +4,31 @@ Every rule Iris applies, with its default value. Values marked *(setting)* are s
 
 Decisions taken where B.A.D.R. had not specified anything are marked **Default**. They can be changed later through the settings or an ADR.
 
-Each owner publishes their section of this document in their own pull request. This version contains the listing categories and the prohibited items (SET-12); the other sections (roles, eligibility, reservations, priority, strikes, notifications, retention) are added by their owners.
+Each owner publishes their section of this document in their own pull request. This version contains the listing categories and the prohibited items (SET-12), and partner applications (US-12); the other sections (roles, eligibility, reservations, priority, strikes, notifications, retention) are added by their owners.
+
+## Partner applications (US-12)
+
+### BR-PARTNER-01: One open application per contact email
+
+A contact email may have at most one application with status `submitted`, regardless
+of letter case. Approved or rejected applications do not prevent another application.
+The database enforces this rule, including when submissions arrive concurrently;
+the API returns `409 application_already_open` for a duplicate open application.
+This implements US-12 AC3.
+
+### BR-PARTNER-02: Shared application limit per client IP
+
+The public application endpoint applies a limit of **5 requests per hour per client
+IP**, shared by anonymous and signed-in callers. A port in the client address does
+not create another allowance. Requests that reach the throttle count, including
+submissions refused with 400 or 409. Authentication refusals, such as a signed-in
+session missing its CSRF token (403), happen before throttling and do not count.
+Requests over the allowance receive `429 throttled`.
+
+This implements SEC-04 and task #445. The rate is configured in DRF's
+`DEFAULT_THROTTLE_RATES`, and trusted proxies through `DRF_NUM_PROXIES`. This is a
+best-effort spam limit; concurrent requests can exceed the allowance because DRF's
+cache admission checks are not atomic.
 
 ## Listings
 

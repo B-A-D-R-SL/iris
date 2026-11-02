@@ -26,12 +26,13 @@ def test_new_application_starts_submitted() -> None:
 
 
 def test_one_open_application_per_email_is_a_database_rule() -> None:
-    # rule: AC3, enforced by a partial unique index (review rule 3)
+    # rule: BR-PARTNER-01 (AC3), enforced by a partial unique index
     PartnerApplicationFactory(contact_email="owner@example.test")
     _violates(contact_email="owner@example.test")
 
 
 def test_open_application_email_ignores_letter_case() -> None:
+    # rule: BR-PARTNER-01, contact email uniqueness is case-insensitive
     PartnerApplicationFactory(contact_email="owner@example.test")
     _violates(contact_email="Owner@EXAMPLE.test")
 
@@ -40,6 +41,7 @@ def test_open_application_email_ignores_letter_case() -> None:
     "decided", [ApplicationStatus.APPROVED, ApplicationStatus.REJECTED]
 )
 def test_decided_application_does_not_block_a_new_one(decided: str) -> None:
+    # rule: BR-PARTNER-01, only submitted applications block another submission
     PartnerApplicationFactory(
         contact_email="owner@example.test",
         status=decided,

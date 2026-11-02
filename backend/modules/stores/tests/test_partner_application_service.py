@@ -159,7 +159,7 @@ def test_email_failure_keeps_the_application_and_logs_no_personal_data(
 @pytest.mark.usefixtures("categories")
 @pytest.mark.parametrize("email", ["owner@example.test", "Owner@Example.TEST"])
 def test_second_open_application_with_same_email_is_refused(email: str) -> None:
-    # rule: AC3, an open application with the same contact email
+    # rule: BR-PARTNER-01 (AC3), refuse a duplicate open application
     PartnerApplicationFactory(contact_email="owner@example.test")
     with pytest.raises(services.ApplicationAlreadyOpen) as refused:
         services.submit_application(
@@ -173,6 +173,7 @@ def test_second_open_application_with_same_email_is_refused(email: str) -> None:
 def test_rejected_applicant_may_apply_again(
     django_capture_on_commit_callbacks: Any,
 ) -> None:
+    # rule: BR-PARTNER-01, a rejected application does not block another submission
     PartnerApplicationFactory(
         contact_email="owner@example.test",
         status=ApplicationStatus.REJECTED,
@@ -212,7 +213,7 @@ def test_unsupported_language_falls_back_to_french(
 
 @pytest.mark.django_db(transaction=True)
 def test_simultaneous_submissions_with_one_email_save_exactly_one() -> None:
-    # rule: AC3 under concurrency; the partial unique index settles the race
+    # rule: BR-PARTNER-01 (AC3), the partial unique index settles concurrent requests
     CategoryFactory(code="bakery")
 
     def submit(_: int) -> str:
