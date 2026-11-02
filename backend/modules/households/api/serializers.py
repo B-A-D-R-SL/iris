@@ -137,6 +137,7 @@ class WalkInDraftInputSerializer(RejectUnknownFieldsMixin, serializers.Serialize
     address = AddressInputSerializer(required=False)
     members = MemberInputSerializer(many=True, required=False)
     identity_checked_in_person = serializers.BooleanField(required=False)
+    consent_data_processing = serializers.BooleanField(required=False)
 
     def validate_members(self, members):
         if len(members) > 14:
@@ -179,6 +180,8 @@ class WalkInDraftReadSerializer(serializers.ModelSerializer):
             "city",
             "postal_code",
             "identity_checked_in_person",
+            "consent_data_processing_at",
+            "consent_text_version",
             "members",
             "created_by_email",
             "created_at",
