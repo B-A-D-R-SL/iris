@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import pytest
 from django.urls import reverse
+from rest_framework.test import APIClient
 
 from modules.audit.services import record
 from modules.stores.tests.factories import StoreFactory
@@ -34,6 +35,36 @@ def test_other_roles_cannot_search(client, django_user_model, role):
 
 def test_signed_out_cannot_search(client):
     assert client.get(reverse("audit-search")).status_code in (401, 403)
+
+
+def test_inactive_admin_cannot_search(admin):
+    admin.is_active = False
+    admin.save(update_fields=["is_active"])
+    client = APIClient()
+    client.force_authenticate(user=admin)
+    assert client.get(reverse("audit-search")).status_code == 403
+
+
+@pytest.mark.parametrize(
+    "identifier_format", ["canonical", "uppercase", "hex", "uppercase_hex"]
+)
+def test_household_search_finds_events_recorded_with_uuid_strings(
+    client, admin, identifier_format
+):
+    household = uuid4()
+    identifiers = {
+        "canonical": str(household),
+        "uppercase": str(household).upper(),
+        "hex": household.hex,
+        "uppercase_hex": household.hex.upper(),
+    }
+    event = record(admin, "view", "household", identifiers[identifier_format], {})
+    assert event.target_id == str(household)
+
+    client.force_login(admin)
+    response = client.get(reverse("audit-search"), {"household": str(household)})
+    assert response.status_code == 200
+    assert [item["id"] for item in response.json()["results"]] == [event.pk]
 
 
 def test_filters_and_montreal_date_boundaries(

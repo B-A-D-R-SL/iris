@@ -1,26 +1,23 @@
+// AI contribution: 50% or more AI-generated
 import { Button, Group, Stack, Table, Text, TextInput, Title } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { components } from "../../../shared/api/generated";
 import { EmptyState, ErrorState, LoadingState } from "../../../shared/ui";
 
-interface AuditEvent {
-  id: number;
-  actor: string;
-  actor_role: string;
-  action: string;
-  target_type: string;
-  target_id: string;
-  metadata: { outcome?: string };
-  created_at: string;
-}
+type AuditPage = components["schemas"]["PaginatedAuditEventList"];
 
-interface AuditPage {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: AuditEvent[];
+function getOutcome(metadata: unknown): string | undefined {
+  if (
+    typeof metadata === "object" &&
+    metadata !== null &&
+    "outcome" in metadata &&
+    typeof metadata.outcome === "string"
+  ) {
+    return metadata.outcome;
+  }
 }
 
 interface Filters {
@@ -148,28 +145,27 @@ export function Audit() {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {data.results.map((event) => (
-                  <Table.Tr key={event.id}>
-                    <Table.Td>
-                      {new Intl.DateTimeFormat(locale, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                        timeZone: "America/Montreal",
-                      }).format(new Date(event.created_at))}
-                    </Table.Td>
-                    <Table.Td>{event.actor}</Table.Td>
-                    <Table.Td>{labels[event.actor_role] ?? event.actor_role}</Table.Td>
-                    <Table.Td>{labels[event.action] ?? event.action}</Table.Td>
-                    <Table.Td>
-                      {labels[event.target_type] ?? event.target_type}: {event.target_id}
-                    </Table.Td>
-                    <Table.Td>
-                      {event.metadata.outcome
-                        ? (labels[event.metadata.outcome] ?? event.metadata.outcome)
-                        : "—"}
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
+                {data.results.map((event) => {
+                  const outcome = getOutcome(event.metadata);
+                  return (
+                    <Table.Tr key={event.id}>
+                      <Table.Td>
+                        {new Intl.DateTimeFormat(locale, {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                          timeZone: "America/Montreal",
+                        }).format(new Date(event.created_at))}
+                      </Table.Td>
+                      <Table.Td>{event.actor}</Table.Td>
+                      <Table.Td>{labels[event.actor_role] ?? event.actor_role}</Table.Td>
+                      <Table.Td>{labels[event.action] ?? event.action}</Table.Td>
+                      <Table.Td>
+                        {labels[event.target_type] ?? event.target_type}: {event.target_id}
+                      </Table.Td>
+                      <Table.Td>{outcome ? (labels[outcome] ?? outcome) : "—"}</Table.Td>
+                    </Table.Tr>
+                  );
+                })}
               </Table.Tbody>
             </Table>
           </Table.ScrollContainer>

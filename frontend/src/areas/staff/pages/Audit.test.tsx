@@ -20,6 +20,29 @@ const event = {
 };
 
 describe("Audit search", () => {
+  it.each([
+    { metadata: { outcome: "approved" }, expected: "Approuvé" },
+    { metadata: { outcome: "rejected" }, expected: "Refusé" },
+    { metadata: {}, expected: "—" },
+    { metadata: null, expected: "—" },
+    { metadata: "unexpected", expected: "—" },
+    { metadata: { outcome: 42 }, expected: "—" },
+  ])("renders outcome safely for $metadata", async ({ metadata, expected }) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({
+          count: 1,
+          next: null,
+          previous: null,
+          results: [{ ...event, metadata }],
+        }),
+      ),
+    );
+    renderWithProviders(<Audit />);
+    expect(await screen.findByRole("cell", { name: expected })).toBeInTheDocument();
+  });
+
   it("submits filters and pages through results", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);

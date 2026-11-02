@@ -17,6 +17,7 @@ def record(
     target_id: str | int | UUID,
     metadata: dict[str, str],
 ) -> AuditEvent:
+    """Record a validated event with outcome-only metadata in the caller's transaction."""
     if not isinstance(actor, get_user_model()) or actor._state.adding:
         raise ValidationError({"actor": "A saved user is required."})
     role = actor._meta.get_field("role").clean(getattr(actor, "role", None), actor)
@@ -34,12 +35,19 @@ def record(
     ):
         raise ValidationError({"metadata": "Only a supported outcome is allowed."})
 
+    target_identifier = str(target_id)
+    if target_type == "household":
+        try:
+            target_identifier = str(UUID(target_identifier))
+        except ValueError:
+            pass
+
     event = AuditEvent(
         actor=actor,
         actor_role=role,
         action=action,
         target_type=target_type,
-        target_id=str(target_id),
+        target_id=target_identifier,
         metadata=metadata,
     )
     event.full_clean()

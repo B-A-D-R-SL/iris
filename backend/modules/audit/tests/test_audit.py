@@ -97,6 +97,12 @@ def test_record_accepts_other_record_identifiers(event_inputs, target_id):
     assert services.record(**event_inputs).target_id == str(target_id)
 
 
+def test_record_preserves_uuid_strings_for_other_target_types(event_inputs):
+    identifier = str(uuid4()).upper()
+    event_inputs.update(target_type="external_record", target_id=identifier)
+    assert services.record(**event_inputs).target_id == identifier
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
