@@ -181,8 +181,13 @@ A household registration and approval file.
 
 | Field | Logical type | Key | Details |
 | --- | --- | --- | --- |
+| holder | reference | Foreign key, unique | Holder's user account; empty for walk-ins without online access. |
+| member_number | string | Unique | Optional short file number. |
 | channel | string | — | Registration channel: walk-in or online. |
 | status | string | — | Household file status. |
+| status_reason | string | — | Optional reason for the current status. |
+| email | string | — | Optional holder email; without it a walk-in is served only at the counter. |
+| preferred_language | string | — | `fr` or `en`; used for emails. |
 | street_number | string | — | Civic number. |
 | street_name | string | — | Street name. |
 | unit | string | — | Optional apartment or unit. |
@@ -190,12 +195,19 @@ A household registration and approval file.
 | postal_code | string | — | Validated, normalized Canadian postal code. |
 | address_key | string | — | Normalized address, including unit, used to find possible duplicates. |
 | phone | string | — | Household contact phone. |
+| alternate_name, alternate_phone, alternate_email | string | — | Optional alternate for pickups. |
+| identity_checked_in_person | boolean | — | Staff checked photo ID in person; nothing about the ID is stored. |
+| consent_data_processing_at | datetime | — | When the person agreed to data processing (walk-in: notice read aloud); empty until given. |
+| consent_text_version | string | — | Version of the consent text that was read, for example `2026-11-v1`. US-20 may move consents to a separate record later. |
 | created_by | reference | — | Person who created the household file. |
 | created_at | datetime | — | Household file creation time. |
-| verified_by | reference | — | Person who verified the household file. |
-| verified_at | datetime | — | Verification time. |
+| updated_at | datetime | — | Last change to the file. |
+| verified_by | reference | — | Staff member who checked the identity. |
+| verified_at | datetime | — | Identity check time. |
+| submitted_at | datetime | — | Submission time. |
 | approved_at | datetime | — | Approval time. |
 | expires_at | datetime | — | Approval expiration time. |
+| anonymized_at | datetime | — | Time personal data was removed. |
 
 **Confirmed information requirements**
 
@@ -229,6 +241,8 @@ A person belonging to a household.
 | date_of_birth | date | — | Used to determine age. |
 | relation | string | — | Relationship within the household. |
 | person_key | string | — | Normalized person identity used to find possible duplicates. |
+| created_at | datetime | — | When the member was added. |
+| updated_at | datetime | — | Last change to the member. |
 
 **Documented constraints and business rules**
 
@@ -238,6 +252,28 @@ A person belonging to a household.
 | A matching person in another active file triggers review. | Duplicate detection service. |
 
 Source: [Issue #463](https://github.com/B-A-D-R-SL/iris/issues/463).
+
+### HouseholdDraftEvent
+
+**Owner module:** `households`.
+
+A write-once record of who created or edited a walk-in draft. It is temporary: it will be replaced by the central audit log once US-62 supports household events.
+
+| Field | Logical type | Key | Details |
+| --- | --- | --- | --- |
+| household | reference | Foreign key | Draft that was created or edited. |
+| actor | reference | Foreign key | Staff member who acted. |
+| actor_role | string | — | Their role at that moment. |
+| action | string | — | `created` or `updated`. |
+| created_at | datetime | — | When it happened. |
+
+**Documented constraints and business rules**
+
+| Rule | Enforcement |
+| --- | --- |
+| No names, dates of birth, phone numbers, addresses or emails in the event. | `households` services. |
+
+Sources: [Issue #463](https://github.com/B-A-D-R-SL/iris/issues/463), [Issue #464](https://github.com/B-A-D-R-SL/iris/issues/464), [Issue #547](https://github.com/B-A-D-R-SL/iris/issues/547).
 
 ### IncomeNotice
 
@@ -506,6 +542,7 @@ erDiagram
     Store o|--o{ User : "required for store roles"
     Store o|--o{ Invitation : "optional store assignment"
     Household ||--o{ Member : "contains"
+    Household ||--o{ HouseholdDraftEvent : "draft history"
     Member ||--o{ IncomeNotice : "provides"
     Household ||--o{ EligibilityDecision : "has decisions"
     RuleSetVersion ||--o{ EligibilityDecision : "used by"
@@ -575,8 +612,13 @@ erDiagram
     }
 
     Household {
+        reference holder "Holder's account; empty for walk-ins without online access."
+        string member_number "Optional short file number."
         string channel "Registration channel: walk-in or online."
         string status "Household file status."
+        string status_reason "Optional reason for the current status."
+        string email "Optional holder email."
+        string preferred_language "fr or en; used for emails."
         string street_number "Civic number."
         string street_name "Street name."
         string unit "Optional apartment or unit."
@@ -584,12 +626,27 @@ erDiagram
         string postal_code "Validated, normalized Canadian postal code."
         string address_key "Normalized address, including unit, used to find possible duplicates."
         string phone "Household contact phone."
+        string alternate_name "Optional alternate for pickups."
+        boolean identity_checked_in_person "Photo ID checked in person; nothing about the ID stored."
+        datetime consent_data_processing_at "When data-processing consent was given."
+        string consent_text_version "Version of the consent text read."
         reference created_by "Person who created the household file."
         datetime created_at "Household file creation time."
-        reference verified_by "Person who verified the household file."
-        datetime verified_at "Verification time."
+        datetime updated_at "Last change to the file."
+        reference verified_by "Staff member who checked the identity."
+        datetime verified_at "Identity check time."
+        datetime submitted_at "Submission time."
         datetime approved_at "Approval time."
         datetime expires_at "Approval expiration time."
+        datetime anonymized_at "Time personal data was removed."
+    }
+
+    HouseholdDraftEvent {
+        reference household FK "Draft that was created or edited."
+        reference actor FK "Staff member who acted."
+        string actor_role "Role at that moment."
+        string action "created or updated."
+        datetime created_at "When it happened."
     }
 
     Member {
@@ -599,6 +656,8 @@ erDiagram
         date date_of_birth "Used to determine age."
         string relation "Relationship within the household."
         string person_key "Normalized person identity used to find possible duplicates."
+        datetime created_at "When the member was added."
+        datetime updated_at "Last change to the member."
     }
 
     IncomeNotice {
