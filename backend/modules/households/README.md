@@ -49,13 +49,19 @@ roles are rejected with HTTP 403. The API contains no ID document information.
   "members": [
     { "first_name": "Example", "last_name": "Child", "date_of_birth": "2017-01-03", "relation": "child" }
   ],
-  "identity_checked_in_person": true
+  "identity_checked_in_person": true,
+  "consent_data_processing": true
 }
 ```
 
 The staff user sets identity verification; the backend stores only a boolean,
 verifier and timestamp. The `holder` is automatically member one. A draft can
 be created before address collection and later patched step by step.
+
+`consent_data_processing: true` stores when consent was given
+(`consent_data_processing_at`) and which text was read (`consent_text_version`,
+currently `2026-11-v1`); sending it again keeps the first time, and `false`
+clears both. US-20 may move consents to `privacy.ConsentRecord` later.
 
 ## Audit integration / US-62 dependency
 
@@ -68,5 +74,6 @@ household creation/edit events, replace the local event implementation with it,
 and decide whether to migrate existing local event history. Do not send action
 names unsupported by the current US-62 branch, which only handles view/decision.
 
-Approval, income notices, status transitions, set-password email and the walk-in
-screen belong to **other US-17 tasks**; none of them are implemented here.
+The walk-in screens (T-03.17.4) are in `frontend/src/areas/staff/pages/WalkIn/`.
+Approval, income notices, status transitions and the set-password email belong
+to US-18 and US-57; none of them are implemented here.
