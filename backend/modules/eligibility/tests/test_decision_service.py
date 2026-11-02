@@ -40,8 +40,13 @@ def staff(django_user_model):
 @pytest.fixture
 def household(staff):
     household_model = apps.get_model("households", "Household")
+    walk_in_channel = next(
+        value
+        for value, _ in household_model._meta.get_field("channel").choices
+        if value in {"walk-in", "walk_in"}
+    )
     return household_model.objects.create(
-        channel="walk-in",
+        channel=walk_in_channel,
         status="draft",
         street_number="100",
         street_name="Rue Exemple",
