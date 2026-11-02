@@ -19,6 +19,8 @@ ADDRESS_FIELDS = frozenset(
     ("street_number", "street_name", "unit", "city", "postal_code")
 )
 MEMBER_FIELDS = frozenset(("first_name", "last_name", "date_of_birth"))
+# Version of the data-processing consent text read to the person.
+CONSENT_TEXT_VERSION = "2026-11-v1"
 
 
 def _require_staff(user: AbstractBaseUser) -> None:
@@ -52,6 +54,16 @@ def _apply_verification(
     household.identity_checked_in_person = verified
     household.verified_by_id = actor.pk if verified else None
     household.verified_at = timezone.now() if verified else None
+
+
+def _apply_consent(household: Household, given: bool) -> None:
+    """Store when consent was given and which text; keep the first time if re-sent."""
+    if not given:
+        household.consent_data_processing_at = None
+        household.consent_text_version = ""
+    elif household.consent_data_processing_at is None:
+        household.consent_data_processing_at = timezone.now()
+        household.consent_text_version = CONSENT_TEXT_VERSION
 
 
 def _save_member(
@@ -119,6 +131,8 @@ def create_walk_in(data: Mapping[str, Any], staff_user: AbstractBaseUser) -> Hou
     _apply_address(household, data.get("address", {}))
     if "identity_checked_in_person" in data:
         _apply_verification(household, data["identity_checked_in_person"], staff_user)
+    if "consent_data_processing" in data:
+        _apply_consent(household, data["consent_data_processing"])
     household.full_clean()
     household.save()
     _save_member(household, holder, Member.Relation.HOLDER)
@@ -155,6 +169,8 @@ def update_draft(
         _apply_address(household, data["address"])
     if "identity_checked_in_person" in data:
         _apply_verification(household, data["identity_checked_in_person"], staff_user)
+    if "consent_data_processing" in data:
+        _apply_consent(household, data["consent_data_processing"])
     household.full_clean()
     household.save()
     if holder is not None and MEMBER_FIELDS & holder.keys():
