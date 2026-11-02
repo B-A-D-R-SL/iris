@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("households", "0001_initial"),
+        ("households", "0002_walk_in_registration"),
     ]
 
     operations = [
