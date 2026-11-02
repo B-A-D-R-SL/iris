@@ -35,6 +35,7 @@ const holder: WalkInFormValues = {
   dateOfBirth: "1990-04-12",
   phone: "+15145550156",
   identityChecked: true,
+  consentGiven: true,
 };
 
 const withAddress: WalkInFormValues = {
@@ -64,6 +65,7 @@ describe("toPayload", () => {
         preferred_language: "fr",
       },
       identity_checked_in_person: true,
+      consent_data_processing: true,
       members: [],
     });
   });
@@ -93,6 +95,7 @@ describe("fromDraft", () => {
     phone: "+15145550156",
     preferred_language: "en",
     identity_checked_in_person: false,
+    consent_data_processing_at: "2026-11-02T14:05:00Z",
     street_number: "",
     street_name: "",
     unit: "",
@@ -124,7 +127,9 @@ describe("fromDraft", () => {
       email: "",
       preferredLanguage: "en",
       city: "Montréal",
+      consentGiven: true,
     });
+    expect(fromDraft({ ...draft, consent_data_processing_at: null }).consentGiven).toBe(false);
     expect(values.members).toEqual([
       {
         key: "m2",
@@ -141,7 +146,7 @@ describe("stepErrors: holder", () => {
   it("requires the name, date of birth and phone", () => {
     const errors = stepErrors("holder", DEFAULT_VALUES, { today: TODAY });
     expect(Object.keys(errors).sort()).toEqual(
-      ["dateOfBirth", "firstName", "identityChecked", "lastName", "phone"].sort(),
+      ["consentGiven", "dateOfBirth", "firstName", "identityChecked", "lastName", "phone"].sort(),
     );
     expect(messageKey(errors.firstName)).toBe("shared.validation.required");
   });
@@ -185,6 +190,14 @@ describe("stepErrors: holder", () => {
       "staff.walkIn.identityRequired",
     );
     expect(stepErrors("holder", unchecked, { today: TODAY, forDraft: true })).toEqual({});
+  });
+
+  it("needs the consent to move on, but not to save a draft", () => {
+    const noConsent = { ...holder, consentGiven: false };
+    expect(messageKey(stepErrors("holder", noConsent, { today: TODAY }).consentGiven)).toBe(
+      "staff.walkIn.consentRequired",
+    );
+    expect(stepErrors("holder", noConsent, { today: TODAY, forDraft: true })).toEqual({});
   });
 });
 
@@ -259,6 +272,7 @@ describe("serverErrors", () => {
       "address.postal_code": ["Code postal refusé."],
       "members[1].relation": ["Lien refusé."],
       identity_checked_in_person: ["Refusé."],
+      consent_data_processing: ["Consentement refusé."],
       non_field_errors: ["Fournissez au moins une modification."],
       holder: ["Entrez le téléphone."],
     });
@@ -267,6 +281,7 @@ describe("serverErrors", () => {
       postalCode: "Code postal refusé.",
       "members.1.relation": "Lien refusé.",
       identityChecked: "Refusé.",
+      consentGiven: "Consentement refusé.",
     });
     expect(other).toEqual(["Fournissez au moins une modification.", "Entrez le téléphone."]);
   });
@@ -281,13 +296,15 @@ describe("navigation helpers", () => {
 
   it("resumes at the first step still missing information", () => {
     expect(resumeStep({ ...holder, identityChecked: false })).toBe("holder");
+    expect(resumeStep({ ...holder, consentGiven: false })).toBe("holder");
     expect(resumeStep(holder)).toBe("address");
     expect(resumeStep(withAddress)).toBe("members");
   });
 
   it("lists what is still to complete; notices always remain for US-18", () => {
-    expect(stillToComplete({ ...holder, identityChecked: false })).toEqual([
+    expect(stillToComplete({ ...holder, identityChecked: false, consentGiven: false })).toEqual([
       "staff.walkIn.todoIdentity",
+      "staff.walkIn.todoConsent",
       "staff.walkIn.todoAddress",
       "staff.walkIn.todoNotices",
     ]);
