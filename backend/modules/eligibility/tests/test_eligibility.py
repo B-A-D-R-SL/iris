@@ -1,6 +1,8 @@
 # AI contribution: 50% or more AI-generated
 """Pure domain tests for the eligibility rule in #459."""
 
+from typing import Any
+
 import pytest
 
 from modules.eligibility.domain.eligibility import decide
@@ -109,3 +111,43 @@ def test_supplied_threshold_controls_decision(
     assert decision.household_income_cents == 300
     assert decision.threshold_cents == threshold_cents
     assert decision.family_size_used == 1
+
+
+@pytest.mark.parametrize("size", [0, -1, True, 1.5, "2", None])
+def test_rejects_invalid_household_size(size: Any, thresholds: dict[int, int]) -> None:
+    with pytest.raises(ValueError, match="Household size"):
+        decide(size, [100], thresholds)
+
+
+@pytest.mark.parametrize(
+    "incomes",
+    [[], None, (100,), [-1], [1.5], [True], ["100"], [100, 200, 300]],
+)
+def test_rejects_invalid_adult_incomes(
+    incomes: Any, thresholds: dict[int, int]
+) -> None:
+    with pytest.raises(ValueError):
+        decide(2, incomes, thresholds)
+
+
+@pytest.mark.parametrize("invalid_thresholds", [None, [], "invalid"])
+def test_rejects_non_dictionary_thresholds(invalid_thresholds: Any) -> None:
+    with pytest.raises(TypeError, match="dictionary"):
+        decide(1, [100], invalid_thresholds)
+
+
+def test_rejects_missing_household_threshold(
+    thresholds: dict[int, int],
+) -> None:
+    del thresholds[2]
+    with pytest.raises(ValueError, match="Missing threshold"):
+        decide(2, [100], thresholds)
+
+
+@pytest.mark.parametrize("invalid_amount", [None, 0, -1, True, 1.5, "100"])
+def test_rejects_invalid_threshold_amount(
+    invalid_amount: Any, thresholds: dict[int, int]
+) -> None:
+    thresholds[2] = invalid_amount
+    with pytest.raises(ValueError, match="positive integer cents"):
+        decide(2, [100], thresholds)

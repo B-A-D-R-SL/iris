@@ -51,6 +51,7 @@ def decide_for_household(
     The household query contract must return an object containing:
       household: persisted Household instance
       household_size: full member count including children
+      adult_count: number of household members aged 18 or more
       adult_incomes_cents: list of confirmed line-199 amounts, one per adult
 
     Adult selection, accepted notices, and missing-evidence rejection are
@@ -80,14 +81,17 @@ def decide_for_household(
         raise EligibilityEvidenceUnavailable("Household evidence is unavailable.")
 
     household_size = getattr(snapshot, "household_size", None)
+    adult_count = getattr(snapshot, "adult_count", None)
     incomes = getattr(snapshot, "adult_incomes_cents", None)
 
     if (
         type(household_size) is not int
         or household_size < 1
+        or type(adult_count) is not int
+        or adult_count < 1
+        or adult_count > household_size
         or not isinstance(incomes, list)
-        or not incomes
-        or len(incomes) > household_size
+        or len(incomes) != adult_count
         or any(type(value) is not int or value < 0 for value in incomes)
     ):
         raise EligibilityEvidenceUnavailable(
