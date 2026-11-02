@@ -26,6 +26,8 @@ function draft(overrides: Partial<WalkInDraft> = {}): WalkInDraft {
     city: "Montréal",
     postal_code: "",
     identity_checked_in_person: true,
+    consent_data_processing_at: "2026-11-02T14:05:00Z",
+    consent_text_version: "2026-11-v1",
     members: [
       {
         id: "m1",
@@ -90,6 +92,13 @@ const checkId = () =>
     screen.getByRole("checkbox", { name: /Pièce d'identité avec photo vérifiée en personne/ }),
   );
 
+const giveConsent = () =>
+  userEvent.click(
+    screen.getByRole("checkbox", {
+      name: /J'accepte que B\.A\.D\.R\. utilise ces renseignements/,
+    }),
+  );
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(2026, 10, 2, 9, 0));
@@ -107,6 +116,7 @@ describe("Walk-in registration (US-17)", () => {
 
     await fillHolder();
     await checkId();
+    await giveConsent();
     await userEvent.click(button("Continuer"));
 
     await screen.findByRole("heading", { name: "2. Adresse" });
@@ -120,6 +130,7 @@ describe("Walk-in registration (US-17)", () => {
         preferred_language: "fr",
       },
       identity_checked_in_person: true,
+      consent_data_processing: true,
       members: [],
     });
     // Who created the file and when, in Montréal time (AC 3).
@@ -134,17 +145,30 @@ describe("Walk-in registration (US-17)", () => {
     await userEvent.type(screen.getByLabelText("Date de naissance"), "2010-05-01");
     await userEvent.click(button("Continuer"));
 
-    expect(await screen.findByText("Corrigez 5 champs.")).toBeVisible();
+    expect(await screen.findByText("Corrigez 6 champs.")).toBeVisible();
     expect(screen.getByText("La personne responsable doit avoir 18 ans ou plus.")).toBeVisible();
     expect(
       screen.getByText("Vérifiez la pièce d'identité avec photo en personne avant de continuer."),
     ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Lisez l'avis à voix haute et notez le consentement de la personne avant de continuer.",
+      ),
+    ).toBeVisible();
     expect(sent(fetchMock, "POST")).toBe(false);
   });
 
-  it("saves a draft before the ID check and lists what is still to complete", async () => {
+  it("saves a draft before the ID check and consent, and lists what is still to complete", async () => {
     const fetchMock = mockApi({
-      create: () => Response.json(draft({ identity_checked_in_person: false }), { status: 201 }),
+      create: () =>
+        Response.json(
+          draft({
+            identity_checked_in_person: false,
+            consent_data_processing_at: null,
+            consent_text_version: "",
+          }),
+          { status: 201 },
+        ),
     });
     renderWithProviders(<App />, { route: "/staff/walk-in" });
     await screen.findByRole("heading", { name: "1. Personne responsable" });
@@ -153,10 +177,16 @@ describe("Walk-in registration (US-17)", () => {
     await userEvent.click(button("Enregistrer le brouillon"));
 
     expect(await screen.findByRole("heading", { name: "Brouillon enregistré" })).toBeVisible();
-    expect(sentBody(fetchMock, "POST").identity_checked_in_person).toBe(false);
+    expect(sentBody(fetchMock, "POST")).toMatchObject({
+      identity_checked_in_person: false,
+      consent_data_processing: false,
+    });
     const todo = screen.getByRole("region", { name: "Reste à faire" });
     expect(
       within(todo).getByText("Vérifier la pièce d'identité avec photo en personne"),
+    ).toBeVisible();
+    expect(
+      within(todo).getByText("Lire l'avis à voix haute et noter le consentement"),
     ).toBeVisible();
     expect(within(todo).getByText("Entrer l'adresse")).toBeVisible();
 
