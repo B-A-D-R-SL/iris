@@ -2,7 +2,7 @@
 /**
  * Walk-in registration (US-17, T-03.17.4): holder, address, members, review.
  * Layout and style follow Figma W3 (cards, "Save draft", "Draft saved"); the
- * fields follow forms-and-fields.md, which wins where the wireframe differs.
+ * fields follow user story #461, which wins where the wireframe differs.
  * "Continue" checks the step and saves the draft, so staff can always resume.
  */
 import { Button, Stack, Stepper, Text, Title } from "@mantine/core";
