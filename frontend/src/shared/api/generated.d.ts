@@ -65,8 +65,8 @@ export interface components {
       name_fr: string;
     };
     /**
-     * @description * `online` - Online
-     * * `walk_in` - Walk-in
+     * @description * `online` - En ligne
+     * * `walk_in` - Inscription en personne
      * @enum {string}
      */
     ChannelEnum: "online" | "walk_in";
@@ -288,14 +288,14 @@ export interface components {
       verified_by_email: string | null;
     };
     /**
-     * @description * `draft` - Draft
-     * * `submitted` - Submitted
+     * @description * `draft` - Brouillon
+     * * `submitted` - Demande soumise
      * * `review_required` - Review required
      * * `awaiting_visit` - Awaiting visit
-     * * `approved` - Approved
+     * * `approved` - Approuvé
      * * `renewal_needed` - Renewal needed
-     * * `suspended` - Suspended
-     * * `rejected` - Rejected
+     * * `suspended` - Suspendu
+     * * `rejected` - Refusé
      * @enum {string}
      */
     WalkInDraftReadStatusEnum:
