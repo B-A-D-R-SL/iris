@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
                 $$ LANGUAGE plpgsql;
 
                 CREATE TRIGGER audit_append_only
-                    BEFORE UPDATE OR DELETE ON audit_auditevent
+                    BEFORE UPDATE OR DELETE OR TRUNCATE ON audit_auditevent
                     FOR EACH STATEMENT EXECUTE FUNCTION audit_reject_mutation();
             """,
             reverse_sql="""
