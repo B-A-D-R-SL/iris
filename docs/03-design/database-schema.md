@@ -179,6 +179,8 @@ Sources: [Issue #443](https://github.com/B-A-D-R-SL/iris/issues/443), [Issue #44
 
 A household registration and approval file.
 
+Migration history: the SET-18 seed (#617) created the first table (`0001_initial`); US-17 (#461) migrates it forward (`0002_walk_in_registration`: walk-in fields, `Member`, `HouseholdDraftEvent`, seeded rows converted; `0003_household_consent`: consent fields), as decided on #461.
+
 | Field | Logical type | Key | Details |
 | --- | --- | --- | --- |
 | holder | reference | Foreign key, unique | Holder's user account; empty for walk-ins without online access. |
@@ -225,7 +227,7 @@ These documented workflow inputs are retained as requirements. They are separate
 | Possible duplicate addresses or people trigger review. | Duplicate detection service. |
 | Approval lasts twelve months; suspended or expired households cannot reserve. | Approval and reservation services. |
 
-Sources: [Issue #461](https://github.com/B-A-D-R-SL/iris/issues/461), [Issue #463](https://github.com/B-A-D-R-SL/iris/issues/463), [Issue #469](https://github.com/B-A-D-R-SL/iris/issues/469), [Issue #477](https://github.com/B-A-D-R-SL/iris/issues/477).
+Sources: [Issue #461](https://github.com/B-A-D-R-SL/iris/issues/461), [Issue #463](https://github.com/B-A-D-R-SL/iris/issues/463), [PR #617](https://github.com/B-A-D-R-SL/iris/pull/617), [Issue #469](https://github.com/B-A-D-R-SL/iris/issues/469), [Issue #477](https://github.com/B-A-D-R-SL/iris/issues/477).
 
 ### Member
 
