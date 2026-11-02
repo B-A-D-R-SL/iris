@@ -61,6 +61,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-19 AI reading spike (#410) | `tools/notice_reading_spike/{run.py,reader.py,fields.py,score.py,records.py,truth_reader.py,azure_layout_reader.py,layout_parser.py,vlm_reader.py,tests/,pyproject.toml,uv.lock,.python-version,.env.example,README.md}`, `docs/adr/0005-notice-reading.md`, the `document_reader` row in `docs/04-architecture/architecture.md`, `AI_USAGE.md`, and the wiki pages Notice Reading, Notice Reading – Results and Notice Reading – Law 25 Evidence | 50% or more AI-generated | [#612](https://github.com/B-A-D-R-SL/iris/pull/612) |
 | T-02.12.2 PartnerApplication model and API (#445) | `backend/modules/stores/{models.py,services.py,admin.py,api/,locale/,README.md}`, `backend/iris/{urls.py,settings/base.py}` (route, throttle rate, `NUM_PROXIES`, `django.contrib.postgres`), `backend/pyproject.toml` (stores → categories boundary), regenerated API types, `docs/03-design/{api,database-schema}.md`, `docs/04-architecture/architecture.md` | 50% or more AI-generated (generated migration and API declarations exempt) | Not yet opened (`US-12-partner-application-api` branch) |
 | T-02.12.1 Unit tests: Business applies to become a partner (#444) | `backend/modules/stores/tests/{factories.py,test_partner_application_model.py,test_partner_application_service.py,test_partner_application_api.py,test_admin.py}` | 50% or more AI-generated | Not yet opened (`US-12-partner-application-api` branch) |
+| T-02.12.3 Become a partner page (#446) | `frontend/src/areas/public/pages/PartnerApply*`, `frontend/src/areas/public/pages/partnerApplication.ts`, `frontend/src/app/App.tsx`, French and English translations | Local changes on `feat/US-12-partner-application` |
 
 ## Examples, verification and corrections
 
@@ -70,6 +71,12 @@ At least half of the AI-assisted features need an example here. For each one:
 - **What the AI produced:** files, commit or pull request
 - **How we verified it:** the automated tests or the review comment that checked it
 - **Problems found and corrections:** what was wrong or rejected, and what we changed
+
+### T-02.12.3 Become a partner page (#446)
+
+- **AI assistance:** ChatGPT helped write and review the form, API integration, translations and tests using the existing requirements and partner application API.
+- **Verification:** the frontend suite passed 265 tests, the partner application backend API suite passed 61 tests, and a fictional application was submitted through the local frontend and backend. Teammate review is pending.
+- **Dependency:** the backend is on the open US-12 pull request, #618.
 
 ### SET-18 Seed data generator (#409)
 
