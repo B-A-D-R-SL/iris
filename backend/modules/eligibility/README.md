@@ -67,3 +67,29 @@ PostgreSQL trigger enforcing this rule.
 ## Audit events
 
 Eligibility decision audit events must be recorded through audit.services.record() once US-62 is integrated. This is pending; decision records alone do not satisfy SEC-08.
+
+## Sensitive income snapshots and erasure
+
+**Privacy review required before merge.**
+
+US-16 (#457/#460) and the project database schema explicitly require
+`EligibilityDecision` to retain each adult income and the calculated
+household total. These values make historical decisions explainable.
+
+This requirement conflicts with the general sensitive-data restriction
+in `docs/05-process/review-rules.md` and `.coderabbit.yaml`.
+
+A narrowly scoped exception for the EligibilityDecision table is
+requested, not assumed approved. Income amounts must never be included
+in application logs, emails, or audit-event metadata.
+
+**Proposed erasure approach:** The privacy/retention owner must approve
+a retention period and implement a privileged, audited maintenance
+operation to erase or anonymize sensitive decision snapshots when
+required. It must operate outside ordinary application permissions,
+respect the PostgreSQL append-only trigger's protection against
+normal UPDATE/DELETE operations, and have database-level tests.
+
+No such privileged erasure path or privacy exception is approved or
+implemented in this PR. The related CodeRabbit privacy finding remains
+open until the team confirms the design.

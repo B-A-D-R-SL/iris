@@ -21,6 +21,7 @@ def thresholds() -> dict[int, int]:
     }
 
 
+# rule: BR-ELIG-002
 @pytest.mark.parametrize("household_size", range(1, 8))
 @pytest.mark.parametrize(
     ("offset_cents", "eligible"),
@@ -48,6 +49,7 @@ def test_threshold_boundaries(
     assert decision.family_size_used == household_size
 
 
+# rule: BR-ELIG-003
 @pytest.mark.parametrize("household_size", [8, 12])
 @pytest.mark.parametrize(
     ("offset_cents", "eligible"),
@@ -74,6 +76,7 @@ def test_large_households_use_size_seven_threshold(
     assert decision.family_size_used == 7
 
 
+# rule: BR-ELIG-001
 def test_adult_incomes_are_summed_in_integer_cents(
     thresholds: dict[int, int],
 ) -> None:
