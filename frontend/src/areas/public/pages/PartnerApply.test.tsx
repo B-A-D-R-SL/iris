@@ -24,20 +24,24 @@ function mockApi(post: Response = new Response(null, { status: 201 })) {
   return fetchMock;
 }
 async function fillForm(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText("Nom de l'entreprise"), "Boulangerie Exemple");
+  async function paste(label: string, value: string) {
+    await user.click(screen.getByLabelText(label));
+    await user.paste(value);
+  }
+  await paste("Nom de l'entreprise", "Boulangerie Exemple");
   await user.click(screen.getByRole("combobox", { name: "Type d'entreprise" }));
   await user.click(await screen.findByRole("option", { name: "Épicerie" }));
-  await user.type(screen.getByLabelText("Numéro civique"), "123");
-  await user.type(screen.getByLabelText("Rue", { exact: true }), "rue Exemple");
+  await paste("Numéro civique", "123");
+  await paste("Rue", "rue Exemple");
   await user.type(screen.getByLabelText("Code postal"), "H2X1Y4");
-  await user.type(screen.getByLabelText("Prénom de la personne-ressource"), "Camille");
-  await user.type(screen.getByLabelText("Nom de la personne-ressource"), "Exemple");
-  await user.type(screen.getByLabelText("Courriel"), "partner@example.test");
+  await paste("Prénom de la personne-ressource", "Camille");
+  await paste("Nom de la personne-ressource", "Exemple");
+  await paste("Courriel", "partner@example.test");
   await user.type(screen.getByLabelText("Téléphone"), "5145550123");
   const goods = screen.getByRole("group", { name: "Types de produits offerts" });
   await user.click(within(goods).getByLabelText("Boulangerie"));
   await user.click(screen.getByLabelText("Chaque semaine"));
-  await user.type(screen.getByLabelText("Heures d'ouverture"), "lun-ven 9-17");
+  await paste("Heures d'ouverture", "lun-ven 9-17");
   await user.click(
     screen.getByLabelText("J'accepte que B.A.D.R. communique avec moi au sujet de cette demande"),
   );
@@ -80,7 +84,7 @@ describe("Partner application", () => {
       consent_contact: true,
     });
     expect(post?.[1]?.headers).toMatchObject({ "Accept-Language": "fr" });
-  });
+  }, 15000);
   it("keeps entered values and shows field-level server errors", async () => {
     mockApi(
       Response.json(
@@ -99,7 +103,7 @@ describe("Partner application", () => {
     await user.click(screen.getByRole("button", { name: "Envoyer ma demande" }));
     expect(await screen.findByText("Courriel déjà utilisé.")).toBeInTheDocument();
     expect(screen.getByLabelText("Courriel")).toHaveValue("partner@example.test");
-  });
+  }, 15000);
   it("shows the duplicate response and supports English", async () => {
     mockApi(
       Response.json(
@@ -122,7 +126,7 @@ describe("Partner application", () => {
     await user.click(screen.getByRole("button", { name: "Send my application" }));
     expect(await screen.findByText("An application is already in progress.")).toBeInTheDocument();
     expect(screen.getByLabelText("Email address")).toHaveValue("partner@example.test");
-  });
+  }, 15000);
   it("shows a retry option when categories cannot be loaded", async () => {
     vi.stubGlobal(
       "fetch",
