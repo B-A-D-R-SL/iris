@@ -69,6 +69,10 @@ class Household(models.Model):
     alternate_phone = models.CharField(max_length=16, blank=True)
     alternate_email = models.EmailField(max_length=254, null=True, blank=True)
     identity_checked_in_person = models.BooleanField(default=False)
+    # Data-processing consent (walk-in: notice read aloud, agreed verbally).
+    # US-20 may move consents to privacy.ConsentRecord later.
+    consent_data_processing_at = models.DateTimeField(null=True, blank=True)
+    consent_text_version = models.CharField(max_length=20, blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
     approved_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
