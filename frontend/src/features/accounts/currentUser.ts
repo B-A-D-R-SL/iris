@@ -7,25 +7,22 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
+import type { components, paths } from "../../shared/api/generated";
+
+export type Role = components["schemas"]["RoleEnum"];
+
 export const ROLES = [
   "beneficiary",
   "store_staff",
   "store_manager",
   "intake_worker",
   "admin",
-] as const;
+] as const satisfies readonly Role[];
 
-export type Role = (typeof ROLES)[number];
+type CurrentUserResponse =
+  paths["/api/me/"]["get"]["responses"][200]["content"]["application/json"];
 
-// Hand-written until US-01 merges /api/me/ into the OpenAPI schema; then use
-// paths["/api/me/"]["get"]["responses"][200]["content"]["application/json"].
-export interface CurrentUser {
-  id: string;
-  name: string;
-  role: Role;
-  store: string | null;
-  language: "fr" | "en";
-}
+export type CurrentUser = CurrentUserResponse;
 
 export const CURRENT_USER_QUERY_KEY = ["current-user"] as const;
 
@@ -54,8 +51,7 @@ function parseCurrentUser(data: unknown): CurrentUser {
 export async function fetchCurrentUser(): Promise<CurrentUser | null> {
   const response = await fetch("/api/me/", { headers: { Accept: "application/json" } });
 
-  // 404 only happens until US-01 adds /api/me/ to main: treat it as signed out.
-  if (response.status === 401 || response.status === 403 || response.status === 404) {
+  if (response.status === 401 || response.status === 403) {
     return null;
   }
   if (!response.ok) {

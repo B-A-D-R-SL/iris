@@ -15,6 +15,9 @@ export interface paths {
      */
     get: operations["health_retrieve"];
   };
+  "/api/me/": {
+    get: operations["me_retrieve"];
+  };
   "/api/schema/": {
     /**
      * @description OpenApi3 schema for this API. Format can be selected via content negotiation.
@@ -23,6 +26,10 @@ export interface paths {
      * - JSON: application/vnd.oai.openapi+json
      */
     get: operations["schema_retrieve"];
+  };
+  "/api/store/listings/": {
+    /** Post a listing for the signed-in user's active store */
+    post: operations["store_listings_create"];
   };
 }
 
@@ -38,6 +45,106 @@ export interface components {
       name_en: string;
       name_fr: string;
     };
+    CurrentUser: {
+      /** Format: uuid */
+      id: string;
+      language: components["schemas"]["LanguageEnum"];
+      name: string;
+      role: components["schemas"]["RoleEnum"];
+      /** Format: uuid */
+      store: string | null;
+    };
+    /**
+     * @description * `fr` - Français
+     * * `en` - English
+     * @enum {string}
+     */
+    LanguageEnum: "fr" | "en";
+    NewListing: {
+      /** Format: date */
+      best_before?: string | null;
+      category: string;
+      description?: string | null;
+      estimated_value_cents?: number | null;
+      /** @default 1 */
+      max_per_household?: number;
+      /** Format: binary */
+      photo?: string | null;
+      /** Format: date-time */
+      pickup_end: string;
+      /** Format: date-time */
+      pickup_start: string;
+      /** @default 1 */
+      quantity?: number;
+      safe_and_allowed: boolean;
+      /** Format: uuid */
+      store?: string;
+      title: string;
+      /** @default item */
+      unit?: string;
+    };
+    PostedListing: {
+      /** Format: date */
+      best_before: string | null;
+      category: string;
+      description: string | null;
+      estimated_value_cents: number | null;
+      /** Format: uuid */
+      id: string;
+      location: components["schemas"]["StoreAddress"];
+      max_per_household: number;
+      /** Format: date-time */
+      pickup_end: string;
+      /** Format: date-time */
+      pickup_start: string;
+      /** Format: date-time */
+      published_at: string;
+      quantity: number;
+      quantity_reserved: number;
+      /** Format: date-time */
+      safe_confirmed_at: string;
+      status: components["schemas"]["StatusEnum"];
+      /** Format: uuid */
+      store: string;
+      title: string;
+      unit: components["schemas"]["UnitEnum"];
+    };
+    PostingError: {
+      code: string;
+      fields: {
+        [key: string]: string[];
+      };
+      message: string;
+    };
+    /**
+     * @description * `beneficiary` - Beneficiary
+     * * `store_staff` - Store Staff
+     * * `store_manager` - Store Manager
+     * * `intake_worker` - Intake Worker
+     * * `admin` - Admin
+     * @enum {string}
+     */
+    RoleEnum: "beneficiary" | "store_staff" | "store_manager" | "intake_worker" | "admin";
+    /**
+     * @description * `published` - Published
+     * * `closed` - Closed
+     * * `cancelled` - Cancelled
+     * @enum {string}
+     */
+    StatusEnum: "published" | "closed" | "cancelled";
+    StoreAddress: {
+      city: string;
+      postal_code: string;
+      street_name: string;
+      street_number: string;
+      unit: string | null;
+    };
+    /**
+     * @description * `item` - Item
+     * * `bundle` - Bundle
+     * @enum {string}
+     */
+    UnitEnum: "item" | "bundle";
   };
   responses: never;
   parameters: never;
@@ -81,6 +188,19 @@ export interface operations {
       };
     };
   };
+  me_retrieve: {
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["CurrentUser"];
+        };
+      };
+      /** @description Authentication required. */
+      401: {
+        content: never;
+      };
+    };
+  };
   /**
    * @description OpenApi3 schema for this API. Format can be selected via content negotiation.
    *
@@ -109,6 +229,38 @@ export interface operations {
           "application/yaml": {
             [key: string]: unknown;
           };
+        };
+      };
+    };
+  };
+  /** Post a listing for the signed-in user's active store */
+  store_listings_create: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NewListing"];
+        "application/x-www-form-urlencoded": components["schemas"]["NewListing"];
+        "multipart/form-data": components["schemas"]["NewListing"];
+      };
+    };
+    responses: {
+      201: {
+        content: {
+          "application/json": components["schemas"]["PostedListing"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["PostingError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["PostingError"];
+        };
+      };
+      503: {
+        content: {
+          "application/json": components["schemas"]["PostingError"];
         };
       };
     };

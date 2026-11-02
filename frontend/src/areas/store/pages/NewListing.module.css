@@ -1,0 +1,38 @@
+/* AI contribution: 50% or more AI-generated */
+
+/* Notices appear here: scrolling to it stops below the sticky app bar. */
+.top {
+  scroll-margin-top: 56px;
+}
+
+/* SET-11 step 4: the "Publier l'offre" bar sticks to the bottom, above the tab bar. */
+.publishBar {
+  position: sticky;
+  bottom: var(--app-shell-footer-offset, 0rem);
+  z-index: 5;
+  padding: 12px 16px;
+  background-color: var(--mantine-color-body);
+  border-top: 1px solid var(--mantine-color-default-border);
+}
+
+/* Labels of groups that are not a single input (day, location), styled like field labels. */
+.groupLabel {
+  margin-bottom: 4px;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 600;
+}
+
+/* 44 px touch targets for the day chips and the unit switch. */
+.chip {
+  height: 44px;
+  padding-inline: 16px;
+  font-size: var(--mantine-font-size-md);
+}
+
+.segmentedLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  font-size: var(--mantine-font-size-md);
+}

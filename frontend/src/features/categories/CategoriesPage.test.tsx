@@ -73,10 +73,23 @@ describe("CategoriesPage", () => {
   });
 
   it("displays an error and supports retry", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(new Response(null, { status: 503 }))
-      .mockResolvedValueOnce(Response.json([bakery]));
+    let categoryRequests = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+
+      if (url.endsWith("/api/me/")) {
+        return new Response(null, { status: 401 });
+      }
+
+      if (url.endsWith("/api/categories/")) {
+        categoryRequests += 1;
+        return categoryRequests === 1
+          ? new Response(null, { status: 503 })
+          : Response.json([bakery]);
+      }
+
+      return new Response(null, { status: 404 });
+    });
 
     vi.stubGlobal("fetch", fetchMock);
 
@@ -87,7 +100,7 @@ describe("CategoriesPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Réessayer" }));
 
     expect(await screen.findByText("Boulangerie")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(categoryRequests).toBe(2);
   });
 
   it("renders inside the existing admin route", async () => {

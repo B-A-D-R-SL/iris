@@ -1,0 +1,34 @@
+/* AI contribution: 50% or more AI-generated */
+/* SET-11 "Category picker": a bottom sheet with one full-width row per category. */
+
+.sheet {
+  max-height: 85dvh;
+  border-top-left-radius: var(--mantine-radius-lg);
+  border-top-right-radius: var(--mantine-radius-lg);
+}
+
+.noteIcon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.option {
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+/* The whole row is the touch target (48 px). */
+.optionBody {
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+}
+
+.optionLabel {
+  flex: 1;
+}
+
+.optionLabel label {
+  display: block;
+  padding-block: 12px;
+  font-size: var(--mantine-font-size-md);
+}

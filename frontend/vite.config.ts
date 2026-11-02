@@ -21,8 +21,8 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     coverage: {
       provider: "v8",
-      include: ["src/**/*.{ts,tsx}"],
-      exclude: ["src/test/**", "src/**/*.test.{ts,tsx}"],
+      include: ["src/**/*.{ts,tsx}", "scripts/usability/**/*.mjs"],
+      exclude: ["src/test/**", "src/**/*.test.{ts,tsx}", "scripts/**/*.test.mjs"],
       reporter: ["text", ["lcov", { projectRoot: ".." }]],
     },
   },

@@ -18,6 +18,7 @@ export type Rule<T> = (value: T) => ReactNode;
 const POSTAL_CODE = /^[A-Z]\d[A-Z] \d[A-Z]\d$/;
 const E164_CANADA = /^\+1[2-9]\d{9}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BYTES_PER_MB = 1024 * 1024;
 
 export function validationMessage(messageKey: string, values?: Record<string, unknown>): ReactNode {
@@ -53,6 +54,13 @@ export function allOf<T>(...rules: Rule<T>[]): Rule<T> {
 
 export function isRequired(): Rule<unknown> {
   return (value) => (isEmpty(value) ? validationMessage("shared.validation.required") : null);
+}
+
+export function isEmail(): Rule<string> {
+  return (value) =>
+    isEmpty(value) || EMAIL.test(value.trim())
+      ? null
+      : validationMessage("shared.validation.email");
 }
 
 export function hasLength({ min = 0, max }: { min?: number; max: number }): Rule<string> {
@@ -115,14 +123,14 @@ export function isAcceptedFile({
   maxMb,
 }: {
   types: readonly string[];
-  maxMb: number;
+  maxMb?: number;
 }): Rule<File | null> {
   return (file) => {
     if (file === null) return null;
     if (!types.includes(file.type)) {
       return validationMessage("shared.validation.fileType", { types: fileTypeNames(types) });
     }
-    if (file.size > maxMb * BYTES_PER_MB) {
+    if (maxMb !== undefined && file.size > maxMb * BYTES_PER_MB) {
       return validationMessage("shared.validation.fileSize", { max: maxMb });
     }
     return null;
