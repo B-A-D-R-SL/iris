@@ -11,7 +11,11 @@ from rest_framework.test import APIClient
 
 from modules.accounts.tests.factories import UserFactory
 from modules.households.models import Household, HouseholdDraftEvent, Member
-from modules.households.services import create_walk_in, update_draft
+from modules.households.services import (
+    CONSENT_TEXT_VERSION,
+    create_walk_in,
+    update_draft,
+)
 from modules.stores.tests.factories import StoreFactory
 
 pytestmark = pytest.mark.django_db
@@ -248,3 +252,57 @@ def test_replacing_member_list_does_not_duplicate_holder(data, worker):
     house = Household.objects.get(pk=result.data["id"])
     assert house.members.count() == 1
     assert house.members.get().relation == Member.Relation.HOLDER
+
+
+def test_consent_stores_time_and_text_version(data, worker):
+    client = _client(worker)
+    data["consent_data_processing"] = True
+    result = client.post(reverse("staff-households-create"), data, format="json")
+    assert result.status_code == 201, result.data
+    assert result.data["consent_text_version"] == CONSENT_TEXT_VERSION
+    assert result.data["consent_data_processing_at"] is not None
+    house = Household.objects.get(pk=result.data["id"])
+    assert house.consent_data_processing_at is not None
+
+
+def test_consent_resent_keeps_the_first_time(data, worker):
+    client = _client(worker)
+    data["consent_data_processing"] = True
+    result = client.post(reverse("staff-households-create"), data, format="json")
+    url = reverse("staff-households-detail", kwargs={"id": result.data["id"]})
+    first = Household.objects.get(pk=result.data["id"]).consent_data_processing_at
+    reply = client.patch(url, {"consent_data_processing": True}, format="json")
+    assert reply.status_code == 200, reply.data
+    assert (
+        Household.objects.get(pk=result.data["id"]).consent_data_processing_at == first
+    )
+
+
+def test_consent_unticked_is_removed(data, worker):
+    client = _client(worker)
+    data["consent_data_processing"] = True
+    result = client.post(reverse("staff-households-create"), data, format="json")
+    url = reverse("staff-households-detail", kwargs={"id": result.data["id"]})
+    reply = client.patch(url, {"consent_data_processing": False}, format="json")
+    assert reply.status_code == 200, reply.data
+    assert reply.data["consent_data_processing_at"] is None
+    assert reply.data["consent_text_version"] == ""
+
+
+def test_draft_without_consent_stores_none(data, worker):
+    result = _client(worker).post(
+        reverse("staff-households-create"), data, format="json"
+    )
+    assert result.status_code == 201, result.data
+    assert result.data["consent_data_processing_at"] is None
+    assert result.data["consent_text_version"] == ""
+
+
+def test_consent_must_be_a_boolean(data, worker):
+    data["consent_data_processing"] = "maybe"
+    response = _client(worker).post(
+        reverse("staff-households-create"), data, format="json"
+    )
+    assert response.status_code == 400
+    assert "consent_data_processing" in response.data["fields"]
+    assert Household.objects.count() == 0
