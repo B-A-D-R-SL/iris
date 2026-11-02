@@ -30,11 +30,18 @@ export function ReviewStep({ values, onEdit }: ReviewStepProps) {
   );
   const email = values.email.trim() || t(`${walkInKey}.noEmail`);
   const identity = t(`${walkInKey}.${values.identityChecked ? "identityYes" : "identityNo"}`);
+  const consent = t(`${walkInKey}.${values.consentGiven ? "consentYes" : "consentNo"}`);
 
   const unit = values.unit.trim();
   const unitText = unit ? `, ${t("household.registrationAddress.unit")} ${unit}` : "";
 
-  const holderLines = [values.dateOfBirth, email, `${values.phone} · ${language}`, identity];
+  const holderLines = [
+    values.dateOfBirth,
+    email,
+    `${values.phone} · ${language}`,
+    identity,
+    consent,
+  ];
 
   return (
     <Stack gap="md">
