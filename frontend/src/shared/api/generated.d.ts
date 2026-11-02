@@ -90,7 +90,7 @@ export interface components {
       preferred_language?: components["schemas"]["LanguageEnum"];
     };
     /**
-     * @description * `fr` - Fran??ais
+     * @description * `fr` - Français
      * * `en` - English
      * @enum {string}
      */
@@ -178,6 +178,7 @@ export interface components {
     };
     PatchedWalkInDraftInput: {
       address?: components["schemas"]["AddressInput"];
+      consent_data_processing?: boolean;
       holder?: components["schemas"]["HolderInput"];
       identity_checked_in_person?: boolean;
       members?: components["schemas"]["MemberInput"][];
@@ -251,6 +252,7 @@ export interface components {
     UnitEnum: "item" | "bundle";
     WalkInDraftInput: {
       address?: components["schemas"]["AddressInput"];
+      consent_data_processing?: boolean;
       holder?: components["schemas"]["HolderInput"];
       identity_checked_in_person?: boolean;
       members?: components["schemas"]["MemberInput"][];
@@ -258,6 +260,9 @@ export interface components {
     WalkInDraftRead: {
       channel: components["schemas"]["ChannelEnum"];
       city: string;
+      /** Format: date-time */
+      consent_data_processing_at: string | null;
+      consent_text_version: string;
       /** Format: date-time */
       created_at: string;
       /** Format: email */
