@@ -1,8 +1,10 @@
 # AI contribution: 50% or more AI-generated
 """Posting input and pure validation; limits are supplied by versioned rules."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from dataclasses import field as dataclass_field
+from datetime import UTC, date, datetime, timedelta, tzinfo
 from typing import Any
 
 MINIMUM_POSITIVE_INTEGER = 1
@@ -41,10 +43,19 @@ class PostingLimits:
 
 @dataclass(frozen=True)
 class Refusal:
-    """A field and stable reason code; translation belongs outside the domain."""
+    """A field and stable reason code; translation belongs outside the domain.
+
+    ``params`` carries raw values a message needs, such as the earliest
+    accepted best-before date. The service formats them for the user.
+    """
 
     field: str
     code: str
+    params: Mapping[str, Any] = dataclass_field(default_factory=dict, hash=False)
+
+
+class SafetyRulesInvalid(ValueError):
+    """The listing_safety rule values cannot be used by a safety checker."""
 
 
 def check_posting(
@@ -106,14 +117,19 @@ def check_posting(
     return refusals
 
 
-def safety_payload(data: ListingInput) -> dict[str, Any]:
-    """Explicit input for US-34's check(listing_data, category, rules) contract."""
+def safety_payload(data: ListingInput, *, local_tz: tzinfo) -> dict[str, Any]:
+    """Explicit input for US-34's check(listing_data, category, rules) contract.
+
+    ``pickup_end_date`` is the pickup's last day in the store's time zone, so a
+    pickup ending at 21:30 in Montreal counts as that day, not the next UTC day.
+    """
     return {
         "category": data.category,
         "title": data.title,
         "quantity_total": data.quantity,
         "pickup_start": data.pickup_start,
         "pickup_end": data.pickup_end,
+        "pickup_end_date": data.pickup_end.astimezone(local_tz).date(),
         "best_before": data.best_before,
         "safe_and_allowed": data.safe_and_allowed,
     }
