@@ -24,7 +24,7 @@
 
 /* US-34: the prohibited-items link sits under the checkbox label (md box 24 px + 12 px gap). */
 .checkboxLink {
-  margin-top: 4px;
+  margin-top: 6px;
   padding-inline-start: 36px;
 }
 

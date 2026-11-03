@@ -81,9 +81,10 @@ export function CategoryPicker(props: CategoryPickerProps) {
         classNames={{ content: classes.sheet }}
       >
         <Stack gap="md">
-          <Group gap="xs" wrap="nowrap" align="flex-start">
-            <IconAlertTriangle size={18} stroke={2} aria-hidden className={classes.noteIcon} />
-            <Text size="sm">
+          {/* SET-11 "Category sheet" note: 12/16 gray text, 16 px icon, 6 px gap. */}
+          <Group gap={6} wrap="nowrap" align="flex-start">
+            <IconAlertTriangle size={16} stroke={2} aria-hidden className={classes.noteIcon} />
+            <Text size="xs" c="gray.7">
               {t("store.newListing.prohibitedNote")} <ProhibitedItemsLink short />
             </Text>
           </Group>

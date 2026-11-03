@@ -11,7 +11,10 @@ import { Anchor } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 
 export interface ProhibitedItemsLinkProps {
-  /** "See the list" in the category sheet; the full sentence elsewhere. */
+  /**
+   * "See the list" in the category sheet (WF/Caption); the full sentence under
+   * the checkbox otherwise (WF/Caption strong). Both are always underlined.
+   */
   short?: boolean;
 }
 
@@ -21,7 +24,9 @@ export function ProhibitedItemsLink({ short = false }: ProhibitedItemsLinkProps)
     <Anchor
       component="button"
       type="button"
-      size="sm"
+      size="xs"
+      underline="always"
+      fw={short ? 400 : 600}
       aria-disabled="true"
       onClick={(event) => event.preventDefault()}
     >
