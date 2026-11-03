@@ -37,7 +37,16 @@ async function getAuditEvents(filters: Filters, page: number): Promise<AuditPage
     headers: { Accept: "application/json" },
   });
   if (!response.ok) throw new Error(`Audit search failed: ${response.status}`);
-  return (await response.json()) as AuditPage;
+  const data: unknown = await response.json();
+  if (
+    typeof data !== "object" ||
+    data === null ||
+    !("results" in data) ||
+    !Array.isArray(data.results)
+  ) {
+    throw new Error("Invalid audit search response");
+  }
+  return data as AuditPage;
 }
 
 export function Audit() {

@@ -112,6 +112,25 @@ describe("Audit search", () => {
     expect(await screen.findByRole("alert")).toBeInTheDocument();
   });
 
+  it("shows an error and allows retry when the results array is invalid", async () => {
+    let auditRequests = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (!String(input).includes("/api/staff/audit/")) return new Response(null, { status: 401 });
+      auditRequests += 1;
+      return Response.json({
+        count: 1,
+        next: null,
+        previous: null,
+        results: auditRequests === 1 ? null : [event],
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(<Audit />);
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: /réessayer/i }));
+    expect(await screen.findByText("Ménage: abc")).toBeInTheDocument();
+  });
+
   it("validates IDs and date ranges and supports English", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       if (String(input).endsWith("/api/me/")) return new Response(null, { status: 401 });
