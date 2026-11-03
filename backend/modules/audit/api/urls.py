@@ -1,5 +1,6 @@
 # AI contribution: 50% or more AI-generated
-"""Future API routes for audit.
+from django.urls import path
 
-TODO: Define routes when module endpoints are implemented.
-"""
+from modules.audit.api.views import AuditSearchView
+
+urlpatterns = [path("", AuditSearchView.as_view(), name="audit-search")]
