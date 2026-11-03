@@ -132,16 +132,30 @@ def test_us34_api_refuses_prohibited_category(
     assert not Listing.objects.exists()
 
 
-def test_us34_api_malformed_safety_rules_return_503(
-    posting_case: SimpleNamespace, store_client: APIClient
-) -> None:
+# Stored values that publish() would refuse; written directly to simulate a
+# corrupted row. The non-object one used to raise AttributeError (500).
+MALFORMED_VALUES = [
+    {"best_before_margin_days": 0},
+    {"best_before_margin_days": -1, "prohibited_category_codes": []},
+    [],
+]
+
+
+def store_malformed_rule(case: SimpleNamespace, values: Any) -> None:
     RuleSetVersion.objects.create(
         rule_type="listing_safety",
         version=2,
-        values={"best_before_margin_days": 0},
-        effective_from=posting_case.now,
-        created_by=posting_case.user,
+        values=values,
+        effective_from=case.now,
+        created_by=case.user,
     )
+
+
+@pytest.mark.parametrize("values", MALFORMED_VALUES)
+def test_us34_api_malformed_safety_rules_return_503(
+    posting_case: SimpleNamespace, store_client: APIClient, values: Any
+) -> None:
+    store_malformed_rule(posting_case, values)
     response = store_client.post(
         reverse("store-listing-create"), payload(posting_case), format="json"
     )
@@ -246,16 +260,27 @@ def test_us34_categories_with_malformed_rules_returns_503(
     expected: str,
 ) -> None:
     store_client.credentials(HTTP_ACCEPT_LANGUAGE=language)
-    RuleSetVersion.objects.create(
-        rule_type="listing_safety",
-        version=2,
-        values={"best_before_margin_days": 0, "prohibited_category_codes": "x"},
-        effective_from=posting_case.now,
-        created_by=posting_case.user,
+    store_malformed_rule(
+        posting_case, {"best_before_margin_days": 0, "prohibited_category_codes": "x"}
     )
     response = store_client.get(reverse(CATEGORIES_URL))
     assert response.status_code == 503
     assert response.json()["message"] == expected
+
+
+@pytest.mark.parametrize("values", MALFORMED_VALUES)
+def test_us34_categories_checks_the_same_rule_as_posting(
+    posting_case: SimpleNamespace, store_client: APIClient, values: Any
+) -> None:
+    # A rule that would block every post also blocks the form from opening.
+    store_malformed_rule(posting_case, values)
+    response = store_client.get(reverse(CATEGORIES_URL))
+    assert response.status_code == 503
+    assert response.json() == {
+        "code": "posting_unavailable",
+        "message": "Listing safety rules need configuration.",
+        "fields": {},
+    }
 
 
 def test_us34_schema_documents_posting_categories(client: Client) -> None:

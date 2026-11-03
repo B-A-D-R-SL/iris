@@ -98,7 +98,7 @@ posting service/API work.
 | [Serializers](../../backend/modules/listings/api/serializers.py) | Define request/response fields, require timezone offsets, reject unknown inputs, and omit private photo references. |
 | [Shared permissions](../../backend/modules/listings/permissions.py) | Check account activity, posting role, and assigned store. Django's `is_staff` flag alone grants no posting rights. |
 | [Posting domain](../../backend/modules/listings/domain/posting.py) | Define `ListingInput`, `PostingLimits`, and `Refusal`; validate business values without database access. |
-| [Safety rule](../../backend/modules/listings/domain/safety.py) | US-34: `check(listing_data, category, rules)` returns every safety refusal; `prohibited_codes(rules)` reads the banned list. |
+| [Safety rule](../../backend/modules/listings/domain/safety.py) | US-34: `check(listing_data, category, rules)` returns every safety refusal; `read_settings(rules)` checks every `listing_safety` value and is shared with the categories endpoint. |
 | [Listing queries](../../backend/modules/listings/queries.py) | US-34: `categories_for_posting(at=...)`, the active categories minus prohibited ones, for the form. |
 | [Posting service](../../backend/modules/listings/services.py) | Coordinate rules, safety, photos, transactions, and publication. Start here after reading the request flow above. |
 | [Integration contracts](../../backend/modules/listings/contracts.py) | Specify the required safety-checker and photo-store interfaces. |

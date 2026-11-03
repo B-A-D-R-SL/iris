@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 from modules.listings.domain.posting import Refusal, SafetyRulesInvalid
-from modules.listings.domain.safety import check, prohibited_codes
+from modules.listings.domain.safety import SafetySettings, check, read_settings
 
 PICKUP_END = date(2026, 11, 13)
 FOOD = {"code": "bakery", "is_food": True}
@@ -121,12 +121,34 @@ def test_us34_returns_every_refusal_at_once() -> None:
     ]
 
 
-def test_us34_prohibited_codes_reads_the_setting() -> None:
-    assert prohibited_codes(rules(prohibited_category_codes=["a", "b"])) == {
-        "a",
-        "b",
-    }
-    assert prohibited_codes(rules()) == frozenset()
+def test_us34_read_settings_returns_both_values() -> None:
+    assert read_settings(
+        rules(prohibited_category_codes=["a", "b"], best_before_margin_days=2)
+    ) == SafetySettings(frozenset({"a", "b"}), 2)
+    assert read_settings(rules()) == SafetySettings(frozenset(), 0)
+
+
+MALFORMED_RULES: list[Any] = [
+    # Not an object at all (a corrupted JSONField row).
+    [],
+    None,
+    "listing_safety",
+    # Bad or missing margin.
+    {"best_before_margin_days": -1, "prohibited_category_codes": []},
+    {"best_before_margin_days": True, "prohibited_category_codes": []},
+    {"best_before_margin_days": 1.5, "prohibited_category_codes": []},
+    {"prohibited_category_codes": []},
+    # Bad or missing prohibited list.
+    {"best_before_margin_days": 0, "prohibited_category_codes": "bakery"},
+    {"best_before_margin_days": 0, "prohibited_category_codes": [1]},
+    {"best_before_margin_days": 0},
+]
+
+
+@pytest.mark.parametrize("bad_rules", MALFORMED_RULES)
+def test_us34_read_settings_rejects_malformed_rules(bad_rules: Any) -> None:
+    with pytest.raises(SafetyRulesInvalid):
+        read_settings(bad_rules)
 
 
 @pytest.mark.parametrize(
@@ -139,11 +161,18 @@ def test_us34_prohibited_codes_reads_the_setting() -> None:
         {"best_before_margin_days": 0, "prohibited_category_codes": "bakery"},
         {"best_before_margin_days": 0, "prohibited_category_codes": [1]},
         {"best_before_margin_days": 0},
+        [],
     ],
 )
-def test_us34_malformed_safety_rules_raise(bad_rules: dict[str, Any]) -> None:
+def test_us34_malformed_safety_rules_raise(bad_rules: Any) -> None:
     with pytest.raises(SafetyRulesInvalid):
         check(listing(), FOOD, bad_rules)
+
+
+def test_us34_non_food_still_refused_when_margin_is_malformed() -> None:
+    # The margin only matters for food, but a broken rule blocks every post.
+    with pytest.raises(SafetyRulesInvalid):
+        check(listing(), NON_FOOD, rules(best_before_margin_days=-1))
 
 
 def test_us34_margin_past_the_last_calendar_date_raises() -> None:

@@ -7,28 +7,40 @@ the first, so the form can show each problem next to its field.
 """
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any
 
 from modules.listings.domain.posting import Refusal, SafetyRulesInvalid
 
-__all__ = ["SafetyRulesInvalid", "check", "prohibited_codes"]
+__all__ = ["SafetyRulesInvalid", "SafetySettings", "check", "read_settings"]
 
 
-def prohibited_codes(rules: Mapping[str, Any]) -> frozenset[str]:
-    """Return the banned category codes, or raise if the setting is malformed."""
+@dataclass(frozen=True)
+class SafetySettings:
+    """The ``listing_safety`` rule values, checked."""
+
+    prohibited_codes: frozenset[str]
+    best_before_margin_days: int
+
+
+def read_settings(rules: Any) -> SafetySettings:
+    """Check every ``listing_safety`` value, or raise SafetyRulesInvalid.
+
+    Posting and the posting form's category list both call this, so a broken
+    rule blocks the form as soon as it opens instead of only at publish time.
+    """
+    # Stored values are a JSONField: a corrupted row could hold a list or scalar.
+    if not isinstance(rules, Mapping):
+        raise SafetyRulesInvalid("listing_safety values must be an object.")
     codes = rules.get("prohibited_category_codes")
     if not isinstance(codes, list) or not all(isinstance(c, str) for c in codes):
         raise SafetyRulesInvalid("prohibited_category_codes must be a list of codes.")
-    return frozenset(codes)
-
-
-def _margin_days(rules: Mapping[str, Any]) -> int:
     margin = rules.get("best_before_margin_days")
     # bool is an int subclass; True must not count as a one-day margin.
     if type(margin) is not int or margin < 0:
         raise SafetyRulesInvalid("best_before_margin_days must be a whole number >= 0.")
-    return margin
+    return SafetySettings(frozenset(codes), margin)
 
 
 def _calendar_date(value: Any, name: str) -> date:
@@ -41,15 +53,17 @@ def _calendar_date(value: Any, name: str) -> date:
 def check(
     listing_data: Mapping[str, Any],
     category: Mapping[str, Any],
-    rules: Mapping[str, Any],
+    rules: Any,
 ) -> list[Refusal]:
     """Return every safety refusal for a listing; an empty list means safe.
 
-    ``listing_data`` comes from ``posting.safety_payload`` and ``category`` from
-    ``categories.queries.for_listing_post``.
+    ``listing_data`` comes from ``posting.safety_payload``, ``category`` from
+    ``categories.queries.for_listing_post`` and ``rules`` is the stored
+    ``listing_safety`` values (checked by ``read_settings``).
     """
-    banned = prohibited_codes(rules)
-    margin_days = _margin_days(rules)
+    settings = read_settings(rules)
+    banned = settings.prohibited_codes
+    margin_days = settings.best_before_margin_days
     refusals: list[Refusal] = []
 
     # rule: safe-and-allowed confirmation on every post (also checked by
