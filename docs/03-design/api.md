@@ -58,7 +58,8 @@ Categories were added by
 | -------------- | ------------------------ | ------ | ------------------ | ----------- |
 | GET            | `/api/health/`           | Anyone | `{"status": "ok"}` | Implemented |
 | GET            | `/api/categories/`       | Anyone | Active categories  | Implemented |
-| GET/POST/PATCH | `/api/staff/categories/` | Admin  | Manage categories  | Planned     |
+| GET/POST       | `/api/staff/categories/` | Admin  | List every category (active or not); add one | Implemented (US-35) |
+| PATCH          | `/api/staff/categories/{code}/` | Admin | Rename, change food or default value, deactivate or reactivate; no delete | Implemented (US-35) |
 
 ### Accounts
 
@@ -242,8 +243,9 @@ The following draft entries are preserved exactly pending clarification:
 
 - `/api/staff/reports/export.csv?start=&end=` has no trailing slash, although
   the general path rule requires one.
-- `GET/POST/PATCH /api/staff/categories/` does not specify a detail path for
-  updates. Other rows group multiple methods and collection/detail paths.
+- Resolved for categories (US-35, #501): `GET`/`POST /api/staff/categories/`
+  and `PATCH /api/staff/categories/{code}/`. The code identifies a category
+  because the public API exposes no database IDs; there is no `DELETE`.
 - `/reactivate/` is abbreviated alongside the household suspension path.
 
 **Team decision pending:** confirm the export-path exception, method-to-path
