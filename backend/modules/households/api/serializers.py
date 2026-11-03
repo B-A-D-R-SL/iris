@@ -7,6 +7,7 @@ from typing import Any
 
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from modules.households.domain.address import normalize_postal_code
@@ -132,10 +133,30 @@ class MemberInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
         return value
 
 
+@extend_schema_field(MemberInputSerializer(many=True))
+class CompleteMembersField(serializers.Field):
+    """The member list replaces every other member, so each item must be complete,
+    even in a PATCH (a nested serializer would inherit the PATCH's partial mode)."""
+
+    def to_internal_value(self, data: Any) -> list[dict[str, Any]]:
+        if not isinstance(data, list):
+            raise serializers.ValidationError(
+                _("Send the household members as a list.")
+            )
+        members = MemberInputSerializer(data=data, many=True)
+        if not members.is_valid():
+            errors = members.errors
+            # One entry per member, so errors read "members[1].relation" like other lists.
+            if isinstance(errors, Mapping):
+                errors = [errors.get(index, {}) for index in range(len(data))]
+            raise serializers.ValidationError(errors)
+        return list(members.validated_data)
+
+
 class WalkInDraftInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
     holder = HolderInputSerializer(required=False)
     address = AddressInputSerializer(required=False)
-    members = MemberInputSerializer(many=True, required=False)
+    members = CompleteMembersField(required=False)
     identity_checked_in_person = serializers.BooleanField(required=False)
     consent_data_processing = serializers.BooleanField(required=False)
 

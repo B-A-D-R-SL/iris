@@ -344,3 +344,28 @@ def test_identity_check_unticked_then_ticked_records_the_new_verifier(data, work
     house.refresh_from_db()
     assert house.verified_by_id == admin.pk
     assert house.verified_at is not None
+
+
+def test_patch_with_an_incomplete_member_is_a_field_error(data, worker):
+    client = _client(worker)
+    result = client.post(reverse("staff-households-create"), data, format="json")
+    url = reverse("staff-households-detail", kwargs={"id": result.data["id"]})
+
+    reply = client.patch(
+        url,
+        {"members": [{"first_name": "Léo", "last_name": "Démo", "relation": "child"}]},
+        format="json",
+    )
+
+    assert reply.status_code == 400
+    assert "members[0].date_of_birth" in reply.data["fields"]
+    assert Household.objects.get(pk=result.data["id"]).members.count() == 2
+
+
+def test_members_must_be_a_list(data, worker):
+    data["members"] = {"first_name": "Léo"}
+    reply = _client(worker).post(
+        reverse("staff-households-create"), data, format="json"
+    )
+    assert reply.status_code == 400
+    assert "members" in reply.data["fields"]
