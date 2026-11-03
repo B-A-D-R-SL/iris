@@ -177,7 +177,14 @@ def update_draft(
     household.full_clean()
     household.save()
     if holder is not None and MEMBER_FIELDS & holder.keys():
-        holder_member = household.members.get(relation=Member.Relation.HOLDER)
+        # Files seeded by SET-18 have no holder member yet: create it when complete.
+        holder_member = household.members.filter(
+            relation=Member.Relation.HOLDER
+        ).first()
+        if holder_member is None and not MEMBER_FIELDS.issubset(holder):
+            raise ValidationError(
+                {"holder": _("Enter the holder's name and date of birth.")}
+            )
         _save_member(household, holder, Member.Relation.HOLDER, holder_member)
     if "members" in data:
         _replace_other_members(household, data["members"])

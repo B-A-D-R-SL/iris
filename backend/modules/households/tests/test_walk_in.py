@@ -369,3 +369,39 @@ def test_members_must_be_a_list(data, worker):
     )
     assert reply.status_code == 400
     assert "members" in reply.data["fields"]
+
+
+def _draft_without_holder_member(data, worker):
+    """Like a SET-18 seeded draft: a household file with no Member rows."""
+    result = _client(worker).post(
+        reverse("staff-households-create"), data, format="json"
+    )
+    house = Household.objects.get(pk=result.data["id"])
+    house.members.all().delete()
+    return house
+
+
+def test_saving_a_draft_without_holder_member_creates_it(data, worker):
+    house = _draft_without_holder_member(data, worker)
+    url = reverse("staff-households-detail", kwargs={"id": house.pk})
+
+    reply = _client(worker).patch(url, {"holder": data["holder"]}, format="json")
+
+    assert reply.status_code == 200, reply.data
+    holder = house.members.get(relation=Member.Relation.HOLDER)
+    assert (holder.first_name, holder.last_name) == ("Example", "Holder")
+
+
+def test_incomplete_holder_on_a_draft_without_holder_member_is_a_field_error(
+    data, worker
+):
+    house = _draft_without_holder_member(data, worker)
+    url = reverse("staff-households-detail", kwargs={"id": house.pk})
+
+    reply = _client(worker).patch(
+        url, {"holder": {"first_name": "Example"}}, format="json"
+    )
+
+    assert reply.status_code == 400
+    assert "holder" in reply.data["fields"]
+    assert house.members.count() == 0

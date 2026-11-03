@@ -75,6 +75,8 @@ it: `0002_walk_in_registration` aligns the table with the walk-in model, adds
 `walk-in` to `walk_in`, empty `unit` instead of NULL); `0003_household_consent`
 adds the consent fields. `HouseholdStatus` and `HouseholdChannel` remain as
 aliases of `Household.Status` and `Household.Channel` for the seed.
+Seeded files have no holder `Member` yet; saving one with complete holder
+details creates it, and incomplete details return a `holder` field error.
 
 ## Audit integration / US-62 dependency
 
