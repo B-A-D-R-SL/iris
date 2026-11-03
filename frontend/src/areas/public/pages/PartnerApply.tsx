@@ -1,3 +1,4 @@
+// AI contribution: 50% or more AI-generated
 import {
   Anchor,
   Button,
@@ -28,6 +29,8 @@ import {
   isPhone,
   isPostalCode,
   isRequired,
+  validationMessage,
+  type Rule,
 } from "../../../shared/forms";
 import { ErrorState, LoadingState, Notice } from "../../../shared/ui";
 import {
@@ -52,6 +55,10 @@ const types = [
 const frequency = ["daily", "weekly", "monthly", "occasional"] as const;
 const namePattern = /^[\p{L}]+(?:[ '’-][\p{L}]+)*$/u;
 const slugKey = (s: string) => s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+const withMessage =
+  (rule: Rule<string>, key: string): Rule<string> =>
+  (value) =>
+    rule(value) ? validationMessage(key) : null;
 
 export function PartnerApply() {
   const { t, i18n } = useTranslation();
@@ -69,7 +76,10 @@ export function PartnerApply() {
   const form = useForm<ApplicationValues>({
     initialValues,
     validate: {
-      business_name: allOf(isRequired(), hasLength({ min: 2, max: 150 })),
+      business_name: withMessage(
+        allOf(isRequired(), hasLength({ min: 2, max: 150 })),
+        "store.partnerForm.invalidBusinessName",
+      ),
       business_type: (v) =>
         types.includes(v as (typeof types)[number]) ? null : t("shared.validation.required"),
       neq: (v) => (!v || /^\d{10}$/.test(v) ? null : t("store.partnerForm.invalidNeq")),
@@ -90,7 +100,10 @@ export function PartnerApply() {
           : t("store.partnerForm.invalidStreetNumber"),
       street_name: allOf(isRequired(), hasLength({ min: 2, max: 120 })),
       city: allOf(isRequired(), hasLength({ max: 80 })),
-      postal_code: allOf(isRequired(), isPostalCode()),
+      postal_code: withMessage(
+        allOf(isRequired(), isPostalCode()),
+        "store.partnerForm.invalidPostalCode",
+      ),
       contact_first_name: (v) =>
         v.trim().length <= 100 && namePattern.test(v.trim())
           ? null
@@ -99,7 +112,10 @@ export function PartnerApply() {
         v.trim().length <= 100 && namePattern.test(v.trim())
           ? null
           : t("store.partnerForm.invalidName"),
-      contact_email: allOf(isRequired(), isEmail(), hasLength({ max: 254 })),
+      contact_email: withMessage(
+        allOf(isRequired(), isEmail(), hasLength({ max: 254 })),
+        "store.partnerForm.invalidEmail",
+      ),
       contact_phone: allOf(isRequired(), isPhone()),
       goods_categories: (v) => (v.length ? null : t("store.partnerForm.chooseGoods")),
       expected_frequency: (v) =>

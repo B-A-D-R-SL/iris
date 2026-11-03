@@ -1,3 +1,4 @@
+// AI contribution: 50% or more AI-generated
 import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -50,6 +51,31 @@ async function fillForm(user: ReturnType<typeof userEvent.setup>) {
   );
 }
 describe("Partner application", () => {
+  it("shows the specified messages for invalid business name, postal code and email in both languages", async () => {
+    const fetchMock = mockApi();
+    const user = userEvent.setup();
+    renderWithProviders(<PartnerApply />);
+    await screen.findByLabelText("Boulangerie");
+    await user.type(screen.getByLabelText("Nom de l'entreprise"), "A");
+    await user.type(screen.getByLabelText("Code postal"), "H2X");
+    await user.type(screen.getByLabelText("Courriel"), "invalid");
+    await user.click(screen.getByRole("button", { name: "Envoyer ma demande" }));
+    expect(
+      screen.getByText("Entrez le nom de l’entreprise (2 à 150 caractères)."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Entrez un code postal comme H2X 1Y4.")).toBeInTheDocument();
+    expect(screen.getByText("Entrez un courriel comme nom@exemple.ca.")).toBeInTheDocument();
+
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
+    expect(screen.getByText("Enter the business name (2 to 150 characters).")).toBeInTheDocument();
+    expect(screen.getByText("Enter a postal code like H2X 1Y4.")).toBeInTheDocument();
+    expect(screen.getByText("Enter an email like name@example.ca.")).toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes("/api/partner-applications/")),
+    ).toBe(false);
+  });
   it("renders the public page and validates required fields without sending", async () => {
     const fetchMock = mockApi();
     const user = userEvent.setup();
