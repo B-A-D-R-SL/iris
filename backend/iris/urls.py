@@ -16,6 +16,8 @@ urlpatterns = [
     path("api/", include("modules.accounts.api.urls")),
     # Public listing categories
     path("api/categories/", include("modules.categories.api.urls")),
+    # Category management for admins (US-35)
+    path("api/staff/categories/", include("modules.categories.api.staff_urls")),
     # Django admin
     path("admin/", admin.site.urls),
     # Authentication: allauth's own versioned app/browser subpaths live here.
