@@ -9,6 +9,7 @@ import { Navigate, Route, Routes } from "react-router";
 import { WelcomePage } from "../areas/public/WelcomePage";
 import { SignIn } from "../areas/public/pages/SignIn";
 import { PartnerApply } from "../areas/public/pages/PartnerApply";
+import { Audit } from "../areas/staff/pages/Audit";
 import { NewListing } from "../areas/store/pages/NewListing";
 import { MobileAreaLayout } from "./layouts/MobileAreaLayout";
 import { PublicLayout } from "./layouts/PublicLayout";
@@ -111,10 +112,7 @@ export default function App() {
               element={<PlaceholderScreen titleKey="app.staffNav.stores" />}
             />
             <Route path="staff/categories" element={<CategoriesPage />} />
-            <Route
-              path="staff/audit"
-              element={<PlaceholderScreen titleKey="app.staffNav.auditLog" />}
-            />
+            <Route path="staff/audit" element={<Audit />} />
           </Route>
         </Route>
       </Route>

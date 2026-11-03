@@ -1,5 +1,55 @@
 # AI contribution: 50% or more AI-generated
-"""Public write interfaces for audit.
+from uuid import UUID
 
-TODO: Define use cases, validation, and transactions.
-"""
+from django.contrib.auth import get_user_model
+from django.contrib.auth.base_user import AbstractBaseUser
+from django.core.exceptions import ValidationError
+from django.db import transaction
+
+from modules.audit.models import AuditEvent
+
+
+@transaction.atomic
+def record(
+    actor: AbstractBaseUser,
+    action: str,
+    target_type: str,
+    target_id: str | int | UUID,
+    metadata: dict[str, str],
+) -> AuditEvent:
+    """Record a validated event with outcome-only metadata in the caller's transaction."""
+    if not isinstance(actor, get_user_model()) or actor._state.adding:
+        raise ValidationError({"actor": "A saved user is required."})
+    role = actor._meta.get_field("role").clean(getattr(actor, "role", None), actor)
+    if not isinstance(target_id, (str, int, UUID)) or isinstance(target_id, bool):
+        raise ValidationError({"target_id": "A record identifier is required."})
+    if not str(target_id).strip():
+        raise ValidationError({"target_id": "A record identifier is required."})
+    if (
+        not isinstance(metadata, dict)
+        or metadata.keys() - {"outcome"}
+        or (
+            "outcome" in metadata
+            and metadata["outcome"] not in ("approved", "rejected", "review_required")
+        )
+    ):
+        raise ValidationError({"metadata": "Only a supported outcome is allowed."})
+
+    target_identifier = str(target_id)
+    if target_type == "household":
+        try:
+            target_identifier = str(UUID(target_identifier))
+        except ValueError:
+            pass
+
+    event = AuditEvent(
+        actor=actor,
+        actor_role=role,
+        action=action,
+        target_type=target_type,
+        target_id=target_identifier,
+        metadata=metadata,
+    )
+    event.full_clean()
+    event.save()
+    return event

@@ -1,4 +1,37 @@
 {
+  "audit": {
+    "search": {
+      "description": "Rechercher par identifiant du ménage, du membre du personnel ou par date (heure de Montréal).",
+      "household": "Identifiant du ménage",
+      "actor": "Identifiant du membre du personnel",
+      "from": "Date de début",
+      "to": "Date de fin",
+      "submit": "Rechercher",
+      "invalidId": "Entrez un identifiant valide.",
+      "invalidRange": "La date de fin ne peut pas précéder la date de début.",
+      "empty": "Aucun événement trouvé",
+      "count": "Nombre d'événements : {{total}}",
+      "when": "Date et heure",
+      "role": "Rôle",
+      "action": "Action",
+      "target": "Dossier",
+      "outcome": "Résultat",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "page": "Page {{page}}",
+      "roleAdmin": "Administrateur",
+      "roleIntake": "Agent d'accueil",
+      "roleStoreStaff": "Personnel du commerce",
+      "roleStoreManager": "Responsable du commerce",
+      "roleBeneficiary": "Ménage",
+      "actionView": "Consultation",
+      "actionDecision": "Décision",
+      "outcomeApproved": "Approuvé",
+      "outcomeRejected": "Refusé",
+      "outcomeReview": "Vérification requise",
+      "targetHousehold": "Ménage"
+    }
+  },
   "household": {
     "status": {
       "draft": "Brouillon",
