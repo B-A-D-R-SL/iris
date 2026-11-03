@@ -30,6 +30,20 @@ This implements SEC-04 and task #445. The rate is configured in DRF's
 best-effort spam limit; concurrent requests can exceed the allowance because DRF's
 cache admission checks are not atomic.
 
+## Eligibility (US-16)
+
+The following rule IDs are introduced for review with US-16 (#457).
+The eligibility owner and reviewers must confirm them before merge.
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-ELIG-001 | Sum the accepted line-199 income of every household member aged 18 or older, using integer cents. |
+| BR-ELIG-002 | Household income at or below the applicable LICO threshold is eligible; income above it is not. |
+| BR-ELIG-003 | Use the household's full member count to select the threshold; sizes seven or above use the size-seven threshold. |
+
+Threshold values come from the versioned `lico_thresholds` RuleSet,
+not from hardcoded values.
+
 ## Listings
 
 ### Categories
