@@ -41,7 +41,7 @@ def refusal_messages(case: SimpleNamespace, **changes: Any) -> dict[str, list[st
     return caught.value.message_dict
 
 
-# rule: safe-and-allowed confirmation, stored with who and when (AC1)
+# rule: BR-LIST-001 safe-and-allowed confirmation, stored with who and when (AC1)
 def test_us34_publishes_safe_food_listing_with_who_and_when(
     posting_case: SimpleNamespace,
 ) -> None:
@@ -53,7 +53,7 @@ def test_us34_publishes_safe_food_listing_with_who_and_when(
     assert listing.best_before == case.data.best_before
 
 
-# rule: food best-before on or after the pickup end date (AC2)
+# rule: BR-LIST-003 food best-before on or after the pickup end date (AC2)
 def test_us34_refuses_food_best_before_before_pickup_end(
     posting_case: SimpleNamespace,
 ) -> None:
@@ -134,7 +134,7 @@ def test_us34_non_food_ignores_best_before(posting_case: SimpleNamespace) -> Non
     assert Listing.objects.get().category_id == clothing.pk
 
 
-# rule: categories on the prohibited list cannot be posted (AC3)
+# rule: BR-LIST-002 categories on the prohibited list cannot be posted (AC3)
 def test_us34_refuses_prohibited_category(posting_case: SimpleNamespace) -> None:
     case = posting_case
     ban_and_margin(case, codes=[case.category.code])

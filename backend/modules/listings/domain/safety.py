@@ -66,17 +66,18 @@ def check(
     margin_days = settings.best_before_margin_days
     refusals: list[Refusal] = []
 
-    # rule: safe-and-allowed confirmation on every post (also checked by
-    # US-33's posting checks; kept here so edit and repost reuse all rules).
+    # rule: BR-LIST-001 safe-and-allowed confirmation on every post (also
+    # checked by US-33's posting checks; kept here so edit and repost reuse
+    # all rules).
     if listing_data.get("safe_and_allowed") is not True:
         refusals.append(Refusal("safe_and_allowed", "confirmation_required"))
 
-    # rule: categories on the prohibited list cannot be posted.
+    # rule: BR-LIST-002 categories on the prohibited list cannot be posted.
     if category["code"] in banned:
         refusals.append(Refusal("category", "category_prohibited"))
 
-    # rule: food needs a best-before date on or after the pickup end date
-    # plus the configured margin. Non-food ignores any best-before date.
+    # rule: BR-LIST-003 food needs a best-before date on or after the pickup
+    # end date plus the configured margin. Non-food ignores any best-before date.
     if category["is_food"] is True:
         best_before = listing_data.get("best_before")
         if best_before is None:

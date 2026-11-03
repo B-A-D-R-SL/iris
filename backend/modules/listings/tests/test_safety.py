@@ -32,7 +32,7 @@ def test_us34_safe_listing_has_no_refusals() -> None:
     assert check(listing(), FOOD, rules()) == []
 
 
-# rule: safe-and-allowed confirmation on every post
+# rule: BR-LIST-001 safe-and-allowed confirmation on every post
 @pytest.mark.parametrize("ticked", [False, None, 1, "true"])
 def test_us34_refuses_listing_without_safe_and_allowed_tick(ticked: Any) -> None:
     assert check(listing(safe_and_allowed=ticked), FOOD, rules()) == [
@@ -40,7 +40,7 @@ def test_us34_refuses_listing_without_safe_and_allowed_tick(ticked: Any) -> None
     ]
 
 
-# rule: categories on the prohibited list cannot be posted
+# rule: BR-LIST-002 categories on the prohibited list cannot be posted
 def test_us34_refuses_category_on_prohibited_list() -> None:
     banned = rules(prohibited_category_codes=["bakery", "beverages"])
     assert check(listing(), FOOD, banned) == [
@@ -53,14 +53,14 @@ def test_us34_accepts_category_not_on_prohibited_list(codes: list[str]) -> None:
     assert check(listing(), FOOD, rules(prohibited_category_codes=codes)) == []
 
 
-# rule: food needs a best-before date
+# rule: BR-LIST-003 food needs a best-before date
 def test_us34_refuses_food_without_best_before() -> None:
     assert check(listing(best_before=None), FOOD, rules()) == [
         Refusal("best_before", "best_before_required")
     ]
 
 
-# rule: food best-before on or after the pickup end date plus the margin
+# rule: BR-LIST-003 food best-before on or after the pickup end date plus the margin
 @pytest.mark.parametrize(
     ("margin", "best_before", "earliest"),
     [
@@ -102,7 +102,7 @@ def test_us34_accepts_best_before_on_or_after_pickup_end_plus_margin(
     )
 
 
-# rule: non-food ignores the best-before date
+# rule: BR-LIST-003 non-food ignores the best-before date
 @pytest.mark.parametrize("best_before", [None, date(2026, 1, 1)])
 def test_us34_non_food_ignores_best_before(best_before: date | None) -> None:
     assert check(listing(best_before=best_before), NON_FOOD, rules()) == []

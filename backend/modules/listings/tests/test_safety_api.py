@@ -198,7 +198,7 @@ def test_us34_categories_lists_active_postable_categories(
     ]
 
 
-# rule: categories on the prohibited list cannot be selected (AC3)
+# rule: BR-LIST-002 categories on the prohibited list cannot be selected (AC3)
 def test_us34_categories_leaves_out_prohibited_codes(
     posting_case: SimpleNamespace, store_client: APIClient
 ) -> None:
