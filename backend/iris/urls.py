@@ -23,6 +23,8 @@ urlpatterns = [
     path("api/auth/", include("allauth.headless.urls")),
     path("accounts/", include("allauth.urls")),
     path("api/store/", include("modules.listings.api.urls")),
+    # Public partner application form (US-12)
+    path("api/partner-applications/", include("modules.stores.api.urls")),
     # API documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

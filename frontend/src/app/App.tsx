@@ -8,6 +8,7 @@ import { Navigate, Route, Routes } from "react-router";
 
 import { WelcomePage } from "../areas/public/WelcomePage";
 import { SignIn } from "../areas/public/pages/SignIn";
+import { PartnerApply } from "../areas/public/pages/PartnerApply";
 import { Audit } from "../areas/staff/pages/Audit";
 import { NewListing } from "../areas/store/pages/NewListing";
 import { MobileAreaLayout } from "./layouts/MobileAreaLayout";
@@ -33,10 +34,7 @@ export default function App() {
           path="sign-up"
           element={<PlaceholderScreen titleKey="auth.common.createAccount" />}
         />
-        <Route
-          path="partner/apply"
-          element={<PlaceholderScreen titleKey="store.partnerApplication.becomePartner" />}
-        />
+        <Route path="partner/apply" element={<PartnerApply />} />
         <Route
           path="privacy"
           element={<PlaceholderScreen titleKey="privacy.common.privacyPolicy" />}

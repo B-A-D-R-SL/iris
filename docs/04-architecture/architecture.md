@@ -610,7 +610,7 @@ database fields or relationships to fill these gaps.
 | Area | Decision needed |
 | --- | --- |
 | Holder/account linkage | Confirm how the household contact connects to their Member and optional User records. Do not require an account for every walk-in or assume a particular foreign key while this remains open. |
-| Partner form storage | The earlier ERD retains required address, categories, frequency and opening-hours information without final storage. Complete that schema review; the onboarding sequence does not select those columns. |
+| Partner form storage | Resolved by US-12 (#445): flat address columns as on Store, `goods_categories` as a text array of category codes, plus `expected_frequency`, `opening_hours`, `consent_contact` and `language` columns. See [PartnerApplication](../03-design/database-schema.md#partnerapplication). |
 | Pickup lookup | The earlier uniqueness rule is `(listing, pickup_code)`. Agree code collision handling or lookup identifiers for a store containing multiple listings. QR payload format is not selected here. |
 | Household flags and reasons | Agree the minimum Release 1 handling for `review_required` files and where rejection/suspension reasons are stored. The full review queue is deferred. |
 | Lifecycle timing | Confirm the configured approval-validity and late-confirmation settings. The team draft supplies twelve months and twenty-four hours respectively. |
