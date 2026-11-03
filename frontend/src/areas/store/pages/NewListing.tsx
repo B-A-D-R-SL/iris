@@ -22,11 +22,12 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppBar } from "../../../app/layouts/AppBar";
-import { getCategories, type Category } from "../../../features/categories/api";
-import { PostingFailed, postListing } from "../../../features/listings/api";
+import type { Category } from "../../../features/categories/api";
+import { getPostingCategories, PostingFailed, postListing } from "../../../features/listings/api";
 import { DateField, FileUpload, IntegerField, MoneyField, TextField } from "../../../shared/forms";
 import { ErrorState, LoadingState, Notice } from "../../../shared/ui";
 import { CategoryPicker } from "../components/CategoryPicker";
+import { ProhibitedItemsLink } from "../components/ProhibitedItemsLink";
 import classes from "./NewListing.module.css";
 import {
   DEFAULT_VALUES,
@@ -40,9 +41,10 @@ import {
 
 export function NewListing() {
   const { t } = useTranslation();
+  // Only the categories this store may post in: prohibited ones never appear (US-34).
   const { data, isPending, isError, refetch } = useQuery({
-    queryKey: ["categories"],
-    queryFn: getCategories,
+    queryKey: ["listings", "categories"],
+    queryFn: getPostingCategories,
   });
 
   return (
@@ -283,12 +285,18 @@ function NewListingForm({ categories }: { categories: readonly Category[] }) {
           allowNegative
           {...form.getInputProps("estimatedValue")}
         />
-        <Checkbox
-          size="md"
-          label={t("store.newListing.safeAndAllowed")}
-          aria-required
-          {...form.getInputProps("safeAndAllowed", { type: "checkbox" })}
-        />
+        <div>
+          <Checkbox
+            size="md"
+            label={t("store.newListing.safeAndAllowed")}
+            aria-required
+            {...form.getInputProps("safeAndAllowed", { type: "checkbox" })}
+          />
+          {/* Lined up under the checkbox label, as in the SET-11 mockup. */}
+          <div className={classes.checkboxLink}>
+            <ProhibitedItemsLink />
+          </div>
+        </div>
       </Stack>
 
       <div className={classes.publishBar}>

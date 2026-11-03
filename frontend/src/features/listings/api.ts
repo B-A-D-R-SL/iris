@@ -2,9 +2,12 @@
 /**
  * POST /api/store/listings/ (T-05.33.3). The server checks the role, the store
  * and every rule again; the form only helps the worker get it right first time.
+ * GET /api/store/listings/categories/ (US-34) lists the categories a store may
+ * post in: the server leaves out the prohibited ones.
  */
 import { csrfToken } from "../../shared/api/csrf";
 import type { components } from "../../shared/api/generated";
+import { isCategory, type Category } from "../categories/api";
 
 /** What the form sends; the photo travels separately as a file. */
 export type NewListing = Omit<components["schemas"]["NewListing"], "photo" | "store">;
@@ -39,6 +42,22 @@ function requestBody(listing: NewListing, photo: File | null): FormData | string
   }
   form.append("photo", photo);
   return form;
+}
+
+/** The active categories the signed-in store may post in (prohibited ones left out). */
+export async function getPostingCategories(): Promise<Category[]> {
+  const response = await fetch("/api/store/listings/categories/", {
+    headers: { Accept: "application/json" },
+    credentials: "same-origin",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch posting categories: ${response.status}`);
+  }
+  const data: unknown = await response.json();
+  if (!Array.isArray(data) || !data.every(isCategory)) {
+    throw new Error("Invalid posting categories API response");
+  }
+  return data;
 }
 
 /**

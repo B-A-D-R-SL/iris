@@ -92,3 +92,18 @@ Stores never post these items (Default):
 - Weapons
 
 Prohibited items have **no category**, so they cannot be posted through any category. Staff tick **"Safe and allowed"** on every post to confirm the goods are safe and contain no prohibited item; the confirmation is stored with who and when, and a listing cannot be published without it. The rule type `listing_safety` keeps a list of prohibited category codes *(setting)*, empty by default because no category above is prohibited; an admin can add a code to stop new posts in that category.
+
+### Safety rules (US-34)
+
+The following rule IDs are introduced for review with US-34 (#497).
+The listings owner and reviewers must confirm them before merge.
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-LIST-001 | Every listing needs the "Safe and allowed" confirmation, stored with who and when. |
+| BR-LIST-002 | A listing in a category on the `listing_safety` prohibited list cannot be posted, and the posting form does not offer that category. |
+| BR-LIST-003 | A food listing needs a best-before date on or after the pickup end date (Montreal time) plus `best_before_margin_days`; a non-food listing ignores it. |
+
+The margin and the prohibited list come from the versioned `listing_safety`
+RuleSet, not from hardcoded values. The rules are checked in
+`backend/modules/listings/domain/safety.py`.

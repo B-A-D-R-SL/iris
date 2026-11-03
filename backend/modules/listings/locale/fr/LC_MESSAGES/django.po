@@ -81,3 +81,18 @@ msgstr "Vérifiez les champs indiqués."
 
 msgid "The request was refused."
 msgstr "La demande a été refusée."
+
+msgid "This category can't be posted. Choose another one."
+msgstr "Cette catégorie ne peut pas être publiée. Choisissez-en une autre."
+
+msgid "Enter a best-before date. It is required for food."
+msgstr "Entrez une date de meilleur avant. Elle est obligatoire pour les aliments."
+
+msgid "Choose %(date)s or later (end of pickup)."
+msgstr "Choisissez le %(date)s ou après (fin de la cueillette)."
+
+msgid "N j, Y"
+msgstr "j N Y"
+
+msgid "Listing safety rules need configuration."
+msgstr "Les règles de sécurité des offres doivent être configurées."

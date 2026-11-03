@@ -1,7 +1,7 @@
 # Listings module
 
 **Owner pair:** Goods
-**Status:** SET-14 architecture skeleton
+**Status:** Posting (US-33) and safety checks (US-34) implemented
 
 ## Responsibility
 
@@ -19,19 +19,29 @@ Own the listings feature boundary within the Iris modular monolith.
 
 ## Public functions
 
-No public functions implemented yet.
+- `services.post_listing(store, user, data)`: publish a listing for the user's
+  assigned active store after the posting checks (US-33) and the safety checks
+  (US-34).
+- `queries.categories_for_posting(at=...)`: the active categories a store may
+  post in, with prohibited codes left out (US-34).
+
+## Endpoints
+
+- `POST /api/store/listings/`: post a listing (store staff and managers).
+- `GET /api/store/listings/categories/`: categories for the posting form
+  (store staff and managers).
+
+## Business rules
+
+- `domain/posting.py`: field limits from rule type `listing_posting` (US-33).
+- `domain/safety.py`: safety rules from rule type `listing_safety` (US-34): the
+  safe-and-allowed tick, the food best-before date, and prohibited categories.
+  See `docs/guides/listing-posting.md`, section 10.
 
 ## Architectural rules
 
 Other modules must communicate through public services or queries.
 Do not import another module's models or internal domain code.
-
-## Future implementation
-
-TODO: Module owner defines business operations, model ownership,
-API endpoints, tests, and applicable audit events.
-
-Do not treat this scaffold as implemented business functionality.
 
 ## Audit events
 

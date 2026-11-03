@@ -11,7 +11,8 @@ export interface Category {
   default_value_cents: number;
 }
 
-function isCategory(value: unknown): value is Category {
+/** Whether an API value has the public category shape (also used by listings). */
+export function isCategory(value: unknown): value is Category {
   if (typeof value !== "object" || value === null) {
     return false;
   }
