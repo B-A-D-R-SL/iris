@@ -27,6 +27,16 @@ export interface paths {
      */
     get: operations["schema_retrieve"];
   };
+  "/api/staff/categories/": {
+    /** List every category, active or not (admin) */
+    get: operations["staff_categories_list"];
+    /** Add a category (admin) */
+    post: operations["staff_categories_create"];
+  };
+  "/api/staff/categories/{code}/": {
+    /** Rename, change, deactivate or reactivate a category (admin) */
+    patch: operations["staff_categories_update"];
+  };
   "/api/store/listings/": {
     /** Post a listing for the signed-in user's active store */
     post: operations["store_listings_create"];
@@ -44,6 +54,14 @@ export interface components {
       is_food: boolean;
       name_en: string;
       name_fr: string;
+    };
+    /** @description Error envelope shared by the category admin endpoints. */
+    CategoryError: {
+      code: string;
+      fields: {
+        [key: string]: string[];
+      };
+      message: string;
     };
     CurrentUser: {
       /** Format: uuid */
@@ -82,6 +100,22 @@ export interface components {
       title: string;
       /** @default item */
       unit?: string;
+    };
+    /**
+     * @description Admin view of a category (US-35): all fields, including inactive ones.
+     *
+     * The code is the category's stable identifier: it can be set when the
+     * category is created, never changed afterwards.
+     */
+    PatchedStaffCategory: {
+      code?: string;
+      /** Format: int64 */
+      default_value_cents?: number;
+      /** @default true */
+      is_active?: boolean;
+      is_food?: boolean;
+      name_en?: string;
+      name_fr?: string;
     };
     PostedListing: {
       /** Format: date */
@@ -125,6 +159,22 @@ export interface components {
      * @enum {string}
      */
     RoleEnum: "beneficiary" | "store_staff" | "store_manager" | "intake_worker" | "admin";
+    /**
+     * @description Admin view of a category (US-35): all fields, including inactive ones.
+     *
+     * The code is the category's stable identifier: it can be set when the
+     * category is created, never changed afterwards.
+     */
+    StaffCategory: {
+      code: string;
+      /** Format: int64 */
+      default_value_cents: number;
+      /** @default true */
+      is_active?: boolean;
+      is_food?: boolean;
+      name_en: string;
+      name_fr: string;
+    };
     /**
      * @description * `published` - Published
      * * `closed` - Closed
@@ -229,6 +279,95 @@ export interface operations {
           "application/yaml": {
             [key: string]: unknown;
           };
+        };
+      };
+    };
+  };
+  /** List every category, active or not (admin) */
+  staff_categories_list: {
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["StaffCategory"][];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["CategoryError"];
+        };
+      };
+    };
+  };
+  /** Add a category (admin) */
+  staff_categories_create: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StaffCategory"];
+        "application/x-www-form-urlencoded": components["schemas"]["StaffCategory"];
+        "multipart/form-data": components["schemas"]["StaffCategory"];
+      };
+    };
+    responses: {
+      201: {
+        content: {
+          "application/json": components["schemas"]["StaffCategory"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["CategoryError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["CategoryError"];
+        };
+      };
+      503: {
+        content: {
+          "application/json": components["schemas"]["CategoryError"];
+        };
+      };
+    };
+  };
+  /** Rename, change, deactivate or reactivate a category (admin) */
+  staff_categories_update: {
+    parameters: {
+      path: {
+        code: string;
+      };
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["PatchedStaffCategory"];
+        "application/x-www-form-urlencoded": components["schemas"]["PatchedStaffCategory"];
+        "multipart/form-data": components["schemas"]["PatchedStaffCategory"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["StaffCategory"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["CategoryError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["CategoryError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["CategoryError"];
+        };
+      };
+      503: {
+        content: {
+          "application/json": components["schemas"]["CategoryError"];
         };
       };
     };
