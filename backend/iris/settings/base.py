@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # PostgreSQL field types (ArrayField for partner application categories)
     "django.contrib.postgres",
     # REST API and documentation
     "rest_framework",
@@ -124,6 +125,11 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    # Public forms are rate-limited (SEC-04); views opt in with a throttle scope.
+    "DEFAULT_THROTTLE_RATES": {"partner_applications": "5/hour"},
+    # Trust X-Forwarded-For only from known proxies; with 0 a client cannot spoof
+    # its address. Set to the proxy count behind a reverse proxy (App Service: 1).
+    "NUM_PROXIES": env.int("DRF_NUM_PROXIES", default=0),
 }
 
 SPECTACULAR_SETTINGS = {

@@ -18,6 +18,7 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | ChatGPT (OpenAI) | Implemented the idempotent B.A.D.R. Store seed command and expanded its tests from Leon's approved T-02.11.3 plan. | Leon Kojakian (#442) |
 | ChatGPT (OpenAI) | Implemented the T-01.01.3 sign-in screen, browser session handling, sign-out controls, translations, and frontend tests under Leon's approved plan. | Leon Kojakian (#425) |
 | ChatGPT (OpenAI) | Implemented and reviewed the Categories reference module (#377), Django module scaffolding, import-boundary checks, documentation, and tests for SET-14 (#405). | Owner of #377 and #405 |
+| Claude Code (Anthropic) | Analyzed US-12 against the team pack, then implemented the PartnerApplication model, Store link, submission service, public API, Django admin, translations and tests from Ryan's approved T-02.12.2/T-02.12.1 plan. | Ryan Cheung (#444, #445) |
 
 ## How we declare AI-generated code
 
@@ -31,6 +32,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| T-09.62.1 Audit tests (#548) | `backend/modules/audit/tests/test_audit.py` | 50% or more AI-generated | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
+| T-09.62.2 Audit model and service (#549) | `backend/modules/audit/{models.py,services.py,README.md,migrations/}` | 50% or more AI-generated (migrations exempt) | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-01.01.1 Sign-in and sign-out tests (#423) | `backend/modules/accounts/tests/test_accounts.py`, `frontend/src/app/App.test.tsx`, `AI_USAGE.md` | 50% or more AI-generated | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
 | T-01.01.2 User model and sign-in API (#424) | `backend/modules/accounts/`, authentication settings/routes, development administrator command, affected regression tests, `backend/{pyproject.toml,uv.lock}`, generated API types, `docs/03-design/{api,database-schema}.md`, `docs/guides/auth-routing.md` | 50% or more AI-generated for the marked source files, including `backend/pyproject.toml`; Below 50% AI-generated for `backend/modules/rules/tests/test_rule_set_versions.py`; generated migrations, lockfile and API declarations exempt | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
 | T-01.01.3 Sign-in screen and session handling (#425) | `frontend/src/areas/public/pages/SignIn.tsx`, `frontend/src/shared/{auth,forms}/`, app providers and layouts, current-user query, French/English translations, frontend tests, `docs/guides/design-system.md`, `AI_USAGE.md` | 50% or more AI-generated | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
@@ -54,14 +57,29 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | SET-16 Design system, translations and app shell (#407) | `frontend/src/app/` (theme, providers, routes, layouts, navigation, guards, error boundary), `frontend/src/areas/public/WelcomePage.tsx`, `frontend/src/features/accounts/currentUser.ts`, `frontend/src/shared/{forms,ui}/`, `frontend/src/shared/i18n/{fr,en}.json`, `frontend/src/test/`, `frontend/public/{manifest.webmanifest,favicon.svg,icons/}`, `frontend/index.html`, `frontend/package.json`, `docs/guides/design-system.md`; built from the Figma Components page (SET-11) | 50% or more AI-generated (lock file and generated icons exempt) | Not yet opened (`SET-16-design-system-translations-and-app-shell` branch) |
 | T-00.01.4 Categories reference module (#377) | `backend/modules/categories/`, `frontend/src/features/categories/`, `backend/iris/urls.py`, `frontend/src/app/App.tsx`, translations, API types, and `docs/guides/reference-module.md` | 50% or more AI-generated | Pending PR (`feature/SET-14`) |
 | SET-14 Module skeletons and boundary checks (#405) | `backend/modules/` (15 module structures and READMEs), `backend/iris/settings/base.py`, `backend/pyproject.toml`, and architecture-related Rules changes | 50% or more AI-generated | Pending PR (`feature/SET-14`) |
+| T-09.62.3 Audit search (#550) | `backend/modules/audit/{api,queries.py,tests/test_search_api.py,README.md}`, `backend/iris/urls.py`, `frontend/src/areas/staff/pages/Audit*`, `frontend/src/app/App.tsx`, translations, generated API types, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-05.33.4 Posting form (#495) | `frontend/src/areas/store/{pages/NewListing.tsx,pages/newListingForm.ts,components/CategoryPicker.tsx}` and their CSS and tests, `frontend/src/features/listings/`, `frontend/src/shared/forms/IntegerField.tsx`, `frontend/src/shared/api/csrf.ts`, translations, `frontend/src/app/App.tsx`; the category-code change in `backend/modules/listings/` (serializers, service, domain input, tests) and `backend/modules/categories/queries.py`; regenerated API types; `docs/guides/{listing-posting,design-system}.md` | 50% or more AI-generated | Not yet opened (`US-33-post-a-listing` branch) |
 | T-05.33.5 Time-to-post check (#496) | `docs/usability/time-to-post.md` (study plan and results template), `frontend/scripts/usability/` (preview API, timing rules, report, tests), `frontend/package.json` (scripts), `frontend/.gitignore` | 50% or more AI-generated; the times and observations come from the sessions | Not yet opened (`US-33-post-a-listing` branch) |
 | SET-18 Seed data generator (#409) | `backend/iris/seedset.py`, `backend/iris/management/commands/seed.py`, `backend/modules/households/models.py`, `backend/modules/reservations/models.py`, their migrations, `backend/tests/test_seed.py`, `backend/tests/test_seed_plan.py`, `docs/04-data/seed-data.md` | 50% or more AI-generated | Not yet opened (`SET-18-data-generator` branch) |
 | SET-19 AI reading spike (#410) | `tools/notice_reading_spike/{run.py,reader.py,fields.py,score.py,records.py,truth_reader.py,azure_layout_reader.py,layout_parser.py,vlm_reader.py,tests/,pyproject.toml,uv.lock,.python-version,.env.example,README.md}`, `docs/adr/0005-notice-reading.md`, the `document_reader` row in `docs/04-architecture/architecture.md`, `AI_USAGE.md`, and the wiki pages Notice Reading, Notice Reading – Results and Notice Reading – Law 25 Evidence | 50% or more AI-generated | [#612](https://github.com/B-A-D-R-SL/iris/pull/612) |
+| T-02.12.2 PartnerApplication model and API (#445) | `backend/modules/stores/{models.py,services.py,admin.py,api/,locale/,README.md}`, `backend/iris/{urls.py,settings/base.py}` (route, throttle rate, `NUM_PROXIES`, `django.contrib.postgres`), `backend/pyproject.toml` (stores → categories boundary), regenerated API types, `docs/03-design/{api,database-schema}.md`, `docs/04-architecture/architecture.md` | 50% or more AI-generated (generated migration and API declarations exempt) | Not yet opened (`US-12-partner-application-api` branch) |
+| T-02.12.1 Unit tests: Business applies to become a partner (#444) | `backend/modules/stores/tests/{factories.py,test_partner_application_model.py,test_partner_application_service.py,test_partner_application_api.py,test_admin.py}` | 50% or more AI-generated | Not yet opened (`US-12-partner-application-api` branch) |
+| T-02.12.3 Become a partner page (#446) | `frontend/src/areas/public/pages/PartnerApply*`, `frontend/src/areas/public/pages/partnerApplication.ts`, `frontend/src/app/App.tsx`, French and English translations | 50% or more AI-generated | [#618](https://github.com/B-A-D-R-SL/iris/pull/618) |
 | US-16 Eligibility engine (#457) | `backend/modules/eligibility/{domain/eligibility.py,models.py,services.py,tests/}`, migrations, documentation, settings | 50% or more AI-generated; migrations generated by Django | PR #621; 75 eligibility tests and 388 backend tests passed locally, domain coverage 100%; real household/notice integration pending |
 | US-34 Listing safety checks (#497: #498, #499, #500) | `backend/modules/listings/{domain/safety.py,domain/posting.py,services.py,queries.py,api/,locale/fr/LC_MESSAGES/,README.md}`, `backend/modules/listings/tests/{test_safety.py,test_safety_service.py,test_safety_api.py}`, `frontend/src/areas/store/{components/ProhibitedItemsLink.tsx,components/CategoryPicker.tsx,pages/NewListing.tsx,pages/NewListing.module.css,pages/NewListing.test.tsx}`, `frontend/src/features/{listings/api.ts,listings/api.test.ts,categories/api.ts}`, translations, regenerated API types, `docs/guides/listing-posting.md`, `docs/03-design/api.md`, `docs/02-requirements/forms-and-fields.md` | 50% or more AI-generated (generated API declarations exempt; compiled catalog generated from the `.po` source) | Not yet opened (`feat/US-34-listing-safety` branch) |
 
 ## Examples, verification and corrections
+
+### T-09.62.3 Audit search API and screen (#550)
+
+- **AI assistance:** ChatGPT/Codex helped write and review code for the
+  admin-only search API, filters, pagination and bilingual screen, including
+  implementation and tests, under Reuven's direction.
+- **Verification:** The search integration tests were run against a temporary
+  PostgreSQL 17 instance. Frontend tests, type checking, lint, build and schema
+  generation were run locally; teammate review remains outstanding.
+- **Limits:** Search accepts household and staff UUIDs rather than names. The
+  audit service and accounts work live on the parent story branch.
 
 At least half of the AI-assisted features need an example here. For each one:
 
@@ -70,6 +88,16 @@ At least half of the AI-assisted features need an example here. For each one:
 - **How we verified it:** the automated tests or the review comment that checked it
 - **Problems found and corrections:** what was wrong or rejected, and what we changed
 
+### T-09.62.1–2 Audit tests and service (#548, #549)
+
+- **What the AI produced:** the append-only AuditEvent model, public `record()` service, PostgreSQL trigger migrations, concise module README, and unit/integration tests. Existing accounts code was reused; #550 is excluded.
+- **How we verified it:** 56 audit tests and all 185 backend tests passed in Docker with PostgreSQL. Audit coverage was 100%; total backend coverage was 89.30%. Ruff, mypy, all three module-boundary contracts, Django checks, and migration consistency checks passed. The current database migrated successfully; trigger reversal and reapplication were tested only on the isolated test database.
+- **Problems found and corrections:** tightened target-type validation to reject a trailing newline and recorded the change in a migration. Local dependency caches required source-directory targets for lint and typing checks. No databases or volumes were recreated.
+### T-02.12.3 Become a partner page (#446)
+
+- **AI assistance:** ChatGPT helped write and review the form, API integration, translations and tests using the existing requirements and partner application API.
+- **Verification:** the frontend suite passed 265 tests, the partner application backend API suite passed 61 tests, and a fictional application was submitted through the local frontend and backend. Teammate review is pending.
+- **Dependency:** the backend is on the open US-12 pull request, #618.
 ### US-16 Eligibility engine (#457)
 
 - **AI contribution:** I first designed the eligibility logic and wrote
@@ -120,49 +148,11 @@ At least half of the AI-assisted features need an example here. For each one:
 
 ### SET-15 OpenAPI and TypeScript generation (#406)
 
-- **What the AI produced:** health response schema metadata and regression tests,
-  a pinned openapi-typescript generator and generated declarations, temporary-copy
-  drift tests, an added CI drift check, a generation guide, and the reviewed
-  team API conventions document. The draft's conventions and endpoint catalog
-  are preserved with implementation status and unresolved decisions identified.
-- **How we verified it:** 13 focused backend tests and Ruff checks passed.
-  Isolated frontend validation with pnpm 10.34.6 and TypeScript 6.0.3 passed
-  type checking, ESLint, formatting, all 11 Vitest tests, production build, and
-  the generation/drift regression test. Schema export passed validation.
-  Existing lockfile entries and CI checks were compared and remain unchanged.
-  Documentation validation checked all 10 convention rows and 69 endpoint rows
-  against the supplied draft, plus Markdown formatting and local links/anchors.
-- **Problems found and corrections:** openapi-typescript 7.13.0 requires a
-  TypeScript 5 peer, so 6.7.6 was selected and tested without peer overrides or
-  a compiler downgrade. Vitest initially collected the Node-only regression
-  test; its filename was changed without altering Vitest configuration.
-  The local backend environment uses Python 3.14.8 rather than CI's 3.13;
-  CI execution and PostgreSQL-dependent backend tests remain to be verified.
-  PR #604 review fixes add explicit UTF-8 Python output, remove the default
-  subprocess buffer limit, and skip only symbolic-link creation on Windows.
-  A schema-stdin mode supports generation and drift tests across the separate
-  Docker containers; the README now lists both API checks and the command to
-  copy regenerated declarations back to the checkout. Regression coverage
-  includes Unicode schemas larger than 1 MiB through both Python and stdin.
-- **PR #604 review verification:** all eight generator tests passed with local
-  Python, and seven passed with a piped schema (the Python-only export test is
-  skipped in that mode). Generated declarations match the validated schema.
-  Four backend schema tests, all 11 Vitest tests, TypeScript checking, ESLint,
-  and formatting of changed frontend files and the generation guide passed.
-  Validation used Python 3.13 and Node 22.23.2; CI uses Node 24. Native Windows
-  and the full container workflow were not run; the Docker daemon was stopped.
-- **CI follow-up:** updated only `certifi` from 2026.7.22 to 2026.10.19 to
-  address the dependency audit finding PYSEC-2026-4320. Merged current `main`
-  so the PR base matches the newly introduced commit-policy workflow, and
-  reworded the ten older SET-15 commit subjects to the required ID-first
-  format while preserving each commit's tree, authorship, and merge structure.
-  The original branch head is retained locally as
-  `backup/SET-15-before-ci-fix-b9933c2`. Removed the empty
-  `.github/workflows/story-test-task.yml`, which GitHub rejected before running
-  any jobs.
-  The locked dependency audit reports no known vulnerabilities after the
-  update; 13 focused backend tests, all eight generator tests, schema drift
-  checking, and Ruff lint/format checks passed after the merge.
+- **What the AI produced:** health response schema metadata and regression tests, a pinned openapi-typescript generator and generated declarations, temporary-copy drift tests, an added CI drift check, a generation guide, and the reviewed team API conventions document. The draft's conventions and endpoint catalog are preserved with implementation status and unresolved decisions identified.
+- **How we verified it:** 13 focused backend tests and Ruff checks passed. Isolated frontend validation with pnpm 10.34.6 and TypeScript 6.0.3 passed type checking, ESLint, formatting, all 11 Vitest tests, production build, and the generation/drift regression test. Schema export passed validation. Existing lockfile entries and CI checks were compared and remain unchanged. Documentation validation checked all 10 convention rows and 69 endpoint rows against the supplied draft, plus Markdown formatting and local links/anchors.
+- **Problems found and corrections:** openapi-typescript 7.13.0 requires a TypeScript 5 peer, so 6.7.6 was selected and tested without peer overrides or a compiler downgrade. Vitest initially collected the Node-only regression test; its filename was changed without altering Vitest configuration. The local backend environment uses Python 3.14.8 rather than CI's 3.13; CI execution and PostgreSQL-dependent backend tests remain to be verified. PR #604 review fixes add explicit UTF-8 Python output, remove the default subprocess buffer limit, and skip only symbolic-link creation on Windows. A schema-stdin mode supports generation and drift tests across the separate Docker containers; the README now lists both API checks and the command to copy regenerated declarations back to the checkout. Regression coverage includes Unicode schemas larger than 1 MiB through both Python and stdin.
+- **PR #604 review verification:** all eight generator tests passed with local Python, and seven passed with a piped schema (the Python-only export test is skipped in that mode). Generated declarations match the validated schema. Four backend schema tests, all 11 Vitest tests, TypeScript checking, ESLint, and formatting of changed frontend files and the generation guide passed. Validation used Python 3.13 and Node 22.23.2; CI uses Node 24. Native Windows and the full container workflow were not run; the Docker daemon was stopped.
+- **CI follow-up:** updated only `certifi` from 2026.7.22 to 2026.10.19 to address the dependency audit finding PYSEC-2026-4320. Merged current `main` so the PR base matches the newly introduced commit-policy workflow, and reworded the ten older SET-15 commit subjects to the required ID-first format while preserving each commit's tree, authorship, and merge structure. The original branch head is retained locally as `backup/SET-15-before-ci-fix-b9933c2`. Removed the empty `.github/workflows/story-test-task.yml`, which GitHub rejected before running any jobs. The locked dependency audit reports no known vulnerabilities after the update; 13 focused backend tests, all eight generator tests, schema drift checking, and Ruff lint/format checks passed after the merge.
 
 ### T-00.01.1 Backend project (#374)
 

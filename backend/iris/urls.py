@@ -16,12 +16,15 @@ urlpatterns = [
     path("api/", include("modules.accounts.api.urls")),
     # Public listing categories
     path("api/categories/", include("modules.categories.api.urls")),
+    path("api/staff/audit/", include("modules.audit.api.urls")),
     # Django admin
     path("admin/", admin.site.urls),
     # Authentication: allauth's own versioned app/browser subpaths live here.
     path("api/auth/", include("allauth.headless.urls")),
     path("accounts/", include("allauth.urls")),
     path("api/store/", include("modules.listings.api.urls")),
+    # Public partner application form (US-12)
+    path("api/partner-applications/", include("modules.stores.api.urls")),
     # API documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

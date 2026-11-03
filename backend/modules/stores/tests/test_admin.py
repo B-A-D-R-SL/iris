@@ -1,6 +1,6 @@
 # AI contribution: 50% or more AI-generated
 # I have planned implementation, reviewed and tested the code
-"""US-11 Django admin registration, form, and permission tests."""
+"""US-11 and US-12 Django admin registration, form, and permission tests."""
 
 from io import StringIO
 from typing import cast
@@ -17,8 +17,8 @@ from django.urls import reverse
 from django.utils.translation import override
 
 from modules.accounts.tests.factories import UserFactory
-from modules.stores.models import Store
-from modules.stores.tests.factories import StoreFactory
+from modules.stores.models import PartnerApplication, Store
+from modules.stores.tests.factories import PartnerApplicationFactory, StoreFactory
 
 LOCAL_ADMIN_EMAIL = "admin@iris.local"
 LOCAL_ADMIN_PASSWORD = "iris_local_admin_password"
@@ -222,3 +222,81 @@ def test_non_admins_have_no_store_admin_permissions() -> None:
     request.user = UserFactory.create()
     assert not store_admin.has_view_permission(request)
     assert not store_admin.has_change_permission(request)
+
+
+@pytest.mark.django_db
+def test_admin_sees_new_partner_applications_oldest_first(client: Client) -> None:
+    """AC2: admins see a new application in the Django admin, read-only."""
+
+    first = cast(
+        PartnerApplication,
+        PartnerApplicationFactory(business_name="Première Entreprise"),
+    )
+    PartnerApplicationFactory(business_name="Deuxième Entreprise")
+    admin_user = get_user_model()._default_manager.create_superuser(
+        email=LOCAL_ADMIN_EMAIL, password=LOCAL_ADMIN_PASSWORD
+    )
+    client.force_login(admin_user)
+
+    listing = client.get(reverse("admin:stores_partnerapplication_changelist"))
+    assert listing.status_code == 200
+    names = [row.business_name for row in listing.context["cl"].result_list]
+    assert names == ["Première Entreprise", "Deuxième Entreprise"]
+
+    detail = client.get(
+        reverse("admin:stores_partnerapplication_change", args=[first.pk])
+    )
+    assert detail.status_code == 200
+    assert detail.context["has_change_permission"] is False
+
+    application_admin = admin.site._registry[PartnerApplication]
+    request = RequestFactory().get("/admin/stores/partnerapplication/")
+    request.user = admin_user
+    assert not application_admin.has_add_permission(request)
+    assert not application_admin.has_change_permission(request, first)
+    assert not application_admin.has_delete_permission(request, first)
+
+
+@pytest.mark.django_db
+def test_non_admins_cannot_see_partner_applications(client: Client) -> None:
+    """Applications hold contact data: anonymous and non-admin users are refused."""
+
+    application_admin = admin.site._registry[PartnerApplication]
+    request = RequestFactory().get("/admin/stores/partnerapplication/")
+    request.user = AnonymousUser()
+    assert not application_admin.has_module_permission(request)
+    assert not application_admin.has_view_permission(request)
+
+    staff_user = UserFactory.create(is_staff=True)
+    staff_user.user_permissions.set(
+        Permission.objects.filter(codename="view_partnerapplication")
+    )
+    request.user = staff_user
+    assert not application_admin.has_view_permission(request)
+
+    client.force_login(staff_user)
+    response = client.get(reverse("admin:stores_partnerapplication_changelist"))
+    assert response.status_code == 403
+
+    # An ordinary signed-in user (not staff) is sent to the admin sign-in page.
+    ordinary_user = UserFactory.create()
+    request.user = ordinary_user
+    assert not application_admin.has_module_permission(request)
+    assert not application_admin.has_view_permission(request)
+    client.force_login(ordinary_user)
+    response = client.get(reverse("admin:stores_partnerapplication_changelist"))
+    assert response.status_code == 302
+    assert response["Location"].startswith(reverse("admin:login"))
+
+
+@pytest.mark.django_db
+def test_store_application_link_is_read_only_in_admin(client: Client) -> None:
+    """Only the US-13 approval links a store to its application."""
+    admin_user = get_user_model()._default_manager.create_superuser(
+        email=LOCAL_ADMIN_EMAIL, password=LOCAL_ADMIN_PASSWORD
+    )
+    client.force_login(admin_user)
+    store = cast(Store, StoreFactory())
+    response = client.get(reverse("admin:stores_store_change", args=[store.pk]))
+    assert "application" not in response.context["adminform"].form.fields
+    assert "application" in response.context["adminform"].readonly_fields
