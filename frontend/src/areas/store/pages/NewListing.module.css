@@ -22,6 +22,12 @@
   font-weight: 600;
 }
 
+/* US-34: the prohibited-items link sits under the checkbox label (md box 24 px + 12 px gap). */
+.checkboxLink {
+  margin-top: 4px;
+  padding-inline-start: 36px;
+}
+
 /* 44 px touch targets for the day chips and the unit switch. */
 .chip {
   height: 44px;

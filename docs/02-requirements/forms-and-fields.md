@@ -106,7 +106,7 @@ Defaults: pickup today 16:00 to 18:00, quantity 1, unit `item`, 1 per household.
 | --- | --- | --- | --- | --- | --- |
 | `photo` | Photo | Photo | image | No | JPG or PNG up to 5 MB, resized to 1280 px. Button "Prendre ou choisir une photo / Take or choose a photo" |
 | `title` | Titre | Title | text | Yes | 2 to 80 characters, for example "Pains de la veille" |
-| `category` | Catégorie | Category | choice (bottom sheet) | Yes | Active [categories](#categories), food first. Prohibited items have no category; the sheet links to their list |
+| `category` | Catégorie | Category | choice (bottom sheet) | Yes | Active [categories](#categories), food first. Categories on the prohibited list (setting `listing_safety`) are not offered. Prohibited items have no category; the sheet links to their list ("Voir la liste / See the list", a placeholder until that list exists) |
 | `description` | Description | Description | long text | No | At most 500 characters |
 | `quantity` | Quantité | Quantity | integer (stepper) | Yes | 1 to 999. Help text: "De 1 à 999 / From 1 to 999" |
 | `unit` | Unité | Unit | choice (segmented) | Yes | `item` (Article / Item), `bundle` (Lot / Bundle) |
@@ -117,7 +117,7 @@ Defaults: pickup today 16:00 to 18:00, quantity 1, unit `item`, 1 per household.
 | Place (screen only) | Lieu | Place | read-only | | The store’s address, from the store form. Help text: "L’adresse de votre commerce. / Your business’s address." |
 | `best_before` | Meilleur avant | Best before | date | Food categories | Hidden until a food category is chosen. On or after the pickup end date (margin 0 days, setting). Help text: "Pour les aliments : le jour de la fin de la cueillette ou après. / For food: the day the pickup ends or later." |
 | `estimated_value` | Valeur estimée | Estimated value | money | No | $0 to $1,000. If empty, category default × quantity. Help text: "Si vide, Iris utilise la valeur par défaut de la catégorie. / If empty, Iris uses the category’s default value." |
-| `safe_and_allowed` | Je confirme que ces produits sont sécuritaires et permis. | I confirm these goods are safe and allowed. | checkbox | Yes, on every post | Stored with who and when. Link: "Voir la liste des produits interdits / See the list of prohibited items" |
+| `safe_and_allowed` | Je confirme que ces produits sont sécuritaires et permis. | I confirm these goods are safe and allowed. | checkbox | Yes, on every post | Stored with who and when. Link: "Voir la liste des produits interdits / See the list of prohibited items" (a placeholder until that list exists) |
 
 Button: **Publier l’offre / Publish listing**, fixed at the bottom of the phone screen. After publishing, the store lands on **Mes offres / My listings** with "Offre publiée / Listing published".
 
@@ -134,7 +134,9 @@ Error messages:
 | --- | --- | --- |
 | `title` | Entrez un titre de 2 à 80 caractères. | Enter a title of 2 to 80 characters. |
 | `pickup_end` | La cueillette dure de 30 min à 12 h. | The pickup lasts 30 min to 12 h. |
+| `category` (prohibited) | Cette catégorie ne peut pas être publiée. Choisissez-en une autre. | This category can't be posted. Choose another one. |
 | `best_before` | Choisissez le {date} ou après (fin de la cueillette). | Choose {date} or later (end of pickup). |
+| `best_before` (missing, food) | Entrez une date de meilleur avant. Elle est obligatoire pour les aliments. | Enter a best-before date. It is required for food. |
 | `safe_and_allowed` | Cochez cette case pour publier. | Tick this box to publish. |
 | `quantity` (edit) | Entrez {n} ou plus : {n} articles sont déjà réservés. | Enter {n} or more: {n} items are already reserved. |
 | Alert at the top | **Vérifiez {n} champs.** Les champs à corriger sont indiqués plus bas. | **Check {n} fields.** The fields to fix are shown below. |

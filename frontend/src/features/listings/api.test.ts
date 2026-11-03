@@ -1,7 +1,7 @@
 // AI contribution: 50% or more AI-generated
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { postListing, PostingFailed, type NewListing } from "./api";
+import { getPostingCategories, postListing, PostingFailed, type NewListing } from "./api";
 
 const listing: NewListing = {
   category: "bakery",
@@ -107,5 +107,35 @@ describe("postListing", () => {
       message: "",
       fields: {},
     });
+  });
+});
+
+describe("getPostingCategories (US-34)", () => {
+  const bakery = {
+    code: "bakery",
+    name_fr: "Boulangerie",
+    name_en: "Bakery",
+    is_food: true,
+    default_value_cents: 400,
+  };
+
+  it("reads the categories the store may post in, with its session", async () => {
+    const fetchMock = stubFetch(Response.json([bakery]));
+
+    await expect(getPostingCategories()).resolves.toEqual([bakery]);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/store/listings/categories/");
+    expect(init).toMatchObject({ credentials: "same-origin" });
+  });
+
+  it("rejects a response that is not a list of categories", async () => {
+    stubFetch(Response.json([{ ...bakery, is_food: "yes" }]));
+    await expect(getPostingCategories()).rejects.toThrow("Invalid posting categories");
+  });
+
+  it("rejects a refused request, such as missing safety rules", async () => {
+    stubFetch(Response.json({ code: "posting_unavailable" }, { status: 503 }));
+    await expect(getPostingCategories()).rejects.toThrow("503");
   });
 });

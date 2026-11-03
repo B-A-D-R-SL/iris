@@ -268,6 +268,8 @@
       "foodCategories": "Food",
       "otherCategories": "Other goods",
       "prohibitedNote": "Prohibited items have no category.",
+      "prohibitedList": "See the list of prohibited items",
+      "prohibitedListShort": "See the list",
       "closeCategories": "Close categories",
       "descriptionPlaceholder": "e.g. yesterday's loaves and baguettes, wrapped",
       "quantityHelp": "From 1 to 999",
