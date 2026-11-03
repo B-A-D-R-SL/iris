@@ -306,3 +306,41 @@ def test_consent_must_be_a_boolean(data, worker):
     assert response.status_code == 400
     assert "consent_data_processing" in response.data["fields"]
     assert Household.objects.count() == 0
+
+
+def test_identity_check_keeps_the_first_verifier_on_later_saves(data, worker):
+    admin = UserFactory(role="admin")
+    result = _client(worker).post(
+        reverse("staff-households-create"), data, format="json"
+    )
+    house = Household.objects.get(pk=result.data["id"])
+    first = (house.verified_by_id, house.verified_at)
+    url = reverse("staff-households-detail", kwargs={"id": house.pk})
+
+    reply = _client(admin).patch(
+        url,
+        {"identity_checked_in_person": True, "address": data["address"]},
+        format="json",
+    )
+
+    assert reply.status_code == 200, reply.data
+    house.refresh_from_db()
+    assert (house.verified_by_id, house.verified_at) == first
+    assert reply.data["verified_by_email"] == worker.email
+
+
+def test_identity_check_unticked_then_ticked_records_the_new_verifier(data, worker):
+    admin = UserFactory(role="admin")
+    result = _client(worker).post(
+        reverse("staff-households-create"), data, format="json"
+    )
+    url = reverse("staff-households-detail", kwargs={"id": result.data["id"]})
+
+    _client(admin).patch(url, {"identity_checked_in_person": False}, format="json")
+    house = Household.objects.get(pk=result.data["id"])
+    assert house.verified_by_id is None and house.verified_at is None
+
+    _client(admin).patch(url, {"identity_checked_in_person": True}, format="json")
+    house.refresh_from_db()
+    assert house.verified_by_id == admin.pk
+    assert house.verified_at is not None

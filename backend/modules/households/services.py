@@ -51,6 +51,9 @@ def _apply_address(household: Household, values: Mapping[str, Any]) -> None:
 def _apply_verification(
     household: Household, verified: bool, actor: AbstractBaseUser
 ) -> None:
+    """Record who checked the ID and when; re-sending the same answer changes nothing."""
+    if verified == household.identity_checked_in_person:
+        return
     household.identity_checked_in_person = verified
     household.verified_by_id = actor.pk if verified else None
     household.verified_at = timezone.now() if verified else None
