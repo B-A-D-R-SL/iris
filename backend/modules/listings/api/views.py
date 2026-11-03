@@ -1,9 +1,10 @@
 # AI contribution: 50% or more AI-generated
-"""Thin, session-authenticated boundary for US-33."""
+"""Thin, session-authenticated boundary for US-33 and US-34."""
 
 from typing import Any
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -14,14 +15,15 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
-from modules.listings import services
+from modules.listings import queries, services
 from modules.listings.api.permissions import IsStorePoster
 from modules.listings.api.serializers import (
     NewListingSerializer,
     PostedListingSerializer,
+    PostingCategorySerializer,
     PostingErrorSerializer,
 )
-from modules.listings.domain.posting import ListingInput
+from modules.listings.domain.posting import ListingInput, SafetyRulesInvalid
 from modules.listings.permissions import assigned_store_id
 
 
@@ -96,3 +98,38 @@ class PostListingView(GenericAPIView):
         return Response(
             PostedListingSerializer(listing).data, status=status.HTTP_201_CREATED
         )
+
+
+class PostingCategoriesView(GenericAPIView):
+    """Categories for the posting form; banned ones (US-34) are left out."""
+
+    serializer_class = PostingCategorySerializer
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsStorePoster,)
+    http_method_names = ("get", "head", "options")
+
+    def get_exception_handler(self) -> Any:
+        return posting_exception_handler
+
+    @extend_schema(
+        operation_id="store_listings_categories_list",
+        summary="List the categories the signed-in store can post in",
+        tags=["store listings"],
+        responses={
+            200: PostingCategorySerializer(many=True),
+            403: PostingErrorSerializer,
+            503: PostingErrorSerializer,
+        },
+    )
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        try:
+            categories = queries.categories_for_posting(at=timezone.now())
+        except SafetyRulesInvalid as exc:
+            raise PostingDependencyUnavailable(
+                _("Listing safety rules need configuration.")
+            ) from exc
+        if categories is None:
+            raise PostingDependencyUnavailable(
+                _("Listing rules must be seeded before posting.")
+            )
+        return Response(PostingCategorySerializer(categories, many=True).data)

@@ -31,6 +31,13 @@ export interface paths {
     /** Post a listing for the signed-in user's active store */
     post: operations["store_listings_create"];
   };
+  "/api/store/listings/categories/": {
+    /**
+     * List the categories the signed-in store can post in
+     * @description Categories for the posting form; banned ones (US-34) are left out.
+     */
+    get: operations["store_listings_categories_list"];
+  };
 }
 
 export type webhooks = Record<string, never>;
@@ -108,6 +115,14 @@ export interface components {
       store: string;
       title: string;
       unit: components["schemas"]["UnitEnum"];
+    };
+    /** @description Same public shape as GET /api/categories/, without database IDs. */
+    PostingCategory: {
+      code: string;
+      default_value_cents: number;
+      is_food: boolean;
+      name_en: string;
+      name_fr: string;
     };
     PostingError: {
       code: string;
@@ -251,6 +266,29 @@ export interface operations {
       400: {
         content: {
           "application/json": components["schemas"]["PostingError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["PostingError"];
+        };
+      };
+      503: {
+        content: {
+          "application/json": components["schemas"]["PostingError"];
+        };
+      };
+    };
+  };
+  /**
+   * List the categories the signed-in store can post in
+   * @description Categories for the posting form; banned ones (US-34) are left out.
+   */
+  store_listings_categories_list: {
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PostingCategory"][];
         };
       };
       403: {

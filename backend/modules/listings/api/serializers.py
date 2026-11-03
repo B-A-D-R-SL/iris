@@ -115,6 +115,16 @@ class PostedListingSerializer(serializers.ModelSerializer):
         return store_queries.address(listing.store_id)
 
 
+class PostingCategorySerializer(serializers.Serializer):
+    """Same public shape as GET /api/categories/, without database IDs."""
+
+    code = serializers.CharField(read_only=True)
+    name_fr = serializers.CharField(read_only=True)
+    name_en = serializers.CharField(read_only=True)
+    is_food = serializers.BooleanField(read_only=True)
+    default_value_cents = serializers.IntegerField(read_only=True)
+
+
 class PostingErrorSerializer(serializers.Serializer):
     code = serializers.CharField()
     message = serializers.CharField()
