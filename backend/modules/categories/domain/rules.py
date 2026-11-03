@@ -40,3 +40,21 @@ def validate_best_before_date(
         raise BestBeforeDateError(
             "The best-before date must be on or after the minimum permitted date."
         )
+
+
+class DefaultValueOutOfRange(ValueError):
+    """Raised when a category's default value is outside the allowed range."""
+
+
+def validate_default_value(value_cents: int, *, max_cents: int) -> None:
+    """Check a category's default value against the listing value limit.
+
+    The default value stands in for a listing's estimated value, so it follows
+    the same range: from 0 to ``max_cents`` (``listing_posting`` rule setting).
+    """
+    if max_cents < 0:
+        raise ValueError("The maximum value cannot be negative.")
+    if not 0 <= value_cents <= max_cents:
+        raise DefaultValueOutOfRange(
+            "The default value must be between 0 and the listing value limit."
+        )
