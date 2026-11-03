@@ -66,6 +66,8 @@ export async function submitApplication(
     token = csrfToken();
   }
   if (token) headers["X-CSRFToken"] = token;
+  // Django checks this cookie before Accept-Language, so match the form language.
+  document.cookie = `django_language=${language}; Path=/; SameSite=Lax`;
   const response = await fetch("/api/partner-applications/", {
     method: "POST",
     credentials: "same-origin",

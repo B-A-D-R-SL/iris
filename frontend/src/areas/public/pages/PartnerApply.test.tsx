@@ -1,6 +1,6 @@
 import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../../../app/App";
 import i18n from "../../../shared/i18n";
 import { expectNoAxeViolations, renderWithProviders } from "../../../test/render";
@@ -13,6 +13,9 @@ const bakery = {
   is_food: true,
   default_value_cents: 400,
 };
+afterEach(() => {
+  document.cookie = "django_language=; Max-Age=0; Path=/";
+});
 function mockApi(post: Response = new Response(null, { status: 201 })) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
     const url = String(input);
@@ -105,6 +108,7 @@ describe("Partner application", () => {
     expect(screen.getByLabelText("Courriel")).toHaveValue("partner@example.test");
   }, 15000);
   it("shows the duplicate response and supports English", async () => {
+    document.cookie = "django_language=fr; Path=/";
     mockApi(
       Response.json(
         {
@@ -125,6 +129,7 @@ describe("Partner application", () => {
     expect(screen.getByRole("heading", { name: "Become a partner" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Send my application" }));
     expect(await screen.findByText("An application is already in progress.")).toBeInTheDocument();
+    expect(document.cookie).toContain("django_language=en");
     expect(screen.getByLabelText("Email address")).toHaveValue("partner@example.test");
   }, 15000);
   it("shows a retry option when categories cannot be loaded", async () => {
