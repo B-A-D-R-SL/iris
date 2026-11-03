@@ -12,6 +12,7 @@ from rest_framework import serializers
 
 from modules.households.domain.address import normalize_postal_code
 from modules.households.domain.person import valid_name, validate_birth_date
+from modules.households.messages import domain_error_message
 from modules.households.models import Household, Member
 
 
@@ -75,7 +76,7 @@ class PostalCodeField(serializers.CharField):
         try:
             return normalize_postal_code(raw)
         except ValueError as exc:
-            raise serializers.ValidationError(str(exc)) from exc
+            raise serializers.ValidationError(domain_error_message(exc)) from exc
 
 
 class HolderInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
@@ -93,7 +94,7 @@ class HolderInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
         try:
             validate_birth_date(value, timezone.localdate(), holder=True)
         except ValueError as exc:
-            raise serializers.ValidationError(str(exc)) from exc
+            raise serializers.ValidationError(domain_error_message(exc)) from exc
         return value
 
     def validate_email(self, value):
@@ -129,7 +130,7 @@ class MemberInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
         try:
             validate_birth_date(value, timezone.localdate())
         except ValueError as exc:
-            raise serializers.ValidationError(str(exc)) from exc
+            raise serializers.ValidationError(domain_error_message(exc)) from exc
         return value
 
 

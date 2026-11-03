@@ -405,3 +405,36 @@ def test_incomplete_holder_on_a_draft_without_holder_member_is_a_field_error(
     assert reply.status_code == 400
     assert "holder" in reply.data["fields"]
     assert house.members.count() == 0
+
+
+@pytest.mark.parametrize(
+    ("language", "postal_message", "age_message"),
+    [
+        (
+            "fr",
+            "Entrez un code postal canadien, par exemple H2X 1Y4.",
+            "La personne responsable doit avoir 18 ans ou plus.",
+        ),
+        (
+            "en",
+            "Enter a Canadian postal code, for example H2X 1Y4.",
+            "The account holder must be 18 or older.",
+        ),
+    ],
+)
+def test_domain_errors_come_back_in_the_request_language(
+    data, worker, language, postal_message, age_message
+):
+    data["address"]["postal_code"] = "D2X 1Y4"  # D never starts a Canadian code
+    data["holder"]["date_of_birth"] = "2015-01-01"
+
+    reply = _client(worker).post(
+        reverse("staff-households-create"),
+        data,
+        format="json",
+        HTTP_ACCEPT_LANGUAGE=language,
+    )
+
+    assert reply.status_code == 400
+    assert reply.data["fields"]["address.postal_code"] == [postal_message]
+    assert reply.data["fields"]["holder.date_of_birth"] == [age_message]

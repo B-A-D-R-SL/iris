@@ -17,6 +17,7 @@ from modules.households.domain.person import (
     valid_name,
     validate_birth_date,
 )
+from modules.households.messages import domain_error_message
 
 PHONE_VALIDATOR = RegexValidator(
     r"^\+1\d{10}$", _("Enter a Canadian telephone number.")
@@ -122,7 +123,9 @@ class Household(models.Model):
                     self.street_number, self.street_name, self.unit, self.postal_code
                 )
             except ValueError as exc:
-                raise ValidationError({"postal_code": str(exc)}) from exc
+                raise ValidationError(
+                    {"postal_code": domain_error_message(exc)}
+                ) from exc
         else:
             self.address_key = ""
         if self.identity_checked_in_person and (
@@ -195,7 +198,7 @@ class Member(models.Model):
                 self.first_name, self.last_name, self.date_of_birth
             )
         except ValueError as exc:
-            raise ValidationError({"date_of_birth": str(exc)}) from exc
+            raise ValidationError({"date_of_birth": domain_error_message(exc)}) from exc
 
 
 class HouseholdDraftEvent(models.Model):

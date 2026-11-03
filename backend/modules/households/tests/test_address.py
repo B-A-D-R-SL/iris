@@ -57,3 +57,17 @@ def test_holder_age_boundary(dob, valid):
     else:
         with pytest.raises(ValueError):
             validate_birth_date(dob, date(2026, 10, 31), holder=True)
+
+
+def test_domain_errors_have_specific_types():
+    from modules.households.domain.address import (
+        IncompleteAddress,
+        InvalidPostalCode,
+        normalize_address,
+        normalize_postal_code,
+    )
+
+    with pytest.raises(InvalidPostalCode):
+        normalize_postal_code("D2X 1Y4")
+    with pytest.raises(IncompleteAddress):
+        normalize_address("", "rue Exemple", None, "H2X 1Y4")

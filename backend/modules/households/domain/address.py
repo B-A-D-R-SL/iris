@@ -8,6 +8,14 @@ _POSTAL = re.compile(r"^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z]\d[ABCEGHJ-NPRSTV-
 _STREET_TYPES = {"RUE": "R", "AVENUE": "AV", "BOULEVARD": "BD", "CHEMIN": "CH"}
 
 
+class InvalidPostalCode(ValueError):
+    """Not a Canadian postal code in the A1A 1A1 format."""
+
+
+class IncompleteAddress(ValueError):
+    """Street number or street name missing."""
+
+
 def _fold(value: str) -> str:
     folded = unicodedata.normalize("NFKD", value.strip().upper())
     without_accents = "".join(c for c in folded if not unicodedata.combining(c))
@@ -18,7 +26,7 @@ def normalize_postal_code(postal_code: str) -> str:
     """Return canonical Canadian format, e.g. H2X 1Y4, or raise ValueError."""
     compact = re.sub(r"\s+", "", _fold(postal_code))
     if not _POSTAL.fullmatch(compact):
-        raise ValueError("Enter a Canadian postal code like H2X 1Y4.")
+        raise InvalidPostalCode("Enter a Canadian postal code like H2X 1Y4.")
     return f"{compact[:3]} {compact[3:]}"
 
 
@@ -30,7 +38,7 @@ def normalize_address(
     street = _fold(street_name)
     apartment = _fold(unit or "")
     if not number or not street:
-        raise ValueError("Street number and street name are required.")
+        raise IncompleteAddress("Street number and street name are required.")
     # Only replace whole street-type tokens; e.g. 'RUE' not 'RUEIL'.
     street = " ".join(_STREET_TYPES.get(word, word) for word in street.split())
     postal = normalize_postal_code(postal_code).replace(" ", "")

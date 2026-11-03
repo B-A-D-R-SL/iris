@@ -29,6 +29,8 @@ creator, verifier or internal keys directly.
 
 Errors use `{ "code", "message", "fields" }`; nested form field paths are
 reported as dotted keys such as `address.postal_code`.
+Messages follow the request language (French by default). `domain/` raises
+specific error types, and `messages.py` gives each one its translated text.
 
 All require a session for an active `intake_worker` or `admin`. Other signed-in
 roles are rejected with HTTP 403. The API contains no ID document information.

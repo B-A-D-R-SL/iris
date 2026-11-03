@@ -10,6 +10,18 @@ MAX_PERSON_AGE = 120
 MIN_HOLDER_AGE = 18
 
 
+class BirthDateOutOfRange(ValueError):
+    """Date of birth in the future or more than 120 years ago."""
+
+
+class HolderTooYoung(ValueError):
+    """The account holder is under 18."""
+
+
+class InvalidPersonName(ValueError):
+    """A first or last name with characters other than letters, spaces, ' or -."""
+
+
 def valid_name(name: str) -> bool:
     value = name.strip()
     return (
@@ -27,12 +39,12 @@ def age_in_years(birth: date, today: date) -> int:
 
 def validate_birth_date(birth: date, today: date, *, holder: bool = False) -> None:
     if birth > today or age_in_years(birth, today) > MAX_PERSON_AGE:
-        raise ValueError("Enter a date of birth within the last 120 years.")
+        raise BirthDateOutOfRange("Enter a date of birth within the last 120 years.")
     if holder and age_in_years(birth, today) < MIN_HOLDER_AGE:
-        raise ValueError("The account holder must be at least 18.")
+        raise HolderTooYoung("The account holder must be at least 18.")
 
 
 def normalize_person(first_name: str, last_name: str, birth: date) -> str:
     if not valid_name(first_name) or not valid_name(last_name):
-        raise ValueError("Enter a valid first and last name.")
+        raise InvalidPersonName("Enter a valid first and last name.")
     return "|".join((_fold(last_name), _fold(first_name), birth.isoformat()))
