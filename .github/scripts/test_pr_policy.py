@@ -288,6 +288,24 @@ class TestChangeTests(unittest.TestCase):
         self.assertEqual(len(errors), 1)
         self.assertIn("`backend/modules/listings/services.py`", errors[0])
 
+    def test_no_tests_line_forms(self):
+        for line in (
+            "No tests: documentation only",
+            "- No tests: documentation only",
+            "**No tests:** documentation only",
+            "  * no tests: settings only",
+        ):
+            with self.subTest(line=line):
+                self.assertTrue(pr_policy.explains_missing_tests(f"Intro\n{line}\n"))
+        for line in (
+            "No tests:",
+            "No tests:   ",
+            "Tests: none",
+            "We added No tests: here",
+        ):
+            with self.subTest(line=line):
+                self.assertFalse(pr_policy.explains_missing_tests(f"Intro\n{line}\n"))
+
     def test_no_tests_line_explains_it(self):
         files = [ChangedFile("backend/iris/settings/base.py", "modified", HEADER)]
         body = (

@@ -56,8 +56,8 @@ TEST = re.compile(
 COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 HEADING = re.compile(r"^\s{0,3}(#{1,6})\s")
 ISSUE_REF = re.compile(r"(?<![\w/&])#\d+\b")
-NO_TESTS = re.compile(r"^\s*[-*]?\s*\**No tests:\**\s*\S", re.MULTILINE | re.IGNORECASE)
-LISTED_PATH = re.compile(r"`([^`\s]+)`|^\s*[-*]\s+([^\s`]+)\s*$", re.MULTILINE)
+NO_TESTS = "no tests:"
+LISTED_PATH = re.compile(r"`([^`\s]+)`|^[ \t]*[-*][ \t]+([^\s`]+)[ \t]*$", re.MULTILINE)
 
 
 @dataclass
@@ -220,11 +220,20 @@ def check_headers(pr: PullRequest) -> list[str]:
     ]
 
 
+def explains_missing_tests(body: str | None) -> bool:
+    """True when a visible line starts with "No tests:" and gives a reason."""
+    for line in visible(body).splitlines():
+        text = line.strip().lstrip("-*").strip().replace("**", "")
+        if text.lower().startswith(NO_TESTS) and text[len(NO_TESTS) :].strip():
+            return True
+    return False
+
+
 def check_tests(pr: PullRequest) -> list[str]:
     code = [f.path for f in pr.files if f.status != "removed" and needs_tests(f.path)]
     if not code or any(is_test(f.path) for f in pr.files):
         return []
-    if NO_TESTS.search(visible(pr.body)):
+    if explains_missing_tests(pr.body):
         return []
     return [
         (
