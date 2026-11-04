@@ -392,7 +392,10 @@ An approved category of goods.
 
 | Rule | Enforcement |
 | --- | --- |
-| A category in use can be deactivated, but cannot be deleted. | Category service. |
+| A category in use can be deactivated, but cannot be deleted. | Category service; the admin API has no delete (US-35). |
+| The code cannot change after creation. | `save_category()` and the admin API. |
+| The default value is between 0 and the listing value limit (`listing_posting.estimated_value_max_cents`). | Category service, from the rule settings. |
+| Inactive categories are hidden from the posting and partner forms; existing listings keep them. | Public `queries.list_active_categories()`. |
 
 Source: [Issue #501](https://github.com/B-A-D-R-SL/iris/issues/501).
 

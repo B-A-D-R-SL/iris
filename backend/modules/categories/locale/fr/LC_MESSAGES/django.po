@@ -1,0 +1,42 @@
+# AI contribution: 50% or more AI-generated
+# French messages for the categories module (US-35).
+msgid ""
+msgstr ""
+"Project-Id-Version: Iris\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Category"
+msgstr "Catégorie"
+
+msgid "Categories"
+msgstr "Catégories"
+
+msgid "A category code cannot be changed."
+msgstr "Le code d'une catégorie ne peut pas être modifié."
+
+msgid "This category code already exists."
+msgstr "Ce code de catégorie existe déjà."
+
+msgid "Use lowercase letters, numbers and underscores, starting with a letter."
+msgstr "Utilisez des lettres minuscules, des chiffres et des traits de soulignement, en commençant par une lettre."
+
+msgid "Enter a value from 0 to %(max)s cents."
+msgstr "Entrez une valeur de 0 à %(max)s cents."
+
+msgid "Only admins can manage categories."
+msgstr "Seuls les administrateurs peuvent gérer les catégories."
+
+msgid "Listing rules must be seeded before categories can be saved."
+msgstr "Les règles des offres doivent être chargées avant d'enregistrer une catégorie."
+
+msgid "Check the highlighted fields."
+msgstr "Vérifiez les champs indiqués."
+
+msgid "The request was refused."
+msgstr "La demande a été refusée."
+
+msgid "This field cannot be submitted."
+msgstr "Ce champ ne peut pas être envoyé."

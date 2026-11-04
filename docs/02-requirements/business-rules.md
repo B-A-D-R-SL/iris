@@ -78,6 +78,22 @@ The `code` is the stable identifier used by the API, the database and the partne
 
 Default values are stored in cents (`default_value_cents`, $5 = `500`).
 
+### Category management rules (US-35)
+
+The following rule IDs are introduced for review with US-35 (#501).
+The categories owner and reviewers must confirm them before merge.
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-CAT-001 | A category's default value is from 0 to the listing value limit (`estimated_value_max_cents` in rule type `listing_posting`, default $1,000 *(setting)*). On an edit it is checked only when it changes, so a later, lower limit does not block renaming or deactivating an older category. |
+| BR-CAT-002 | A category's code is unique and cannot change after creation. |
+| BR-CAT-003 | A category is never deleted, only deactivated; a deactivated category is not offered for new listings, and listings that already use it keep it. Only admins manage categories. |
+
+The value limit comes from the versioned `listing_posting` RuleSet, not from a
+hardcoded value. BR-CAT-001 is checked in
+`backend/modules/categories/domain/rules.py`; BR-CAT-002 and BR-CAT-003 in
+`backend/modules/categories/services.py`.
+
 ### Prohibited items
 
 Stores never post these items (Default):

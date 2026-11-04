@@ -38,6 +38,16 @@ export interface paths {
     /** Search audit events (admin only) */
     get: operations["staff_audit_list"];
   };
+  "/api/staff/categories/": {
+    /** List every category, active or not (admin) */
+    get: operations["staff_categories_list"];
+    /** Add a category (admin) */
+    post: operations["staff_categories_create"];
+  };
+  "/api/staff/categories/{code}/": {
+    /** Rename, change, deactivate or reactivate a category (admin) */
+    patch: operations["staff_categories_update"];
+  };
   "/api/staff/households/": {
     /** Create a resumable walk-in household draft */
     post: operations["staff_households_create"];
@@ -123,6 +133,14 @@ export interface components {
       is_food: boolean;
       name_en: string;
       name_fr: string;
+    };
+    /** @description Error envelope shared by the category admin endpoints. */
+    CategoryError: {
+      code: string;
+      fields: {
+        [key: string]: string[];
+      };
+      message: string;
     };
     /**
      * @description * `online` - En ligne
@@ -289,6 +307,22 @@ export interface components {
       };
       message: string;
     };
+    /**
+     * @description Admin view of a category (US-35): all fields, including inactive ones.
+     *
+     * The code is the category's stable identifier: it can be set when the
+     * category is created, never changed afterwards.
+     */
+    PatchedStaffCategory: {
+      code?: string;
+      /** Format: int64 */
+      default_value_cents?: number;
+      /** @default true */
+      is_active?: boolean;
+      is_food?: boolean;
+      name_en?: string;
+      name_fr?: string;
+    };
     PatchedWalkInDraftInput: {
       address?: components["schemas"]["AddressInput"];
       consent_data_processing?: boolean;
@@ -358,6 +392,22 @@ export interface components {
      * @enum {string}
      */
     RoleEnum: "beneficiary" | "store_staff" | "store_manager" | "intake_worker" | "admin";
+    /**
+     * @description Admin view of a category (US-35): all fields, including inactive ones.
+     *
+     * The code is the category's stable identifier: it can be set when the
+     * category is created, never changed afterwards.
+     */
+    StaffCategory: {
+      code: string;
+      /** Format: int64 */
+      default_value_cents: number;
+      /** @default true */
+      is_active?: boolean;
+      is_food?: boolean;
+      name_en: string;
+      name_fr: string;
+    };
     StoreAddress: {
       city: string;
       postal_code: string;
@@ -581,6 +631,95 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["PaginatedAuditEventList"];
+        };
+      };
+    };
+  };
+  /** List every category, active or not (admin) */
+  staff_categories_list: {
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["StaffCategory"][];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["CategoryError"];
+        };
+      };
+    };
+  };
+  /** Add a category (admin) */
+  staff_categories_create: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StaffCategory"];
+        "application/x-www-form-urlencoded": components["schemas"]["StaffCategory"];
+        "multipart/form-data": components["schemas"]["StaffCategory"];
+      };
+    };
+    responses: {
+      201: {
+        content: {
+          "application/json": components["schemas"]["StaffCategory"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["CategoryError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["CategoryError"];
+        };
+      };
+      503: {
+        content: {
+          "application/json": components["schemas"]["CategoryError"];
+        };
+      };
+    };
+  };
+  /** Rename, change, deactivate or reactivate a category (admin) */
+  staff_categories_update: {
+    parameters: {
+      path: {
+        code: string;
+      };
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["PatchedStaffCategory"];
+        "application/x-www-form-urlencoded": components["schemas"]["PatchedStaffCategory"];
+        "multipart/form-data": components["schemas"]["PatchedStaffCategory"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["StaffCategory"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["CategoryError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["CategoryError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["CategoryError"];
+        };
+      };
+      503: {
+        content: {
+          "application/json": components["schemas"]["CategoryError"];
         };
       };
     };
