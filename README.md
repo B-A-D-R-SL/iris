@@ -117,6 +117,18 @@ The hooks live in the repository, but each clone needs the one-time Git configur
 
 The **Commit policy** pull-request check validates new non-merge commits using the hook from the protected base branch. The PR that first adds this workflow needs a teammate's review because the base branch cannot run it yet. After merging it, a repository administrator must require the `commit-policy` job on protected branches and prevent direct pushes for the check to block noncompliant contributions. This public repository also needs an Actions event policy that allows `pull_request_target`; [GitHub's default policy](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target#default-policy-for-pull_request_target) is scheduled to block that event from November 2, 2026.
 
+### Pull requests
+
+Open pull requests from the [template](.github/pull_request_template.md). The **PR policy** check ([`pr-policy.yml`](.github/workflows/pr-policy.yml)) fails a pull request until:
+
+- the title is `[PR] <ID>: <summary>`, for example `[PR] US-17: Walk-in registration`;
+- the description closes its issue with `Closes #<issue>` (a pull request into a story branch only needs `#<issue>`);
+- the AI contribution section gives exactly one of the three levels and lists the AI-assisted files;
+- every changed source file starts with its AI contribution line;
+- code changes come with a test change, or a line starting with `No tests:` says why.
+
+It re-runs when the title or description is edited, and skips Dependabot. Like Commit policy, it runs the checker from the base branch and never runs pull-request code; its tests are in [`.github/scripts`](.github/scripts) and run in the backend CI job. CodeRabbit adds pre-merge checks for tests, size and complexity, placeholders, error handling and logging, and AI declarations ([`.coderabbit.yaml`](.coderabbit.yaml)); only a requested reviewer can override one that fails.
+
 ### Live Development
 
 With `docker compose up --watch`, frontend changes made in PyCharm or another editor are synchronized into Docker automatically, enabling Vite's hot reload.
