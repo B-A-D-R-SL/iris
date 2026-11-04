@@ -111,6 +111,7 @@ An approved partner store, including the B.A.D.R. store.
 | pickup_instructions | string | — | Instructions for collecting goods. |
 | is_badr | boolean | — | Identifies the B.A.D.R. store. |
 | is_active | boolean | — | Whether the store is active. |
+| application | reference | FK, UK | Nullable one-to-one to the PartnerApplication that created the store (column `application_id`). Set by the US-13 approval; null for B.A.D.R. and manually created stores. PROTECT. |
 | created_at | datetime | — | Store creation time. |
 
 **Documented constraints and business rules**
@@ -132,44 +133,43 @@ Sources: [Issue #439](https://github.com/B-A-D-R-SL/iris/issues/439), [Issue #45
 
 **Owner module:** `stores`.
 
-A business request to become a partner; no account or store is created at submission.
+A business request to become a partner; no account or store is created at submission. Implemented by US-12 (#445) as table `stores_partnerapplication`. Field names and rules follow the [partner application form](../02-requirements/forms-and-fields.md#partner-application-form).
 
-| Field | Logical type | Key | Details |
+| Field | Type | Null | Details |
 | --- | --- | --- | --- |
-| business_name | string | — | Business name. |
-| business_type | string | — | Business type. |
-| quebec_enterprise_number | string | — | Optional Quebec enterprise number. |
-| contact_first_name | string | — | Contact first name. |
-| contact_last_name | string | — | Contact last name. |
-| contact_role | string | — | Optional contact role. |
-| contact_email | string | — | Contact email. |
-| contact_phone | string | — | Contact phone number. |
-| website | string | — | Optional website. |
-| message | string | — | Optional additional information. |
-| contact_consent | boolean | — | Consent to be contacted. |
-| status | string | — | submitted, approved, or rejected. |
-| decision_reason | string | — | Decision explanation; required for rejection. |
-| decided_by | reference | — | Administrator who decided the application. |
-| decided_at | datetime | — | Decision time. |
+| id | uuid | No | Primary key. |
+| business_name | varchar(150) | No | 2 to 150 characters. |
+| business_type | text choice | No | `grocery`, `supermarket`, `bakery`, `restaurant`, `cafe`, `convenience_store`, `pharmacy`, `farm_producer`, `community_organization`, `other`. |
+| neq | varchar(10) | Yes | Quebec enterprise number, exactly 10 digits. |
+| street_number, street_name, unit, city, postal_code | as Store | `unit` only | Business address; postal code stored as `A1A 1A1`. |
+| contact_first_name, contact_last_name | varchar(100) | No | Letters, spaces, apostrophes, hyphens. |
+| contact_role | varchar(100) | Yes | Optional role. |
+| contact_email | citext | No | Lowercase; becomes the store manager's sign-in after approval. |
+| contact_phone | varchar(16) | No | Canadian number in E.164, for example `+15145550123`. |
+| website | varchar(200) | Yes | `https://` added if missing. |
+| goods_categories | text[] | No | Stable category codes; at least one, each active at submission. |
+| expected_frequency | text choice | No | `daily`, `weekly`, `monthly`, `occasional`. |
+| opening_hours | varchar(300) | No | Free text, for example "lun-ven 9 h-18 h". |
+| message | varchar(1000) | Yes | Optional additional information. |
+| consent_contact | boolean | No | Consent to be contacted; must be true (Law 25 record, with `created_at`). |
+| language | text choice | No | `fr` (default) or `en`; language of the emails to the contact, who has no account. |
+| status | text choice | No | `submitted` (default), `approved`, `rejected`. |
+| decision_reason | varchar(500) | Yes | Required when rejected. |
+| decided_by | uuid FK accounts_user | Yes | Administrator who decided (US-13). PROTECT. |
+| decided_at | timestamptz | Yes | Decision time (US-13). |
+| created_at | timestamptz | No | Submission time. |
 
-**Confirmed information requirements**
-
-These documented workflow inputs are retained as requirements. They are separate from the field definitions shown in the ERD.
-
-| Information | Requirement |
-| --- | --- |
-| Business address | The application collects the business address. |
-| Goods categories | The applicant selects at least one goods category. |
-| Expected donation frequency | The application collects the expected donation frequency. |
-| Opening hours | The application collects business operating hours. |
-
-**Documented constraints and business rules**
+**Constraints and indexes**
 
 | Rule | Enforcement |
 | --- | --- |
-| Prevent another open application with the same contact email. | Application validation. |
-| Select at least one goods category; rejection requires a reason. | Application validation. |
-| Approval creates a Store and Invitation, updates application status, and records audit atomically. Email follows commit. | Approval transaction and background notification. |
+| At most one `submitted` application per contact email, ignoring case. | Partial unique index `stores_application_one_open_per_email` on citext `contact_email` where `status = 'submitted'`; the service checks first for a friendly message. |
+| Consent given. | CHECK `stores_application_consent_given`. |
+| At least one goods category. | CHECK `stores_application_has_category`; active codes checked by the service. |
+| Rejection requires a reason. | CHECK `stores_application_rejection_has_reason`. |
+| Choice values valid. | CHECKs on `status`, `business_type`, `expected_frequency`, `language`. |
+| Review list by status, oldest first (US-13). | Index `stores_application_status_idx` on (`status`, `created_at`). |
+| Approval creates a Store and Invitation, updates application status, and records audit atomically. Email follows commit. | Approval transaction and background notification (US-13). |
 
 Sources: [Issue #443](https://github.com/B-A-D-R-SL/iris/issues/443), [Issue #445](https://github.com/B-A-D-R-SL/iris/issues/445), [Issue #447](https://github.com/B-A-D-R-SL/iris/issues/447).
 
@@ -543,6 +543,7 @@ The field tables and diagram contain the same fields, logical types, key labels,
 erDiagram
     Store o|--o{ User : "required for store roles"
     Store o|--o{ Invitation : "optional store assignment"
+    PartnerApplication |o--o| Store : "approval creates"
     Household ||--o{ Member : "contains"
     Household ||--o{ HouseholdDraftEvent : "draft history"
     Member ||--o{ IncomeNotice : "provides"
@@ -592,21 +593,31 @@ erDiagram
         string pickup_instructions "Instructions for collecting goods."
         boolean is_badr "Identifies the B.A.D.R. store."
         boolean is_active "Whether the store is active."
+        reference application "Optional one-to-one: application that created the store."
         datetime created_at "Store creation time."
     }
 
     PartnerApplication {
         string business_name "Business name."
         string business_type "Business type."
-        string quebec_enterprise_number "Optional Quebec enterprise number."
+        string neq "Optional Quebec enterprise number."
+        string street_number "Civic number."
+        string street_name "Street name."
+        string unit "Optional unit."
+        string city "City name."
+        string postal_code "Postal code."
         string contact_first_name "Contact first name."
         string contact_last_name "Contact last name."
         string contact_role "Optional contact role."
-        string contact_email "Contact email."
+        string contact_email "Contact email (citext)."
         string contact_phone "Contact phone number."
         string website "Optional website."
+        string goods_categories "Category codes (text array)."
+        string expected_frequency "Expected donation frequency."
+        string opening_hours "Opening hours."
         string message "Optional additional information."
-        boolean contact_consent "Consent to be contacted."
+        boolean consent_contact "Consent to be contacted."
+        string language "Email language: fr or en."
         string status "submitted, approved, or rejected."
         string decision_reason "Decision explanation; required for rejection."
         reference decided_by "Administrator who decided the application."

@@ -76,13 +76,68 @@ Categories were added by
 
 | Method    | Path                                            | Who           | Purpose                                       | Status  |
 | --------- | ----------------------------------------------- | ------------- | --------------------------------------------- | ------- |
-| POST      | `/api/partner-applications/`                    | Anyone        | Submit a partner application                  | Planned |
+| POST      | `/api/partner-applications/`                    | Anyone        | Submit a partner application                  | Implemented (US-12) |
 | GET       | `/api/staff/partner-applications/?status=`      | Admin         | List applications                             | Planned |
 | POST      | `/api/staff/partner-applications/{id}/approve/` | Admin         | Approve: store + manager invitation           | Planned |
 | POST      | `/api/staff/partner-applications/{id}/reject/`  | Admin         | Reject with `reason`                          | Planned |
 | GET/PATCH | `/api/staff/stores/`, `/api/staff/stores/{id}/` | Admin         | List and edit stores                          | Planned |
 | POST      | `/api/staff/stores/{id}/deactivate/`            | Admin         | Deactivate; cancels open listings             | Planned |
 | GET/PATCH | `/api/store/profile/`                           | Store manager | Own store's phone, email, hours, instructions | Planned |
+
+#### `POST /api/partner-applications/` (US-12)
+
+Public: no account, anonymous visitors and every role may submit. A signed-in
+session must still send `X-CSRFToken`. Rate-limited to **5 requests per hour per
+client IP address**, shared by anonymous and signed-in callers; a port in the
+forwarded address is ignored. Every request that reaches the endpoint counts,
+including those refused with 400 or 409. A signed-in session refused for a missing
+CSRF token (403) is stopped before the limit and is not counted; it saves nothing.
+Messages use the request's language: Django's `django_language` cookie if it holds
+French or English, otherwise `Accept-Language`, otherwise French. That language is
+also stored as the language of the contact's emails. The Iris frontend sends
+`Accept-Language` and does not set the cookie.
+
+Request (JSON). Fields and rules are those of the
+[partner application form](../02-requirements/forms-and-fields.md#partner-application-form);
+optional fields may be empty or omitted. Any other field, such as `status`, is refused.
+
+```json
+{
+  "business_name": "Boulangerie Exemple",
+  "business_type": "bakery",
+  "neq": "",
+  "website": "exemple.ca",
+  "street_number": "1234",
+  "street_name": "rue Saint-Denis",
+  "unit": "",
+  "city": "Montréal",
+  "postal_code": "H2X 1Y4",
+  "contact_first_name": "Alex",
+  "contact_last_name": "Exemple",
+  "contact_role": "",
+  "contact_email": "nom@exemple.ca",
+  "contact_phone": "+15145550123",
+  "goods_categories": ["bakery", "dairy_eggs"],
+  "expected_frequency": "weekly",
+  "opening_hours": "lun-ven 9 h-18 h",
+  "message": "",
+  "consent_contact": true
+}
+```
+
+`goods_categories` holds codes from `GET /api/categories/`. `contact_phone` is
+E.164, as produced by the shared `PhoneField`.
+
+| Status | Body |
+| --- | --- |
+| 201 | `{"id", "status": "submitted", "created_at"}`; no personal data is echoed. The contact gets the `partner_application_received` email after the commit. |
+| 400 | `{"code": "validation_error", "message", "fields": {"<field>": ["…"]}}` |
+| 409 | `{"code": "application_already_open", "message", "fields": {}}`: an application with this email is still `submitted`; the message is the form spec's "already in progress" text with the email. |
+| 429 | `{"code": "throttled", "message", "fields": {}}` |
+| 405 | Any method other than POST. |
+
+Admins see submitted applications, read-only, in the Django admin until the
+US-13 staff screens exist.
 
 ### Households and notices
 
@@ -106,16 +161,17 @@ Categories were added by
 
 ### Listings and reservations
 
-US-33 adds a partial posting backend on its feature branch. Account, safety
-and photo-storage integrations remain pending; see the
-[posting implementation and handoff](../guides/listing-posting.md). Its tests
-use explicit stand-ins and do not establish completed production integration.
+US-33 adds the posting backend and US-34 its safety checks (food best-before
+date, prohibited categories, the safe-and-allowed confirmation). Photo storage
+remains pending, so only posts without a photo can be published; see the
+[posting implementation and handoff](../guides/listing-posting.md).
 
 | Method   | Path                                       | Who                  | Purpose                                          | Status  |
 | -------- | ------------------------------------------ | -------------------- | ------------------------------------------------ | ------- |
 | GET      | `/api/listings/?category=&store=&today=`   | Approved beneficiary | Visible listings (tier timing applied)           | Planned |
 | GET      | `/api/listings/{id}/`                      | Approved beneficiary | Listing detail                                   | Planned |
-| GET/POST | `/api/store/listings/`                     | Store staff          | Own store's listings; post a listing             | Partial: POST backend; integrations pending; GET planned |
+| GET/POST | `/api/store/listings/`                     | Store staff          | Own store's listings; post a listing             | Partial: POST implemented (photo storage pending); GET planned |
+| GET      | `/api/store/listings/categories/`          | Store staff          | Categories the store may post in (prohibited ones left out) | Implemented |
 | PATCH    | `/api/store/listings/{id}/`                | Store staff          | Edit (quantity ≥ reserved)                       | Planned |
 | POST     | `/api/store/listings/{id}/cancel/`         | Store staff          | Cancel; reservations cancelled without strikes   | Planned |
 | POST     | `/api/reservations/`                       | Approved beneficiary | `{listing_id, quantity}` → reservation with code | Planned |
@@ -144,7 +200,7 @@ use explicit stand-ins and do not establish completed production integration.
 
 | Method | Path                                            | Who   | Purpose              | Status  |
 | ------ | ----------------------------------------------- | ----- | -------------------- | ------- |
-| GET    | `/api/staff/audit/?household=&actor=&from=&to=` | Admin | Audit search         | Planned |
+| GET    | `/api/staff/audit/?household=&actor=&from=&to=` | Admin | Audit search         | Implemented |
 | GET    | `/api/staff/reports/summary/?start=&end=`       | Admin | Dashboard metrics    | Planned |
 | GET    | `/api/staff/reports/export.csv?start=&end=`     | Admin | CSV (UTF-8 with BOM) | Planned |
 | GET    | `/api/staff/emails/?status=failed`              | Admin | Failed emails        | Planned |
@@ -268,4 +324,5 @@ catalog does not make them implemented or add them to Release 1.
 - [Django and DRF settings](../../backend/iris/settings/base.py)
 - [Health endpoint](../../backend/iris/views.py)
 - [Health frontend consumer](../../frontend/src/shared/api/health.ts)
+- [Partner application endpoint](../../backend/modules/stores/api/views.py)
 - [API generation and drift checks](../guides/api-generation.md)

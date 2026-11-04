@@ -10,8 +10,9 @@ loaves of bread available for pickup. The backend checks the request and saves
 the listing through `POST /api/store/listings/`.
 
 **The posting backend and its tests are implemented, but the complete user
-workflow still needs account, safety, and photo-storage integration.**
-The tests use explicit stand-ins for those unfinished dependencies.
+workflow still needs account and photo-storage integration.**
+The tests use explicit stand-ins for those unfinished dependencies. The US-34
+safety checks are connected; see [section 10](#10-us-34-safety-checks).
 
 ## 1. What can someone do today?
 
@@ -21,13 +22,12 @@ The tests use explicit stand-ins for those unfinished dependencies.
 | Posting form | Implemented at `/store/listings/new`, including category selection, pickup fields, confirmation, and publication/error feedback. |
 | Frontend API client | Implemented: sends JSON or multipart data to the posting endpoint with CSRF and language headers, and maps 400 field errors back to the form. |
 | Real accounts | The current default Django users lack the required role/store assignments. They are refused; test assignments are not installed in the running app. |
-| Safety checks | The backend calls the separate US-34 checker. If it is missing, posting is refused. This work does not implement its food-date or prohibited-category decisions. |
+| Safety checks | The backend runs US-34's safety rule: the safe-and-allowed tick, the food best-before date, and prohibited categories. See [section 10](#10-us-34-safety-checks). |
 | Photos | Size, declared type, and JPEG/PNG signatures are checked. Saving photos needs a real private-storage adapter; tests use a fake. |
 | Tests | Can exercise the backend with temporary PostgreSQL records and fake integrations, without waiting for those integrations to be finished. |
 
 The form and API client are implemented, but live publication still depends
-on account and safety integration. In the current app, an ordinary account
-receives a permission refusal before it reaches the missing safety integration.
+on account integration, and a post with a photo needs the photo-storage adapter.
 
 ## 2. The main ideas
 
@@ -98,6 +98,8 @@ posting service/API work.
 | [Serializers](../../backend/modules/listings/api/serializers.py) | Define request/response fields, require timezone offsets, reject unknown inputs, and omit private photo references. |
 | [Shared permissions](../../backend/modules/listings/permissions.py) | Check account activity, posting role, and assigned store. Django's `is_staff` flag alone grants no posting rights. |
 | [Posting domain](../../backend/modules/listings/domain/posting.py) | Define `ListingInput`, `PostingLimits`, and `Refusal`; validate business values without database access. |
+| [Safety rule](../../backend/modules/listings/domain/safety.py) | US-34: `check(listing_data, category, rules)` returns every safety refusal; `read_settings(rules)` checks every `listing_safety` value and is shared with the categories endpoint. |
+| [Listing queries](../../backend/modules/listings/queries.py) | US-34: `categories_for_posting(at=...)`, the active categories minus prohibited ones, for the form. |
 | [Posting service](../../backend/modules/listings/services.py) | Coordinate rules, safety, photos, transactions, and publication. Start here after reading the request flow above. |
 | [Integration contracts](../../backend/modules/listings/contracts.py) | Specify the required safety-checker and photo-store interfaces. |
 | [Listing model](../../backend/modules/listings/models.py) | Define stored fields, relationships, and database constraints. API `quantity` maps to model `quantity_total`. |
@@ -138,8 +140,9 @@ versions rather than hard-coding these limits into its validation flow.
 | Pickup start | Between now and seven days ahead. |
 | Pickup duration | 30 minutes to 12 hours. |
 | Pickup datetimes | Must include a timezone offset; responses use UTC. Elapsed-time checks account for daylight-saving changes. |
-| Safe-and-allowed confirmation | Must be true. It does not replace the separate safety checker. |
-| Best-before date | Passed to the safety checker; the actual food-date decision belongs to US-34. |
+| Safe-and-allowed confirmation | Must be true. Checked by the posting rules and again by the safety rule. |
+| Best-before date | Food only: on or after the pickup's last day (Montreal time) plus `best_before_margin_days`. Non-food ignores it. |
+| Category | Must be active and not on `prohibited_category_codes`. |
 | Photo | Optional JPEG/PNG, at most 5 MiB, with a matching byte signature. The adapter receives a 1280-pixel maximum dimension. |
 
 Signature checks do not prove that an entire image is valid. The real adapter
@@ -150,7 +153,7 @@ That adapter is still pending.
 
 This JSON is a template. Replace every `<...>` value with a real category code
 or future ISO datetime before using it. It also requires a valid session,
-CSRF token, account assignment, rule versions, and safety integration.
+CSRF token, account assignment, and rule versions.
 
 ```json
 {
@@ -219,7 +222,8 @@ test verifies CSRF refusal. These are not tests of the complete US-01 login flow
 
 Fake safety checkers return chosen results. Fake photo adapters record calls
 and return an internal reference. This verifies how our backend uses those
-contracts, not Ryan's safety decisions or real image processing/cloud storage.
+contracts, not real image processing/cloud storage. US-34's own tests
+(`test_safety*.py`, section 10) run the real safety rule instead.
 There is no always-passing safety checker installed in the running app.
 
 ## 8. Running the checks on Windows
@@ -294,9 +298,7 @@ above do not claim that every repository-wide audit or hosted CI check passed.
 1. **US-01 accounts:** real role/store assignments and the login/session flow.
    Databases already using Django's default user need a reviewed migration
    strategy before switching user models.
-2. **US-34 safety:** `modules.listings.domain.safety.check(listing_data,
-   category, rules)`, returning `Refusal(field, code)` values. Adapt the boundary
-   if the safety implementation uses a different result format.
+2. **US-34 safety:** done; see [section 10](#10-us-34-safety-checks).
 3. **Photo storage:** a class configured by `LISTING_PHOTO_STORE_BACKEND` that
    implements `put_image(content, max_dimension=...)` and `delete(reference)`.
    It must verify/process images and store them privately.
@@ -309,3 +311,48 @@ above do not claim that every repository-wide audit or hosted CI check passed.
 For the wider design, read the [architecture](../04-architecture/architecture.md),
 [API contract](../03-design/api.md), and
 [form requirements](../02-requirements/forms-and-fields.md).
+
+## 10. US-34 safety checks
+
+US-34 (#497) adds the safety rules that every post must pass before it is
+published. Posting runs them automatically; there is no separate endpoint.
+
+| Rule | Refused when | Field and message (English) |
+| --- | --- | --- |
+| Safe and allowed | The box is not ticked. Who ticked it and when is saved as `safe_confirmed_by` / `safe_confirmed_at`. | `safe_and_allowed`: "Tick this box to publish." |
+| Prohibited category | The category's code is in `listing_safety.prohibited_category_codes` (empty by default). | `category`: "This category can't be posted. Choose another one." |
+| Food best-before date | A food category has no best-before date, or one earlier than the pickup's last day plus `best_before_margin_days` (default 0). | `best_before`: "Enter a best-before date. It is required for food." or "Choose Oct. 27, 2026 or later (end of pickup)." |
+
+How it works:
+
+- `domain/safety.py` holds the pure rule. It returns **every** refusal, so the
+  form can mark each field at once.
+- The service gives it the pickup's last day **in Montreal time**. A pickup that
+  ends at 21:30 in Montreal is already the next day in UTC; comparing UTC dates
+  would wrongly refuse a best-before date on the pickup day.
+- `Refusal` has optional `params`. The service formats a date parameter in the
+  user's language with a short month, as in the mockup ("10 oct. 2026" /
+  "Oct. 10, 2026").
+- Malformed `listing_safety` values give a 503 ("Listing safety rules need
+  configuration.") instead of a crash.
+- The rule repeats the safe-and-allowed check that `check_posting` already
+  makes, so later edit and repost stories can reuse all three rules at once.
+
+Prohibited categories are also hidden from the form. `GET
+/api/store/listings/categories/` (store staff and managers only) returns the
+active categories minus the prohibited ones, in the same shape as
+`GET /api/categories/`, and the posting form uses it instead of the public list.
+The public list is unchanged, so the partner application and the staff
+Categories page still show every active category.
+
+The "See the list of prohibited items" links in the form are placeholders: they
+are announced as unavailable and do nothing until a later story builds the list.
+
+Tests:
+
+| Test file | What it checks |
+| --- | --- |
+| [Safety rule](../../backend/modules/listings/tests/test_safety.py) | One or more tests per refusal reason, the margin boundaries, non-food, several refusals at once, and malformed rules or dates. |
+| [Safety through the service](../../backend/modules/listings/tests/test_safety_service.py) | The real rule with PostgreSQL: who and when, the Montreal-day case, a newer rule version's margin, prohibited categories, French messages, and 503 on bad rules. |
+| [Safety through the API](../../backend/modules/listings/tests/test_safety_api.py) | The main path over HTTP, French and English messages, and the categories endpoint: allowed and refused for every role, read-only, prohibited codes left out, missing or malformed rules. |
+| [Posting form](../../frontend/src/areas/store/pages/NewListing.test.tsx) and [client](../../frontend/src/features/listings/api.test.ts) | Only the server's categories are offered, safety messages appear under their fields in both languages, and the placeholder links. |

@@ -106,6 +106,7 @@ modules = [
 ignore_imports = [
     # Cross-module test fixtures do not create a production module dependency.
     "modules.accounts.tests.test_accounts -> modules.stores.tests.factories",
+    "modules.audit.tests.** -> modules.stores.tests.factories",
     "modules.rules.tests.test_rule_set_versions -> modules.accounts.tests.factories",
     "modules.households.tests.** -> modules.accounts.tests.factories",
     "modules.households.tests.** -> modules.stores.tests.factories",
@@ -120,6 +121,11 @@ ignore_imports = [
     # stores -> accounts
     "modules.stores.** -> modules.accounts.services",
     "modules.stores.** -> modules.accounts.queries",
+    # stores tests create users with the accounts test factory (US-12)
+    "modules.stores.tests.** -> modules.accounts.tests.factories",
+    # stores -> categories: partner applications list active category codes (US-12)
+    "modules.stores.** -> modules.categories.queries",
+    "modules.stores.tests.** -> modules.categories.tests.factories",
 
     # households -> documents, eligibility, priority, review
     "modules.households.** -> modules.documents.services",

@@ -76,3 +76,297 @@ msgstr "Créé le"
 msgctxt "store field"
 msgid "Updated at"
 msgstr "Modifié le"
+
+msgctxt "store field"
+msgid "Partner application"
+msgstr "Demande de partenariat"
+
+msgid "Partner application"
+msgstr "Demande de partenariat"
+
+msgid "Partner applications"
+msgstr "Demandes de partenariat"
+
+msgctxt "business type"
+msgid "Grocery"
+msgstr "Épicerie"
+
+msgctxt "business type"
+msgid "Supermarket"
+msgstr "Supermarché"
+
+msgctxt "business type"
+msgid "Bakery"
+msgstr "Boulangerie"
+
+msgctxt "business type"
+msgid "Restaurant"
+msgstr "Restaurant"
+
+msgctxt "business type"
+msgid "Café"
+msgstr "Café"
+
+msgctxt "business type"
+msgid "Convenience store"
+msgstr "Dépanneur"
+
+msgctxt "business type"
+msgid "Pharmacy"
+msgstr "Pharmacie"
+
+msgctxt "business type"
+msgid "Farm or producer"
+msgstr "Ferme ou producteur"
+
+msgctxt "business type"
+msgid "Community organization"
+msgstr "Organisme communautaire"
+
+msgctxt "business type"
+msgid "Other"
+msgstr "Autre"
+
+msgctxt "donation frequency"
+msgid "Daily"
+msgstr "Chaque jour"
+
+msgctxt "donation frequency"
+msgid "Weekly"
+msgstr "Chaque semaine"
+
+msgctxt "donation frequency"
+msgid "Monthly"
+msgstr "Chaque mois"
+
+msgctxt "donation frequency"
+msgid "Occasionally"
+msgstr "À l’occasion"
+
+msgctxt "application status"
+msgid "Submitted"
+msgstr "Soumise"
+
+msgctxt "application status"
+msgid "Approved"
+msgstr "Approuvée"
+
+msgctxt "application status"
+msgid "Rejected"
+msgstr "Refusée"
+
+msgctxt "partner application field"
+msgid "ID"
+msgstr "ID"
+
+msgctxt "partner application field"
+msgid "Business name"
+msgstr "Nom de l’entreprise"
+
+msgctxt "partner application field"
+msgid "Business type"
+msgstr "Type d’entreprise"
+
+msgctxt "partner application field"
+msgid "Quebec enterprise number (NEQ)"
+msgstr "Numéro d’entreprise du Québec (NEQ)"
+
+msgctxt "partner application field"
+msgid "Street number"
+msgstr "Numéro civique"
+
+msgctxt "partner application field"
+msgid "Street"
+msgstr "Rue"
+
+msgctxt "partner application field"
+msgid "Apt."
+msgstr "App."
+
+msgctxt "partner application field"
+msgid "City"
+msgstr "Ville"
+
+msgctxt "partner application field"
+msgid "Postal code"
+msgstr "Code postal"
+
+msgctxt "partner application field"
+msgid "First name"
+msgstr "Prénom"
+
+msgctxt "partner application field"
+msgid "Last name"
+msgstr "Nom de famille"
+
+msgctxt "partner application field"
+msgid "Role"
+msgstr "Fonction"
+
+msgctxt "partner application field"
+msgid "Email address"
+msgstr "Courriel"
+
+msgctxt "partner application field"
+msgid "Phone number"
+msgstr "Téléphone"
+
+msgctxt "partner application field"
+msgid "Website"
+msgstr "Site Web"
+
+msgctxt "partner application field"
+msgid "Types of goods offered"
+msgstr "Types de produits offerts"
+
+msgctxt "partner application field"
+msgid "Expected donation frequency"
+msgstr "Fréquence prévue des dons"
+
+msgctxt "partner application field"
+msgid "Opening hours"
+msgstr "Heures d’ouverture"
+
+msgctxt "partner application field"
+msgid "Message"
+msgstr "Message"
+
+msgctxt "partner application field"
+msgid "Consent to be contacted"
+msgstr "Consentement à être contacté"
+
+msgctxt "partner application field"
+msgid "Language"
+msgstr "Langue"
+
+msgctxt "partner application field"
+msgid "Status"
+msgstr "Statut"
+
+msgctxt "partner application field"
+msgid "Decision reason"
+msgstr "Motif de la décision"
+
+msgctxt "partner application field"
+msgid "Decided by"
+msgstr "Décidé par"
+
+msgctxt "partner application field"
+msgid "Decided at"
+msgstr "Décidé le"
+
+msgctxt "partner application field"
+msgid "Created at"
+msgstr "Créé le"
+
+msgid "Choose types of goods from the list."
+msgstr "Choisissez des types de produits dans la liste."
+
+msgid "We received your partner application"
+msgstr "Nous avons reçu votre demande de partenariat"
+
+msgid "Hello,"
+msgstr "Bonjour,"
+
+#, python-format
+msgid ""
+"Thank you for applying to become a B.A.D.R. partner store with Iris. We "
+"received the application for %(business)s."
+msgstr ""
+"Merci d’avoir demandé à devenir un magasin partenaire de B.A.D.R. avec Iris. "
+"Nous avons bien reçu la demande pour %(business)s."
+
+msgid ""
+"B.A.D.R. will review it and write to you at this address. You have nothing "
+"else to do for now."
+msgstr ""
+"B.A.D.R. l’étudiera et vous écrira à cette adresse. Vous n’avez rien d’autre "
+"à faire pour l’instant."
+
+msgid "The Iris team"
+msgstr "L’équipe Iris"
+
+msgid "Enter the business name (2 to 150 characters)."
+msgstr "Entrez le nom de l’entreprise (2 à 150 caractères)."
+
+msgid "Choose a business type."
+msgstr "Choisissez un type d’entreprise."
+
+msgid "The NEQ has exactly 10 digits. You can also leave this field empty."
+msgstr ""
+"Le NEQ compte exactement 10 chiffres. Vous pouvez aussi laisser ce champ "
+"vide."
+
+msgid "Enter a web address like example.ca."
+msgstr "Entrez une adresse Web comme exemple.ca."
+
+msgid "Enter a street number like 1234 or 1234A."
+msgstr "Entrez un numéro civique comme 1234 ou 1234A."
+
+msgid "Enter the street (2 to 120 characters)."
+msgstr "Entrez la rue (2 à 120 caractères)."
+
+msgid "Enter at most 10 characters."
+msgstr "Entrez au plus 10 caractères."
+
+msgid "Enter the city (at most 80 characters)."
+msgstr "Entrez la ville (80 caractères au plus)."
+
+msgid "Enter a postal code like H2X 1Y4."
+msgstr "Entrez un code postal comme H2X 1Y4."
+
+msgid ""
+"Enter a name of 1 to 100 letters; spaces, apostrophes and hyphens are "
+"allowed."
+msgstr ""
+"Entrez un nom de 1 à 100 lettres ; les espaces, apostrophes et traits "
+"d’union sont permis."
+
+msgid "Enter at most 100 characters."
+msgstr "Entrez au plus 100 caractères."
+
+msgid "Enter an email like name@example.ca."
+msgstr "Entrez un courriel comme nom@exemple.ca."
+
+msgid "Enter a 10-digit number, for example (514) 555-0123."
+msgstr "Entrez un numéro de 10 chiffres, par exemple (514) 555-0123."
+
+msgid "Choose at least one type of goods."
+msgstr "Choisissez au moins un type de produits."
+
+msgid "Choose how often you expect to donate."
+msgstr "Choisissez la fréquence prévue de vos dons."
+
+msgid "Enter the opening hours (at most 300 characters)."
+msgstr "Entrez les heures d’ouverture (300 caractères au plus)."
+
+msgid "Enter at most 1,000 characters."
+msgstr "Entrez au plus 1 000 caractères."
+
+msgid "Tick this box to send the application."
+msgstr "Cochez cette case pour envoyer la demande."
+
+msgid "This field cannot be submitted."
+msgstr "Ce champ ne peut pas être envoyé."
+
+msgid "Check the highlighted fields."
+msgstr "Vérifiez les champs indiqués."
+
+msgid "The request was refused."
+msgstr "La demande a été refusée."
+
+msgid ""
+"Too many applications were sent from this connection. Try again later."
+msgstr ""
+"Trop de demandes ont été envoyées depuis cette connexion. Réessayez plus "
+"tard."
+
+#, python-format
+msgid ""
+"An application is already in progress. An application made with %(email)s "
+"is already waiting for an answer from B.A.D.R. You have nothing else to do: "
+"we will write to you by email."
+msgstr ""
+"Une demande est déjà en cours. Une demande faite avec %(email)s attend déjà "
+"une réponse de B.A.D.R. Vous n’avez rien d’autre à faire : nous vous "
+"écrirons par courriel."

@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import type { Category } from "../../../features/categories/api";
 import { useFieldWrapper, type BaseFieldProps } from "../../../shared/forms";
 import classes from "./CategoryPicker.module.css";
+import { ProhibitedItemsLink } from "./ProhibitedItemsLink";
 
 export interface CategoryPickerProps extends BaseFieldProps {
   categories: readonly Category[];
@@ -80,9 +81,12 @@ export function CategoryPicker(props: CategoryPickerProps) {
         classNames={{ content: classes.sheet }}
       >
         <Stack gap="md">
-          <Group gap="xs" wrap="nowrap" align="flex-start">
-            <IconAlertTriangle size={18} stroke={2} aria-hidden className={classes.noteIcon} />
-            <Text size="sm">{t("store.newListing.prohibitedNote")}</Text>
+          {/* SET-11 "Category sheet" note: 12/16 gray text, 16 px icon, 6 px gap. */}
+          <Group gap={6} wrap="nowrap" align="flex-start">
+            <IconAlertTriangle size={16} stroke={2} aria-hidden className={classes.noteIcon} />
+            <Text size="xs" c="gray.7">
+              {t("store.newListing.prohibitedNote")} <ProhibitedItemsLink short />
+            </Text>
           </Group>
           {groups.map((group) => (
             <Radio.Group
