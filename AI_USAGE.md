@@ -475,8 +475,12 @@ At least half of the AI-assisted features need an example here. For each one:
   - Re-running import-linter on its own found the new test importing the rule defaults (`rules.domain.schemas`), which the module contract forbids; a narrow, test-only exception was added, following the existing listings test exception.
   - `CategoryForm.tsx` and `categoryForm.ts` differed only in letter case, which Windows treats as the same file; the dialog was renamed `CategoryDialog.tsx`, following the team's `NewListing.tsx` / `newListingForm.ts` pattern.
   - The admin calls live in a new `adminApi.ts` so that `api.ts`, also changed by US-34 (#624), is untouched.
+  - CodeRabbit's review of #649 found four issues, each checked against the code and fixed in its own commit with a regression test that fails without the fix:
+    - The edit form sends the default value on every save, so the service checked it even when it had not changed; renaming an older category after the value limit was lowered was refused (and failed with 503 without the listing rules). This contradicted the decision above; the value is now checked only when it changes.
+    - Two admins adding the same code at the same moment got a 500 from the database's unique rule; `create_category` now returns "This category code already exists" for that case only and lets other database errors through. (Found first in our final read-through and listed as a follow-up.)
+    - Every Reactivate button showed as loading while one category was being reactivated; only that row's button does now. (Also listed as a follow-up.)
+    - The category rules had no `BR-` IDs, which review rule 6 requires in tests; BR-CAT-001 to BR-CAT-003 were added to `docs/02-requirements/business-rules.md` for the reviewers to confirm, and the tests name them.
+  - Two CodeRabbit checks were answered without changes: categories are shared reference data, so there is no per-category ownership beyond the admin role; and the lower bound `0` is "no negative value", not a setting (the listings rule uses the same `0`).
+  - While checking the fixes, we found that the `frontend` Docker container keeps the code copied at build time, so frontend checks run with `docker compose exec frontend` used stale files. The frontend checks were re-run in a container with the working folder mounted: 359 tests pass at 93% coverage (categories feature 94%). Backend after the fixes: 727 tests pass at 93% coverage.
 - **Remaining:**
-  - Two small issues found in the final read-through, to fix in a follow-up:
-    - If two admins add the same code at the same moment, the second gets a server error (500) from the database's unique rule instead of "This category code already exists".
-    - While one category is being reactivated, every Reactivate button shows as loading.
   - Peer review and CI.
