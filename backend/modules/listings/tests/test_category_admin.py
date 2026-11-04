@@ -32,6 +32,7 @@ def _admin_client() -> APIClient:
     return client
 
 
+# rule: BR-CAT-003
 def test_a_category_in_use_is_deactivated_not_deleted() -> None:
     listing = cast(Listing, ListingFactory())
     category = listing.category
@@ -51,6 +52,7 @@ def test_a_category_in_use_is_deactivated_not_deleted() -> None:
     assert category.code not in [item["code"] for item in public]
 
 
+# rule: BR-CAT-003
 def test_posting_with_a_deactivated_category_is_refused(
     posting_case: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:

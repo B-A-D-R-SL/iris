@@ -144,6 +144,7 @@ def test_invalid_fields_are_refused(
     assert not Category.objects.filter(code=NEW["code"]).exists()
 
 
+# rule: BR-CAT-001
 def test_default_value_follows_the_listing_value_limit(admin: Any, rules: None) -> None:
     at_limit = _client(admin).post(
         LIST, {**NEW, "default_value_cents": MAX_CENTS}, format="json"
@@ -159,6 +160,7 @@ def test_default_value_follows_the_listing_value_limit(admin: Any, rules: None) 
     assert "default_value_cents" in over.data["fields"]
 
 
+# rule: BR-CAT-001
 def test_unchanged_value_is_not_checked_against_a_lower_limit(admin: Any) -> None:
     CategoryFactory(code="pet_food", default_value_cents=50_000)
     lower = deepcopy(DEFAULT_RULE_VALUES["listing_posting"])
@@ -185,6 +187,7 @@ def test_unchanged_value_is_not_checked_against_a_lower_limit(admin: Any) -> Non
     assert "default_value_cents" in changed.data["fields"]
 
 
+# rule: BR-CAT-001
 def test_renaming_with_the_same_value_does_not_need_the_rules(admin: Any) -> None:
     CategoryFactory(code="pet_food", default_value_cents=600)
 
@@ -197,6 +200,7 @@ def test_renaming_with_the_same_value_does_not_need_the_rules(admin: Any) -> Non
     assert response.status_code == 200, response.data
 
 
+# rule: BR-CAT-002
 def test_a_duplicate_code_is_refused(admin: Any, rules: None) -> None:
     CategoryFactory(code="pet_food")
 
@@ -206,6 +210,7 @@ def test_a_duplicate_code_is_refused(admin: Any, rules: None) -> None:
     assert response.data["fields"]["code"] == ["Ce code de catégorie existe déjà."]
 
 
+# rule: BR-CAT-002
 def test_a_duplicate_code_added_at_the_same_moment_is_refused(
     admin: Any, rules: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -228,6 +233,7 @@ def test_a_duplicate_code_added_at_the_same_moment_is_refused(
     assert response.data["fields"]["code"] == ["Ce code de catégorie existe déjà."]
 
 
+# rule: BR-CAT-002
 def test_the_code_cannot_change(admin: Any) -> None:
     CategoryFactory(code="pet_food")
 
@@ -271,6 +277,7 @@ def test_saving_needs_the_listing_rules(admin: Any) -> None:
 # ---------------------------------------------------------------- AC2: deactivate, never delete
 
 
+# rule: BR-CAT-003
 def test_there_is_no_delete(admin: Any) -> None:
     CategoryFactory(code="bakery")
 
@@ -280,6 +287,7 @@ def test_there_is_no_delete(admin: Any) -> None:
     assert Category.objects.filter(code="bakery").exists()
 
 
+# rule: BR-CAT-003
 def test_deactivated_category_is_hidden_from_the_public_list(admin: Any) -> None:
     CategoryFactory(code="bakery")
 
@@ -345,6 +353,7 @@ def test_inactive_admin_is_refused(rules: None) -> None:
 # ---------------------------------------------------------------- pure rule
 
 
+# rule: BR-CAT-001
 @pytest.mark.parametrize(
     ("value", "ok"),
     [(0, True), (500, True), (100_000, True), (100_001, False), (-1, False)],
