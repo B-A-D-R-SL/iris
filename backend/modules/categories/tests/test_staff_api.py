@@ -158,6 +158,44 @@ def test_default_value_follows_the_listing_value_limit(admin: Any, rules: None) 
     assert "default_value_cents" in over.data["fields"]
 
 
+def test_unchanged_value_is_not_checked_against_a_lower_limit(admin: Any) -> None:
+    CategoryFactory(code="pet_food", default_value_cents=50_000)
+    lower = deepcopy(DEFAULT_RULE_VALUES["listing_posting"])
+    lower["estimated_value_max_cents"] = 10_000
+    publish(
+        "listing_posting",
+        lower,
+        admin,
+        effective_from=timezone.now() - timedelta(days=1),
+    )
+
+    same = _client(admin).patch(
+        _detail("pet_food"),
+        {"name_en": "Pet supplies", "default_value_cents": 50_000},
+        format="json",
+    )
+    changed = _client(admin).patch(
+        _detail("pet_food"), {"default_value_cents": 40_000}, format="json"
+    )
+
+    assert same.status_code == 200, same.data
+    assert Category.objects.get(code="pet_food").name_en == "Pet supplies"
+    assert changed.status_code == 400
+    assert "default_value_cents" in changed.data["fields"]
+
+
+def test_renaming_with_the_same_value_does_not_need_the_rules(admin: Any) -> None:
+    CategoryFactory(code="pet_food", default_value_cents=600)
+
+    response = _client(admin).patch(
+        _detail("pet_food"),
+        {"name_en": "Pet supplies", "default_value_cents": 600},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.data
+
+
 def test_a_duplicate_code_is_refused(admin: Any, rules: None) -> None:
     CategoryFactory(code="pet_food")
 

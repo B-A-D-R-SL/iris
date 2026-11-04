@@ -80,9 +80,12 @@ def update_category(
     if "code" in values:
         raise ValidationError({"code": _("A category code cannot be changed.")})
     category = Category.objects.select_for_update().get(code=code)
+    previous_value = category.default_value_cents
     for field in EDITABLE_FIELDS & values.keys():
         setattr(category, field, values[field])
-    if "default_value_cents" in values:
+    # The screen sends the value on every edit; check it only when it changes,
+    # so a later, lower limit does not block renaming an older category.
+    if category.default_value_cents != previous_value:
         _check_default_value(category.default_value_cents)
     return save_category(category)
 
