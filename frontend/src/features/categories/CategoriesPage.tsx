@@ -193,7 +193,10 @@ export function CategoriesPage() {
                           size="sm"
                           variant="outline"
                           aria-label={t(`${adminKey}.reactivateName`, { name: nameOf(category) })}
-                          loading={activeMutation.isPending}
+                          loading={
+                            activeMutation.isPending &&
+                            activeMutation.variables?.category.code === category.code
+                          }
                           onClick={() => {
                             setOutcome(null);
                             activeMutation.mutate({ category, active: true });

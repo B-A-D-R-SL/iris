@@ -261,6 +261,32 @@ describe("CategoriesPage", () => {
     expect(request.body).toEqual({ is_active: true });
   });
 
+  it("shows the loading state only on the category being reactivated", async () => {
+    const toys: StaffCategory = {
+      ...school,
+      code: "toys",
+      name_fr: "Jouets",
+      name_en: "Toys",
+    };
+    let finish: () => void = () => {};
+    const fetchMock = mockApi({ list: () => Response.json([bakery, school, toys]) });
+    const respond = fetchMock.getMockImplementation();
+    fetchMock.mockImplementation(async (input, init) => {
+      if (init?.method !== "PATCH") return respond!(input, init);
+      await new Promise<void>((resolve) => (finish = resolve));
+      return Response.json({ ...school, is_active: true });
+    });
+    renderWithProviders(<CategoriesPage />);
+    await screen.findByText("Jouets");
+
+    await userEvent.click(button("Réactiver Fournitures scolaires"));
+
+    await waitFor(() => expect(button("Réactiver Fournitures scolaires")).toBeDisabled());
+    expect(button("Réactiver Jouets")).toBeEnabled();
+    await act(async () => finish());
+    expect(await screen.findByText("Fournitures scolaires est de nouveau active.")).toBeVisible();
+  });
+
   it("explains when the server cannot be reached", async () => {
     const fetchMock = mockApi();
     renderWithProviders(<CategoriesPage />);
