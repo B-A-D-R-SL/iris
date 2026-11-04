@@ -79,8 +79,11 @@ class PullRequest:
 
 
 def visible(body: str | None) -> str:
-    """The description without HTML comments, which GitHub does not render."""
-    return COMMENT.sub("", body or "")
+    """The description without HTML comments, with \\n line endings.
+
+    Descriptions edited in GitHub's web page use \\r\\n, which line-anchored patterns miss.
+    """
+    return COMMENT.sub("", (body or "").replace("\r\n", "\n"))
 
 
 def is_source(path: str) -> bool:
@@ -385,9 +388,14 @@ def main(argv: list[str] | None = None) -> int:
         KeyError,
         ValueError,
     ) as exc:  # URLError is an OSError
+        # The annotation stays generic; the log gets the exception class, never its message.
+        print(
+            f"pr_policy: {type(exc).__name__} while reading the pull request",
+            file=sys.stderr,
+        )
         print(
             annotation(
-                f"Could not read pull request #{args.pr} from GitHub ({type(exc).__name__}: {exc}). Re-run the check."
+                f"Could not read pull request #{args.pr} from GitHub. Re-run the check."
             )
         )
         return 2

@@ -159,6 +159,18 @@ class AiDeclarationTests(unittest.TestCase):
         body = "Closes #648\n\n**AI contribution:** 50% or more AI-generated\n\n- backend/modules/listings/services.py\n"
         self.assertEqual(pr_policy.check_ai(make_pr(body=body)), [])
 
+    def test_body_edited_in_the_web_page_with_crlf_passes(self):
+        body = (
+            "Closes #648\r\n\r\n## AI contribution\r\nLevel: 50% or more AI-generated\r\n\r\n"
+            "AI-assisted files:\r\n- backend/modules/listings/services.py\r\n\r\n"
+            "## How it was tested\r\nNo tests: settings only\r\n"
+        )
+        files = [
+            ChangedFile("backend/modules/listings/services.py", "modified", HEADER)
+        ]
+        self.assertEqual(pr_policy.check_ai(make_pr(body=body, files=files)), [])
+        self.assertEqual(pr_policy.check_tests(make_pr(body=body, files=files)), [])
+
     def test_level_inside_a_comment_does_not_count(self):
         body = "## AI contribution\n<!--\n50% or more AI-generated\n-->\nLevel:\n"
         self.assertIn("Found 0", pr_policy.check_ai(make_pr(body=body))[0])
@@ -365,7 +377,15 @@ class MainTests(unittest.TestCase):
                 "::error title=PR policy::Could not read pull request #7"
             )
         )
-        self.assertIn("OSError: certificate verify failed", message)
+        self.assertEqual(
+            message,
+            "::error title=PR policy::Could not read pull request #7 from GitHub. "
+            "Re-run the check.",
+        )
+        self.assertNotIn("certificate", message)
+        diagnostic = printed.call_args_list[0].args[0]
+        self.assertIn("OSError", diagnostic)
+        self.assertNotIn("certificate", diagnostic)
 
     def test_missing_token_is_a_configuration_error(self):
         with (

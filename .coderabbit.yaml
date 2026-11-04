@@ -63,7 +63,9 @@ reviews:
         instructions: |
           For every new or changed API endpoint, check that it enforces both role and
           ownership (object-level, not just "logged in"), and that test_api.py tests
-          allowed and refused access for each role.
+          allowed and refused access for each role. An endpoint that is public by design
+          (for example /api/health/ or the public categories list) passes only when its view
+          says so explicitly (AllowAny or a plain Django view) with a comment giving the reason.
       - name: "RuleSet values"            # rule 2
         mode: "warning"
         instructions: |
@@ -114,7 +116,8 @@ reviews:
         instructions: |
           Fail if the PR adds: a TODO or FIXME for functionality its linked issue requires; a
           NotImplementedError, an empty function or a placeholder return value standing in
-          for required behaviour; a source file holding only a docstring or comments; a
+          for required behaviour; a source file holding only a docstring or comments (package
+          markers such as __init__.py, which hold only their AI contribution line, are fine); a
           commented-out block of 5 or more lines of code; or a function, component or file
           that nothing in the repository uses.
       - name: "Errors and logging"        # rubric 4
