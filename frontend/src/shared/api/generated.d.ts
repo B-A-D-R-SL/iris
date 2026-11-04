@@ -139,6 +139,14 @@ export interface components {
       /** Format: uuid */
       store: string | null;
     };
+    /**
+     * @description * `daily` - Chaque jour
+     * * `weekly` - Chaque semaine
+     * * `monthly` - Chaque mois
+     * * `occasional` - À l’occasion
+     * @enum {string}
+     */
+    ExpectedFrequencyEnum: "daily" | "weekly" | "monthly" | "occasional";
     HolderInput: {
       /** Format: date */
       date_of_birth: string;
@@ -149,14 +157,6 @@ export interface components {
       /** @default fr */
       preferred_language?: components["schemas"]["LanguageEnum"];
     };
-    /**
-     * @description * `daily` - Chaque jour
-     * * `weekly` - Chaque semaine
-     * * `monthly` - Chaque mois
-     * * `occasional` - À l’occasion
-     * @enum {string}
-     */
-    ExpectedFrequencyEnum: "daily" | "weekly" | "monthly" | "occasional";
     /**
      * @description * `fr` - Français
      * * `en` - English
