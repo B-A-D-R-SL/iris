@@ -11,6 +11,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from modules.accounts.tests.factories import UserFactory
+from modules.categories import services
 from modules.categories.domain.rules import (
     DefaultValueOutOfRange,
     validate_default_value,
@@ -198,6 +199,28 @@ def test_renaming_with_the_same_value_does_not_need_the_rules(admin: Any) -> Non
 
 def test_a_duplicate_code_is_refused(admin: Any, rules: None) -> None:
     CategoryFactory(code="pet_food")
+
+    response = _client(admin).post(LIST, NEW, format="json")
+
+    assert response.status_code == 400
+    assert response.data["fields"]["code"] == ["Ce code de catégorie existe déjà."]
+
+
+def test_a_duplicate_code_added_at_the_same_moment_is_refused(
+    admin: Any, rules: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Another admin saves the same code after our checks, just before our insert."""
+    check_value = services._check_default_value
+
+    def check_then_other_admin_saves(value_cents: int) -> None:
+        check_value(value_cents)
+        Category.objects.create(
+            code="pet_food", name_fr="Autre", name_en="Other", default_value_cents=100
+        )
+
+    monkeypatch.setattr(services, "_check_default_value", check_then_other_admin_saves)
+    # Our model check ran before the other save, so only the database rule is left.
+    monkeypatch.setattr(Category, "validate_unique", lambda self, exclude=None: None)
 
     response = _client(admin).post(LIST, NEW, format="json")
 

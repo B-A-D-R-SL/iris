@@ -7,7 +7,7 @@ from uuid import UUID
 
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils.translation import gettext_lazy as _
 
 from modules.categories.domain.rules import (
@@ -58,13 +58,21 @@ def create_category(values: Mapping[str, Any], admin: AbstractBaseUser) -> Categ
     """Add a category (US-35). New categories are active unless stated otherwise."""
     _require_admin(admin)
     code = values["code"]
+    duplicate = ValidationError({"code": _("This category code already exists.")})
     if Category.objects.filter(code=code).exists():
-        raise ValidationError({"code": _("This category code already exists.")})
+        raise duplicate
     _check_default_value(values["default_value_cents"])
     category = Category(
         code=code, **{field: values[field] for field in EDITABLE_FIELDS & values.keys()}
     )
-    return save_category(category)
+    try:
+        return save_category(category)
+    except IntegrityError:
+        # Another admin added the same code at the same moment. save_category's
+        # savepoint has rolled back, so the check can run; other errors still raise.
+        if Category.objects.filter(code=code).exists():
+            raise duplicate from None
+        raise
 
 
 @transaction.atomic
