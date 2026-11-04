@@ -18,6 +18,13 @@ export interface paths {
   "/api/me/": {
     get: operations["me_retrieve"];
   };
+  "/api/partner-applications/": {
+    /**
+     * Apply to become a partner store
+     * @description Public form, no account needed. Limited to 5 requests per hour per IP address. The contact receives a confirmation email.
+     */
+    post: operations["partner_applications_create"];
+  };
   "/api/schema/": {
     /**
      * @description OpenApi3 schema for this API. Format can be selected via content negotiation.
@@ -26,6 +33,10 @@ export interface paths {
      * - JSON: application/vnd.oai.openapi+json
      */
     get: operations["schema_retrieve"];
+  };
+  "/api/staff/audit/": {
+    /** Search audit events (admin only) */
+    get: operations["staff_audit_list"];
   };
   "/api/staff/categories/": {
     /** List every category, active or not (admin) */
@@ -37,9 +48,26 @@ export interface paths {
     /** Rename, change, deactivate or reactivate a category (admin) */
     patch: operations["staff_categories_update"];
   };
+  "/api/staff/households/": {
+    /** Create a resumable walk-in household draft */
+    post: operations["staff_households_create"];
+  };
+  "/api/staff/households/{id}/": {
+    /** Resume an existing walk-in household draft */
+    get: operations["staff_households_retrieve"];
+    /** Edit an existing walk-in household draft */
+    patch: operations["staff_households_partial_update"];
+  };
   "/api/store/listings/": {
     /** Post a listing for the signed-in user's active store */
     post: operations["store_listings_create"];
+  };
+  "/api/store/listings/categories/": {
+    /**
+     * List the categories the signed-in store can post in
+     * @description Categories for the posting form; banned ones (US-34) are left out.
+     */
+    get: operations["store_listings_categories_list"];
   };
 }
 
@@ -47,6 +75,57 @@ export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
+    /**
+     * @description * `view` - View
+     * * `decision` - Decision
+     * @enum {string}
+     */
+    ActionEnum: "view" | "decision";
+    AddressInput: {
+      city: string;
+      postal_code: string;
+      /** @default QC */
+      province?: components["schemas"]["ProvinceEnum"];
+      street_name: string;
+      street_number: string;
+      unit?: string | null;
+    };
+    AuditEvent: {
+      action: components["schemas"]["ActionEnum"];
+      /** Format: uuid */
+      actor: string;
+      actor_role: string;
+      /** Format: date-time */
+      created_at: string;
+      id: number;
+      metadata: unknown;
+      target_id: string;
+      target_type: string;
+    };
+    /**
+     * @description * `grocery` - Épicerie
+     * * `supermarket` - Supermarché
+     * * `bakery` - Boulangerie
+     * * `restaurant` - Restaurant
+     * * `cafe` - Café
+     * * `convenience_store` - Dépanneur
+     * * `pharmacy` - Pharmacie
+     * * `farm_producer` - Ferme ou producteur
+     * * `community_organization` - Organisme communautaire
+     * * `other` - Autre
+     * @enum {string}
+     */
+    BusinessTypeEnum:
+      | "grocery"
+      | "supermarket"
+      | "bakery"
+      | "restaurant"
+      | "cafe"
+      | "convenience_store"
+      | "pharmacy"
+      | "farm_producer"
+      | "community_organization"
+      | "other";
     /** @description Expose public category fields without internal database IDs. */
     Category: {
       code: string;
@@ -63,6 +142,12 @@ export interface components {
       };
       message: string;
     };
+    /**
+     * @description * `online` - En ligne
+     * * `walk_in` - Inscription en personne
+     * @enum {string}
+     */
+    ChannelEnum: "online" | "walk_in";
     CurrentUser: {
       /** Format: uuid */
       id: string;
@@ -73,11 +158,87 @@ export interface components {
       store: string | null;
     };
     /**
+     * @description * `daily` - Chaque jour
+     * * `weekly` - Chaque semaine
+     * * `monthly` - Chaque mois
+     * * `occasional` - À l’occasion
+     * @enum {string}
+     */
+    ExpectedFrequencyEnum: "daily" | "weekly" | "monthly" | "occasional";
+    HolderInput: {
+      /** Format: date */
+      date_of_birth: string;
+      email?: string | null;
+      first_name: string;
+      last_name: string;
+      phone: string;
+      /** @default fr */
+      preferred_language?: components["schemas"]["LanguageEnum"];
+    };
+    /**
      * @description * `fr` - Français
      * * `en` - English
      * @enum {string}
      */
     LanguageEnum: "fr" | "en";
+    MemberInput: {
+      /** Format: date */
+      date_of_birth: string;
+      first_name: string;
+      last_name: string;
+      relation: components["schemas"]["MemberInputRelationEnum"];
+    };
+    /**
+     * @description * `spouse_partner` - spouse_partner
+     * * `child` - child
+     * * `parent` - parent
+     * * `sibling` - sibling
+     * * `grandparent` - grandparent
+     * * `grandchild` - grandchild
+     * * `other_relative` - other_relative
+     * * `other` - other
+     * @enum {string}
+     */
+    MemberInputRelationEnum:
+      | "spouse_partner"
+      | "child"
+      | "parent"
+      | "sibling"
+      | "grandparent"
+      | "grandchild"
+      | "other_relative"
+      | "other";
+    MemberRead: {
+      /** Format: date */
+      date_of_birth: string;
+      first_name: string;
+      /** Format: uuid */
+      id: string;
+      last_name: string;
+      relation: components["schemas"]["MemberReadRelationEnum"];
+    };
+    /**
+     * @description * `holder` - Holder
+     * * `spouse_partner` - Spouse or partner
+     * * `child` - Child
+     * * `parent` - Parent
+     * * `sibling` - Sibling
+     * * `grandparent` - Grandparent
+     * * `grandchild` - Grandchild
+     * * `other_relative` - Other relative
+     * * `other` - Other
+     * @enum {string}
+     */
+    MemberReadRelationEnum:
+      | "holder"
+      | "spouse_partner"
+      | "child"
+      | "parent"
+      | "sibling"
+      | "grandparent"
+      | "grandchild"
+      | "other_relative"
+      | "other";
     NewListing: {
       /** Format: date */
       best_before?: string | null;
@@ -101,6 +262,51 @@ export interface components {
       /** @default item */
       unit?: string;
     };
+    PaginatedAuditEventList: {
+      /** @example 123 */
+      count: number;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=4
+       */
+      next?: string | null;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=2
+       */
+      previous?: string | null;
+      results: components["schemas"]["AuditEvent"][];
+    };
+    /** @description Submitted partner form; field rules from forms-and-fields.md. */
+    PartnerApplication: {
+      business_name: string;
+      business_type: components["schemas"]["BusinessTypeEnum"];
+      city: string;
+      consent_contact: boolean;
+      /** Format: email */
+      contact_email: string;
+      contact_first_name: string;
+      contact_last_name: string;
+      contact_phone: string;
+      contact_role?: string | null;
+      expected_frequency: components["schemas"]["ExpectedFrequencyEnum"];
+      goods_categories: string[];
+      message?: string | null;
+      neq?: string | null;
+      opening_hours: string;
+      postal_code: string;
+      street_name: string;
+      street_number: string;
+      unit?: string | null;
+      website?: string | null;
+    };
+    PartnerApplicationError: {
+      code: string;
+      fields: {
+        [key: string]: string[];
+      };
+      message: string;
+    };
     /**
      * @description Admin view of a category (US-35): all fields, including inactive ones.
      *
@@ -116,6 +322,13 @@ export interface components {
       is_food?: boolean;
       name_en?: string;
       name_fr?: string;
+    };
+    PatchedWalkInDraftInput: {
+      address?: components["schemas"]["AddressInput"];
+      consent_data_processing?: boolean;
+      holder?: components["schemas"]["HolderInput"];
+      identity_checked_in_person?: boolean;
+      members?: components["schemas"]["MemberInput"][];
     };
     PostedListing: {
       /** Format: date */
@@ -137,11 +350,26 @@ export interface components {
       quantity_reserved: number;
       /** Format: date-time */
       safe_confirmed_at: string;
-      status: components["schemas"]["StatusEnum"];
+      status: components["schemas"]["PostedListingStatusEnum"];
       /** Format: uuid */
       store: string;
       title: string;
       unit: components["schemas"]["UnitEnum"];
+    };
+    /**
+     * @description * `published` - Published
+     * * `closed` - Closed
+     * * `cancelled` - Cancelled
+     * @enum {string}
+     */
+    PostedListingStatusEnum: "published" | "closed" | "cancelled";
+    /** @description Same public shape as GET /api/categories/, without database IDs. */
+    PostingCategory: {
+      code: string;
+      default_value_cents: number;
+      is_food: boolean;
+      name_en: string;
+      name_fr: string;
     };
     PostingError: {
       code: string;
@@ -150,6 +378,11 @@ export interface components {
       };
       message: string;
     };
+    /**
+     * @description * `QC` - QC
+     * @enum {string}
+     */
+    ProvinceEnum: "QC";
     /**
      * @description * `beneficiary` - Beneficiary
      * * `store_staff` - Store Staff
@@ -175,13 +408,6 @@ export interface components {
       name_en: string;
       name_fr: string;
     };
-    /**
-     * @description * `published` - Published
-     * * `closed` - Closed
-     * * `cancelled` - Cancelled
-     * @enum {string}
-     */
-    StatusEnum: "published" | "closed" | "cancelled";
     StoreAddress: {
       city: string;
       postal_code: string;
@@ -189,12 +415,77 @@ export interface components {
       street_number: string;
       unit: string | null;
     };
+    /** @description What the applicant gets back; no personal data is echoed. */
+    SubmittedPartnerApplication: {
+      /** Format: date-time */
+      created_at: string;
+      /** Format: uuid */
+      id: string;
+      status: string;
+    };
     /**
      * @description * `item` - Item
      * * `bundle` - Bundle
      * @enum {string}
      */
     UnitEnum: "item" | "bundle";
+    WalkInDraftInput: {
+      address?: components["schemas"]["AddressInput"];
+      consent_data_processing?: boolean;
+      holder?: components["schemas"]["HolderInput"];
+      identity_checked_in_person?: boolean;
+      members?: components["schemas"]["MemberInput"][];
+    };
+    WalkInDraftRead: {
+      channel: components["schemas"]["ChannelEnum"];
+      city: string;
+      /** Format: date-time */
+      consent_data_processing_at: string | null;
+      consent_text_version: string;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: email */
+      created_by_email: string;
+      /** Format: email */
+      email: string | null;
+      /** Format: uuid */
+      id: string;
+      identity_checked_in_person: boolean;
+      members: readonly components["schemas"]["MemberRead"][];
+      phone: string;
+      postal_code: string;
+      preferred_language: components["schemas"]["LanguageEnum"];
+      status: components["schemas"]["WalkInDraftReadStatusEnum"];
+      street_name: string;
+      street_number: string;
+      unit: string;
+      /** Format: date-time */
+      updated_at: string;
+      /** Format: date-time */
+      verified_at: string | null;
+      /** Format: email */
+      verified_by_email: string | null;
+    };
+    /**
+     * @description * `draft` - Brouillon
+     * * `submitted` - Demande soumise
+     * * `review_required` - Review required
+     * * `awaiting_visit` - Awaiting visit
+     * * `approved` - Approuvé
+     * * `renewal_needed` - Renewal needed
+     * * `suspended` - Suspendu
+     * * `rejected` - Refusé
+     * @enum {string}
+     */
+    WalkInDraftReadStatusEnum:
+      | "draft"
+      | "submitted"
+      | "review_required"
+      | "awaiting_visit"
+      | "approved"
+      | "renewal_needed"
+      | "suspended"
+      | "rejected";
   };
   responses: never;
   parameters: never;
@@ -252,6 +543,41 @@ export interface operations {
     };
   };
   /**
+   * Apply to become a partner store
+   * @description Public form, no account needed. Limited to 5 requests per hour per IP address. The contact receives a confirmation email.
+   */
+  partner_applications_create: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PartnerApplication"];
+        "application/x-www-form-urlencoded": components["schemas"]["PartnerApplication"];
+        "multipart/form-data": components["schemas"]["PartnerApplication"];
+      };
+    };
+    responses: {
+      201: {
+        content: {
+          "application/json": components["schemas"]["SubmittedPartnerApplication"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      409: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      429: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+    };
+  };
+  /**
    * @description OpenApi3 schema for this API. Format can be selected via content negotiation.
    *
    * - YAML: application/vnd.oai.openapi
@@ -279,6 +605,32 @@ export interface operations {
           "application/yaml": {
             [key: string]: unknown;
           };
+        };
+      };
+    };
+  };
+  /** Search audit events (admin only) */
+  staff_audit_list: {
+    parameters: {
+      query?: {
+        /** @description Staff user ID */
+        actor?: string;
+        /** @description First Montreal date, inclusive */
+        from?: string;
+        /** @description Household ID */
+        household?: string;
+        /** @description Un numéro de page de l'ensemble des résultats. */
+        page?: number;
+        /** @description Nombre de résultats à retourner par page. */
+        page_size?: number;
+        /** @description Last Montreal date, inclusive */
+        to?: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PaginatedAuditEventList"];
         };
       };
     };
@@ -372,6 +724,60 @@ export interface operations {
       };
     };
   };
+  /** Create a resumable walk-in household draft */
+  staff_households_create: {
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["WalkInDraftInput"];
+        "application/x-www-form-urlencoded": components["schemas"]["WalkInDraftInput"];
+        "multipart/form-data": components["schemas"]["WalkInDraftInput"];
+      };
+    };
+    responses: {
+      201: {
+        content: {
+          "application/json": components["schemas"]["WalkInDraftRead"];
+        };
+      };
+    };
+  };
+  /** Resume an existing walk-in household draft */
+  staff_households_retrieve: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["WalkInDraftRead"];
+        };
+      };
+    };
+  };
+  /** Edit an existing walk-in household draft */
+  staff_households_partial_update: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["PatchedWalkInDraftInput"];
+        "application/x-www-form-urlencoded": components["schemas"]["PatchedWalkInDraftInput"];
+        "multipart/form-data": components["schemas"]["PatchedWalkInDraftInput"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["WalkInDraftRead"];
+        };
+      };
+    };
+  };
   /** Post a listing for the signed-in user's active store */
   store_listings_create: {
     requestBody: {
@@ -390,6 +796,29 @@ export interface operations {
       400: {
         content: {
           "application/json": components["schemas"]["PostingError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["PostingError"];
+        };
+      };
+      503: {
+        content: {
+          "application/json": components["schemas"]["PostingError"];
+        };
+      };
+    };
+  };
+  /**
+   * List the categories the signed-in store can post in
+   * @description Categories for the posting form; banned ones (US-34) are left out.
+   */
+  store_listings_categories_list: {
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PostingCategory"][];
         };
       };
       403: {

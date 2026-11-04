@@ -40,7 +40,7 @@ RESERVATION_STATUS_COUNTS = {
     "cancelled_by_store": 4,
     "no_show": 4,
 }
-WALK_IN = "walk-in"
+WALK_IN = "walk_in"  # Household.Channel.WALK_IN (US-17 model, #461)
 ONLINE = "online"
 
 

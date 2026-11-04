@@ -8,6 +8,9 @@ import { Navigate, Route, Routes } from "react-router";
 
 import { WelcomePage } from "../areas/public/WelcomePage";
 import { SignIn } from "../areas/public/pages/SignIn";
+import { PartnerApply } from "../areas/public/pages/PartnerApply";
+import { Audit } from "../areas/staff/pages/Audit";
+import { WalkIn } from "../areas/staff/pages/WalkIn/WalkIn";
 import { NewListing } from "../areas/store/pages/NewListing";
 import { MobileAreaLayout } from "./layouts/MobileAreaLayout";
 import { PublicLayout } from "./layouts/PublicLayout";
@@ -32,10 +35,7 @@ export default function App() {
           path="sign-up"
           element={<PlaceholderScreen titleKey="auth.common.createAccount" />}
         />
-        <Route
-          path="partner/apply"
-          element={<PlaceholderScreen titleKey="store.partnerApplication.becomePartner" />}
-        />
+        <Route path="partner/apply" element={<PartnerApply />} />
         <Route
           path="privacy"
           element={<PlaceholderScreen titleKey="privacy.common.privacyPolicy" />}
@@ -95,10 +95,8 @@ export default function App() {
             path="staff/households"
             element={<PlaceholderScreen titleKey="app.staffNav.households" />}
           />
-          <Route
-            path="staff/walk-in"
-            element={<PlaceholderScreen titleKey="app.staffNav.walkIn" />}
-          />
+          <Route path="staff/walk-in" element={<WalkIn />} />
+          <Route path="staff/walk-in/:id" element={<WalkIn />} />
           <Route element={<RequireRole roles={["admin"]} />}>
             <Route
               path="staff/review"
@@ -113,10 +111,7 @@ export default function App() {
               element={<PlaceholderScreen titleKey="app.staffNav.stores" />}
             />
             <Route path="staff/categories" element={<CategoriesPage />} />
-            <Route
-              path="staff/audit"
-              element={<PlaceholderScreen titleKey="app.staffNav.auditLog" />}
-            />
+            <Route path="staff/audit" element={<Audit />} />
           </Route>
         </Route>
       </Route>

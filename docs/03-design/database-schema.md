@@ -111,6 +111,7 @@ An approved partner store, including the B.A.D.R. store.
 | pickup_instructions | string | — | Instructions for collecting goods. |
 | is_badr | boolean | — | Identifies the B.A.D.R. store. |
 | is_active | boolean | — | Whether the store is active. |
+| application | reference | FK, UK | Nullable one-to-one to the PartnerApplication that created the store (column `application_id`). Set by the US-13 approval; null for B.A.D.R. and manually created stores. PROTECT. |
 | created_at | datetime | — | Store creation time. |
 
 **Documented constraints and business rules**
@@ -132,44 +133,43 @@ Sources: [Issue #439](https://github.com/B-A-D-R-SL/iris/issues/439), [Issue #45
 
 **Owner module:** `stores`.
 
-A business request to become a partner; no account or store is created at submission.
+A business request to become a partner; no account or store is created at submission. Implemented by US-12 (#445) as table `stores_partnerapplication`. Field names and rules follow the [partner application form](../02-requirements/forms-and-fields.md#partner-application-form).
 
-| Field | Logical type | Key | Details |
+| Field | Type | Null | Details |
 | --- | --- | --- | --- |
-| business_name | string | — | Business name. |
-| business_type | string | — | Business type. |
-| quebec_enterprise_number | string | — | Optional Quebec enterprise number. |
-| contact_first_name | string | — | Contact first name. |
-| contact_last_name | string | — | Contact last name. |
-| contact_role | string | — | Optional contact role. |
-| contact_email | string | — | Contact email. |
-| contact_phone | string | — | Contact phone number. |
-| website | string | — | Optional website. |
-| message | string | — | Optional additional information. |
-| contact_consent | boolean | — | Consent to be contacted. |
-| status | string | — | submitted, approved, or rejected. |
-| decision_reason | string | — | Decision explanation; required for rejection. |
-| decided_by | reference | — | Administrator who decided the application. |
-| decided_at | datetime | — | Decision time. |
+| id | uuid | No | Primary key. |
+| business_name | varchar(150) | No | 2 to 150 characters. |
+| business_type | text choice | No | `grocery`, `supermarket`, `bakery`, `restaurant`, `cafe`, `convenience_store`, `pharmacy`, `farm_producer`, `community_organization`, `other`. |
+| neq | varchar(10) | Yes | Quebec enterprise number, exactly 10 digits. |
+| street_number, street_name, unit, city, postal_code | as Store | `unit` only | Business address; postal code stored as `A1A 1A1`. |
+| contact_first_name, contact_last_name | varchar(100) | No | Letters, spaces, apostrophes, hyphens. |
+| contact_role | varchar(100) | Yes | Optional role. |
+| contact_email | citext | No | Lowercase; becomes the store manager's sign-in after approval. |
+| contact_phone | varchar(16) | No | Canadian number in E.164, for example `+15145550123`. |
+| website | varchar(200) | Yes | `https://` added if missing. |
+| goods_categories | text[] | No | Stable category codes; at least one, each active at submission. |
+| expected_frequency | text choice | No | `daily`, `weekly`, `monthly`, `occasional`. |
+| opening_hours | varchar(300) | No | Free text, for example "lun-ven 9 h-18 h". |
+| message | varchar(1000) | Yes | Optional additional information. |
+| consent_contact | boolean | No | Consent to be contacted; must be true (Law 25 record, with `created_at`). |
+| language | text choice | No | `fr` (default) or `en`; language of the emails to the contact, who has no account. |
+| status | text choice | No | `submitted` (default), `approved`, `rejected`. |
+| decision_reason | varchar(500) | Yes | Required when rejected. |
+| decided_by | uuid FK accounts_user | Yes | Administrator who decided (US-13). PROTECT. |
+| decided_at | timestamptz | Yes | Decision time (US-13). |
+| created_at | timestamptz | No | Submission time. |
 
-**Confirmed information requirements**
-
-These documented workflow inputs are retained as requirements. They are separate from the field definitions shown in the ERD.
-
-| Information | Requirement |
-| --- | --- |
-| Business address | The application collects the business address. |
-| Goods categories | The applicant selects at least one goods category. |
-| Expected donation frequency | The application collects the expected donation frequency. |
-| Opening hours | The application collects business operating hours. |
-
-**Documented constraints and business rules**
+**Constraints and indexes**
 
 | Rule | Enforcement |
 | --- | --- |
-| Prevent another open application with the same contact email. | Application validation. |
-| Select at least one goods category; rejection requires a reason. | Application validation. |
-| Approval creates a Store and Invitation, updates application status, and records audit atomically. Email follows commit. | Approval transaction and background notification. |
+| At most one `submitted` application per contact email, ignoring case. | Partial unique index `stores_application_one_open_per_email` on citext `contact_email` where `status = 'submitted'`; the service checks first for a friendly message. |
+| Consent given. | CHECK `stores_application_consent_given`. |
+| At least one goods category. | CHECK `stores_application_has_category`; active codes checked by the service. |
+| Rejection requires a reason. | CHECK `stores_application_rejection_has_reason`. |
+| Choice values valid. | CHECKs on `status`, `business_type`, `expected_frequency`, `language`. |
+| Review list by status, oldest first (US-13). | Index `stores_application_status_idx` on (`status`, `created_at`). |
+| Approval creates a Store and Invitation, updates application status, and records audit atomically. Email follows commit. | Approval transaction and background notification (US-13). |
 
 Sources: [Issue #443](https://github.com/B-A-D-R-SL/iris/issues/443), [Issue #445](https://github.com/B-A-D-R-SL/iris/issues/445), [Issue #447](https://github.com/B-A-D-R-SL/iris/issues/447).
 
@@ -179,10 +179,17 @@ Sources: [Issue #443](https://github.com/B-A-D-R-SL/iris/issues/443), [Issue #44
 
 A household registration and approval file.
 
+Migration history: the SET-18 seed (#617) created the first table (`0001_initial`); US-17 (#461) migrates it forward (`0002_walk_in_registration`: walk-in fields, `Member`, `HouseholdDraftEvent`, seeded rows converted; `0003_household_consent`: consent fields), as decided on #461.
+
 | Field | Logical type | Key | Details |
 | --- | --- | --- | --- |
+| holder | reference | Foreign key, unique | Holder's user account; empty for walk-ins without online access. |
+| member_number | string | Unique | Optional short file number. |
 | channel | string | — | Registration channel: walk-in or online. |
 | status | string | — | Household file status. |
+| status_reason | string | — | Optional reason for the current status. |
+| email | string | — | Optional holder email; without it a walk-in is served only at the counter. |
+| preferred_language | string | — | `fr` or `en`; used for emails. |
 | street_number | string | — | Civic number. |
 | street_name | string | — | Street name. |
 | unit | string | — | Optional apartment or unit. |
@@ -190,12 +197,19 @@ A household registration and approval file.
 | postal_code | string | — | Validated, normalized Canadian postal code. |
 | address_key | string | — | Normalized address, including unit, used to find possible duplicates. |
 | phone | string | — | Household contact phone. |
+| alternate_name, alternate_phone, alternate_email | string | — | Optional alternate for pickups. |
+| identity_checked_in_person | boolean | — | Staff checked photo ID in person; nothing about the ID is stored. |
+| consent_data_processing_at | datetime | — | When the person agreed to data processing (walk-in: notice read aloud); empty until given. |
+| consent_text_version | string | — | Version of the consent text that was read, for example `2026-11-v1`. US-20 may move consents to a separate record later. |
 | created_by | reference | — | Person who created the household file. |
 | created_at | datetime | — | Household file creation time. |
-| verified_by | reference | — | Person who verified the household file. |
-| verified_at | datetime | — | Verification time. |
+| updated_at | datetime | — | Last change to the file. |
+| verified_by | reference | — | Staff member who checked the identity. |
+| verified_at | datetime | — | Identity check time. |
+| submitted_at | datetime | — | Submission time. |
 | approved_at | datetime | — | Approval time. |
 | expires_at | datetime | — | Approval expiration time. |
+| anonymized_at | datetime | — | Time personal data was removed. |
 
 **Confirmed information requirements**
 
@@ -213,7 +227,7 @@ These documented workflow inputs are retained as requirements. They are separate
 | Possible duplicate addresses or people trigger review. | Duplicate detection service. |
 | Approval lasts twelve months; suspended or expired households cannot reserve. | Approval and reservation services. |
 
-Sources: [Issue #461](https://github.com/B-A-D-R-SL/iris/issues/461), [Issue #463](https://github.com/B-A-D-R-SL/iris/issues/463), [Issue #469](https://github.com/B-A-D-R-SL/iris/issues/469), [Issue #477](https://github.com/B-A-D-R-SL/iris/issues/477).
+Sources: [Issue #461](https://github.com/B-A-D-R-SL/iris/issues/461), [Issue #463](https://github.com/B-A-D-R-SL/iris/issues/463), [PR #617](https://github.com/B-A-D-R-SL/iris/pull/617), [Issue #469](https://github.com/B-A-D-R-SL/iris/issues/469), [Issue #477](https://github.com/B-A-D-R-SL/iris/issues/477).
 
 ### Member
 
@@ -229,6 +243,8 @@ A person belonging to a household.
 | date_of_birth | date | — | Used to determine age. |
 | relation | string | — | Relationship within the household. |
 | person_key | string | — | Normalized person identity used to find possible duplicates. |
+| created_at | datetime | — | When the member was added. |
+| updated_at | datetime | — | Last change to the member. |
 
 **Documented constraints and business rules**
 
@@ -238,6 +254,28 @@ A person belonging to a household.
 | A matching person in another active file triggers review. | Duplicate detection service. |
 
 Source: [Issue #463](https://github.com/B-A-D-R-SL/iris/issues/463).
+
+### HouseholdDraftEvent
+
+**Owner module:** `households`.
+
+A write-once record of who created or edited a walk-in draft. It is temporary: it will be replaced by the central audit log once US-62 supports household events.
+
+| Field | Logical type | Key | Details |
+| --- | --- | --- | --- |
+| household | reference | Foreign key | Draft that was created or edited. |
+| actor | reference | Foreign key | Staff member who acted. |
+| actor_role | string | — | Their role at that moment. |
+| action | string | — | `created` or `updated`. |
+| created_at | datetime | — | When it happened. |
+
+**Documented constraints and business rules**
+
+| Rule | Enforcement |
+| --- | --- |
+| No names, dates of birth, phone numbers, addresses or emails in the event. | `households` services. |
+
+Sources: [Issue #463](https://github.com/B-A-D-R-SL/iris/issues/463), [Issue #464](https://github.com/B-A-D-R-SL/iris/issues/464), [Issue #547](https://github.com/B-A-D-R-SL/iris/issues/547).
 
 ### IncomeNotice
 
@@ -508,7 +546,9 @@ The field tables and diagram contain the same fields, logical types, key labels,
 erDiagram
     Store o|--o{ User : "required for store roles"
     Store o|--o{ Invitation : "optional store assignment"
+    PartnerApplication |o--o| Store : "approval creates"
     Household ||--o{ Member : "contains"
+    Household ||--o{ HouseholdDraftEvent : "draft history"
     Member ||--o{ IncomeNotice : "provides"
     Household ||--o{ EligibilityDecision : "has decisions"
     RuleSetVersion ||--o{ EligibilityDecision : "used by"
@@ -556,21 +596,31 @@ erDiagram
         string pickup_instructions "Instructions for collecting goods."
         boolean is_badr "Identifies the B.A.D.R. store."
         boolean is_active "Whether the store is active."
+        reference application "Optional one-to-one: application that created the store."
         datetime created_at "Store creation time."
     }
 
     PartnerApplication {
         string business_name "Business name."
         string business_type "Business type."
-        string quebec_enterprise_number "Optional Quebec enterprise number."
+        string neq "Optional Quebec enterprise number."
+        string street_number "Civic number."
+        string street_name "Street name."
+        string unit "Optional unit."
+        string city "City name."
+        string postal_code "Postal code."
         string contact_first_name "Contact first name."
         string contact_last_name "Contact last name."
         string contact_role "Optional contact role."
-        string contact_email "Contact email."
+        string contact_email "Contact email (citext)."
         string contact_phone "Contact phone number."
         string website "Optional website."
+        string goods_categories "Category codes (text array)."
+        string expected_frequency "Expected donation frequency."
+        string opening_hours "Opening hours."
         string message "Optional additional information."
-        boolean contact_consent "Consent to be contacted."
+        boolean consent_contact "Consent to be contacted."
+        string language "Email language: fr or en."
         string status "submitted, approved, or rejected."
         string decision_reason "Decision explanation; required for rejection."
         reference decided_by "Administrator who decided the application."
@@ -578,8 +628,13 @@ erDiagram
     }
 
     Household {
+        reference holder "Holder's account; empty for walk-ins without online access."
+        string member_number "Optional short file number."
         string channel "Registration channel: walk-in or online."
         string status "Household file status."
+        string status_reason "Optional reason for the current status."
+        string email "Optional holder email."
+        string preferred_language "fr or en; used for emails."
         string street_number "Civic number."
         string street_name "Street name."
         string unit "Optional apartment or unit."
@@ -587,12 +642,27 @@ erDiagram
         string postal_code "Validated, normalized Canadian postal code."
         string address_key "Normalized address, including unit, used to find possible duplicates."
         string phone "Household contact phone."
+        string alternate_name "Optional alternate for pickups."
+        boolean identity_checked_in_person "Photo ID checked in person; nothing about the ID stored."
+        datetime consent_data_processing_at "When data-processing consent was given."
+        string consent_text_version "Version of the consent text read."
         reference created_by "Person who created the household file."
         datetime created_at "Household file creation time."
-        reference verified_by "Person who verified the household file."
-        datetime verified_at "Verification time."
+        datetime updated_at "Last change to the file."
+        reference verified_by "Staff member who checked the identity."
+        datetime verified_at "Identity check time."
+        datetime submitted_at "Submission time."
         datetime approved_at "Approval time."
         datetime expires_at "Approval expiration time."
+        datetime anonymized_at "Time personal data was removed."
+    }
+
+    HouseholdDraftEvent {
+        reference household FK "Draft that was created or edited."
+        reference actor FK "Staff member who acted."
+        string actor_role "Role at that moment."
+        string action "created or updated."
+        datetime created_at "When it happened."
     }
 
     Member {
@@ -602,6 +672,8 @@ erDiagram
         date date_of_birth "Used to determine age."
         string relation "Relationship within the household."
         string person_key "Normalized person identity used to find possible duplicates."
+        datetime created_at "When the member was added."
+        datetime updated_at "Last change to the member."
     }
 
     IncomeNotice {

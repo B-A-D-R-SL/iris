@@ -334,6 +334,11 @@ flowchart LR
 Flagged households remain unapproved. The full review queue is outside
 Release 1.
 
+US-17 built the first part (draft creation and step-by-step saving,
+React screens at `/staff/walk-in`). Its creation and edit events are
+recorded locally in `HouseholdDraftEvent` until the central audit log
+(US-62) supports them. The notices and approval part is US-18.
+
 
 ```mermaid
 sequenceDiagram
@@ -348,9 +353,16 @@ sequenceDiagram
 
     Note over IW,H: React and DRF authenticate staff and check permissions before service calls
 
-    IW->>H: create_walk_in(holder, address, members)
-    H->>H: Save draft household and members
-    H->>A: Record household creation
+    IW->>H: create_walk_in(holder, identity check, consent) — first "Continue" or "Save draft"
+    H->>H: Save draft household and holder as member 1, consent time and text version
+    H->>H: Record HouseholdDraftEvent "created" (local until US-62)
+    H-->>IW: Draft id; the screen moves to /staff/walk-in/{id}
+
+    loop Each later step (address, members, review)
+        IW->>H: update_draft(id, step values)
+        H->>H: Save draft changes, replace other members
+        H->>H: Record HouseholdDraftEvent "updated"
+    end
 
     loop Each adult
         IW->>D: Record staff-entered notice or non-filing reason
@@ -610,7 +622,7 @@ database fields or relationships to fill these gaps.
 | Area | Decision needed |
 | --- | --- |
 | Holder/account linkage | Confirm how the household contact connects to their Member and optional User records. Do not require an account for every walk-in or assume a particular foreign key while this remains open. |
-| Partner form storage | The earlier ERD retains required address, categories, frequency and opening-hours information without final storage. Complete that schema review; the onboarding sequence does not select those columns. |
+| Partner form storage | Resolved by US-12 (#445): flat address columns as on Store, `goods_categories` as a text array of category codes, plus `expected_frequency`, `opening_hours`, `consent_contact` and `language` columns. See [PartnerApplication](../03-design/database-schema.md#partnerapplication). |
 | Pickup lookup | The earlier uniqueness rule is `(listing, pickup_code)`. Agree code collision handling or lookup identifiers for a store containing multiple listings. QR payload format is not selected here. |
 | Household flags and reasons | Agree the minimum Release 1 handling for `review_required` files and where rejection/suspension reasons are stored. The full review queue is deferred. |
 | Lifecycle timing | Confirm the configured approval-validity and late-confirmation settings. The team draft supplies twelve months and twenty-four hours respectively. |

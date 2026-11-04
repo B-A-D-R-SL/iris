@@ -4,8 +4,9 @@
 import logging
 from collections import defaultdict
 from collections.abc import Sequence
+from datetime import date, datetime
 from importlib import import_module
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
 from django.conf import settings
@@ -13,7 +14,7 @@ from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
-from django.utils import timezone
+from django.utils import dateformat, timezone
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
 
@@ -23,6 +24,7 @@ from modules.listings.domain.posting import (
     ListingInput,
     PostingLimits,
     Refusal,
+    SafetyRulesInvalid,
     check_posting,
     safety_payload,
 )
@@ -56,11 +58,25 @@ MESSAGES = {
         "The pickup must last %(pickup_min_minutes)s to %(pickup_max_minutes)s minutes."
     ),
     "unsafe_listing": _("This listing was refused by the safety checks."),
+    # US-34 safety refusals (forms-and-fields.md, "Listing form").
+    "category_prohibited": _("This category can't be posted. Choose another one."),
+    "best_before_required": _("Enter a best-before date. It is required for food."),
+    "best_before_too_early": _("Choose %(date)s or later (end of pickup)."),
 }
+
+# Short month, as in the S1 mockup: "Oct. 10, 2026" / "10 oct. 2026".
+DATE_DISPLAY_FORMAT = _("N j, Y")
 
 
 class PostingUnavailable(Exception):
     """A required integration or rule version has not been configured."""
+
+
+def _display(value: Any) -> Any:
+    """Format a refusal parameter for the user's language."""
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return dateformat.format(value, str(DATE_DISPLAY_FORMAT))
+    return value
 
 
 def _refuse(reasons: Sequence[Refusal], limits: PostingLimits) -> None:
@@ -70,7 +86,10 @@ def _refuse(reasons: Sequence[Refusal], limits: PostingLimits) -> None:
             raise PostingUnavailable(
                 _("The listing safety integration needs configuration.")
             )
-        errors[reason.field].append(str(MESSAGES[reason.code]) % vars(limits))
+        values = vars(limits) | {
+            key: _display(value) for key, value in reason.params.items()
+        }
+        errors[reason.field].append(str(MESSAGES[reason.code]) % values)
     if errors:
         raise ValidationError(dict(errors))
 
@@ -146,9 +165,16 @@ def post_listing(
                 ) from exc
             _refuse(check_posting(data, limits, now=now), limits)
             checker = safety_check if safety_check is not None else _safety_checker()
-            _refuse(
-                checker(safety_payload(data), category, safety_rules.values), limits
+            listing_data = safety_payload(
+                data, local_tz=timezone.get_default_timezone()
             )
+            try:
+                reasons = checker(listing_data, category, safety_rules.values)
+            except SafetyRulesInvalid as exc:
+                raise PostingUnavailable(
+                    _("Listing safety rules need configuration.")
+                ) from exc
+            _refuse(reasons, limits)
 
             listing = Listing(
                 store_id=store,

@@ -4,7 +4,31 @@ Every rule Iris applies, with its default value. Values marked *(setting)* are s
 
 Decisions taken where B.A.D.R. had not specified anything are marked **Default**. They can be changed later through the settings or an ADR.
 
-Each owner publishes their section of this document in their own pull request. This version contains the listing categories and the prohibited items (SET-12); the other sections (roles, eligibility, reservations, priority, strikes, notifications, retention) are added by their owners.
+Each owner publishes their section of this document in their own pull request. This version contains the listing categories and the prohibited items (SET-12), and partner applications (US-12); the other sections (roles, eligibility, reservations, priority, strikes, notifications, retention) are added by their owners.
+
+## Partner applications (US-12)
+
+### BR-PARTNER-01: One open application per contact email
+
+A contact email may have at most one application with status `submitted`, regardless
+of letter case. Approved or rejected applications do not prevent another application.
+The database enforces this rule, including when submissions arrive concurrently;
+the API returns `409 application_already_open` for a duplicate open application.
+This implements US-12 AC3.
+
+### BR-PARTNER-02: Shared application limit per client IP
+
+The public application endpoint applies a limit of **5 requests per hour per client
+IP**, shared by anonymous and signed-in callers. A port in the client address does
+not create another allowance. Requests that reach the throttle count, including
+submissions refused with 400 or 409. Authentication refusals, such as a signed-in
+session missing its CSRF token (403), happen before throttling and do not count.
+Requests over the allowance receive `429 throttled`.
+
+This implements SEC-04 and task #445. The rate is configured in DRF's
+`DEFAULT_THROTTLE_RATES`, and trusted proxies through `DRF_NUM_PROXIES`. This is a
+best-effort spam limit; concurrent requests can exceed the allowance because DRF's
+cache admission checks are not atomic.
 
 ## Eligibility (US-16)
 
@@ -68,3 +92,18 @@ Stores never post these items (Default):
 - Weapons
 
 Prohibited items have **no category**, so they cannot be posted through any category. Staff tick **"Safe and allowed"** on every post to confirm the goods are safe and contain no prohibited item; the confirmation is stored with who and when, and a listing cannot be published without it. The rule type `listing_safety` keeps a list of prohibited category codes *(setting)*, empty by default because no category above is prohibited; an admin can add a code to stop new posts in that category.
+
+### Safety rules (US-34)
+
+The following rule IDs are introduced for review with US-34 (#497).
+The listings owner and reviewers must confirm them before merge.
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-LIST-001 | Every listing needs the "Safe and allowed" confirmation, stored with who and when. |
+| BR-LIST-002 | A listing in a category on the `listing_safety` prohibited list cannot be posted, and the posting form does not offer that category. |
+| BR-LIST-003 | A food listing needs a best-before date on or after the pickup end date (Montreal time) plus `best_before_margin_days`; a non-food listing ignores it. |
+
+The margin and the prohibited list come from the versioned `listing_safety`
+RuleSet, not from hardcoded values. The rules are checked in
+`backend/modules/listings/domain/safety.py`.

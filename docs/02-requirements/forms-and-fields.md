@@ -2,7 +2,7 @@
 
 Every form in Iris, field by field. **Field** is the name used in the API and the database; it is also the layer name in the Figma wireframes. Labels are the exact text shown on screen (French first, English second). Validation runs in the front end for quick feedback **and** in the back end, which is the authority.
 
-This page publishes the **partner application**, **store** and **listing** forms (SET-11, #402). French text comes from the [wireframes](https://www.figma.com/design/mxXyzEOGl4nuDVdYeoRNPA/Wireframes); English text follows the [glossary](../01-project/glossary.md).
+This page publishes the **partner application**, **store** and **listing** forms (SET-11, #402), and the **walk-in registration** form (US-17, #461). French text comes from the [wireframes](https://www.figma.com/design/mxXyzEOGl4nuDVdYeoRNPA/Wireframes); English text follows the [glossary](../01-project/glossary.md).
 
 ## Shared rules
 
@@ -106,7 +106,7 @@ Defaults: pickup today 16:00 to 18:00, quantity 1, unit `item`, 1 per household.
 | --- | --- | --- | --- | --- | --- |
 | `photo` | Photo | Photo | image | No | JPG or PNG up to 5 MB, resized to 1280 px. Button "Prendre ou choisir une photo / Take or choose a photo" |
 | `title` | Titre | Title | text | Yes | 2 to 80 characters, for example "Pains de la veille" |
-| `category` | Catégorie | Category | choice (bottom sheet) | Yes | Active [categories](#categories), food first. Prohibited items have no category; the sheet links to their list |
+| `category` | Catégorie | Category | choice (bottom sheet) | Yes | Active [categories](#categories), food first. Categories on the prohibited list (setting `listing_safety`) are not offered. Prohibited items have no category; the sheet links to their list ("Voir la liste / See the list", a placeholder until that list exists) |
 | `description` | Description | Description | long text | No | At most 500 characters |
 | `quantity` | Quantité | Quantity | integer (stepper) | Yes | 1 to 999. Help text: "De 1 à 999 / From 1 to 999" |
 | `unit` | Unité | Unit | choice (segmented) | Yes | `item` (Article / Item), `bundle` (Lot / Bundle) |
@@ -117,7 +117,7 @@ Defaults: pickup today 16:00 to 18:00, quantity 1, unit `item`, 1 per household.
 | Place (screen only) | Lieu | Place | read-only | | The store’s address, from the store form. Help text: "L’adresse de votre commerce. / Your business’s address." |
 | `best_before` | Meilleur avant | Best before | date | Food categories | Hidden until a food category is chosen. On or after the pickup end date (margin 0 days, setting). Help text: "Pour les aliments : le jour de la fin de la cueillette ou après. / For food: the day the pickup ends or later." |
 | `estimated_value` | Valeur estimée | Estimated value | money | No | $0 to $1,000. If empty, category default × quantity. Help text: "Si vide, Iris utilise la valeur par défaut de la catégorie. / If empty, Iris uses the category’s default value." |
-| `safe_and_allowed` | Je confirme que ces produits sont sécuritaires et permis. | I confirm these goods are safe and allowed. | checkbox | Yes, on every post | Stored with who and when. Link: "Voir la liste des produits interdits / See the list of prohibited items" |
+| `safe_and_allowed` | Je confirme que ces produits sont sécuritaires et permis. | I confirm these goods are safe and allowed. | checkbox | Yes, on every post | Stored with who and when. Link: "Voir la liste des produits interdits / See the list of prohibited items" (a placeholder until that list exists) |
 
 Button: **Publier l’offre / Publish listing**, fixed at the bottom of the phone screen. After publishing, the store lands on **Mes offres / My listings** with "Offre publiée / Listing published".
 
@@ -134,11 +134,53 @@ Error messages:
 | --- | --- | --- |
 | `title` | Entrez un titre de 2 à 80 caractères. | Enter a title of 2 to 80 characters. |
 | `pickup_end` | La cueillette dure de 30 min à 12 h. | The pickup lasts 30 min to 12 h. |
+| `category` (prohibited) | Cette catégorie ne peut pas être publiée. Choisissez-en une autre. | This category can't be posted. Choose another one. |
 | `best_before` | Choisissez le {date} ou après (fin de la cueillette). | Choose {date} or later (end of pickup). |
+| `best_before` (missing, food) | Entrez une date de meilleur avant. Elle est obligatoire pour les aliments. | Enter a best-before date. It is required for food. |
 | `safe_and_allowed` | Cochez cette case pour publier. | Tick this box to publish. |
 | `quantity` (edit) | Entrez {n} ou plus : {n} articles sont déjà réservés. | Enter {n} or more: {n} items are already reserved. |
 | Alert at the top | **Vérifiez {n} champs.** Les champs à corriger sont indiqués plus bas. | **Check {n} fields.** The fields to fix are shown below. |
 | Alert at the top (edit, quantity too low) | **Quantité trop basse.** Il y a déjà {n} articles réservés. Entrez {n} ou plus, ou annulez l’offre. | **Quantity too low.** {n} items are already reserved. Enter {n} or more, or cancel the listing. |
+
+## Walk-in registration form
+
+Staff page **Inscription en personne / Walk-in registration** (`/staff/walk-in`, resumed at `/staff/walk-in/{id}`), for intake workers and admins. An intake worker registers a household that comes to the office in person (US-17, #461). Wireframes: Staff page, flow W3 (layout only; the fields are the ones below).
+
+Four steps: **Personne responsable / Account holder**, **Adresse / Address**, **Membres du foyer / Household members**, **Vérification / Review**. "Continuer / Continue" checks the step and saves the draft; "Enregistrer le brouillon / Save draft" saves it and shows what is still missing. The file stores who created it and when.
+
+### Step 1: account holder
+
+| Field | Français | English | Type | Required | Rules |
+| --- | --- | --- | --- | --- | --- |
+| `first_name` | Prénom | First name | name | Yes | |
+| `last_name` | Nom de famille | Last name | name | Yes | |
+| `date_of_birth` | Date de naissance | Date of birth | date | Yes | Holder is 18 or older; at most 120 years ago |
+| `email` | Courriel | Email address | email | No | Help text: without an email, the household is served only at the counter and gets no online access |
+| `phone` | Téléphone | Phone number | phone | Yes | |
+| `preferred_language` | Langue de communication | Preferred language | choice | Yes | `fr` (Français), `en` (English); default `fr`; used for emails |
+| `identity_checked_in_person` | Pièce d'identité avec photo vérifiée en personne | Photo ID checked in person | checkbox | Yes to continue | Nothing about the ID is stored; the staff member and the time are recorded |
+| `consent_data_processing` | J'accepte que B.A.D.R. utilise ces renseignements pour vérifier mon admissibilité | I agree that B.A.D.R. uses this information to check my eligibility | checkbox | Yes to continue | Staff read the notice aloud; the person agrees verbally. The time and the text version are stored |
+
+The ID check and the consent may wait in a draft, but are required to continue.
+
+### Step 2: address
+
+The [address fields](#address-fields), with these differences: the unit label is "Appartement / Apartment / unit", and **Province / Province** is shown read-only as `QC`. The address may wait in a draft; once started, every required field is checked.
+
+### Step 3: household members
+
+The holder is person 1 automatically. "Ajouter une personne / Add a person" adds a row; at most 15 people, holder included.
+
+| Field | Français | English | Type | Required | Rules |
+| --- | --- | --- | --- | --- | --- |
+| `first_name` | Prénom | First name | name | Yes | |
+| `last_name` | Nom de famille | Last name | name | Yes | |
+| `date_of_birth` | Date de naissance | Date of birth | date | Yes | Not in the future; at most 120 years ago |
+| `relation` | Lien avec la personne responsable | Relation to the account holder | choice (drop-down) | Yes | `spouse_partner` (Conjoint·e / Spouse or partner), `child` (Enfant / Child), `parent` (Parent), `sibling` (Frère ou sœur / Sibling), `grandparent` (Grand-parent / Grandparent), `grandchild` (Petit-enfant / Grandchild), `other_relative` (Autre membre de la famille / Other relative), `other` (Autre / Other) |
+
+### Step 4: review
+
+A summary of the three steps, each with "Modifier / Edit". Notices of assessment and approval come next (US-18).
 
 ## Categories
 

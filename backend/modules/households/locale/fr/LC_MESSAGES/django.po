@@ -49,3 +49,99 @@ msgstr "Suspendu"
 
 msgid "Rejected"
 msgstr "Refusé"
+
+# US-17 walk-in registration (#461)
+msgid "Enter a date of birth within the last 120 years, not in the future."
+msgstr "Entrez une date de naissance d'il y a au plus 120 ans, pas dans le futur."
+
+# US-17 walk-in registration (#461)
+msgid "The account holder must be 18 or older."
+msgstr "La personne responsable doit avoir 18 ans ou plus."
+
+# US-17 walk-in registration (#461)
+msgid "Use letters, spaces, apostrophes or hyphens."
+msgstr "Utilisez des lettres, des espaces, des apostrophes ou des traits d'union."
+
+# US-17 walk-in registration (#461)
+msgid "Enter a Canadian postal code, for example H2X 1Y4."
+msgstr "Entrez un code postal canadien, par exemple H2X 1Y4."
+
+# US-17 walk-in registration (#461)
+msgid "Enter the street number and street name."
+msgstr "Entrez le numéro civique et la rue."
+
+# US-17 walk-in registration (#461)
+msgid "Check this value."
+msgstr "Vérifiez cette valeur."
+
+# US-17 walk-in registration (#461)
+msgid "This field cannot be submitted."
+msgstr "Ce champ ne peut pas être envoyé."
+
+# US-17 walk-in registration (#461)
+msgid "Enter a 10-digit Canadian telephone number."
+msgstr "Entrez un numéro de téléphone canadien à 10 chiffres."
+
+# US-17 walk-in registration (#461)
+msgid "Enter a Canadian telephone number."
+msgstr "Entrez un numéro de téléphone canadien."
+
+# US-17 walk-in registration (#461)
+msgid "Send the household members as a list."
+msgstr "Envoyez les membres du foyer sous forme de liste."
+
+# US-17 walk-in registration (#461)
+msgid "Add at most 14 people besides the holder."
+msgstr "Ajoutez au plus 14 personnes en plus de la personne responsable."
+
+# US-17 walk-in registration (#461)
+msgid "A household can have at most 15 people including the holder."
+msgstr "Un foyer peut compter au plus 15 personnes, incluant la personne responsable."
+
+# US-17 walk-in registration (#461)
+msgid "Check the highlighted fields."
+msgstr "Vérifiez les champs indiqués."
+
+# US-17 walk-in registration (#461)
+msgid "The request was refused."
+msgstr "La demande a été refusée."
+
+# US-17 walk-in registration (#461)
+msgid "Walk-in files cannot link an online account yet."
+msgstr "Un dossier d'inscription en personne ne peut pas encore être lié à un compte en ligne."
+
+# US-17 walk-in registration (#461)
+msgid "Staff verification is required."
+msgstr "La vérification par le personnel est requise."
+
+# US-17 walk-in registration (#461)
+msgid "Verification fields must be empty."
+msgstr "Les champs de vérification doivent être vides."
+
+# US-17 walk-in registration (#461)
+msgid "Only active intake workers and admins can manage walk-ins."
+msgstr "Seuls les intervenant·e·s à l'accueil et les administrateurs actifs peuvent gérer les inscriptions en personne."
+
+# US-17 walk-in registration (#461)
+msgid "The holder is added automatically."
+msgstr "La personne responsable est ajoutée automatiquement."
+
+# US-17 walk-in registration (#461)
+msgid "Enter the holder's name and date of birth."
+msgstr "Entrez le nom et la date de naissance de la personne responsable."
+
+# US-17 walk-in registration (#461)
+msgid "Enter the holder's telephone number."
+msgstr "Entrez le numéro de téléphone de la personne responsable."
+
+# US-17 walk-in registration (#461)
+msgid "Provide at least one change."
+msgstr "Indiquez au moins une modification."
+
+# US-17 walk-in registration (#461)
+msgid "Only draft household files can be edited."
+msgstr "Seuls les dossiers en brouillon peuvent être modifiés."
+
+# US-17 walk-in registration (#461)
+msgid "Cannot replace members already linked to notices or other records."
+msgstr "Impossible de remplacer des membres déjà liés à des avis ou à d'autres dossiers."
