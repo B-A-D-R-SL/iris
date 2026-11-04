@@ -38,6 +38,16 @@ export interface paths {
     /** Search audit events (admin only) */
     get: operations["staff_audit_list"];
   };
+  "/api/staff/households/": {
+    /** Create a resumable walk-in household draft */
+    post: operations["staff_households_create"];
+  };
+  "/api/staff/households/{id}/": {
+    /** Resume an existing walk-in household draft */
+    get: operations["staff_households_retrieve"];
+    /** Edit an existing walk-in household draft */
+    patch: operations["staff_households_partial_update"];
+  };
   "/api/store/listings/": {
     /** Post a listing for the signed-in user's active store */
     post: operations["store_listings_create"];
@@ -61,6 +71,15 @@ export interface components {
      * @enum {string}
      */
     ActionEnum: "view" | "decision";
+    AddressInput: {
+      city: string;
+      postal_code: string;
+      /** @default QC */
+      province?: components["schemas"]["ProvinceEnum"];
+      street_name: string;
+      street_number: string;
+      unit?: string | null;
+    };
     AuditEvent: {
       action: components["schemas"]["ActionEnum"];
       /** Format: uuid */
@@ -105,6 +124,12 @@ export interface components {
       name_en: string;
       name_fr: string;
     };
+    /**
+     * @description * `online` - En ligne
+     * * `walk_in` - Inscription en personne
+     * @enum {string}
+     */
+    ChannelEnum: "online" | "walk_in";
     CurrentUser: {
       /** Format: uuid */
       id: string;
@@ -122,12 +147,80 @@ export interface components {
      * @enum {string}
      */
     ExpectedFrequencyEnum: "daily" | "weekly" | "monthly" | "occasional";
+    HolderInput: {
+      /** Format: date */
+      date_of_birth: string;
+      email?: string | null;
+      first_name: string;
+      last_name: string;
+      phone: string;
+      /** @default fr */
+      preferred_language?: components["schemas"]["LanguageEnum"];
+    };
     /**
      * @description * `fr` - Français
      * * `en` - English
      * @enum {string}
      */
     LanguageEnum: "fr" | "en";
+    MemberInput: {
+      /** Format: date */
+      date_of_birth: string;
+      first_name: string;
+      last_name: string;
+      relation: components["schemas"]["MemberInputRelationEnum"];
+    };
+    /**
+     * @description * `spouse_partner` - spouse_partner
+     * * `child` - child
+     * * `parent` - parent
+     * * `sibling` - sibling
+     * * `grandparent` - grandparent
+     * * `grandchild` - grandchild
+     * * `other_relative` - other_relative
+     * * `other` - other
+     * @enum {string}
+     */
+    MemberInputRelationEnum:
+      | "spouse_partner"
+      | "child"
+      | "parent"
+      | "sibling"
+      | "grandparent"
+      | "grandchild"
+      | "other_relative"
+      | "other";
+    MemberRead: {
+      /** Format: date */
+      date_of_birth: string;
+      first_name: string;
+      /** Format: uuid */
+      id: string;
+      last_name: string;
+      relation: components["schemas"]["MemberReadRelationEnum"];
+    };
+    /**
+     * @description * `holder` - Holder
+     * * `spouse_partner` - Spouse or partner
+     * * `child` - Child
+     * * `parent` - Parent
+     * * `sibling` - Sibling
+     * * `grandparent` - Grandparent
+     * * `grandchild` - Grandchild
+     * * `other_relative` - Other relative
+     * * `other` - Other
+     * @enum {string}
+     */
+    MemberReadRelationEnum:
+      | "holder"
+      | "spouse_partner"
+      | "child"
+      | "parent"
+      | "sibling"
+      | "grandparent"
+      | "grandchild"
+      | "other_relative"
+      | "other";
     NewListing: {
       /** Format: date */
       best_before?: string | null;
@@ -196,6 +289,13 @@ export interface components {
       };
       message: string;
     };
+    PatchedWalkInDraftInput: {
+      address?: components["schemas"]["AddressInput"];
+      consent_data_processing?: boolean;
+      holder?: components["schemas"]["HolderInput"];
+      identity_checked_in_person?: boolean;
+      members?: components["schemas"]["MemberInput"][];
+    };
     PostedListing: {
       /** Format: date */
       best_before: string | null;
@@ -216,12 +316,19 @@ export interface components {
       quantity_reserved: number;
       /** Format: date-time */
       safe_confirmed_at: string;
-      status: components["schemas"]["StatusEnum"];
+      status: components["schemas"]["PostedListingStatusEnum"];
       /** Format: uuid */
       store: string;
       title: string;
       unit: components["schemas"]["UnitEnum"];
     };
+    /**
+     * @description * `published` - Published
+     * * `closed` - Closed
+     * * `cancelled` - Cancelled
+     * @enum {string}
+     */
+    PostedListingStatusEnum: "published" | "closed" | "cancelled";
     /** @description Same public shape as GET /api/categories/, without database IDs. */
     PostingCategory: {
       code: string;
@@ -238,6 +345,11 @@ export interface components {
       message: string;
     };
     /**
+     * @description * `QC` - QC
+     * @enum {string}
+     */
+    ProvinceEnum: "QC";
+    /**
      * @description * `beneficiary` - Beneficiary
      * * `store_staff` - Store Staff
      * * `store_manager` - Store Manager
@@ -246,13 +358,6 @@ export interface components {
      * @enum {string}
      */
     RoleEnum: "beneficiary" | "store_staff" | "store_manager" | "intake_worker" | "admin";
-    /**
-     * @description * `published` - Published
-     * * `closed` - Closed
-     * * `cancelled` - Cancelled
-     * @enum {string}
-     */
-    StatusEnum: "published" | "closed" | "cancelled";
     StoreAddress: {
       city: string;
       postal_code: string;
@@ -274,6 +379,63 @@ export interface components {
      * @enum {string}
      */
     UnitEnum: "item" | "bundle";
+    WalkInDraftInput: {
+      address?: components["schemas"]["AddressInput"];
+      consent_data_processing?: boolean;
+      holder?: components["schemas"]["HolderInput"];
+      identity_checked_in_person?: boolean;
+      members?: components["schemas"]["MemberInput"][];
+    };
+    WalkInDraftRead: {
+      channel: components["schemas"]["ChannelEnum"];
+      city: string;
+      /** Format: date-time */
+      consent_data_processing_at: string | null;
+      consent_text_version: string;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: email */
+      created_by_email: string;
+      /** Format: email */
+      email: string | null;
+      /** Format: uuid */
+      id: string;
+      identity_checked_in_person: boolean;
+      members: readonly components["schemas"]["MemberRead"][];
+      phone: string;
+      postal_code: string;
+      preferred_language: components["schemas"]["LanguageEnum"];
+      status: components["schemas"]["WalkInDraftReadStatusEnum"];
+      street_name: string;
+      street_number: string;
+      unit: string;
+      /** Format: date-time */
+      updated_at: string;
+      /** Format: date-time */
+      verified_at: string | null;
+      /** Format: email */
+      verified_by_email: string | null;
+    };
+    /**
+     * @description * `draft` - Brouillon
+     * * `submitted` - Demande soumise
+     * * `review_required` - Review required
+     * * `awaiting_visit` - Awaiting visit
+     * * `approved` - Approuvé
+     * * `renewal_needed` - Renewal needed
+     * * `suspended` - Suspendu
+     * * `rejected` - Refusé
+     * @enum {string}
+     */
+    WalkInDraftReadStatusEnum:
+      | "draft"
+      | "submitted"
+      | "review_required"
+      | "awaiting_visit"
+      | "approved"
+      | "renewal_needed"
+      | "suspended"
+      | "rejected";
   };
   responses: never;
   parameters: never;
@@ -419,6 +581,60 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["PaginatedAuditEventList"];
+        };
+      };
+    };
+  };
+  /** Create a resumable walk-in household draft */
+  staff_households_create: {
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["WalkInDraftInput"];
+        "application/x-www-form-urlencoded": components["schemas"]["WalkInDraftInput"];
+        "multipart/form-data": components["schemas"]["WalkInDraftInput"];
+      };
+    };
+    responses: {
+      201: {
+        content: {
+          "application/json": components["schemas"]["WalkInDraftRead"];
+        };
+      };
+    };
+  };
+  /** Resume an existing walk-in household draft */
+  staff_households_retrieve: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["WalkInDraftRead"];
+        };
+      };
+    };
+  };
+  /** Edit an existing walk-in household draft */
+  staff_households_partial_update: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["PatchedWalkInDraftInput"];
+        "application/x-www-form-urlencoded": components["schemas"]["PatchedWalkInDraftInput"];
+        "multipart/form-data": components["schemas"]["PatchedWalkInDraftInput"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["WalkInDraftRead"];
         };
       };
     };

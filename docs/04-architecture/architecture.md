@@ -334,6 +334,11 @@ flowchart LR
 Flagged households remain unapproved. The full review queue is outside
 Release 1.
 
+US-17 built the first part (draft creation and step-by-step saving,
+React screens at `/staff/walk-in`). Its creation and edit events are
+recorded locally in `HouseholdDraftEvent` until the central audit log
+(US-62) supports them. The notices and approval part is US-18.
+
 
 ```mermaid
 sequenceDiagram
@@ -348,9 +353,16 @@ sequenceDiagram
 
     Note over IW,H: React and DRF authenticate staff and check permissions before service calls
 
-    IW->>H: create_walk_in(holder, address, members)
-    H->>H: Save draft household and members
-    H->>A: Record household creation
+    IW->>H: create_walk_in(holder, identity check, consent) — first "Continue" or "Save draft"
+    H->>H: Save draft household and holder as member 1, consent time and text version
+    H->>H: Record HouseholdDraftEvent "created" (local until US-62)
+    H-->>IW: Draft id; the screen moves to /staff/walk-in/{id}
+
+    loop Each later step (address, members, review)
+        IW->>H: update_draft(id, step values)
+        H->>H: Save draft changes, replace other members
+        H->>H: Record HouseholdDraftEvent "updated"
+    end
 
     loop Each adult
         IW->>D: Record staff-entered notice or non-filing reason

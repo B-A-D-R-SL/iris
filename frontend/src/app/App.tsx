@@ -10,6 +10,7 @@ import { WelcomePage } from "../areas/public/WelcomePage";
 import { SignIn } from "../areas/public/pages/SignIn";
 import { PartnerApply } from "../areas/public/pages/PartnerApply";
 import { Audit } from "../areas/staff/pages/Audit";
+import { WalkIn } from "../areas/staff/pages/WalkIn/WalkIn";
 import { NewListing } from "../areas/store/pages/NewListing";
 import { MobileAreaLayout } from "./layouts/MobileAreaLayout";
 import { PublicLayout } from "./layouts/PublicLayout";
@@ -94,10 +95,8 @@ export default function App() {
             path="staff/households"
             element={<PlaceholderScreen titleKey="app.staffNav.households" />}
           />
-          <Route
-            path="staff/walk-in"
-            element={<PlaceholderScreen titleKey="app.staffNav.walkIn" />}
-          />
+          <Route path="staff/walk-in" element={<WalkIn />} />
+          <Route path="staff/walk-in/:id" element={<WalkIn />} />
           <Route element={<RequireRole roles={["admin"]} />}>
             <Route
               path="staff/review"

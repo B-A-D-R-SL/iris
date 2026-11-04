@@ -1,0 +1,33 @@
+/* Figma W3 cards: gray-0 background, 8 px radius, 20 px padding. */
+.card {
+  width: 100%;
+  padding: 20px;
+  border-radius: 8px;
+  background: var(--mantine-color-gray-0);
+}
+
+.member {
+  composes: card;
+}
+
+.memberTitle {
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+}
+
+.eyebrow {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--mantine-color-gray-7);
+}
+
+/* Steps wrap under each other on a narrow tablet in portrait. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
