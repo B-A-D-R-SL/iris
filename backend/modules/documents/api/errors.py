@@ -9,11 +9,17 @@ from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
+from modules.documents.services import NoticeServiceUnavailable
 
-class StorageUnavailable(APIException):
+
+class NoticeUnavailable(APIException):
+    """503 with the service's reason: storage down or notice settings missing."""
+
     status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-    default_code = "storage_unavailable"
-    default_detail = _("Notice storage is unavailable. Try again later.")
+
+    def __init__(self, cause: NoticeServiceUnavailable) -> None:
+        self.default_code = cause.code
+        super().__init__(detail=cause.message, code=cause.code)
 
 
 def documents_exception_handler(

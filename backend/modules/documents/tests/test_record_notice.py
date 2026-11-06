@@ -14,7 +14,11 @@ from adapters.file_store.base import FileStoreUnavailable, StoredFile
 from adapters.file_store.memory import InMemoryFileStore
 from modules.documents.models import IncomeNotice
 from modules.documents.queries import current_notices
-from modules.documents.services import NoticeServiceUnavailable, record_staff_notice
+from modules.documents.services import (
+    NoticeServiceUnavailable,
+    NoticeSettingsMissing,
+    record_staff_notice,
+)
 from modules.documents.tests.factories import make_member, make_user
 
 pytestmark = pytest.mark.django_db
@@ -132,7 +136,7 @@ def test_rule_errors_are_field_errors(member: Any, worker: Any) -> None:
 
 
 def test_missing_rule_fails_closed(member: Any, worker: Any) -> None:
-    with pytest.raises(NoticeServiceUnavailable):
+    with pytest.raises(NoticeSettingsMissing):
         record_staff_notice(member.pk, _filed(), _pdf(), worker)
 
     assert not IncomeNotice.objects.exists()

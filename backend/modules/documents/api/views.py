@@ -17,7 +17,7 @@ from rest_framework.response import Response
 
 from modules.accounts.queries import is_intake_staff
 from modules.documents import services
-from modules.documents.api.errors import StorageUnavailable, documents_exception_handler
+from modules.documents.api.errors import NoticeUnavailable, documents_exception_handler
 from modules.documents.api.serializers import NoticeFileLinkSerializer
 
 
@@ -49,7 +49,7 @@ class NoticeFileLinkView(_NoticeFileView):
         except services.NoticeFileNotFound as exc:
             raise NotFound(_("This notice has no file.")) from exc
         except services.NoticeServiceUnavailable as exc:
-            raise StorageUnavailable from exc
+            raise NoticeUnavailable(exc) from exc
         url = reverse("staff-notice-file-download", kwargs={"token": link.token})
         data = {"url": url, "expires_at": link.expires_at}
         return Response(NoticeFileLinkSerializer(data).data)
@@ -69,7 +69,7 @@ class NoticeFileDownloadView(_NoticeFileView):
         except services.NoticeFileNotFound as exc:
             raise NotFound(_("This file link is invalid or has expired.")) from exc
         except services.NoticeServiceUnavailable as exc:
-            raise StorageUnavailable from exc
+            raise NoticeUnavailable(exc) from exc
         response = HttpResponse(
             notice_file.content, content_type=notice_file.content_type
         )

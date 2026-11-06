@@ -18,7 +18,11 @@ from adapters.file_store.memory import InMemoryFileStore
 from modules.audit.queries import search_events
 from modules.documents.models import IncomeNotice
 from modules.documents.services import record_staff_notice
-from modules.documents.tests.factories import make_member, make_user
+from modules.documents.tests.factories import (
+    make_confirmed_notice,
+    make_member,
+    make_user,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -231,3 +235,16 @@ def test_errors_follow_the_request_language(notice: IncomeNotice, worker: Any) -
 
     assert response.status_code == 404
     assert response.data["message"] == "Ce lien de fichier est invalide ou expiré."
+
+
+def test_link_without_notice_settings_answers_503(worker: Any) -> None:
+    notice = make_confirmed_notice()
+    url = reverse("staff-notice-file-link", kwargs={"id": notice.pk})
+
+    response = _client(worker).get(url, HTTP_ACCEPT_LANGUAGE="en")
+
+    assert response.status_code == 503
+    assert response.data["code"] == "notice_settings_missing"
+    assert response.data["message"] == (
+        "Notice settings are not set up yet. Ask an administrator."
+    )

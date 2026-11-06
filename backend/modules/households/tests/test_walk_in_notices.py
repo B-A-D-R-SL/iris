@@ -473,3 +473,21 @@ def test_removing_a_member_with_a_notice_is_refused(
     assert response.status_code == 400
     assert "members" in response.data["fields"]
     assert household.members.filter(pk=spouse.pk).exists()
+
+
+def test_missing_notice_settings_answer_503_even_without_a_file(
+    household: Any, holder: Any, worker: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("modules.rules.queries.active", lambda rule_type, at=None: None)
+    data = {
+        "member": str(holder.pk),
+        "did_not_file": "true",
+        "did_not_file_reason": "No income in 2025",
+    }
+
+    response = _post(_client(worker), household, data, HTTP_ACCEPT_LANGUAGE="fr")
+
+    assert response.status_code == 503
+    assert response.data["code"] == "notice_settings_missing"
+    assert "administrat" in response.data["message"]
+    assert not current_notices([holder.pk])

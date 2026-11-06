@@ -72,3 +72,6 @@ msgstr "N'a pas produit de déclaration"
 
 msgid "Staff"
 msgstr "Personnel"
+
+msgid "Notice settings are not set up yet. Ask an administrator."
+msgstr "Les paramètres des avis ne sont pas encore configurés. Contactez un administrateur."

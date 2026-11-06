@@ -154,6 +154,3 @@ msgstr "Choisissez une personne de ce foyer."
 
 msgid "Notices are recorded for adults only."
 msgstr "Les avis sont enregistrés seulement pour les adultes."
-
-msgid "Notice storage is unavailable. Try again later."
-msgstr "Le stockage des avis est indisponible. Réessayez plus tard."

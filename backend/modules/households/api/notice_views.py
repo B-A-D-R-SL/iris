@@ -6,10 +6,8 @@ from uuid import UUID
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import Http404
-from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.exceptions import APIException
 from rest_framework.generics import GenericAPIView
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.request import Request
@@ -27,12 +25,6 @@ from modules.households.api.views import (
     _service_validation,
 )
 from modules.households.models import Household
-
-
-class StorageUnavailable(APIException):
-    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-    default_code = "storage_unavailable"
-    default_detail = _("Notice storage is unavailable. Try again later.")
 
 
 class WalkInNoticeView(WalkInErrorHandlingMixin, GenericAPIView):
@@ -58,7 +50,8 @@ class WalkInNoticeView(WalkInErrorHandlingMixin, GenericAPIView):
         except DjangoValidationError as exc:
             raise _service_validation(exc) from exc
         except NoticeServiceUnavailable as exc:
-            raise StorageUnavailable from exc
+            body = {"code": exc.code, "message": str(exc.message), "fields": {}}
+            return Response(body, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return Response(
             WalkInNoticeReadSerializer(notice).data, status=status.HTTP_201_CREATED
         )

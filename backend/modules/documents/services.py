@@ -45,7 +45,17 @@ SIGNING_SALT = "documents.notice-file"
 
 
 class NoticeServiceUnavailable(Exception):
-    """Notice storage or the notice_upload rule is unavailable; callers answer 503."""
+    """Notices cannot be stored or opened right now; callers answer 503."""
+
+    code = "storage_unavailable"
+    message = _("Notice storage is unavailable. Try again later.")
+
+
+class NoticeSettingsMissing(NoticeServiceUnavailable):
+    """No active notice_upload rule: run `manage.py seed_rules`."""
+
+    code = "notice_settings_missing"
+    message = _("Notice settings are not set up yet. Ask an administrator.")
 
 
 class NoticeFileNotFound(Exception):
@@ -83,7 +93,7 @@ def _upload_limits() -> UploadLimits:
     rule = rule_queries.active("notice_upload")
     if rule is None:
         logger.error("Notice rule missing", extra={"event": "notice_rule_missing"})
-        raise NoticeServiceUnavailable
+        raise NoticeSettingsMissing
     return UploadLimits(
         max_bytes=rule.values["max_bytes"], link_minutes=rule.values["link_minutes"]
     )
