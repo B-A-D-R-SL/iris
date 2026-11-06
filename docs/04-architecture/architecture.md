@@ -121,15 +121,24 @@ one private container under random names (`income-notices/<uuid>`); the
 container has no public access and Iris never hands out a storage URL. Staff
 open a file in two steps: `GET /api/staff/notices/{id}/file/` returns a link to
 Iris itself, signed for that staff user and valid `notice_upload.link_minutes`
-(5); `GET /api/staff/notice-files/{token}/` checks the user's session and the
-link, then streams the file. The `FILE_STORE_BACKEND` setting selects Azure Blob
-(Azurite in Docker Compose) or the in-memory fake used by tests; empty, uploads
-and downloads answer 503.
+(5) as set when the link is issued; `GET /api/staff/notice-files/{token}/`
+checks the user's session and the link, reads the whole file from storage and
+returns it as an attachment. The `FILE_STORE_BACKEND` setting selects Azure Blob
+(Azurite in Docker Compose) or the in-memory fake used by tests; the store is
+built once per process (`adapters/file_store/registry.py`). Without storage,
+uploads and downloads answer 503 `storage_unavailable`; without the
+`notice_upload` rule they answer 503 `notice_settings_missing`. Who may use these
+endpoints is one rule, `accounts.queries.is_intake_staff`.
 
 **Performance:** files are at most `notice_upload.max_bytes` (10 MB) and pass
-through Django on upload and download. Only intake workers and admins use these
-endpoints, a few notices per household visit, so this load is small for one
-App Service instance. Django parses the multipart request first (large parts go
+through Django on upload and download; a download holds the whole file in memory
+while it is sent. Only intake workers and admins use these endpoints, a few
+notices per household visit, so this load is small for one App Service
+instance. Recording a notice keeps the household row locked, and its database
+transaction open, while the file is uploaded to Blob Storage (up to 10 MB,
+including the SDK's retries): another save of the same draft waits until then,
+other households are not affected. This keeps the notice, the draft history and
+the household checks consistent at staff volume. Django parses the multipart request first (large parts go
 to a temporary file), then Iris reads at most one byte over the limit, so an
 oversized file is refused before anything reaches Blob Storage; the reverse
 proxy's request-size limit bounds the request itself. If online registration

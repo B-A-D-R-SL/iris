@@ -50,8 +50,12 @@ the reverse; see the import-linter contracts in `backend/pyproject.toml`).
 | GET | `/api/staff/notices/{id}/file/` | Active intake worker or admin | `{url, expires_at}`; 404 if the notice has no file |
 | GET | `/api/staff/notice-files/{token}/` | The staff user the link was issued to | The file as an attachment (`nosniff`, `private, no-store`); 404 if invalid, expired or someone else's |
 
-Other roles get 403, signed-out visitors 401, unavailable storage 503
-(`storage_unavailable`). Messages follow `Accept-Language`.
+Other roles get 403, signed-out visitors 401. Unavailable storage answers 503
+`storage_unavailable`; a missing `notice_upload` rule answers 503
+`notice_settings_missing`. Messages follow `Accept-Language`. The download
+ignores the client's `Accept` header (the file sets its type); its OpenAPI
+response is a binary PDF, JPEG or PNG. Who counts as intake staff comes from
+`accounts.queries.is_intake_staff`.
 
 ## Rules and settings
 
@@ -59,7 +63,8 @@ The rules BR-DOC-001 to BR-DOC-007 are in
 [business-rules.md](../../../docs/02-requirements/business-rules.md). The file
 size limit (`max_bytes`, 10 MB) and the link lifetime (`link_minutes`, 5) come
 from the `notice_upload` rule type; run `python manage.py seed_rules` once on a
-database that does not have it yet. Files go through `adapters/file_store`,
+database that does not have it yet. A link keeps the lifetime it was issued
+with (signed into it), even if the rule changes later. Files go through `adapters/file_store`,
 chosen by `FILE_STORE_BACKEND` (Azure Blob in local and production settings,
 the in-memory fake in tests); an empty setting makes uploads and downloads
 answer 503.

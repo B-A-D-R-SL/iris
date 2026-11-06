@@ -58,7 +58,7 @@ them before merge.
 | BR-DOC-003 | "Did not file" needs a reason of 1 to 500 characters after trimming and refuses a file or any notice value. |
 | BR-DOC-004 | The file is a JPEG, PNG or PDF recognized from its first bytes (never its name or declared type), not empty, and at most `max_bytes` in rule type `notice_upload` (default 10 MB *(setting)*). |
 | BR-DOC-005 | Each adult has at most one current notice. A new entry supersedes the current one; the old row and its file are kept as history (database constraint). |
-| BR-DOC-006 | Notice files are never public. Staff get a link valid `link_minutes` in rule type `notice_upload` (default 5 minutes *(setting)*), signed for one staff user and usable only with that user's session; issuing it is recorded in the audit log. |
+| BR-DOC-006 | Notice files are never public. Staff get a link valid `link_minutes` in rule type `notice_upload` (default 5 minutes *(setting)*, fixed when the link is issued), signed for one staff user and usable only with that user's session; issuing it is recorded in the audit log. |
 | BR-DOC-007 | Notices are recorded only for members aged 18 or older (Montreal date) of a draft walk-in household. |
 
 The limits come from the versioned `notice_upload` RuleSet, not from
