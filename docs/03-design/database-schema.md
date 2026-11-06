@@ -286,9 +286,10 @@ An adult member income-evidence record or a non-filing explanation.
 | Field | Logical type | Key | Details |
 | --- | --- | --- | --- |
 | member | reference | Foreign key | Member whose income evidence is recorded. |
-| status | string | — | Income evidence status. |
-| source | string | — | Source of recorded values; staff entry uses staff. |
-| file_ref | string | — | Private PDF/photo storage reference. |
+| id | UUID | Primary key | Notice identifier used by the staff file link. |
+| status | string | — | `confirmed` (values from a notice) or `did_not_file`. |
+| source | string | — | Source of recorded values; staff entry uses `staff`. |
+| file_ref | string | — | Opaque private storage reference (`income-notices/<random>`); never a URL or the uploaded file name. |
 | tax_year | integer | — | Tax year represented. |
 | total_income_cents | integer | — | Line 199 assessed income: Montant etabli; integer cents. |
 | name_on_notice | string | — | Name recorded on the notice. |
@@ -296,14 +297,22 @@ An adult member income-evidence record or a non-filing explanation.
 | notice_date | date | — | Notice issuance date. |
 | seen_in_person | boolean | — | Whether staff saw the notice in person. |
 | did_not_file_reason | string | — | Required explanation for a non-filing adult. |
+| recorded_by | reference | Foreign key | Staff user who recorded the entry. |
+| created_at | datetime | — | When the entry was recorded. |
+| superseded_at | datetime | — | When a newer entry replaced this one; empty for the current notice. |
 
 **Documented constraints and business rules**
 
 - A member may retain notice records from different tax years.
 - Eligibility uses the appropriate verified notice for the relevant
   tax year, rather than adding income across different years.
-- Handling corrected or replacement notices for the same tax year
-  remains to be decided.
+- A corrected or replacement entry supersedes the member's current
+  notice; the old row and file are kept (BR-DOC-005, T-03.18.2).
+- `documents_one_current_notice_per_member`: unique `member` where
+  `superseded_at` is empty.
+- `documents_notice_shape`: a `confirmed` row has a file and every
+  notice value and no reason; a `did_not_file` row has a reason, no
+  file, no notice value and `seen_in_person` false.
 
 | Rule | Enforcement |
 | --- | --- |
@@ -527,6 +536,7 @@ Sources: [Issue #538](https://github.com/B-A-D-R-SL/iris/issues/538), [Issue #54
 | Store | One-to-many | Invitation | Each Invitation has zero or one Store; a Store has zero or many Invitations. |
 | Household | One-to-many | Member | Each Member belongs to one Household; draft households may have zero or many Member rows. |
 | Member | One-to-many | IncomeNotice | Each IncomeNotice belongs to one Member. A Member may have zero or many notices, including notices from different tax years. |
+| User | One-to-many | IncomeNotice | Each IncomeNotice records the staff User who entered it; a User may record many notices. |
 | Household | One-to-many | EligibilityDecision | Each decision belongs to one Household; a Household may have many decisions. |
 | RuleSetVersion | One-to-many | EligibilityDecision | Each decision uses one rule version; a version may be used by many decisions. |
 | Store | One-to-many | Listing | Each Listing belongs to one Store; a Store may have many Listings. |
@@ -550,6 +560,7 @@ erDiagram
     Household ||--o{ Member : "contains"
     Household ||--o{ HouseholdDraftEvent : "draft history"
     Member ||--o{ IncomeNotice : "provides"
+    User ||--o{ IncomeNotice : "records"
     Household ||--o{ EligibilityDecision : "has decisions"
     RuleSetVersion ||--o{ EligibilityDecision : "used by"
     Store ||--o{ Listing : "posts"
@@ -678,9 +689,10 @@ erDiagram
 
     IncomeNotice {
         reference member FK "Member whose income evidence is recorded."
-        string status "Income evidence status."
+        string id PK "UUID notice identifier."
+        string status "confirmed or did_not_file."
         string source "Source of recorded values; staff entry uses staff."
-        string file_ref "Private PDF/photo storage reference."
+        string file_ref "Opaque private storage reference."
         integer tax_year "Tax year represented."
         integer total_income_cents "Line 199 assessed income: Montant etabli; integer cents."
         string name_on_notice "Name recorded on the notice."
@@ -688,6 +700,9 @@ erDiagram
         date notice_date "Notice issuance date."
         boolean seen_in_person "Whether staff saw the notice in person."
         string did_not_file_reason "Required explanation for a non-filing adult."
+        reference recorded_by FK "Staff user who recorded the entry."
+        datetime created_at "When the entry was recorded."
+        datetime superseded_at "When a newer entry replaced it; empty if current."
     }
 
     EligibilityDecision {

@@ -3,6 +3,7 @@
 
 from django.urls import path
 
+from modules.households.api.notice_views import WalkInNoticeView
 from modules.households.api.views import WalkInCollectionView, WalkInDetailView
 
 urlpatterns = [
@@ -15,5 +16,10 @@ urlpatterns = [
         "staff/households/<uuid:id>/",
         WalkInDetailView.as_view(),
         name="staff-households-detail",
+    ),
+    path(
+        "staff/households/<uuid:id>/notices/",
+        WalkInNoticeView.as_view(),
+        name="staff-households-notices",
     ),
 ]

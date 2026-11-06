@@ -16,6 +16,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
+from modules.accounts.queries import is_intake_staff
 from modules.households import queries, services
 from modules.households.api.serializers import (
     WalkInDraftInputSerializer,
@@ -70,12 +71,7 @@ class WalkInErrorHandlingMixin:
 
 class IsIntakeWorkerOrAdmin(BasePermission):
     def has_permission(self, request: Request, view: Any) -> bool:
-        user = request.user
-        return bool(
-            user.is_authenticated
-            and user.is_active
-            and getattr(user, "role", None) in services.STAFF_ROLES
-        )
+        return is_intake_staff(request.user)
 
 
 def _validated(data: Any, *, partial: bool = False) -> dict[str, Any]:

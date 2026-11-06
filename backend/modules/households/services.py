@@ -1,5 +1,5 @@
 # AI contribution: 50% or more AI-generated
-"""Staff-only transactional creation and editing of walk-in household drafts."""
+"""Staff-only transactional creation and editing of walk-in household drafts and notices."""
 
 from collections.abc import Mapping
 from typing import Any
@@ -12,9 +12,11 @@ from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from modules.accounts.queries import is_intake_staff
+from modules.documents import services as document_services
+from modules.households.domain.person import is_adult
 from modules.households.models import Household, HouseholdDraftEvent, Member
 
-STAFF_ROLES = frozenset(("intake_worker", "admin"))
 ADDRESS_FIELDS = frozenset(
     ("street_number", "street_name", "unit", "city", "postal_code")
 )
@@ -24,11 +26,7 @@ CONSENT_TEXT_VERSION = "2026-11-v1"
 
 
 def _require_staff(user: AbstractBaseUser) -> None:
-    if (
-        not user.is_authenticated
-        or not user.is_active
-        or getattr(user, "role", None) not in STAFF_ROLES
-    ):
+    if not is_intake_staff(user):
         raise PermissionDenied(
             _("Only active intake workers and admins can manage walk-ins.")
         )
@@ -84,6 +82,34 @@ def _save_member(
     return member
 
 
+def _same_person(member: Member, values: Mapping[str, Any]) -> bool:
+    return (
+        member.first_name == str(values.get("first_name", "")).strip()
+        and member.last_name == str(values.get("last_name", "")).strip()
+        and member.date_of_birth == values.get("date_of_birth")
+        and member.relation == values.get("relation")
+    )
+
+
+def _unchanged_members(
+    household: Household, members: list[dict[str, Any]]
+) -> tuple[set[UUID], list[dict[str, Any]]]:
+    """Ids of existing members sent back unchanged, and the entries that are new."""
+    existing = list(household.members.exclude(relation=Member.Relation.HOLDER))
+    kept: set[UUID] = set()
+    new_members: list[dict[str, Any]] = []
+    for values in members:
+        match = next(
+            (m for m in existing if m.pk not in kept and _same_person(m, values)),
+            None,
+        )
+        if match is None:
+            new_members.append(values)
+        else:
+            kept.add(match.pk)
+    return kept, new_members
+
+
 def _replace_other_members(household: Household, members: list[dict[str, Any]]) -> None:
     if len(members) > 14:
         raise ValidationError(
@@ -93,9 +119,15 @@ def _replace_other_members(household: Household, members: list[dict[str, Any]]) 
                 )
             }
         )
-    # This is only allowed in draft state; notice records must not reference these rows yet.
+    if any(values.get("relation") == Member.Relation.HOLDER for values in members):
+        raise ValidationError({"members": _("The holder is added automatically.")})
+    # Members sent back unchanged keep their row, so their notices stay linked;
+    # only removed or changed members are deleted (refused if they have notices).
+    kept, new_members = _unchanged_members(household, members)
     try:
-        household.members.exclude(relation=Member.Relation.HOLDER).delete()
+        household.members.exclude(relation=Member.Relation.HOLDER).exclude(
+            pk__in=kept
+        ).delete()
     except ProtectedError as exc:
         raise ValidationError(
             {
@@ -104,9 +136,7 @@ def _replace_other_members(household: Household, members: list[dict[str, Any]]) 
                 )
             }
         ) from exc
-    for values in members:
-        if values.get("relation") == Member.Relation.HOLDER:
-            raise ValidationError({"members": _("The holder is added automatically.")})
+    for values in new_members:
         member = Member(household=household, **values)
         member.full_clean()
         member.save()
@@ -195,3 +225,44 @@ def update_draft(
         action=HouseholdDraftEvent.Action.UPDATED,
     )
     return household
+
+
+@transaction.atomic
+def record_walk_in_notice(
+    household_id: UUID, data: Mapping[str, Any], staff_user: AbstractBaseUser
+) -> document_services.IncomeNotice:
+    """Record an adult's notice or non-filing reason on a draft walk-in (BR-DOC-007).
+
+    The household row stays locked until the notice is saved, so two staff
+    entries for the same file cannot interleave. documents is called last.
+    """
+    _require_staff(staff_user)
+    household = Household.objects.select_for_update().get(
+        id=household_id, channel=Household.Channel.WALK_IN
+    )
+    if household.status != Household.Status.DRAFT:
+        raise ValidationError(
+            {"status": _("Notices can only be added to a draft file.")}
+        )
+    member_id = data.get("member")
+    member = (
+        household.members.filter(pk=member_id).first()
+        if isinstance(member_id, UUID)
+        else None
+    )
+    if member is None:
+        raise ValidationError({"member": _("Choose a person from this household.")})
+    if not is_adult(member.date_of_birth, timezone.localdate()):
+        raise ValidationError({"member": _("Notices are recorded for adults only.")})
+    HouseholdDraftEvent.objects.create(
+        household=household,
+        actor_id=staff_user.pk,
+        actor_role=getattr(staff_user, "role", ""),
+        action=HouseholdDraftEvent.Action.UPDATED,
+    )
+    values = {
+        key: value for key, value in data.items() if key not in ("member", "file")
+    }
+    return document_services.record_staff_notice(
+        member.pk, values, data.get("file"), staff_user
+    )

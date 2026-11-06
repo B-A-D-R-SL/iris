@@ -26,6 +26,7 @@ RULE_TYPES: Final = (
     "reservations",
     "listing_safety",
     "listing_posting",
+    "notice_upload",
     "file_validity",
     "retention",
 )
@@ -161,6 +162,13 @@ RULE_SCHEMAS: Final[dict[str, JSONSchema]] = {
             "photo_max_dimension": {"type": "integer", "minimum": 1},
         }
     ),
+    # Notice of assessment files (BR-DOC-004) and their staff links (BR-DOC-006).
+    "notice_upload": _object_schema(
+        {
+            "max_bytes": {"type": "integer", "minimum": 1},
+            "link_minutes": {"type": "integer", "minimum": 1, "maximum": 60},
+        }
+    ),
     "file_validity": _object_schema(
         {
             "approved_months": {"type": "integer", "minimum": 1},
@@ -239,6 +247,11 @@ DEFAULT_RULE_VALUES: Final[dict[str, dict[str, Any]]] = {
         "pickup_max_minutes": 720,
         "photo_max_bytes": 5 * 1024 * 1024,
         "photo_max_dimension": 1280,
+    },
+    # US-18 (#468): JPG, PNG or PDF up to 10 MB; staff links valid 5 minutes.
+    "notice_upload": {
+        "max_bytes": 10 * 1024 * 1024,
+        "link_minutes": 5,
     },
     "file_validity": {
         "approved_months": 12,
