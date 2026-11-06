@@ -34,6 +34,7 @@ class Problem(StrEnum):
     NEGATIVE_INCOME = "negative_income"
     REASON_REQUIRED = "reason_required"
     REASON_TOO_LONG = "reason_too_long"
+    REASON_NOT_ALLOWED = "reason_not_allowed"
     NOT_ALLOWED = "not_allowed"
     FILE_EMPTY = "file_empty"
     FILE_TOO_LARGE = "file_too_large"
@@ -123,7 +124,7 @@ def _filed(values: Mapping[str, object], *, has_file: bool, today: date) -> File
     if not has_file:
         problems["file"] = Problem.REQUIRED
     if not _missing(values.get("did_not_file_reason")):
-        problems["did_not_file_reason"] = Problem.NOT_ALLOWED
+        problems["did_not_file_reason"] = Problem.REASON_NOT_ALLOWED
     problems.update(_value_problems(values, today))
     _raise_if(problems)
     return FiledNotice(

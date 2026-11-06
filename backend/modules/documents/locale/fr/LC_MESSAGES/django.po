@@ -60,3 +60,6 @@ msgstr "Cet avis n'a pas de fichier."
 
 msgid "This file link is invalid or has expired."
 msgstr "Ce lien de fichier est invalide ou expiré."
+
+msgid "Leave the reason empty when the person filed a tax return."
+msgstr "Laissez la raison vide si la personne a produit une déclaration de revenus."

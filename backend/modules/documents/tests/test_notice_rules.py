@@ -90,7 +90,7 @@ def test_br_doc_001_negative_income_is_refused() -> None:
 def test_br_doc_001_reason_on_a_filed_notice_is_refused() -> None:
     problems = _problems(_filed(did_not_file_reason="No income"))
 
-    assert problems == {"did_not_file_reason": Problem.NOT_ALLOWED}
+    assert problems == {"did_not_file_reason": Problem.REASON_NOT_ALLOWED}
 
 
 def test_br_doc_002_notice_dated_january_first_after_the_tax_year_is_accepted() -> None:
@@ -290,3 +290,12 @@ def test_download_extension_follows_the_detected_type(
     content_type: str, extension: str
 ) -> None:
     assert extension_for(content_type) == extension
+
+
+def test_reason_on_a_filed_notice_has_its_own_message() -> None:
+    error = NoticeRulesBroken({"did_not_file_reason": Problem.REASON_NOT_ALLOWED})
+
+    with translation.override("en"):
+        message = problem_messages(error)["did_not_file_reason"][0]
+
+    assert message == "Leave the reason empty when the person filed a tax return."

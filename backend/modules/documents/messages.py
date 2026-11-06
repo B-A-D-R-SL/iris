@@ -26,6 +26,9 @@ _MESSAGES: dict[Problem, Promise] = {
     Problem.NEGATIVE_INCOME: _("Enter an amount of 0 or more."),
     Problem.REASON_REQUIRED: _("Explain why this person did not file a tax return."),
     Problem.REASON_TOO_LONG: _("Use at most %(count)s characters."),
+    Problem.REASON_NOT_ALLOWED: _(
+        "Leave the reason empty when the person filed a tax return."
+    ),
     Problem.NOT_ALLOWED: _(
         "Leave this empty when the person did not file a tax return."
     ),
