@@ -1,0 +1,49 @@
+# AI contribution: 50% or more AI-generated
+# FIX-26 (#648). Checks the pull request format the course rubric grades: title, closing
+# keyword, AI contribution declaration, file headers and test changes. The rules are in
+# .github/scripts/pr_policy.py, tested by the backend job in ci.yml.
+#
+# Like Commit policy, this runs the checker from the base branch (pull_request_target).
+# It fetches only the checker from the base commit, reads the pull request through the
+# API and never checks out or runs pull-request code, so a pull request cannot change
+# the check that judges it.
+# The job name "pr-policy" is meant to be a required status check of the main ruleset.
+
+name: PR policy
+
+on:
+  pull_request_target:
+    # "edited" re-runs the check when the title or description is fixed.
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+concurrency:
+  group: pr-policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Get the checker from the base commit
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          # Git objects only, as in Commit policy: no working tree, no pull-request files.
+          git init --quiet
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git fetch --no-tags --depth 1 origin "$BASE_SHA"
+          git show "$BASE_SHA:.github/scripts/pr_policy.py" > "$RUNNER_TEMP/pr_policy.py"
+
+      - name: Check the pull request
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 "$RUNNER_TEMP/pr_policy.py" --repo "$GITHUB_REPOSITORY" --pr "$PR_NUMBER"
