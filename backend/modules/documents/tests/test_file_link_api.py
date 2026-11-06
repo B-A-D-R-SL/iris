@@ -303,3 +303,27 @@ def test_storage_failure_while_reading_answers_503(
     assert response.data["code"] == "storage_unavailable"
     errors = [getattr(r, "event", None) for r in caplog.records]
     assert "notice_file_store_failed" in errors
+
+
+def test_download_ignores_a_specific_accept_header(
+    notice: IncomeNotice, worker: Any
+) -> None:
+    client = _client(worker)
+    url = _link(client, notice.pk).data["url"]
+
+    download = client.get(url, HTTP_ACCEPT="application/pdf")
+    refused = client.get(url[:-2] + "Z/", HTTP_ACCEPT="application/pdf")
+
+    assert download.status_code == 200
+    assert download.content == CONTENT
+    assert refused.status_code == 404
+    assert refused["Content-Type"] == "application/json"
+
+
+def test_schema_documents_the_download_as_binary_files(client: Any) -> None:
+    schema = client.get("/api/schema/", {"format": "json"}).json()
+
+    responses = schema["paths"]["/api/staff/notice-files/{token}/"]["get"]["responses"]
+    content = responses["200"]["content"]
+    assert set(content) == {"application/pdf", "image/jpeg", "image/png"}
+    assert {media["schema"]["format"] for media in content.values()} == {"binary"}

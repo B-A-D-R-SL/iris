@@ -77,6 +77,12 @@ _SIGNATURES: tuple[tuple[bytes, FileType], ...] = (
 )
 
 
+# Every type a stored notice can have, for download responses.
+NOTICE_CONTENT_TYPES: tuple[str, ...] = tuple(
+    file_type.content_type for _, file_type in _SIGNATURES
+)
+
+
 def _missing(value: object) -> bool:
     return value is None or value == ""
 

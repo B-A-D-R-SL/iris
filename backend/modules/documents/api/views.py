@@ -19,6 +19,7 @@ from modules.accounts.queries import is_intake_staff
 from modules.documents import services
 from modules.documents.api.errors import NoticeUnavailable, documents_exception_handler
 from modules.documents.api.serializers import NoticeFileLinkSerializer
+from modules.documents.domain.notice import NOTICE_CONTENT_TYPES
 
 
 class IsIntakeWorkerOrAdmin(BasePermission):
@@ -56,8 +57,17 @@ class NoticeFileLinkView(_NoticeFileView):
 
 
 class NoticeFileDownloadView(_NoticeFileView):
+    def perform_content_negotiation(
+        self, request: Request, force: bool = False
+    ) -> tuple[Any, str]:
+        """The file sets its own type, whatever the client accepts; errors are JSON."""
+        return super().perform_content_negotiation(request, force=True)
+
     @extend_schema(
-        responses={200: OpenApiTypes.BINARY},
+        responses={
+            (200, content_type): OpenApiTypes.BINARY
+            for content_type in NOTICE_CONTENT_TYPES
+        },
         tags=["staff notices"],
         summary="Download a notice of assessment file through a signed link",
     )
