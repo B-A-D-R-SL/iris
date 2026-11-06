@@ -111,6 +111,11 @@ ignore_imports = [
     "modules.rules.tests.test_rule_set_versions -> modules.accounts.tests.factories",
     "modules.households.tests.** -> modules.accounts.tests.factories",
     "modules.households.tests.** -> modules.stores.tests.factories",
+    # documents tests build members, users and rule versions for notices (T-03.18.2).
+    "modules.documents.tests.** -> modules.households.tests.factories",
+    "modules.documents.tests.** -> modules.accounts.tests.factories",
+    "modules.documents.tests.** -> modules.rules.domain.schemas",
+    "modules.households.tests.** -> modules.rules.domain.schemas",
     "modules.stores.tests.test_admin -> modules.accounts.tests.factories",
     "modules.categories.tests.test_staff_api -> modules.accounts.tests.factories",
     "modules.categories.tests.test_staff_api -> modules.stores.tests.factories",
