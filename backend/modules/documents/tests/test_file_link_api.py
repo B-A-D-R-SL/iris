@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework.test import APIClient
 
+from adapters.file_store.base import FileStoreUnavailable, StoredFile
 from adapters.file_store.memory import InMemoryFileStore
 from modules.audit.queries import search_events
 from modules.documents.models import IncomeNotice
@@ -248,3 +249,29 @@ def test_link_without_notice_settings_answers_503(worker: Any) -> None:
     assert response.data["message"] == (
         "Notice settings are not set up yet. Ask an administrator."
     )
+
+
+class ReadFailingStore(InMemoryFileStore):
+    """Storage that accepts files but cannot be read (outage during download)."""
+
+    def read(self, reference: str) -> StoredFile:
+        raise FileStoreUnavailable("down")
+
+
+def test_storage_failure_while_reading_answers_503(
+    notice: IncomeNotice, worker: Any, caplog: pytest.LogCaptureFixture
+) -> None:
+    client = _client(worker)
+    url = _link(client, notice.pk).data["url"]
+    backend = "modules.documents.tests.test_file_link_api.ReadFailingStore"
+
+    with (
+        override_settings(FILE_STORE_BACKEND=backend),
+        caplog.at_level("ERROR", logger="iris.documents"),
+    ):
+        response = client.get(url)
+
+    assert response.status_code == 503
+    assert response.data["code"] == "storage_unavailable"
+    errors = [getattr(r, "event", None) for r in caplog.records]
+    assert "notice_file_store_failed" in errors
