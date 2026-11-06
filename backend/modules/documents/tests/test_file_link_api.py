@@ -1,6 +1,7 @@
 # AI contribution: 50% or more AI-generated
 """Signed staff links and downloads for notice files, BR-DOC-006 (T-03.18.2, #467)."""
 
+from collections.abc import Callable
 from datetime import date, timedelta
 from typing import Any
 from uuid import uuid4
@@ -18,7 +19,7 @@ from adapters.file_store.base import FileStoreUnavailable, StoredFile
 from adapters.file_store.memory import InMemoryFileStore
 from modules.audit.queries import search_events
 from modules.documents.models import IncomeNotice
-from modules.documents.services import record_staff_notice
+from modules.documents.services import SIGNING_SALT, record_staff_notice
 from modules.documents.tests.factories import (
     make_confirmed_notice,
     make_member,
@@ -162,6 +163,33 @@ def test_br_doc_006_link_expires_after_five_minutes(
     clock.now += age
 
     assert client.get(url).status_code == status
+
+
+def test_link_keeps_the_lifetime_it_was_issued_with(
+    notice: IncomeNotice,
+    worker: Any,
+    publish_notice_rule: Callable[..., None],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = _SignerClock(float(int(timezone.now().timestamp())))
+    monkeypatch.setattr(signing, "time", clock)
+    client = _client(worker)
+    url = _link(client, notice.pk).data["url"]  # issued for 5 minutes
+
+    publish_notice_rule(link_minutes=1)  # an admin shortens links afterwards
+    clock.now += 120
+
+    assert client.get(url).status_code == 200
+
+
+def test_link_without_a_lifetime_is_refused(notice: IncomeNotice, worker: Any) -> None:
+    # Signed with the right key and salt, but in the earlier format without "m".
+    token = signing.TimestampSigner(salt=SIGNING_SALT).sign_object(
+        {"n": str(notice.pk), "u": str(worker.pk)}
+    )
+    url = reverse("staff-notice-file-download", kwargs={"token": token})
+
+    assert _client(worker).get(url).status_code == 404
 
 
 def test_tampered_token_is_refused(notice: IncomeNotice, worker: Any) -> None:

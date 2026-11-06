@@ -215,25 +215,30 @@ def issue_file_link(notice_id: UUID, staff_user: AbstractBaseUser) -> FileLink:
     _require_staff(staff_user)
     limits = _upload_limits()
     notice = _notice_with_file(notice_id)
+    # The lifetime travels in the signed link, so a later rule change does not
+    # lengthen or shorten links already handed out.
     token = TimestampSigner(salt=SIGNING_SALT).sign_object(
-        {"n": str(notice.pk), "u": str(staff_user.pk)}
+        {"n": str(notice.pk), "u": str(staff_user.pk), "m": limits.link_minutes}
     )
     audit_services.record(staff_user, "view", "income_notice", notice.pk, {})
     logger.info("Notice file link issued", extra={"event": "notice_file_link_issued"})
     return FileLink(token, timezone.now() + timedelta(minutes=limits.link_minutes))
 
 
-def _linked_notice_id(token: str, staff_user: AbstractBaseUser, minutes: int) -> str:
+def _linked_notice_id(token: str, staff_user: AbstractBaseUser) -> str:
     """The notice id a valid, unexpired link of this staff user points to."""
+    signer = TimestampSigner(salt=SIGNING_SALT)
     try:
-        payload = TimestampSigner(salt=SIGNING_SALT).unsign_object(
-            token, max_age=timedelta(minutes=minutes)
-        )
+        payload = signer.unsign_object(token)  # signature only: read the lifetime
+        minutes = payload.get("m") if isinstance(payload, dict) else None
+        if not isinstance(minutes, int):
+            _refuse_link("notice_file_link_invalid")
+        signer.unsign_object(token, max_age=timedelta(minutes=minutes))
     except SignatureExpired as exc:
         _refuse_link("notice_file_link_expired", exc)
     except BadSignature as exc:
         _refuse_link("notice_file_link_invalid", exc)
-    if not isinstance(payload, dict) or payload.get("u") != str(staff_user.pk):
+    if payload.get("u") != str(staff_user.pk):
         _refuse_link("notice_file_link_wrong_user")
     return str(payload["n"])
 
@@ -248,10 +253,7 @@ def open_file(
 ) -> NoticeFile:
     """BR-DOC-006: the file behind a link, for the staff user it was issued to."""
     _require_staff(staff_user)
-    limits = _upload_limits()
-    notice = _notice_with_file(
-        _linked_notice_id(token, staff_user, limits.link_minutes)
-    )
+    notice = _notice_with_file(_linked_notice_id(token, staff_user))
     store = file_store if file_store is not None else _file_store()
     try:
         stored = store.read(notice.file_ref)
