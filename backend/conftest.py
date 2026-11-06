@@ -5,6 +5,8 @@ import pytest
 from django.db import connections, transaction
 from django.test import TransactionTestCase
 
+from adapters.file_store.memory import InMemoryFileStore
+
 
 def _audit_safe_teardown(test_case, teardown):
     """Allow Django's test flush while restoring the audit trigger on failure."""
@@ -47,3 +49,9 @@ def _allow_audit_test_flush():
             lambda self: _audit_safe_teardown(self, original),
         )
         yield
+
+
+@pytest.fixture(autouse=True)
+def _empty_file_store():
+    """Each test starts with no stored files in the in-memory fake."""
+    InMemoryFileStore.clear()

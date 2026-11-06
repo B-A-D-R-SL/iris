@@ -22,3 +22,9 @@ if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_SSL_REDIRECT = True
+
+# Notice files go to private Azure Blob Storage; the connection string comes from
+# the environment (App Service settings), never from the repository.
+FILE_STORE_BACKEND = env(
+    "FILE_STORE_BACKEND", default="adapters.file_store.azure_blob.from_settings"
+)
