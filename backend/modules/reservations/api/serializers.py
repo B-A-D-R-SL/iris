@@ -50,6 +50,8 @@ class ListingCardSerializer(serializers.Serializer):
 
 
 class BrowseErrorSerializer(serializers.Serializer):
+    """The API's error shape: { code, message, fields }."""
+
     code = serializers.CharField()
     message = serializers.CharField()
     fields = serializers.DictField(

@@ -11,6 +11,7 @@ from modules.listings.domain.browsing import end_of_local_day
 MONTREAL = ZoneInfo("America/Montreal")
 
 
+# rule: BR-LIST-005
 @pytest.mark.parametrize(
     ("now", "expected"),
     [
@@ -65,6 +66,7 @@ def test_today_ends_at_the_next_montreal_midnight(
     assert end_of_local_day(now, MONTREAL) == expected
 
 
+# rule: BR-LIST-005
 def test_a_naive_clock_is_refused() -> None:
     with pytest.raises(ValueError, match="timezone-aware"):
         end_of_local_day(datetime(2026, 11, 6, 10), MONTREAL)  # noqa: DTZ001

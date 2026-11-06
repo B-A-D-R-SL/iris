@@ -109,6 +109,7 @@ export interface components {
       target_id: string;
       target_type: string;
     };
+    /** @description The API's error shape: { code, message, fields }. */
     BrowseError: {
       code: string;
       fields: {
@@ -596,8 +597,6 @@ export interface operations {
         category?: string;
         /** @description Un numéro de page de l'ensemble des résultats. */
         page?: number;
-        /** @description Nombre de résultats à retourner par page. */
-        page_size?: number;
         /** @description A store ID. */
         store?: string;
         /** @description Only listings that can still be picked up today, Montreal time. */

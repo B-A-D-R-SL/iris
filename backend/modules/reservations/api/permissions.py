@@ -33,6 +33,7 @@ class IsBeneficiary(BasePermission):
     message = NOT_APPROVED
 
     def has_permission(self, request: Request, view: APIView) -> bool:
+        """True only for a signed-in, active account with the beneficiary role."""
         user = request.user
         return bool(
             getattr(user, "is_authenticated", False)

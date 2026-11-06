@@ -168,7 +168,8 @@ remains pending, so only posts without a photo can be published; see the
 [posting implementation and handoff](../guides/listing-posting.md).
 
 US-36 adds browsing. `GET /api/listings/` returns the listings an approved
-household can see (BR-LIST-004), 20 a page, sorted by pickup start. Filters:
+household can see (BR-LIST-004), sorted by pickup start. Pages are always 20
+cards: only `?page=` is read, and `page_size` is ignored (#506). Filters:
 `category` (a category code), `store` (a store ID) and `today=true` (can still
 be picked up today, Montreal time; BR-LIST-005). Leave out an unused filter.
 Signed out gets 401; any other role, or a household that is not approved

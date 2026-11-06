@@ -28,11 +28,9 @@ from modules.reservations.api.serializers import (
 
 
 class ListingPagination(PageNumberPagination):
-    """20 cards a page (US-36); ?page_size= goes up to 100 (API conventions)."""
+    """Always 20 cards a page (#506); clients choose only ?page=, not the size."""
 
     page_size = 20
-    page_size_query_param = "page_size"
-    max_page_size = 100
 
 
 def browse_exception_handler(
@@ -90,11 +88,15 @@ class BrowseListingsView(ListAPIView):
     http_method_names = ("get", "head", "options")
 
     def get_exception_handler(self) -> Any:
+        """Use the { code, message, fields } error shape for this view."""
         return browse_exception_handler
 
     def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """One page of the cards the signed-in household can see."""
         now = timezone.now()
-        # Approval first: a refused household learns nothing from its filters.
+        # Ownership: the household always comes from the signed-in user, never from
+        # the request, so no one can browse as another household. Approval is
+        # checked before the filters, so a refused household learns nothing.
         household_id = approved_household_id(request.user, at=now)
         filters = BrowseFiltersSerializer(data=request.query_params)
         filters.is_valid(raise_exception=True)

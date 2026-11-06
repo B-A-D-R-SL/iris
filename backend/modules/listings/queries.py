@@ -78,6 +78,7 @@ def visible_listings(household_id: UUID | None, now: datetime) -> QuerySet[Listi
         raise ValueError("The supplied clock must be timezone-aware.")
     if household_id is None:
         return Listing.objects.none()
+    # rule: BR-LIST-004 published, with units left, and the pickup not ended.
     return Listing.objects.filter(
         status=ListingStatus.PUBLISHED,
         quantity_reserved__lt=F("quantity_total"),

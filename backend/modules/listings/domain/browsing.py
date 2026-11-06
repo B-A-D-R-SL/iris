@@ -15,5 +15,6 @@ def end_of_local_day(now: datetime, local_tz: tzinfo) -> datetime:
     """
     if now.utcoffset() is None:
         raise ValueError("The supplied clock must be timezone-aware.")
+    # rule: BR-LIST-005 "today" ends at the next midnight, Montreal time.
     tomorrow = now.astimezone(local_tz).date() + timedelta(days=1)
     return datetime.combine(tomorrow, time.min, tzinfo=local_tz)

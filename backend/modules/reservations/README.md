@@ -24,8 +24,8 @@ No public write functions yet. `Reservation` stores the columns from the databas
 ## Endpoints
 
 - `GET /api/listings/?category=&store=&today=` (US-36): the listings the
-  signed-in household can see, 20 a page (`?page=`, `?page_size=` up to 100),
-  sorted by pickup start. Signed out gets 401. Any role other than an active
+  signed-in household can see, always 20 a page (`?page=`; `page_size` is
+  ignored, as #506 asks), sorted by pickup start. Signed out gets 401. Any role other than an active
   `beneficiary` gets 403 (`permission_denied`), and so does a household that is
   not approved or has expired (`household_not_approved`). Invalid filters get
   400.

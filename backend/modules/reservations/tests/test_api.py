@@ -1,5 +1,10 @@
 # AI contribution: 50% or more AI-generated
-"""GET /api/listings/ (US-36): approved households browse, everyone else is refused."""
+"""GET /api/listings/ (US-36): approved households browse, everyone else is refused.
+
+Allowed: an active beneficiary whose own household is approved. Refused: signed
+out (401), every other role, and a beneficiary whose household is missing, not
+approved or expired (403).
+"""
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -33,15 +38,18 @@ NOT_APPROVED_STATUSES = [
 
 @pytest.fixture(autouse=True)
 def frozen_clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every request in these tests happens at NOW."""
     monkeypatch.setattr(timezone, "now", lambda: NOW)
 
 
 @pytest.fixture
 def client() -> APIClient:
+    """An API client that asks for English messages."""
     return APIClient(HTTP_ACCEPT_LANGUAGE="en")
 
 
 def _household(holder: Any, **kwargs: Any) -> Any:
+    """An online file held by ``holder``, approved and valid unless overridden."""
     values: dict[str, Any] = {
         "channel": "online",
         "holder": holder,
@@ -54,6 +62,7 @@ def _household(holder: Any, **kwargs: Any) -> Any:
 
 
 def _listing(start: datetime = NOW + timedelta(hours=1), **kwargs: Any) -> Any:
+    """A published listing with a two-hour pickup from ``start``, unless overridden."""
     end = kwargs.pop("pickup_end", start + timedelta(hours=2))
     return ListingFactory(pickup_start=start, pickup_end=end, **kwargs)
 
@@ -68,10 +77,14 @@ def approved(client: APIClient) -> APIClient:
 
 
 def _ids(response: Any) -> list[str]:
+    """Listing IDs on the page, in order."""
     return [card["id"] for card in response.json()["results"]]
 
 
 class TestApprovedHousehold:
+    """Allowed: an active beneficiary whose household is approved."""
+
+    # rule: BR-LIST-004
     def test_browses_only_visible_listings_as_cards(self, approved: APIClient) -> None:
         store: Any = StoreFactory(name="Épicerie Exemple")
         category = CategoryFactory(code="bakery")
@@ -134,6 +147,8 @@ class TestApprovedHousehold:
 
 
 class TestRefused:
+    """Refused: signed out, every other role, and households not approved."""
+
     def test_signed_out_gets_401(self, client: APIClient) -> None:
         response = client.get(URL)
         assert response.status_code == 401
@@ -160,6 +175,7 @@ class TestRefused:
         client.force_authenticate(user)
         assert client.get(URL).status_code == 403
 
+    # rule: BR-LIST-004
     @pytest.mark.parametrize("status", NOT_APPROVED_STATUSES)
     def test_a_household_that_is_not_approved_gets_403(
         self, client: APIClient, status: str
@@ -176,6 +192,7 @@ class TestRefused:
             "fields": {},
         }
 
+    # rule: BR-LIST-004
     def test_an_expired_file_still_marked_approved_gets_403(
         self, client: APIClient
     ) -> None:
@@ -186,10 +203,13 @@ class TestRefused:
         assert response.status_code == 403
         assert response.json()["code"] == "household_not_approved"
 
-    def test_a_beneficiary_without_a_household_gets_403(
+    def test_another_users_approved_household_does_not_let_you_browse(
         self, client: APIClient
     ) -> None:
+        """Ownership: only the signed-in user's own household counts."""
+        _household(UserFactory(role="beneficiary"))
         client.force_login(UserFactory(role="beneficiary"))
+        _listing()
         response = client.get(URL)
         assert response.status_code == 403
         assert response.json()["code"] == "household_not_approved"
@@ -207,6 +227,8 @@ class TestRefused:
 
 
 class TestFilters:
+    """The category, store and today filters, and invalid values."""
+
     def test_category(self, approved: APIClient) -> None:
         wanted = _listing(category=CategoryFactory(code="bakery"))
         _listing()
@@ -218,12 +240,14 @@ class TestFilters:
         _listing()
         assert _ids(approved.get(URL, {"store": str(store.pk)})) == [str(wanted.id)]
 
+    # rule: BR-LIST-005
     @pytest.mark.parametrize("value", ["true", "1"])
     def test_today(self, approved: APIClient, value: str) -> None:
         wanted = _listing(start=NOW + timedelta(hours=2))
         _listing(start=NOW + timedelta(days=1))
         assert _ids(approved.get(URL, {"today": value})) == [str(wanted.id)]
 
+    # rule: BR-LIST-005
     def test_today_false_lists_every_day(self, approved: APIClient) -> None:
         _listing()
         _listing(start=NOW + timedelta(days=1))
@@ -249,7 +273,11 @@ class TestFilters:
 
 
 class TestPaging:
-    def test_twenty_cards_a_page(self, approved: APIClient) -> None:
+    """Always 20 cards a page (#506)."""
+
+    def test_twenty_cards_a_page_whatever_page_size_asks(
+        self, approved: APIClient
+    ) -> None:
         store = StoreFactory()
         category = CategoryFactory()
         ListingFactory.create_batch(
@@ -262,6 +290,7 @@ class TestPaging:
 
         first = approved.get(URL).json()
         second = approved.get(URL, {"page": 2}).json()
+        asked_for_five = approved.get(URL, {"page_size": 5}).json()
 
         assert first["count"] == 21
         assert len(first["results"]) == 20
@@ -269,11 +298,7 @@ class TestPaging:
         assert len(second["results"]) == 1
         assert second["next"] is None
         assert not set(_ids_of(first)) & set(_ids_of(second))
-
-    def test_page_size_can_be_chosen(self, approved: APIClient) -> None:
-        for _ in range(3):
-            _listing()
-        assert len(_ids(approved.get(URL, {"page_size": 2}))) == 2
+        assert len(asked_for_five["results"]) == 20
 
     def test_a_page_past_the_end_gets_404(self, approved: APIClient) -> None:
         _listing()
@@ -283,4 +308,5 @@ class TestPaging:
 
 
 def _ids_of(page: dict[str, Any]) -> list[str]:
+    """Listing IDs in a decoded page, in order."""
     return [card["id"] for card in page["results"]]
