@@ -15,3 +15,21 @@ msgstr "Vérifiez les champs indiqués."
 
 msgid "The request was refused."
 msgstr "La demande a été refusée."
+
+msgid "Sign in to see listings."
+msgstr "Connectez-vous pour voir les offres."
+
+msgid "This page of listings does not exist."
+msgstr "Cette page d'offres n'existe pas."
+
+msgid "Listings can only be read here."
+msgstr "Les offres peuvent seulement être consultées ici."
+
+msgid "Enter a category code of 1 to 64 characters."
+msgstr "Entrez un code de catégorie de 1 à 64 caractères."
+
+msgid "Enter a valid store ID."
+msgstr "Entrez un identifiant de commerce valide."
+
+msgid "Enter true or false."
+msgstr "Entrez true ou false."

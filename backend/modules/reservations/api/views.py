@@ -11,6 +11,7 @@ from typing import Any
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema, extend_schema_view
+from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
@@ -19,7 +20,11 @@ from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
 from modules.listings import queries as listing_queries
-from modules.reservations.api.permissions import IsBeneficiary, approved_household_id
+from modules.reservations.api.permissions import (
+    NOT_APPROVED,
+    IsBeneficiary,
+    approved_household_id,
+)
 from modules.reservations.api.serializers import (
     BrowseErrorSerializer,
     BrowseFiltersSerializer,
@@ -33,32 +38,44 @@ class ListingPagination(PageNumberPagination):
     page_size = 20
 
 
+CHECK_FIELDS = _("Check the highlighted fields.")
+REFUSED = _("The request was refused.")
+# Only these fixed messages are returned, never an exception's own text, which
+# can repeat what the user typed.
+STATUS_MESSAGES = {
+    status.HTTP_401_UNAUTHORIZED: _("Sign in to see listings."),
+    status.HTTP_403_FORBIDDEN: NOT_APPROVED,
+    status.HTTP_404_NOT_FOUND: _("This page of listings does not exist."),
+    status.HTTP_405_METHOD_NOT_ALLOWED: _("Listings can only be read here."),
+}
+FILTER_MESSAGES = {
+    "category": _("Enter a category code of 1 to 64 characters."),
+    "store": _("Enter a valid store ID."),
+    "today": _("Enter true or false."),
+}
+
+
 def browse_exception_handler(
     exc: Exception, context: dict[str, Any]
 ) -> Response | None:
-    """Errors as { code, message, fields }, in the user's language."""
+    """Errors as { code, message, fields }, using fixed, translated messages."""
     response = exception_handler(exc, context)
     if response is None:
         return None
+    data = response.data if isinstance(response.data, dict) else {}
     if isinstance(exc, ValidationError):
-        fields = response.data
-        if not isinstance(fields, dict):
-            fields = {"non_field_errors": fields}
+        names = list(data) or ["non_field_errors"]
         response.data = {
             "code": "validation_error",
-            "message": str(_("Check the highlighted fields.")),
+            "message": str(CHECK_FIELDS),
             "fields": {
-                key: [str(message) for message in value]
-                if isinstance(value, list)
-                else [str(value)]
-                for key, value in fields.items()
+                name: [str(FILTER_MESSAGES.get(name, CHECK_FIELDS))] for name in names
             },
         }
     else:
-        detail = response.data.get("detail", _("The request was refused."))
         response.data = {
-            "code": getattr(detail, "code", None) or "request_refused",
-            "message": str(detail),
+            "code": getattr(data.get("detail"), "code", None) or "request_refused",
+            "message": str(STATUS_MESSAGES.get(response.status_code, REFUSED)),
             "fields": {},
         }
     return response

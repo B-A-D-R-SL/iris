@@ -143,7 +143,11 @@ class TestApprovedHousehold:
     def test_post_is_not_allowed(self, approved: APIClient) -> None:
         response = approved.post(URL, {})
         assert response.status_code == 405
-        assert response.json()["code"] == "method_not_allowed"
+        assert response.json() == {
+            "code": "method_not_allowed",
+            "message": "Listings can only be read here.",
+            "fields": {},
+        }
 
 
 class TestRefused:
@@ -152,7 +156,11 @@ class TestRefused:
     def test_signed_out_gets_401(self, client: APIClient) -> None:
         response = client.get(URL)
         assert response.status_code == 401
-        assert response.json()["code"] == "not_authenticated"
+        assert response.json() == {
+            "code": "not_authenticated",
+            "message": "Sign in to see listings.",
+            "fields": {},
+        }
 
     @pytest.mark.parametrize(
         "role", ["store_staff", "store_manager", "intake_worker", "admin"]
@@ -254,22 +262,39 @@ class TestFilters:
         assert len(_ids(approved.get(URL, {"today": "false"}))) == 2
 
     @pytest.mark.parametrize(
-        ("params", "field"),
+        ("params", "field", "message"),
         [
-            ({"store": "not-a-uuid"}, "store"),
-            ({"today": "maybe"}, "today"),
-            ({"category": "x" * 65}, "category"),
+            ({"store": "not-a-uuid"}, "store", "Enter a valid store ID."),
+            ({"today": "maybe"}, "today", "Enter true or false."),
+            (
+                {"category": "x" * 65},
+                "category",
+                "Enter a category code of 1 to 64 characters.",
+            ),
         ],
     )
-    def test_an_invalid_filter_gets_400_naming_the_field(
-        self, approved: APIClient, params: dict[str, str], field: str
+    def test_an_invalid_filter_gets_400_with_a_fixed_message(
+        self, approved: APIClient, params: dict[str, str], field: str, message: str
     ) -> None:
+        """The message is ours; the value the user typed is never echoed back."""
         response = approved.get(URL, params)
         assert response.status_code == 400
-        body = response.json()
-        assert body["code"] == "validation_error"
-        assert body["message"] == "Check the highlighted fields."
-        assert list(body["fields"]) == [field]
+        assert response.json() == {
+            "code": "validation_error",
+            "message": "Check the highlighted fields.",
+            "fields": {field: [message]},
+        }
+
+    def test_a_filter_error_is_in_french_by_default(self) -> None:
+        user = UserFactory(role="beneficiary")
+        _household(user)
+        client = APIClient()
+        client.force_login(user)
+        response = client.get(URL, {"store": "not-a-uuid"})
+        assert response.status_code == 400
+        assert response.json()["fields"] == {
+            "store": ["Entrez un identifiant de commerce valide."]
+        }
 
 
 class TestPaging:
@@ -304,7 +329,11 @@ class TestPaging:
         _listing()
         response = approved.get(URL, {"page": 2})
         assert response.status_code == 404
-        assert response.json()["code"] == "not_found"
+        assert response.json() == {
+            "code": "not_found",
+            "message": "This page of listings does not exist.",
+            "fields": {},
+        }
 
 
 def _ids_of(page: dict[str, Any]) -> list[str]:
