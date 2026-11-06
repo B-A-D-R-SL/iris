@@ -1,0 +1,17 @@
+# AI contribution: 50% or more AI-generated
+msgid ""
+msgstr ""
+"Project-Id-Version: Iris\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Only approved households can see listings."
+msgstr "Seuls les foyers approuvés peuvent voir les offres."
+
+msgid "Check the highlighted fields."
+msgstr "Vérifiez les champs indiqués."
+
+msgid "The request was refused."
+msgstr "La demande a été refusée."

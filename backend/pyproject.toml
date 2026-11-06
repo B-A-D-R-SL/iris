@@ -169,6 +169,14 @@ ignore_imports = [
     "modules.reservations.** -> modules.priority.services",
     "modules.reservations.** -> modules.priority.queries",
 
+    # reservations tests -> test setup only: the browse API tests (US-36) build
+    # users, households and listings with the owning modules' factories.
+    "modules.reservations.tests.** -> modules.accounts.tests.factories",
+    "modules.reservations.tests.** -> modules.households.tests.factories",
+    "modules.reservations.tests.** -> modules.listings.tests.factories",
+    "modules.reservations.tests.** -> modules.stores.tests.factories",
+    "modules.reservations.tests.** -> modules.categories.tests.factories",
+
     # priority -> households, eligibility, review
     "modules.priority.** -> modules.households.services",
     "modules.priority.** -> modules.households.queries",
