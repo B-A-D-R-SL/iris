@@ -1,3 +1,4 @@
+# AI contribution: Below 50% AI-generated
 from copy import deepcopy
 
 import pytest
@@ -80,6 +81,16 @@ def test_default_values_satisfy_each_rule_schema(rule_type: str) -> None:
             {**DEFAULT_RULE_VALUES["retention"], "unexpected": 1},
             "Additional properties are not allowed",
         ),
+        (
+            "notice_upload",
+            {**DEFAULT_RULE_VALUES["notice_upload"], "link_minutes": 61},
+            "maximum of 60",
+        ),
+        (
+            "notice_upload",
+            {**DEFAULT_RULE_VALUES["notice_upload"], "max_bytes": 0},
+            "minimum of 1",
+        ),
     ],
 )
 def test_invalid_values_are_refused_with_a_clear_message(
@@ -99,3 +110,11 @@ def test_unknown_rule_type_is_refused() -> None:
 def test_every_supported_rule_type_has_exactly_one_schema() -> None:
     assert set(RULE_SCHEMAS) == set(RULE_TYPES)
     assert set(DEFAULT_RULE_VALUES) == set(RULE_TYPES) - {"lico_thresholds"}
+
+
+def test_notice_upload_defaults_are_10_mb_and_5_minutes() -> None:
+    """BR-DOC-004 and BR-DOC-006: the issue's 10 MB files and 5-minute links."""
+    assert DEFAULT_RULE_VALUES["notice_upload"] == {
+        "max_bytes": 10_485_760,
+        "link_minutes": 5,
+    }
