@@ -8,6 +8,7 @@ class AuditEvent(models.Model):
     class Action(models.TextChoices):
         VIEW = "view"
         DECISION = "decision"
+        RULE_PUBLISHED = "rule_published"
 
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     actor_role = models.CharField(max_length=20)

@@ -36,6 +36,6 @@ Do not treat this scaffold as implemented business functionality.
 
 ## Audit events
 
-No audit events are implemented as part of SET-14.
-Document emitted event names here when the module's
-business workflows are implemented.
+Publishing records a `rule_published` audit event with the rule type, version,
+actor, and rule-version identifier in the same transaction. After commit, it logs
+`rule_published` with the rule-version and actor identifiers.
