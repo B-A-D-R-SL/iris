@@ -1,3 +1,4 @@
+<!-- AI contribution: 50% or more AI-generated -->
 # Business rules
 
 Every rule Iris applies, with its default value. Values marked *(setting)* are stored in the rule settings module (`rules`) and can be changed by an admin without a developer; changing one creates a new version, so past decisions stay reproducible. Code never hard-codes these values: business-rule functions in `domain/` receive them as arguments.
@@ -43,6 +44,19 @@ The eligibility owner and reviewers must confirm them before merge.
 
 Threshold values come from the versioned `lico_thresholds` RuleSet,
 not from hardcoded values.
+
+## Duplicate households (US-25)
+
+Rules for #479 and #478. The owner needs to confirm which files count as active.
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-DUP-001 | The same address and unit, or a member with the same names and birth date, in another open file is a possible duplicate. Ignore draft, rejected and anonymized files. |
+| BR-DUP-002 | Save possible duplicates as review_required with reason POSSIBLE_DUPLICATE. Keep both files. A clean file becomes submitted. Approval is a separate step. |
+| BR-DUP-003 | Submissions sharing an address or person wait on PostgreSQL advisory locks. Take locks in a fixed order before the search and hold them until the outer transaction ends. |
+
+Proposed open statuses: `submitted`, `review_required`, `awaiting_visit`,
+`approved`, `renewal_needed`, and `suspended`. Expired approvals still count.
 
 ## Listings
 

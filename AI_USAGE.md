@@ -33,6 +33,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| US-25 duplicate check and tests (#479, #478) | `backend/modules/households/{queries.py,services.py,api/,tests/,locale/fr/LC_MESSAGES/django.po,migrations/0004_normalize_duplicate_keys.py,README.md}`, `backend/iris/settings/base.py`, `docs/02-requirements/business-rules.md`, `docs/03-design/api.md`, generated API types, `AI_USAGE.md` | 50% or more AI-generated | |
 | T-09.62.1 Audit tests (#548) | `backend/modules/audit/tests/test_audit.py` | 50% or more AI-generated | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-09.62.2 Audit model and service (#549) | `backend/modules/audit/{models.py,services.py,README.md,migrations/}` | 50% or more AI-generated (migrations exempt) | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-01.01.1 Sign-in and sign-out tests (#423) | `backend/modules/accounts/tests/test_accounts.py`, `frontend/src/app/App.test.tsx`, `AI_USAGE.md` | 50% or more AI-generated | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
@@ -74,6 +75,20 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | T-05.35.2 Category admin API and screen (#503) and T-05.35.1 tests (#502) | `backend/modules/listings/tests/test_category_admin.py`, `backend/modules/categories/` (`domain/rules.py`, `queries.py`, `services.py`, `api/serializers.py`, `api/staff_views.py`, `api/staff_urls.py`, `tests/test_staff_api.py`, French catalog, README), `backend/iris/urls.py`, `backend/pyproject.toml` (test-only import exceptions), `frontend/src/features/categories/` (`adminApi.ts`, `categoryForm.ts`, `CategoryDialog.tsx`, `CategoriesPage.tsx` and tests), translations, regenerated API types, `docs/02-requirements/forms-and-fields.md`, `docs/03-design/{api,database-schema}.md`, `AI_USAGE.md` | 50% or more AI-generated (generated API declarations and compiled catalog exempt) | Not yet opened (`user_story/US-35` branch) |
 
 ## Examples, verification and corrections
+
+### US-25 Duplicate checking and tests (#479, #478)
+
+- **AI help:** ChatGPT helped build the search, submission service, locks, staff
+  API, translations, migration, tests, and docs.
+- **Choices for review:** reuse `person_key`; count suspended and expired files
+  as possible duplicates. The submission endpoint is new. Approval stays in US-18.
+- **Checks:** 803 backend tests passed, with 93.21% coverage. The 120 household
+  tests reached 93.49%, including six tests with two database connections.
+  Domain coverage exceeds 90%. Lint, types, module rules, migration checks,
+  schema generation, eight API-generator tests, and TypeScript checks passed.
+- **Fixes:** migration 0004 updates old search keys. Rollback keeps those keys;
+  names and addresses stay unchanged. The API keeps its existing status type name.
+  The development database was not migrated.
 
 ### T-09.62.3 Audit search API and screen (#550)
 

@@ -180,6 +180,17 @@ class MemberReadSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class WalkInSubmissionInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
+    """Submit saved data; no input fields are allowed."""
+
+
+class WalkInSubmissionReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Household
+        fields = ("id", "status", "status_reason", "submitted_at")
+        read_only_fields = fields
+
+
 class WalkInDraftReadSerializer(serializers.ModelSerializer):
     members = MemberReadSerializer(many=True, read_only=True)
     created_by_email = serializers.EmailField(source="created_by.email", read_only=True)

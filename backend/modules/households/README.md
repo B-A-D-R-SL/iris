@@ -1,5 +1,5 @@
 <!-- AI contribution: 50% or more AI-generated -->
-# Households module — implementation for T-03.17.2 and T-03.17.3
+# Households module — walk-in drafts and US-25 duplicate checking
 
 **Owner pair:** Registration
 
@@ -12,7 +12,9 @@ account. The record also preserves staff verification and creation timestamps.
 
 - `services.create_walk_in(data, staff_user) -> Household`
 - `services.update_draft(household_id, data, staff_user) -> Household`
+- `services.submit_walk_in(household_id, staff_user) -> Household`
 - `queries.walk_in_for_staff(household_id) -> Household | None`
+- `queries.find_possible_duplicates(household) -> QuerySet[Household]`
 - `domain/address.py`: `normalize_address`, `normalize_postal_code`
 - `domain/person.py`: `normalize_person`, age/name validation
 
@@ -26,6 +28,8 @@ creator, verifier or internal keys directly.
 - `POST /api/staff/households/`: create a draft and holder member
 - `GET /api/staff/households/{uuid}/`: read draft and who created it
 - `PATCH /api/staff/households/{uuid}/`: patch draft steps, including members
+- `POST /api/staff/households/{uuid}/submit/`: submit saved registration data,
+  returning `{id, status, status_reason, submitted_at}`; request body is `{}`.
 
 Errors use `{ "code", "message", "fields" }`; nested form field paths are
 reported as dotted keys such as `address.postal_code`.
@@ -34,8 +38,42 @@ specific error types, and `messages.py` gives each one its translated text.
 
 All require a session for an active `intake_worker` or `admin`. Other signed-in
 roles are rejected with HTTP 403. The API contains no ID document information.
+Staff can manage another worker's walk-in file. Online files return 404;
+signed-out requests return 401.
 
-### Example request
+## Duplicate checking (US-25, #479 and #478)
+
+Submission needs a complete address, one holder, at most 15 members, an identity
+check, and consent. Income notices and approval belong to US-18.
+
+A clean file becomes `submitted`. A matching address (including unit) or person
+(first name, last name and birth date) sends it to `review_required` with reason
+`POSSIBLE_DUPLICATE`. Both files stay saved. Submitting the same file again
+returns an error and leaves its status unchanged.
+
+The search uses the existing `address_key` and `person_key` indexes. It skips
+empty keys, the file itself, and files whose personal data was removed.
+
+**Policy for review:** open files are `submitted`, `review_required`,
+`awaiting_visit`, `approved`, `renewal_needed`, and `suspended`. Draft and rejected
+files do not count. Expired approvals still count. The issue does not define
+"active", so the owner needs to confirm this choice.
+
+Submission locks the draft to prevent edits. It then locks the address and
+people in a fixed order before checking for duplicates. PostgreSQL holds these
+locks until the outer transaction commits or rolls back. Future approval code
+must follow the same steps before approving a file.
+
+Migration `0004_normalize_duplicate_keys` updates old search keys and clears keys
+for missing or removed personal data. Names and addresses stay unchanged.
+Rollback keeps the updated keys because older schemas also accept them.
+The migration has only been run on test databases.
+
+Tests cover matches, permissions, French/English errors, the API and database,
+and two submissions at once. They check that the second submission waits, then
+sees the first file only if its transaction commits.
+
+## Example draft request
 
 ```json
 {
@@ -92,5 +130,6 @@ and decide whether to migrate existing local event history. Do not send action
 names unsupported by the current US-62 branch, which only handles view/decision.
 
 The walk-in screens (T-03.17.4) are in `frontend/src/areas/staff/pages/WalkIn/`.
-Approval, income notices, status transitions and the set-password email belong
-to US-18 and US-57; none of them are implemented here.
+Approval, income notices, approval/rejection transitions and the set-password
+email belong to US-18 and US-57; they are not implemented here. US-25 adds only
+submission and duplicate-review routing.
