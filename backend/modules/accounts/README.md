@@ -67,11 +67,23 @@ docker compose exec backend python manage.py seed_rules
 Other modules must communicate through public services or queries.
 Do not import another module's models or internal domain code.
 
+## Accepting an invitation in the browser
+
+The public page `/invitation/:token` (#431) asks for a password and matching
+confirmation in French or English. It sends the token and password to the
+acceptance API; confirmation stays in the browser. Password inputs are not
+trimmed. The backend applies the complete password policy and token checks.
+
+Successful anonymous acceptance opens `/sign-in`. A visitor who already has a
+session sees confirmation and guidance to use the existing sign-out control
+before signing into the new account. Acceptance never signs in or signs out
+automatically. Recoverable errors preserve the entered values for retry;
+expired links explain that the inviter must provide a new link.
+
 ## Later workflows
 
-The `/invitation/:token` password-and-confirmation page is task #431. Staff and
-store-team invitation screens and endpoints, email delivery, partner approval
-and household linking remain in US-05, US-06, US-13 and US-18.
+Staff and store-team invitation screens and endpoints, email delivery, partner
+approval and household linking remain in US-05, US-06, US-13 and US-18.
 
 ## Audit events
 

@@ -1,17 +1,18 @@
 // AI contribution: 50% or more AI-generated
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useLocation } from "react-router";
 
 import App from "../../../app/App";
-import { expectNoAxeViolations, renderWithProviders } from "../../../test/render";
+import { expectNoAxeViolations, renderWithProviders, testUser } from "../../../test/render";
 
 const ACCEPT = "/api/invitations/accept/";
 // A deterministic token made from 32 synthetic bytes, never a real invitation.
 const TOKEN = btoa("t".repeat(32)).replaceAll("=", "");
 const PASSWORD = "Invitation-test-429";
 const SUBMIT = /(?:définir|créer).*mot de passe/i;
+const PASSWORD_ERROR = "Choisissez un mot de passe moins courant.";
 
 /** Observe real router navigation without replacing the page under test. */
 function CurrentPath() {
@@ -153,6 +154,118 @@ describe("US-04 accept an invitation and set a password", () => {
 
     await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/sign-in"));
     expect(acceptanceCalls(fetchMock)).toHaveLength(2);
+  });
+
+  it("shows backend password errors under the field and focuses the error summary", async () => {
+    const fetchMock = mockAcceptance(async () =>
+      Response.json(
+        {
+          code: "validation_error",
+          message: "Vérifiez les champs indiqués.",
+          fields: { password: [PASSWORD_ERROR] },
+        },
+        { status: 400 },
+      ),
+    );
+    renderInvitation();
+    const user = await fillPasswords();
+    await user.click(screen.getByRole("button", { name: SUBMIT }));
+
+    const alert = await screen.findByRole("alert");
+    const summary = alert.closest('[tabindex="-1"]') ?? alert;
+    expect(summary).toHaveFocus();
+    const password = screen.getByLabelText(/^Mot de passe$/);
+    expect(password).toHaveAttribute("aria-invalid", "true");
+    expect(password).toHaveAccessibleDescription(/Choisissez un mot de passe moins courant/);
+    expect(password).toHaveValue(PASSWORD);
+    expect(screen.getByLabelText(/^Confirmer le mot de passe$/)).toHaveValue(PASSWORD);
+    expect(acceptanceCalls(fetchMock)).toHaveLength(1);
+  });
+
+  it("translates an expired-link error on language change without submitting again", async () => {
+    const fetchMock = mockAcceptance(async () =>
+      Response.json(
+        {
+          code: "invitation_expired",
+          message: "Ce lien d’invitation a expiré.",
+          fields: {},
+        },
+        { status: 400 },
+      ),
+    );
+    renderInvitation();
+    const user = await fillPasswords();
+    await user.click(screen.getByRole("button", { name: SUBMIT }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Ce lien d’invitation a expiré.");
+
+    await user.click(screen.getByRole("button", { name: "English" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/expired/i);
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Ce lien d’invitation a expiré.");
+    expect(acceptanceCalls(fetchMock)).toHaveLength(1);
+  });
+
+  it("clears stale server field text on language change while keeping both passwords", async () => {
+    const fetchMock = mockAcceptance(async () =>
+      Response.json(
+        {
+          code: "validation_error",
+          message: "Vérifiez les champs indiqués.",
+          fields: { password: [PASSWORD_ERROR] },
+        },
+        { status: 400 },
+      ),
+    );
+    renderInvitation();
+    const user = await fillPasswords();
+    await user.click(screen.getByRole("button", { name: SUBMIT }));
+    expect(await screen.findByText(PASSWORD_ERROR)).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "English" }));
+
+    expect(screen.queryByText(PASSWORD_ERROR)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/^Password$/)).toHaveValue(PASSWORD);
+    expect(screen.getByLabelText(/^Confirm password$/)).toHaveValue(PASSWORD);
+    expect(acceptanceCalls(fetchMock)).toHaveLength(1);
+  });
+
+  it("keeps an existing session until the visitor explicitly signs out after acceptance", async () => {
+    let signedIn = true;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/me/") {
+        return signedIn ? Response.json(testUser("admin")) : new Response(null, { status: 401 });
+      }
+      if (url === ACCEPT && options?.method === "POST") return Response.json({ accepted: true });
+      if (url.endsWith("/auth/session") && options?.method === "DELETE") {
+        signedIn = false;
+        return new Response(null, { status: 401 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderInvitation();
+    await screen.findByRole("button", { name: "Déconnexion" });
+    const user = await fillPasswords();
+    await user.click(screen.getByRole("button", { name: SUBMIT }));
+
+    expect(await within(screen.getByRole("main")).findByRole("status")).toHaveTextContent(
+      /compte.*prêt/i,
+    );
+    expect(screen.getByTestId("current-path")).toHaveTextContent(`/invitation/${TOKEN}`);
+    expect(signedIn).toBe(true);
+    expect(
+      fetchMock.mock.calls.some(
+        ([url, options]) => String(url).endsWith("/auth/login") || options?.method === "DELETE",
+      ),
+    ).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: "Déconnexion" }));
+
+    await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/sign-in"));
+    expect(await screen.findByRole("heading", { name: "Connexion" })).toBeInTheDocument();
+    expect(signedIn).toBe(false);
+    expect(acceptanceCalls(fetchMock)).toHaveLength(1);
   });
 
   it("allows only one pending acceptance request", async () => {

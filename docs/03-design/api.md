@@ -103,7 +103,10 @@ Signed-in requests without valid CSRF protection receive 403; unsupported method
 receive 405. Failed acceptance does not create a user or consume the invitation.
 Lifetime configuration is checked by the creation service; existing invitations
 are accepted against their saved expiry without re-reading that configuration.
-The `/invitation/:token` password-and-confirmation page remains task #431.
+The public `/invitation/:token` page (#431) submits the token and password;
+password confirmation remains in the form. Anonymous success opens `/sign-in`.
+Signed-in visitors see completion guidance and keep their session until they
+explicitly sign out using the existing public header control.
 Invitation-issuing endpoints, email delivery, partner approval and household
 linking belong to US-05, US-06, US-13 and US-18.
 

@@ -19,6 +19,7 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | ChatGPT (OpenAI) | Implemented the T-01.01.3 sign-in screen, browser session handling, sign-out controls, translations, and frontend tests under Leon's approved plan. | Leon Kojakian (#425) |
 | ChatGPT (OpenAI) | Drafted executable invitation service, API, RuleSet, and frontend tests from Leon's approved T-01.04.1 plan; Leon specified that invitations create new accounts only. | Leon Kojakian (#429) |
 | ChatGPT (OpenAI) | Implemented the Invitation model, atomic creation/acceptance services, public acceptance API, RuleSet lifetime, translations, migration, and documentation from Leon's approved T-01.04.2 plan. | Leon Kojakian (#430) |
+| ChatGPT (OpenAI) | Implemented the public invitation password page, typed API helper, French/English messages and frontend tests from Leon's approved T-01.04.3 plan; verified browser layouts and existing-session preservation. | Leon Kojakian (#431) |
 | ChatGPT (OpenAI) | Implemented and reviewed the Categories reference module (#377), Django module scaffolding, import-boundary checks, documentation, and tests for SET-14 (#405). | Owner of #377 and #405 |
 | ChatGPT (OpenAI) | The user provided architecture-aligned skeleton code and pseudocode as the foundation for US-17. ChatGPT assisted in generating approximately 50% of the remaining implementation, including walk-in registration models, normalization, services, staff API, tests, migrations, and documentation. ChatGPT also assisted with debugging Docker/PostgreSQL migrations, Ruff, mypy, import-linter, OpenAPI, and frontend API types. The user directed the implementation and performed local verification. | Owner of #463 and #464 (US-17) |
 | Claude Code (Anthropic) | Analyzed US-12 against the team pack, then implemented the PartnerApplication model, Store link, submission service, public API, Django admin, translations and tests from Ryan's approved T-02.12.2/T-02.12.1 plan. | Ryan Cheung (#444, #445) |
@@ -35,8 +36,9 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| T-01.04.3 Invitation password page (#431) | `frontend/src/areas/public/pages/AcceptInvitation{,.test}.tsx`, `frontend/src/features/accounts/invitations{,.test}.ts`, `frontend/src/app/App.tsx`, `frontend/src/shared/i18n/{fr,en}.json`, `backend/modules/accounts/README.md`, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | Not yet opened (`US-04-Accept-an-invitation-and-set-a-password` branch) |
 | T-01.04.2 Invitation model, services and acceptance API (#430) | `backend/modules/accounts/{models.py,services.py,api/,locale/fr/LC_MESSAGES/,README.md,migrations/0005_invitation.py}`, `backend/modules/accounts/tests/{conftest,test_invitations}.py`, `backend/modules/rules/{domain/schemas.py,tests/test_invitation_rules.py}`, `docs/02-requirements/business-rules.md`, `docs/03-design/{api,database-schema,domain-model}.md`, `docs/04-architecture/architecture.md`, `frontend/src/shared/api/generated.d.ts`, `AI_USAGE.md` | 50% or more AI-generated for source changes; Django migration, compiled catalog and generated API declarations exempt | Not yet opened (`US-04-Accept-an-invitation-and-set-a-password` branch) |
-| T-01.04.1 Invitation acceptance tests (#429) | `backend/modules/accounts/tests/{factories,conftest,test_invitations,test_invitation_api}.py`, `backend/modules/rules/tests/test_invitation_rules.py`, `frontend/src/areas/public/pages/AcceptInvitation.test.tsx`, test-only import exceptions in `backend/pyproject.toml`, `AI_USAGE.md` | 50% or more AI-generated | Not yet opened (`US-04-Accept-an-invitation-and-set-a-password` branch); implementation follows in #430 and #431 |
+| T-01.04.1 Invitation acceptance tests (#429) | `backend/modules/accounts/tests/{factories,conftest,test_invitations,test_invitation_api}.py`, `backend/modules/rules/tests/test_invitation_rules.py`, `frontend/src/areas/public/pages/AcceptInvitation.test.tsx`, test-only import exceptions in `backend/pyproject.toml`, `AI_USAGE.md` | 50% or more AI-generated | Not yet opened (`US-04-Accept-an-invitation-and-set-a-password` branch); implementation supplied by #430 and #431 |
 | T-09.62.1 Audit tests (#548) | `backend/modules/audit/tests/test_audit.py` | 50% or more AI-generated | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-09.62.2 Audit model and service (#549) | `backend/modules/audit/{models.py,services.py,README.md,migrations/}` | 50% or more AI-generated (migrations exempt) | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-01.01.1 Sign-in and sign-out tests (#423) | `backend/modules/accounts/tests/test_accounts.py`, `frontend/src/app/App.test.tsx`, `AI_USAGE.md` | 50% or more AI-generated | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
@@ -78,6 +80,34 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | T-05.35.2 Category admin API and screen (#503) and T-05.35.1 tests (#502) | `backend/modules/listings/tests/test_category_admin.py`, `backend/modules/categories/` (`domain/rules.py`, `queries.py`, `services.py`, `api/serializers.py`, `api/staff_views.py`, `api/staff_urls.py`, `tests/test_staff_api.py`, French catalog, README), `backend/iris/urls.py`, `backend/pyproject.toml` (test-only import exceptions), `frontend/src/features/categories/` (`adminApi.ts`, `categoryForm.ts`, `CategoryDialog.tsx`, `CategoriesPage.tsx` and tests), translations, regenerated API types, `docs/02-requirements/forms-and-fields.md`, `docs/03-design/{api,database-schema}.md`, `AI_USAGE.md` | 50% or more AI-generated (generated API declarations and compiled catalog exempt) | Not yet opened (`user_story/US-35` branch) |
 
 ## Examples, verification and corrections
+
+### T-01.04.3 Invitation password page (#431)
+
+- **What the AI produced:** under Leon's approved plan, the public
+  `/invitation/:token` password-and-confirmation page, generated-type API
+  helper, French/English messages, additional page/helper tests and updated
+  API/module documentation. Confirmation stays in the browser; the backend
+  remains responsible for token validation and the full password policy.
+- **Owner's decisions:** successful anonymous acceptance opens `/sign-in`.
+  An existing session is preserved, with completion guidance to use the
+  existing sign-out control before signing into the new account. Issuing
+  screens, email delivery and approval workflows remain in their own stories.
+- **Verification:** all **395 frontend tests across 28 files** passed,
+  including 15 page cases and 21 API-helper cases. Added executable frontend
+  lines have **100% coverage** (87/87); overall frontend line coverage is
+  **94.37%**. The full run used two workers and a 15-second per-test timeout
+  after existing listing cases exceeded the default five seconds; no tests
+  were skipped or assertions changed to accommodate this. Frontend type
+  checking, ESLint, Prettier and the production build passed.
+  Disposable Chromium checks passed in French and English at
+  360px and 1024px, including expiry/retry, CSRF bootstrap, live translation,
+  navigation to sign-in and signed-in completion. Browser API responses were
+  mocked; these checks did not write database data or replace #430's backend
+  API-to-database tests.
+- **Problems found and corrections:** focused tests exposed missing explicit
+  `aria-invalid` on password controls for backend field errors and an ambiguous
+  test status query. Both were corrected. Backend field text is hidden after
+  a language switch until the visitor submits again; entered passwords remain.
 
 ### T-01.04.2 Invitation model, services and acceptance API (#430)
 
@@ -125,10 +155,11 @@ One row per substantive feature where AI generated a meaningful part of the impl
   exist. The existing 75 accounts/rules backend tests and 29 sign-in and
   translation frontend tests pass. Mypy, frontend type checking, Ruff, ESLint,
   formatting and module-boundary checks pass for the test changes.
-- **Limits:** #430 now supplies the backend implementation; the 11 frontend
-  invitation tests still await #431. No test is skipped or replaced with a fake implementation.
-  The tests must pass alongside #430 and #431 in the story PR before #429 is
-  closed or changed-code/domain coverage is claimed.
+- **Follow-up verification:** #430 supplied the backend implementation and
+  passed 88 invitation cases. #431 supplied the public page and passed its
+  original 11 cases plus four added page cases and 21 API-helper cases.
+  No test is skipped or replaced with a fake implementation. Story PR checks
+  and teammate review remain required before closing the task.
 
 ### T-09.62.3 Audit search API and screen (#550)
 
