@@ -861,7 +861,9 @@ export interface operations {
     responses: {
       200: {
         content: {
-          "application/json": string;
+          "application/pdf": string;
+          "image/jpeg": string;
+          "image/png": string;
         };
       };
     };
