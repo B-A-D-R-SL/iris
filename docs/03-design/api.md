@@ -153,12 +153,25 @@ US-13 staff screens exist.
 | POST       | `/api/households/me/renewal/`                           | Beneficiary          | Start a renewal                                   | Planned |
 | GET        | `/api/staff/households/?q=`                             | Intake worker, admin | Search                                            | Planned |
 | POST/PATCH | `/api/staff/households/`, `/api/staff/households/{id}/` | Intake worker, admin | Walk-in create and edit (drafts only)             | Implemented (US-17) |
+| POST       | `/api/staff/households/{id}/submit/`                    | Intake worker, admin | Submit saved walk-in registration; possible duplicates go to review | Implemented (US-25; proposed endpoint for review) |
 | POST       | `/api/staff/households/{id}/notices/`                   | Intake worker, admin | Walk-in notice (scan + typed values)              | Planned |
 | POST       | `/api/staff/households/{id}/approve/`                   | Intake worker, admin | Approve a walk-in (eligibility runs)              | Planned |
 | GET        | `/api/staff/households/{id}/`                           | Intake worker, admin | Household page (fields per role)                  | Partly: walk-in draft read for resuming (US-17) |
 | GET        | `/api/staff/notices/{id}/file/`                         | Intake worker, admin | Signed URL valid 5 minutes (audited)              | Planned |
 | POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`                                     | Planned |
 | GET/POST   | `/api/staff/households/{id}/notes/`                     | Intake worker, admin | Staff notes                                       | Planned |
+
+Submission accepts `{}`. Active intake workers and admins can submit any
+worker's walk-in draft. It needs an address, one holder, at most 15 members,
+an identity check, and consent. Approval is separate.
+
+Success returns 200 with `{id, status, status_reason, submitted_at}`. A clean file
+is `submitted`; a possible duplicate is `review_required` with reason
+`POSSIBLE_DUPLICATE`. Details of matching files are not returned.
+Invalid or repeated submission returns 400; signed out, 401; refused roles or
+inactive staff, 403; online or unknown files, 404. See the
+[households module](../../backend/modules/households/README.md) for the proposed
+active-file rules and locking steps.
 
 ### Listings and reservations
 
