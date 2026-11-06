@@ -1,7 +1,7 @@
 # Listings module
 
 **Owner pair:** Goods
-**Status:** Posting (US-33) and safety checks (US-34) implemented
+**Status:** Posting (US-33), safety checks (US-34) and browsing queries (US-36) implemented
 
 ## Responsibility
 
@@ -24,12 +24,21 @@ Own the listings feature boundary within the Iris modular monolith.
   (US-34).
 - `queries.categories_for_posting(at=...)`: the active categories a store may
   post in, with prohibited codes left out (US-34).
+- `queries.visible_listings(household_id, now)`: the listings a household can
+  see (BR-LIST-004). This is the only place visibility is decided; tier delays
+  (US-51) belong here. With no approved household (`None`) nothing is visible.
+- `queries.browse_listings(household_id, now, category=, store=,
+  pickup_today=)`: visible listings as card dictionaries, filtered and sorted
+  by pickup start (US-36). The store's name and address come in the same query.
 
 ## Endpoints
 
 - `POST /api/store/listings/`: post a listing (store staff and managers).
 - `GET /api/store/listings/categories/`: categories for the posting form
   (store staff and managers).
+- `GET /api/listings/` (US-36) is served by the reservations module, because
+  only reservations may read both households (approval) and listings. It calls
+  `browse_listings`.
 
 ## Business rules
 
@@ -37,6 +46,8 @@ Own the listings feature boundary within the Iris modular monolith.
 - `domain/safety.py`: safety rules from rule type `listing_safety` (US-34): the
   safe-and-allowed tick, the food best-before date, and prohibited categories.
   See `docs/guides/listing-posting.md`, section 10.
+- `domain/browsing.py`: where "today" ends for the pickup-today filter
+  (BR-LIST-005, US-36).
 
 ## Architectural rules
 
