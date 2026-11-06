@@ -2,7 +2,7 @@
 # Accounts module
 
 **Owner pair:** Platform & setup
-**Status:** US-01 browser sign-in, sign-out, and current-user endpoint implemented; US-04 invitation acceptance backend implemented; invitation page and issuing workflows pending
+**Status:** US-01 browser sign-in, sign-out, and current-user endpoint implemented; US-04 invitation acceptance backend and public page implemented; issuing workflows pending
 
 ## Responsibility
 
