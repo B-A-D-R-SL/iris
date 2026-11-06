@@ -130,7 +130,17 @@ def test_br_doc_006_link_of_another_staff_user_is_refused(
     assert response.data["code"] == "not_found"
 
 
-@pytest.mark.parametrize(("age", "status"), [(299, 200), (301, 404)])
+class _SignerClock:
+    """Stands in for the `time` module inside django.core.signing only."""
+
+    def __init__(self, now: float) -> None:
+        self.now = now
+
+    def time(self) -> float:
+        return self.now
+
+
+@pytest.mark.parametrize(("age", "status"), [(299, 200), (300, 200), (301, 404)])
 def test_br_doc_006_link_expires_after_five_minutes(
     notice: IncomeNotice,
     worker: Any,
@@ -138,13 +148,13 @@ def test_br_doc_006_link_expires_after_five_minutes(
     age: int,
     status: int,
 ) -> None:
-    issued = int(timezone.now().timestamp()) - age
-    monkeypatch.setattr(
-        signing.TimestampSigner, "timestamp", lambda self: signing.b62_encode(issued)
-    )
+    # Whole seconds on a controlled clock: the age at download is exactly `age`.
+    clock = _SignerClock(float(int(timezone.now().timestamp())))
+    monkeypatch.setattr(signing, "time", clock)
     client = _client(worker)
     url = _link(client, notice.pk).data["url"]
-    monkeypatch.undo()
+
+    clock.now += age
 
     assert client.get(url).status_code == status
 
