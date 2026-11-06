@@ -22,7 +22,10 @@ account. The record also preserves staff verification and creation timestamps.
 
 Services are transactional, enforce active staff roles, and call `full_clean()`
 before persistence. Editing is restricted to drafts; member replacement cannot
-remove a record referenced by another module. No form can set the status,
+remove a record referenced by another module. Members sent back
+unchanged (same names, date of birth and relation) keep their record, so a
+member with a notice can stay while others are added; removing or changing that
+member is refused. No form can set the status,
 creator, verifier or internal keys directly.
 
 ## API routes

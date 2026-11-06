@@ -86,6 +86,34 @@ def _save_member(
     return member
 
 
+def _same_person(member: Member, values: Mapping[str, Any]) -> bool:
+    return (
+        member.first_name == str(values.get("first_name", "")).strip()
+        and member.last_name == str(values.get("last_name", "")).strip()
+        and member.date_of_birth == values.get("date_of_birth")
+        and member.relation == values.get("relation")
+    )
+
+
+def _unchanged_members(
+    household: Household, members: list[dict[str, Any]]
+) -> tuple[set[UUID], list[dict[str, Any]]]:
+    """Ids of existing members sent back unchanged, and the entries that are new."""
+    existing = list(household.members.exclude(relation=Member.Relation.HOLDER))
+    kept: set[UUID] = set()
+    new_members: list[dict[str, Any]] = []
+    for values in members:
+        match = next(
+            (m for m in existing if m.pk not in kept and _same_person(m, values)),
+            None,
+        )
+        if match is None:
+            new_members.append(values)
+        else:
+            kept.add(match.pk)
+    return kept, new_members
+
+
 def _replace_other_members(household: Household, members: list[dict[str, Any]]) -> None:
     if len(members) > 14:
         raise ValidationError(
@@ -95,9 +123,15 @@ def _replace_other_members(household: Household, members: list[dict[str, Any]]) 
                 )
             }
         )
-    # This is only allowed in draft state; notice records must not reference these rows yet.
+    if any(values.get("relation") == Member.Relation.HOLDER for values in members):
+        raise ValidationError({"members": _("The holder is added automatically.")})
+    # Members sent back unchanged keep their row, so their notices stay linked;
+    # only removed or changed members are deleted (refused if they have notices).
+    kept, new_members = _unchanged_members(household, members)
     try:
-        household.members.exclude(relation=Member.Relation.HOLDER).delete()
+        household.members.exclude(relation=Member.Relation.HOLDER).exclude(
+            pk__in=kept
+        ).delete()
     except ProtectedError as exc:
         raise ValidationError(
             {
@@ -106,9 +140,7 @@ def _replace_other_members(household: Household, members: list[dict[str, Any]]) 
                 )
             }
         ) from exc
-    for values in members:
-        if values.get("relation") == Member.Relation.HOLDER:
-            raise ValidationError({"members": _("The holder is added automatically.")})
+    for values in new_members:
         member = Member(household=household, **values)
         member.full_clean()
         member.save()

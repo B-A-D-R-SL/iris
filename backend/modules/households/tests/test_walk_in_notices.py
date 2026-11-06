@@ -418,3 +418,58 @@ def test_schema_documents_the_notice_file_as_binary(client: Any) -> None:
 
     schema = response.json()["components"]["schemas"]["WalkInNoticeInput"]
     assert schema["properties"]["file"]["format"] == "binary"
+
+
+SPOUSE = {
+    "first_name": "Example",
+    "last_name": "Spouse",
+    "date_of_birth": "1985-02-03",
+    "relation": "spouse_partner",
+}
+
+
+def _spouse_with_notice(household: Any, worker: Any) -> Any:
+    spouse: Any = MemberFactory(household=household, **SPOUSE)
+    data = {
+        "member": str(spouse.pk),
+        "did_not_file": "true",
+        "did_not_file_reason": "No income in 2025",
+    }
+    assert _post(_client(worker), household, data).status_code == 201
+    return spouse
+
+
+def _save_members(worker: Any, household: Any, members: list[dict[str, Any]]) -> Any:
+    url = reverse("staff-households-detail", kwargs={"id": household.pk})
+    return _client(worker).patch(url, {"members": members}, format="json")
+
+
+def test_adding_a_member_keeps_members_with_notices(
+    household: Any, holder: Any, worker: Any
+) -> None:
+    spouse = _spouse_with_notice(household, worker)
+    newborn = {
+        "first_name": "Example",
+        "last_name": "Baby",
+        "date_of_birth": "2026-01-15",
+        "relation": "child",
+    }
+
+    response = _save_members(worker, household, [SPOUSE, newborn])
+
+    assert response.status_code == 200, response.data
+    assert household.members.count() == 3
+    assert household.members.filter(pk=spouse.pk).exists()
+    assert spouse.pk in current_notices([spouse.pk])
+
+
+def test_removing_a_member_with_a_notice_is_refused(
+    household: Any, holder: Any, worker: Any
+) -> None:
+    spouse = _spouse_with_notice(household, worker)
+
+    response = _save_members(worker, household, [])
+
+    assert response.status_code == 400
+    assert "members" in response.data["fields"]
+    assert household.members.filter(pk=spouse.pk).exists()
