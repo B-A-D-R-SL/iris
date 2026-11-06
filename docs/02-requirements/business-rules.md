@@ -1,3 +1,4 @@
+<!-- AI contribution: Below 50% AI-generated -->
 # Business rules
 
 Every rule Iris applies, with its default value. Values marked *(setting)* are stored in the rule settings module (`rules`) and can be changed by an admin without a developer; changing one creates a new version, so past decisions stay reproducible. Code never hard-codes these values: business-rule functions in `domain/` receive them as arguments.
@@ -43,6 +44,28 @@ The eligibility owner and reviewers must confirm them before merge.
 
 Threshold values come from the versioned `lico_thresholds` RuleSet,
 not from hardcoded values.
+
+## Notices of assessment (US-18)
+
+The following rule IDs are introduced with T-03.18.2 (#468), the walk-in
+notices of US-18 (#466). The registration owner and reviewers must confirm
+them before merge.
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-DOC-001 | A filed notice needs the file, the tax year, the line-199 total income in integer cents (0 or more), the name on the notice, the postal code on the notice, the notice date and the "seen in person" answer. |
+| BR-DOC-002 | The notice date is after December 31 of the tax year and not after today (Montreal); the tax year is 2000 or later and has ended. Which tax years count for eligibility is decided at approval (`auto_approval.accepted_tax_years`, #469). |
+| BR-DOC-003 | "Did not file" needs a reason of 1 to 500 characters after trimming and refuses a file or any notice value. |
+| BR-DOC-004 | The file is a JPEG, PNG or PDF recognized from its first bytes (never its name or declared type), not empty, and at most `max_bytes` in rule type `notice_upload` (default 10 MB *(setting)*). |
+| BR-DOC-005 | Each adult has at most one current notice. A new entry supersedes the current one; the old row and its file are kept as history (database constraint). |
+| BR-DOC-006 | Notice files are never public. Staff get a link valid `link_minutes` in rule type `notice_upload` (default 5 minutes *(setting)*), signed for one staff user and usable only with that user's session; issuing it is recorded in the audit log. |
+| BR-DOC-007 | Notices are recorded only for members aged 18 or older (Montreal date) of a draft walk-in household. |
+
+The limits come from the versioned `notice_upload` RuleSet, not from
+hardcoded values. BR-DOC-001 to BR-DOC-004 are checked in
+`backend/modules/documents/domain/notice.py`; BR-DOC-005 and BR-DOC-006 in
+`backend/modules/documents/services.py` and the `IncomeNotice` constraints;
+BR-DOC-007 in `backend/modules/households/services.py`.
 
 ## Listings
 

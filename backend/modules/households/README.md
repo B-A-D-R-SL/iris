@@ -12,9 +12,13 @@ account. The record also preserves staff verification and creation timestamps.
 
 - `services.create_walk_in(data, staff_user) -> Household`
 - `services.update_draft(household_id, data, staff_user) -> Household`
+- `services.record_walk_in_notice(household_id, data, staff_user) -> IncomeNotice`:
+  checks the household is a draft walk-in and the member is one of its adults
+  (BR-DOC-007), records the draft change, then calls
+  `documents.services.record_staff_notice` (T-03.18.2)
 - `queries.walk_in_for_staff(household_id) -> Household | None`
 - `domain/address.py`: `normalize_address`, `normalize_postal_code`
-- `domain/person.py`: `normalize_person`, age/name validation
+- `domain/person.py`: `normalize_person`, age/name validation, `is_adult`
 
 Services are transactional, enforce active staff roles, and call `full_clean()`
 before persistence. Editing is restricted to drafts; member replacement cannot
@@ -26,6 +30,12 @@ creator, verifier or internal keys directly.
 - `POST /api/staff/households/`: create a draft and holder member
 - `GET /api/staff/households/{uuid}/`: read draft and who created it
 - `PATCH /api/staff/households/{uuid}/`: patch draft steps, including members
+- `POST /api/staff/households/{uuid}/notices/` (multipart): an adult's notice of
+  assessment (`file`, `tax_year`, `total_income_cents`, `name_on_notice`,
+  `postal_code_on_notice`, `notice_date`, `seen_in_person`) or
+  `did_not_file` with `did_not_file_reason`; returns the notice without its
+  storage reference. A second entry for the same adult replaces the current
+  one. See `modules/documents/README.md` for the rules and file links.
 
 Errors use `{ "code", "message", "fields" }`; nested form field paths are
 reported as dotted keys such as `address.postal_code`.
@@ -92,5 +102,5 @@ and decide whether to migrate existing local event history. Do not send action
 names unsupported by the current US-62 branch, which only handles view/decision.
 
 The walk-in screens (T-03.17.4) are in `frontend/src/areas/staff/pages/WalkIn/`.
-Approval, income notices, status transitions and the set-password email belong
-to US-18 and US-57; none of them are implemented here.
+Income notices are recorded through the endpoint above (T-03.18.2). Approval,
+status transitions and the set-password email belong to US-18 (#469) and US-57.
