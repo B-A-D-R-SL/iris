@@ -209,3 +209,10 @@ def test_from_settings_builds_a_store_for_the_container() -> None:
         store = from_settings()
 
     assert isinstance(store, AzureBlobFileStore)
+
+
+def test_memory_store_lists_its_references() -> None:
+    store = InMemoryFileStore()
+    reference = store.put(b"x", content_type="image/png", prefix="income-notices")
+
+    assert InMemoryFileStore.references() == [reference]

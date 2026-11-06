@@ -14,6 +14,11 @@ class InMemoryFileStore:
     def clear(cls) -> None:
         cls._objects.clear()
 
+    @classmethod
+    def references(cls) -> list[str]:
+        """What is stored now, so tests can check that nothing was left behind."""
+        return list(cls._objects)
+
     def put(self, content: bytes, *, content_type: str, prefix: str) -> str:
         reference = f"{prefix}/{uuid4().hex}"
         self._objects[reference] = StoredFile(bytes(content), content_type)

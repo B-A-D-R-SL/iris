@@ -10,6 +10,7 @@ import factory
 from modules.accounts.tests.factories import UserFactory
 from modules.documents.models import IncomeNotice
 from modules.households.tests.factories import MemberFactory
+from modules.stores.tests.factories import StoreFactory
 
 
 class IncomeNoticeFactory(factory.django.DjangoModelFactory):
@@ -58,3 +59,9 @@ def make_member(**changes: Any) -> Any:
     """An adult household member (households.Member; documents may not import it)."""
     values = {"relation": "spouse_partner", "date_of_birth": "1990-01-01"} | changes
     return MemberFactory(**values)
+
+
+def make_user(role: str, *, active: bool = True) -> Any:
+    """A user of any role; store roles need a store (accounts constraint)."""
+    store = StoreFactory() if role.startswith("store_") else None
+    return UserFactory(role=role, is_active=active, store=store)

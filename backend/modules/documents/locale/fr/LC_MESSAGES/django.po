@@ -45,3 +45,6 @@ msgstr "Le fichier dépasse la taille permise."
 
 msgid "Choose a JPEG, PNG or PDF file."
 msgstr "Choisissez un fichier JPEG, PNG ou PDF."
+
+msgid "Only active intake workers and admins can manage notices."
+msgstr "Seuls les intervenant·e·s à l'accueil et les administrateurs actifs peuvent gérer les avis de cotisation."
