@@ -1,5 +1,5 @@
 # AI contribution: 50% or more AI-generated
-"""Staff-only transactional creation and editing of walk-in household drafts."""
+"""Staff-only transactional creation and editing of walk-in household drafts and notices."""
 
 from collections.abc import Mapping
 from typing import Any
@@ -12,6 +12,8 @@ from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from modules.documents import services as document_services
+from modules.households.domain.person import is_adult
 from modules.households.models import Household, HouseholdDraftEvent, Member
 
 STAFF_ROLES = frozenset(("intake_worker", "admin"))
@@ -195,3 +197,44 @@ def update_draft(
         action=HouseholdDraftEvent.Action.UPDATED,
     )
     return household
+
+
+@transaction.atomic
+def record_walk_in_notice(
+    household_id: UUID, data: Mapping[str, Any], staff_user: AbstractBaseUser
+) -> document_services.IncomeNotice:
+    """Record an adult's notice or non-filing reason on a draft walk-in (BR-DOC-007).
+
+    The household row stays locked until the notice is saved, so two staff
+    entries for the same file cannot interleave. documents is called last.
+    """
+    _require_staff(staff_user)
+    household = Household.objects.select_for_update().get(
+        id=household_id, channel=Household.Channel.WALK_IN
+    )
+    if household.status != Household.Status.DRAFT:
+        raise ValidationError(
+            {"status": _("Notices can only be added to a draft file.")}
+        )
+    member_id = data.get("member")
+    member = (
+        household.members.filter(pk=member_id).first()
+        if isinstance(member_id, UUID)
+        else None
+    )
+    if member is None:
+        raise ValidationError({"member": _("Choose a person from this household.")})
+    if not is_adult(member.date_of_birth, timezone.localdate()):
+        raise ValidationError({"member": _("Notices are recorded for adults only.")})
+    HouseholdDraftEvent.objects.create(
+        household=household,
+        actor_id=staff_user.pk,
+        actor_role=getattr(staff_user, "role", ""),
+        action=HouseholdDraftEvent.Action.UPDATED,
+    )
+    values = {
+        key: value for key, value in data.items() if key not in ("member", "file")
+    }
+    return document_services.record_staff_notice(
+        member.pk, values, data.get("file"), staff_user
+    )

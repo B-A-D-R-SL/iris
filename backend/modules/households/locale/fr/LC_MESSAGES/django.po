@@ -145,3 +145,15 @@ msgstr "Seuls les dossiers en brouillon peuvent être modifiés."
 # US-17 walk-in registration (#461)
 msgid "Cannot replace members already linked to notices or other records."
 msgstr "Impossible de remplacer des membres déjà liés à des avis ou à d'autres dossiers."
+
+msgid "Notices can only be added to a draft file."
+msgstr "Les avis ne peuvent être ajoutés qu'à un dossier en brouillon."
+
+msgid "Choose a person from this household."
+msgstr "Choisissez une personne de ce foyer."
+
+msgid "Notices are recorded for adults only."
+msgstr "Les avis sont enregistrés seulement pour les adultes."
+
+msgid "Notice storage is unavailable. Try again later."
+msgstr "Le stockage des avis est indisponible. Réessayez plus tard."
