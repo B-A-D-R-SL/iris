@@ -58,6 +58,18 @@ export interface paths {
     /** Edit an existing walk-in household draft */
     patch: operations["staff_households_partial_update"];
   };
+  "/api/staff/households/{id}/notices/": {
+    /** Record an adult's notice of assessment or non-filing reason */
+    post: operations["staff_households_notices_create"];
+  };
+  "/api/staff/notice-files/{token}/": {
+    /** Download a notice of assessment file through a signed link */
+    get: operations["staff_notice_files_retrieve"];
+  };
+  "/api/staff/notices/{id}/file/": {
+    /** Get a short-lived link to a notice of assessment file */
+    get: operations["staff_notices_file_retrieve"];
+  };
   "/api/store/listings/": {
     /** Post a listing for the signed-in user's active store */
     post: operations["store_listings_create"];
@@ -261,6 +273,11 @@ export interface components {
       title: string;
       /** @default item */
       unit?: string;
+    };
+    NoticeFileLink: {
+      /** Format: date-time */
+      expires_at: string;
+      url: string;
     };
     PaginatedAuditEventList: {
       /** @example 123 */
@@ -486,6 +503,42 @@ export interface components {
       | "renewal_needed"
       | "suspended"
       | "rejected";
+    WalkInNoticeInput: {
+      /** @default false */
+      did_not_file?: boolean;
+      did_not_file_reason?: string | null;
+      /** Format: binary */
+      file?: string | null;
+      /** Format: uuid */
+      member: string;
+      name_on_notice?: string | null;
+      /** Format: date */
+      notice_date?: string | null;
+      postal_code_on_notice?: string | null;
+      seen_in_person?: boolean | null;
+      tax_year?: number | null;
+      total_income_cents?: number | null;
+    };
+    /** @description The recorded notice; the private file reference is never returned. */
+    WalkInNoticeRead: {
+      /** Format: date-time */
+      created_at: string;
+      did_not_file_reason: string;
+      has_file: boolean;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      member: string;
+      name_on_notice: string;
+      /** Format: date */
+      notice_date: string | null;
+      postal_code_on_notice: string;
+      seen_in_person: boolean;
+      source: string;
+      status: string;
+      tax_year: number | null;
+      total_income_cents: number | null;
+    };
   };
   responses: never;
   parameters: never;
@@ -774,6 +827,56 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["WalkInDraftRead"];
+        };
+      };
+    };
+  };
+  /** Record an adult's notice of assessment or non-filing reason */
+  staff_households_notices_create: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["WalkInNoticeInput"];
+      };
+    };
+    responses: {
+      201: {
+        content: {
+          "application/json": components["schemas"]["WalkInNoticeRead"];
+        };
+      };
+    };
+  };
+  /** Download a notice of assessment file through a signed link */
+  staff_notice_files_retrieve: {
+    parameters: {
+      path: {
+        token: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": string;
+        };
+      };
+    };
+  };
+  /** Get a short-lived link to a notice of assessment file */
+  staff_notices_file_retrieve: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["NoticeFileLink"];
         };
       };
     };
