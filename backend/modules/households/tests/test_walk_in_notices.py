@@ -40,9 +40,14 @@ NOTICE_FIELDS = (
 )
 
 
+# Fixed, not relative to timezone.now(): tests that pin the clock still find the rule.
+RULE_EFFECTIVE_FROM = datetime(2020, 1, 1, tzinfo=UTC)
+
+
 def _publish_rule(**changes: Any) -> None:
     values = deepcopy(DEFAULT_RULE_VALUES["notice_upload"]) | changes
-    effective = timezone.now() - timedelta(days=1) + timedelta(minutes=len(changes))
+    # A version with changes takes effect after the default one.
+    effective = RULE_EFFECTIVE_FROM + timedelta(minutes=len(changes))
     publisher: Any = UserFactory(role="admin")
     publish("notice_upload", values, publisher, effective_from=effective)
 
@@ -231,7 +236,7 @@ def test_br_doc_007_child_is_refused(
 
 
 @pytest.mark.parametrize(
-    ("birth", "status"), [("2008-11-06", 201), ("2008-11-07", 400)]
+    ("birth", "status"), [("2008-06-15", 201), ("2008-06-16", 400)]
 )
 def test_br_doc_007_eighteenth_birthday_today_is_adult(
     household: Any,
@@ -240,7 +245,9 @@ def test_br_doc_007_eighteenth_birthday_today_is_adult(
     birth: str,
     status: int,
 ) -> None:
-    monkeypatch.setattr(timezone, "now", lambda: datetime(2026, 11, 6, 17, tzinfo=UTC))
+    # A pinned day long before the real run date: the rule fixture must not
+    # depend on the real clock (review finding).
+    monkeypatch.setattr(timezone, "now", lambda: datetime(2026, 6, 15, 17, tzinfo=UTC))
     member = MemberFactory(
         household=household, relation="spouse_partner", date_of_birth=birth
     )
