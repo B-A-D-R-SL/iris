@@ -15,6 +15,7 @@ from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from modules.accounts.queries import is_intake_staff
 from modules.documents import services
 from modules.documents.api.errors import StorageUnavailable, documents_exception_handler
 from modules.documents.api.serializers import NoticeFileLinkSerializer
@@ -24,12 +25,7 @@ class IsIntakeWorkerOrAdmin(BasePermission):
     """Deny by default: only active intake workers and admins (review rule 4)."""
 
     def has_permission(self, request: Request, view: Any) -> bool:
-        user = request.user
-        return bool(
-            user.is_authenticated
-            and user.is_active
-            and getattr(user, "role", None) in services.STAFF_ROLES
-        )
+        return is_intake_staff(request.user)
 
 
 class _NoticeFileView(GenericAPIView):

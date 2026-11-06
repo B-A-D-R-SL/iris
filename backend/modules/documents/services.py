@@ -23,6 +23,7 @@ from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
 
 from adapters.file_store.base import FileStore, FileStoreUnavailable, StoredFileMissing
+from modules.accounts.queries import is_intake_staff
 from modules.audit import services as audit_services
 from modules.documents.domain.notice import (
     DidNotFile,
@@ -39,7 +40,6 @@ from modules.rules import queries as rule_queries
 logger = logging.getLogger("iris.documents")
 
 NOTICE_PREFIX = "income-notices"
-STAFF_ROLES = frozenset(("intake_worker", "admin"))
 # BR-DOC-006: file links are signed for one staff user with this salt.
 SIGNING_SALT = "documents.notice-file"
 
@@ -72,11 +72,7 @@ class UploadLimits:
 
 
 def _require_staff(user: AbstractBaseUser) -> None:
-    if (
-        not user.is_authenticated
-        or not user.is_active
-        or getattr(user, "role", None) not in STAFF_ROLES
-    ):
+    if not is_intake_staff(user):
         raise PermissionDenied(
             _("Only active intake workers and admins can manage notices.")
         )

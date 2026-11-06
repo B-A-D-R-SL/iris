@@ -137,6 +137,10 @@ ignore_imports = [
     "modules.stores.** -> modules.categories.queries",
     "modules.stores.tests.** -> modules.categories.tests.factories",
 
+    # households and documents -> accounts: one rule for intake staff (T-03.18.2)
+    "modules.households.** -> modules.accounts.queries",
+    "modules.documents.** -> modules.accounts.queries",
+
     # households -> documents, eligibility, priority, review
     "modules.households.** -> modules.documents.services",
     "modules.households.** -> modules.documents.queries",

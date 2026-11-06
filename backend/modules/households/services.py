@@ -12,11 +12,11 @@ from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from modules.accounts.queries import is_intake_staff
 from modules.documents import services as document_services
 from modules.households.domain.person import is_adult
 from modules.households.models import Household, HouseholdDraftEvent, Member
 
-STAFF_ROLES = frozenset(("intake_worker", "admin"))
 ADDRESS_FIELDS = frozenset(
     ("street_number", "street_name", "unit", "city", "postal_code")
 )
@@ -26,11 +26,7 @@ CONSENT_TEXT_VERSION = "2026-11-v1"
 
 
 def _require_staff(user: AbstractBaseUser) -> None:
-    if (
-        not user.is_authenticated
-        or not user.is_active
-        or getattr(user, "role", None) not in STAFF_ROLES
-    ):
+    if not is_intake_staff(user):
         raise PermissionDenied(
             _("Only active intake workers and admins can manage walk-ins.")
         )
