@@ -186,6 +186,17 @@ A summary of the three steps, each with "Modifier / Edit". Notices of assessment
 
 Used by `goods_categories` (partner application) and `category` (listing). Seed file: `backend/modules/categories/data/categories.yaml`. Admins can add, rename or deactivate categories (US-35).
 
+### Category form (admins, `/staff/categories`)
+
+| Field | Français | English | Type | Required | Rules |
+| --- | --- | --- | --- | --- | --- |
+| `code` | Code | Code | text | Yes | Lowercase letters, digits and `_`, starting with a letter; at most 64 characters; unique; read-only after creation |
+| `name_fr` | Nom en français | Name in French | text | Yes | 1 to 150 characters |
+| `name_en` | Nom en anglais | Name in English | text | Yes | 1 to 150 characters |
+| `is_food` | Catégorie alimentaire | Food category | checkbox | No | Food listings need a best-before date |
+| `default_value_cents` | Valeur par défaut | Default value | money | Yes | From 0 to the listing value limit (rule setting `listing_posting`, $1,000 by default) |
+| `is_active` | Active / Inactive | Active / Inactive | status | — | New categories are active. « Désactiver / Deactivate » asks for confirmation; « Réactiver / Reactivate » does not. There is no delete. |
+
 | Code | Français | English | Food |
 | --- | --- | --- | --- |
 | `fruits_vegetables` | Fruits et légumes | Fruits and vegetables | Yes |

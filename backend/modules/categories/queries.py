@@ -31,3 +31,13 @@ def for_listing_post(code: str) -> dict[str, Any] | None:
         .first()
     )
     return dict(result) if result is not None else None
+
+
+def list_all_categories() -> QuerySet[Category]:
+    """Return every category, active or not, ordered by code (admin view)."""
+    return Category.objects.order_by("code")
+
+
+def get_category(code: str) -> Category | None:
+    """Return a category by its code, active or not, or None."""
+    return Category.objects.filter(code=code).first()
