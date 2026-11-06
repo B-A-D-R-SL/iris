@@ -145,3 +145,16 @@ msgstr "Seuls les dossiers en brouillon peuvent être modifiés."
 # US-17 walk-in registration (#461)
 msgid "Cannot replace members already linked to notices or other records."
 msgstr "Impossible de remplacer des membres déjà liés à des avis ou à d'autres dossiers."
+
+# US-25 duplicate checking (#479)
+msgid "An anonymized file cannot be submitted."
+msgstr "Un dossier anonymisé ne peut pas être soumis."
+
+msgid "Complete the address before submission."
+msgstr "Complétez l'adresse avant de soumettre le dossier."
+
+msgid "Data-processing consent is required."
+msgstr "Le consentement au traitement des données est requis."
+
+msgid "Only draft household files can be submitted."
+msgstr "Seuls les dossiers en brouillon peuvent être soumis."

@@ -1,18 +1,20 @@
 # AI contribution: 50% or more AI-generated
-"""Staff-only transactional creation and editing of walk-in household drafts."""
+"""Create, edit and submit walk-in files for staff."""
 
+import hashlib
 from collections.abc import Mapping
 from typing import Any
 from uuid import UUID
 
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from modules.households.models import Household, HouseholdDraftEvent, Member
+from modules.households.queries import find_possible_duplicates
 
 STAFF_ROLES = frozenset(("intake_worker", "admin"))
 ADDRESS_FIELDS = frozenset(
@@ -21,6 +23,7 @@ ADDRESS_FIELDS = frozenset(
 MEMBER_FIELDS = frozenset(("first_name", "last_name", "date_of_birth"))
 # Version of the data-processing consent text read to the person.
 CONSENT_TEXT_VERSION = "2026-11-v1"
+POSSIBLE_DUPLICATE = "POSSIBLE_DUPLICATE"
 
 
 def _require_staff(user: AbstractBaseUser) -> None:
@@ -194,4 +197,83 @@ def update_draft(
         actor_role=getattr(staff_user, "role", ""),
         action=HouseholdDraftEvent.Action.UPDATED,
     )
+    return household
+
+
+def _submission_members(household: Household) -> list[Member]:
+    """Check the saved address, consent, identity check and members."""
+    if household.anonymized_at is not None:
+        raise ValidationError({"status": _("An anonymized file cannot be submitted.")})
+    household.full_clean()
+    if not household.address_key:
+        raise ValidationError({"address": _("Complete the address before submission.")})
+    if not household.identity_checked_in_person:
+        raise ValidationError(
+            {"identity_checked_in_person": _("Staff verification is required.")}
+        )
+    if not household.consent_data_processing_at or not household.consent_text_version:
+        raise ValidationError(
+            {"consent_data_processing": _("Data-processing consent is required.")}
+        )
+    members = list(household.members.order_by("pk"))
+    if sum(member.relation == Member.Relation.HOLDER for member in members) != 1:
+        raise ValidationError(
+            {"holder": _("Enter the holder's name and date of birth.")}
+        )
+    if len(members) > 15:
+        raise ValidationError(
+            {
+                "members": _(
+                    "A household can have at most 15 people including the holder."
+                )
+            }
+        )
+    for member in members:
+        member.full_clean()
+    return members
+
+
+def _lock_duplicate_keys(household: Household, members: list[Member]) -> None:
+    """Lock shared addresses and people until the transaction ends."""
+    keys = [f"address:{household.address_key}"]
+    keys.extend(f"person:{member.person_key}" for member in members)
+    # Use the same lock numbers and order in every worker to avoid deadlocks.
+    lock_ids = sorted(
+        {
+            int.from_bytes(
+                hashlib.sha256(f"households:duplicates:{key}".encode()).digest()[:8],
+                signed=True,
+            )
+            for key in keys
+        }
+    )
+    with connection.cursor() as cursor:
+        for lock_id in lock_ids:
+            cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_id])
+
+
+@transaction.atomic
+def submit_walk_in(household_id: UUID, staff_user: AbstractBaseUser) -> Household:
+    """Submit a draft or send a possible duplicate for review."""
+    _require_staff(staff_user)
+    # Block draft edits while this submission runs.
+    household = Household.objects.select_for_update().get(
+        pk=household_id, channel=Household.Channel.WALK_IN
+    )
+    if household.status != Household.Status.DRAFT:
+        raise ValidationError(
+            {"status": _("Only draft household files can be submitted.")}
+        )
+    members = _submission_members(household)
+    _lock_duplicate_keys(household, members)
+    # Save the keys rebuilt by full_clean().
+    for member in members:
+        member.save(update_fields=["person_key"])
+    duplicate = find_possible_duplicates(household).exists()
+    household.status = (
+        Household.Status.REVIEW_REQUIRED if duplicate else Household.Status.SUBMITTED
+    )
+    household.status_reason = POSSIBLE_DUPLICATE if duplicate else ""
+    household.submitted_at = timezone.now()
+    household.save()
     return household
