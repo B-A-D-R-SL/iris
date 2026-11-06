@@ -6,6 +6,7 @@ from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.db.models.functions import Lower
+from django.utils.translation import gettext_lazy as _
 
 
 class UserManager(BaseUserManager["User"]):
@@ -71,5 +72,45 @@ class User(AbstractUser):
                 condition=models.Q(store__isnull=False)
                 | ~models.Q(role__in=["store_staff", "store_manager"]),
                 name="accounts_user_store_required_for_store_roles",
+            ),
+        ]
+
+
+class Invitation(models.Model):
+    """A hashed, expiring link that can create exactly one new account."""
+
+    id = models.UUIDField(_("ID"), primary_key=True, default=uuid.uuid4, editable=False)
+    email = models.EmailField(_("Email address"))
+    first_name = models.CharField(_("First name"), max_length=150)
+    last_name = models.CharField(_("Last name"), max_length=150)
+    role = models.CharField(_("Role"), max_length=20, choices=User.Role.choices)
+    store = models.ForeignKey(
+        "stores.Store",
+        verbose_name=_("Store"),
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="account_invitations",
+    )
+    token_hash = models.CharField(_("Token hash"), max_length=64, unique=True)
+    expires_at = models.DateTimeField(_("Expires at"))
+    accepted_at = models.DateTimeField(_("Accepted at"), null=True, blank=True)
+    invited_by = models.ForeignKey(
+        "accounts.User",
+        verbose_name=_("Invited by"),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="issued_invitations",
+    )
+
+    class Meta:
+        verbose_name = _("Invitation")
+        verbose_name_plural = _("Invitations")
+        constraints = [  # noqa: RUF012 - Django model metadata.
+            models.CheckConstraint(
+                condition=models.Q(store__isnull=False)
+                | ~models.Q(role__in=["store_staff", "store_manager"]),
+                name="accounts_invitation_store_required_for_store_roles",
             ),
         ]

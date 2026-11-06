@@ -17,6 +17,7 @@ from modules.rules.domain.schemas import (
 from modules.rules.models import RuleSetVersion
 
 
+# rule: BR-INV-001
 def test_us04_invitation_rule_defaults_to_seven_days() -> None:
     """Register the required lifetime so invitation services need no fallback."""
     assert "invitations" in RULE_TYPES

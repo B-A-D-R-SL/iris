@@ -1,3 +1,4 @@
+<!-- AI contribution: 50% or more AI-generated -->
 # Business rules
 
 Every rule Iris applies, with its default value. Values marked *(setting)* are stored in the rule settings module (`rules`) and can be changed by an admin without a developer; changing one creates a new version, so past decisions stay reproducible. Code never hard-codes these values: business-rule functions in `domain/` receive them as arguments.
@@ -5,6 +6,21 @@ Every rule Iris applies, with its default value. Values marked *(setting)* are s
 Decisions taken where B.A.D.R. had not specified anything are marked **Default**. They can be changed later through the settings or an ADR.
 
 Each owner publishes their section of this document in their own pull request. This version contains the listing categories and the prohibited items (SET-12), and partner applications (US-12); the other sections (roles, eligibility, reservations, priority, strikes, notifications, retention) are added by their owners.
+
+## Invitations (US-04)
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-INV-001 | Set an invitation's expiry from the active `invitations.expires_after_days` RuleSet, initially **7 days** *(setting)*. The saved expiry is exclusive and later rule versions affect only newly created invitations. Missing or unusable configuration prevents invitation creation. |
+| BR-INV-002 | A valid invitation can be accepted once. Create the user and record acceptance atomically; failed validation does not consume the token. Concurrent acceptance cannot create or overwrite multiple accounts. |
+| BR-INV-003 | Invitations create new active accounts only. Refuse an email already registered to any active or inactive account, case-insensitively, both when issuing and when accepting. The invitation supplies the new account's identity, role and optional store. |
+
+Sources: [US-04 #428](https://github.com/B-A-D-R-SL/iris/issues/428),
+[task #430](https://github.com/B-A-D-R-SL/iris/issues/430), and Leon's
+new-account-only scope decision recorded in `AI_USAGE.md`.
+Tokens contain 32 random bytes; store only their SHA-256 hash. The public
+acceptance endpoint sets the password and leaves the browser session unchanged.
+Issuing screens and invitation emails belong to the calling workflows.
 
 ## Partner applications (US-12)
 

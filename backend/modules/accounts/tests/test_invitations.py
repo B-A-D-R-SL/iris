@@ -10,7 +10,13 @@ from threading import Barrier
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import close_old_connections, connection
+from django.db import (
+    DatabaseError,
+    IntegrityError,
+    close_old_connections,
+    connection,
+    transaction,
+)
 from django.utils import timezone
 
 from modules.accounts import services
@@ -116,6 +122,7 @@ def test_creation_requires_active_lifetime_rule(
     assert not User.objects.exists()
 
 
+# rule: BR-INV-001
 def test_new_rule_version_affects_new_invitations_only(
     invitation_rule, invitation_clock, issue_invitation
 ):
@@ -195,6 +202,7 @@ def test_expired_invitation_is_refused_without_consumption(
     assert not User.objects.filter(email=invitation.email).exists()
 
 
+# rule: BR-INV-002
 def test_used_invitation_cannot_change_the_created_account(issue_invitation):
     """Replaying a token cannot overwrite the password or account assignments."""
     token, invitation = issue_invitation()
@@ -211,7 +219,9 @@ def test_used_invitation_cannot_change_the_created_account(issue_invitation):
     assert invitation.accepted_at == accepted_at
 
 
-@pytest.mark.parametrize("kind", ["empty", "malformed", "unknown", "tampered"])
+@pytest.mark.parametrize(
+    "kind", ["empty", "malformed", "unknown", "tampered", "non-string"]
+)
 def test_invalid_token_creates_no_user_and_leaves_valid_invitation_available(
     issue_invitation, kind
 ):
@@ -222,6 +232,7 @@ def test_invalid_token_creates_no_user_and_leaves_valid_invitation_available(
         "malformed": "not-a-token",
         "unknown": secrets.token_urlsafe(32),
         "tampered": ("A" if token[0] != "A" else "B") + token[1:],
+        "non-string": None,
     }[kind]
 
     with pytest.raises(ValidationError):
@@ -232,7 +243,9 @@ def test_invalid_token_creates_no_user_and_leaves_valid_invitation_available(
     assert not User.objects.filter(email=invitation.email).exists()
 
 
-@pytest.mark.parametrize("password", ["R7!aQ2xZ?", "password12345", "9274610385721"])
+@pytest.mark.parametrize(
+    "password", ["R7!aQ2xZ?", "password12345", "9274610385721", "", " " * 10]
+)
 def test_invalid_password_leaves_invitation_available_for_valid_retry(
     issue_invitation, password
 ):
@@ -273,7 +286,97 @@ def test_valid_ten_character_password_is_accepted(issue_invitation, invitation_c
     assert invitation.accepted_at == invitation_clock.now
 
 
+@pytest.mark.parametrize(
+    "values",
+    [
+        {},
+        {"expires_after_days": 0},
+        {"expires_after_days": False},
+        {"expires_after_days": "7"},
+        {"expires_after_days": 10**12},
+    ],
+)
+def test_corrupt_lifetime_configuration_refuses_creation_without_partial_writes(
+    invitation_rule, invitation_model, invitation_clock, invitation_values, values
+):
+    """Even a directly inserted invalid rule cannot produce an unsafe expiry."""
+    invitation_rule.__class__.objects.create(
+        rule_type="invitations",
+        version=2,
+        values=values,
+        effective_from=invitation_clock.now,
+        created_by=invitation_rule.created_by,
+    )
+    with pytest.raises(ValidationError) as caught:
+        services.create_invitation(**invitation_values)
+    assert caught.value.code == "invitation_unavailable"
+    assert invitation_model.objects.count() == 0
+
+
+def test_token_hash_uniqueness_is_enforced_in_the_database(
+    issue_invitation, invitation_model, invitation_values
+):
+    """Direct writes cannot introduce two invitations with the same token hash."""
+    _, invitation = issue_invitation()
+    with pytest.raises(IntegrityError), transaction.atomic():
+        invitation_model.objects.create(
+            **invitation_values,
+            token_hash=invitation.token_hash,
+            expires_at=invitation.expires_at,
+        )
+    assert invitation_model.objects.count() == 1
+
+
+@pytest.mark.parametrize("role", [User.Role.STORE_STAFF, User.Role.STORE_MANAGER])
+def test_database_rejects_a_store_invitation_without_a_store(
+    invitation_model, invitation_values, invitation_clock, role
+):
+    """The required store is a database rule even when full_clean is bypassed."""
+    with pytest.raises(IntegrityError), transaction.atomic():
+        invitation_model.objects.create(
+            **{**invitation_values, "role": role},
+            token_hash=sha256(secrets.token_bytes(32)).hexdigest(),
+            expires_at=invitation_clock.now + timedelta(days=7),
+        )
+    assert invitation_model.objects.count() == 0
+
+
+def test_failure_recording_acceptance_rolls_back_the_new_user(
+    issue_invitation, invitation_model, monkeypatch
+):
+    """A database failure after user creation cannot leave a partially accepted link."""
+    token, invitation = issue_invitation()
+
+    def unavailable(*args, **kwargs):
+        raise DatabaseError("acceptance write failed")
+
+    monkeypatch.setattr(invitation_model, "save", unavailable)
+    with pytest.raises(DatabaseError, match="acceptance write failed"):
+        services.accept_invitation(token, PASSWORD)
+    invitation.refresh_from_db()
+    assert invitation.accepted_at is None
+    assert not User.objects.filter(email=invitation.email).exists()
+
+
+def test_unexpected_user_write_failure_is_not_reported_as_an_existing_email(
+    issue_invitation, monkeypatch
+):
+    """Only recognized email constraints become the registered-email error."""
+    token, invitation = issue_invitation()
+
+    def unavailable(*args, **kwargs):
+        raise IntegrityError("unexpected user write failure")
+
+    monkeypatch.setattr(User.objects, "create_user", unavailable)
+    with pytest.raises(IntegrityError, match="unexpected user write failure"):
+        services.accept_invitation(token, PASSWORD)
+    invitation.refresh_from_db()
+    assert invitation.accepted_at is None
+    assert not User.objects.filter(email=invitation.email).exists()
+
+
 @pytest.mark.parametrize("is_active", [True, False])
+# rule: BR-INV-003
 def test_acceptance_refuses_an_email_registered_after_invitation_creation(
     issue_invitation, is_active
 ):
@@ -320,3 +423,32 @@ def test_concurrent_acceptance_creates_exactly_one_account(
     assert User.objects.filter(email__iexact=invitation.email).count() == 1
     invitation.refresh_from_db()
     assert invitation.accepted_at == invitation_clock.now
+
+
+@pytest.mark.django_db(transaction=True)
+# rule: BR-INV-003
+def test_competing_invitations_cannot_create_the_same_email_twice(issue_invitation):
+    """Different token locks still rely on database email uniqueness at creation."""
+    first_token, first = issue_invitation()
+    second_token, second = issue_invitation(email=first.email)
+    barrier = Barrier(2)
+
+    def accept(token):
+        close_old_connections()
+        try:
+            barrier.wait(timeout=10)
+            services.accept_invitation(token, PASSWORD)
+            return "accepted"
+        except ValidationError as exc:
+            return exc.code
+        finally:
+            connection.close()
+
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        outcomes = list(workers.map(accept, [first_token, second_token]))
+
+    assert sorted(outcomes) == ["accepted", "email_already_registered"]
+    assert User.objects.filter(email__iexact=first.email).count() == 1
+    first.refresh_from_db()
+    second.refresh_from_db()
+    assert sum(link.accepted_at is not None for link in (first, second)) == 1

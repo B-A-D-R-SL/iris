@@ -6,10 +6,10 @@ from hashlib import sha256
 from types import SimpleNamespace
 
 import pytest
-from django.apps import apps
 from django.utils import timezone
 
 from modules.accounts import services
+from modules.accounts.models import Invitation
 from modules.accounts.tests.factories import InvitationInputFactory, UserFactory
 from modules.rules.models import RuleSetVersion
 
@@ -30,8 +30,8 @@ def invitation_values():
 
 @pytest.fixture
 def invitation_model():
-    """Resolve the model at test execution so absent #430 code does not stop collection."""
-    return apps.get_model("accounts", "Invitation")
+    """Expose the persisted model for database constraints and state assertions."""
+    return Invitation
 
 
 @pytest.fixture

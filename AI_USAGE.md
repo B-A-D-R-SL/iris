@@ -18,6 +18,7 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | ChatGPT (OpenAI) | Implemented the idempotent B.A.D.R. Store seed command and expanded its tests from Leon's approved T-02.11.3 plan. | Leon Kojakian (#442) |
 | ChatGPT (OpenAI) | Implemented the T-01.01.3 sign-in screen, browser session handling, sign-out controls, translations, and frontend tests under Leon's approved plan. | Leon Kojakian (#425) |
 | ChatGPT (OpenAI) | Drafted executable invitation service, API, RuleSet, and frontend tests from Leon's approved T-01.04.1 plan; Leon specified that invitations create new accounts only. | Leon Kojakian (#429) |
+| ChatGPT (OpenAI) | Implemented the Invitation model, atomic creation/acceptance services, public acceptance API, RuleSet lifetime, translations, migration, and documentation from Leon's approved T-01.04.2 plan. | Leon Kojakian (#430) |
 | ChatGPT (OpenAI) | Implemented and reviewed the Categories reference module (#377), Django module scaffolding, import-boundary checks, documentation, and tests for SET-14 (#405). | Owner of #377 and #405 |
 | ChatGPT (OpenAI) | The user provided architecture-aligned skeleton code and pseudocode as the foundation for US-17. ChatGPT assisted in generating approximately 50% of the remaining implementation, including walk-in registration models, normalization, services, staff API, tests, migrations, and documentation. ChatGPT also assisted with debugging Docker/PostgreSQL migrations, Ruff, mypy, import-linter, OpenAPI, and frontend API types. The user directed the implementation and performed local verification. | Owner of #463 and #464 (US-17) |
 | Claude Code (Anthropic) | Analyzed US-12 against the team pack, then implemented the PartnerApplication model, Store link, submission service, public API, Django admin, translations and tests from Ryan's approved T-02.12.2/T-02.12.1 plan. | Ryan Cheung (#444, #445) |
@@ -34,6 +35,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| T-01.04.2 Invitation model, services and acceptance API (#430) | `backend/modules/accounts/{models.py,services.py,api/,locale/fr/LC_MESSAGES/,README.md,migrations/0005_invitation.py}`, `backend/modules/accounts/tests/{conftest,test_invitations}.py`, `backend/modules/rules/{domain/schemas.py,tests/test_invitation_rules.py}`, `docs/02-requirements/business-rules.md`, `docs/03-design/{api,database-schema,domain-model}.md`, `docs/04-architecture/architecture.md`, `frontend/src/shared/api/generated.d.ts`, `AI_USAGE.md` | 50% or more AI-generated for source changes; Django migration, compiled catalog and generated API declarations exempt | Not yet opened (`US-04-Accept-an-invitation-and-set-a-password` branch) |
 | T-01.04.1 Invitation acceptance tests (#429) | `backend/modules/accounts/tests/{factories,conftest,test_invitations,test_invitation_api}.py`, `backend/modules/rules/tests/test_invitation_rules.py`, `frontend/src/areas/public/pages/AcceptInvitation.test.tsx`, test-only import exceptions in `backend/pyproject.toml`, `AI_USAGE.md` | 50% or more AI-generated | Not yet opened (`US-04-Accept-an-invitation-and-set-a-password` branch); implementation follows in #430 and #431 |
 | T-09.62.1 Audit tests (#548) | `backend/modules/audit/tests/test_audit.py` | 50% or more AI-generated | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-09.62.2 Audit model and service (#549) | `backend/modules/audit/{models.py,services.py,README.md,migrations/}` | 50% or more AI-generated (migrations exempt) | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
@@ -77,6 +79,35 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 ## Examples, verification and corrections
 
+### T-01.04.2 Invitation model, services and acceptance API (#430)
+
+- **What the AI produced:** under Leon's approved plan, the Invitation model
+  and incremental migration, secure token creation, atomic acceptance, the
+  public API and translated errors, the invitation RuleSet schema/default,
+  regenerated API types and documentation aligned with new accounts only.
+- **Owner's decisions:** an existing active or inactive account is never
+  overwritten. Tokens encode 32 random bytes and only their SHA-256 hash is
+  stored. The saved expiry comes from `invitations.expires_after_days`, whose
+  initial value is seven days. Acceptance does not sign in or switch sessions.
+  Issuing screens, email delivery and other stories' approval workflows remain
+  separate; the public password page is #431.
+- **Verification:** all 88 invitation backend cases passed, including the
+  #429 tests and additional malformed-configuration, database-constraint,
+  rollback and competing-invitation cases. Ruff, mypy, module-boundary checks,
+  Django system/migration checks, OpenAPI validation, API declaration drift
+  checking and the frontend TypeScript/production build passed.
+  The full backend suite passed **816 tests** with **92.96% overall coverage**.
+  Added executable lines in changed production files have **97.42% coverage**
+  (151/155); the modified RuleSet domain module has **100% coverage**.
+  The local invitation migration applied cleanly. The idempotent rule seed
+  added invitation version 1 and a previously missing `listing_posting`
+  version 1 without rewriting existing versions.
+- **Problems found and corrections:** the local backend image does not contain
+  GNU `msgfmt`; the existing host Babel compiler produced the tracked French
+  catalog without introducing a runtime dependency. Email uniqueness races
+  are translated only for the known email constraints, and the tests verify
+  that unrelated database failures roll back and propagate.
+
 ### T-01.04.1 Invitation acceptance tests (#429)
 
 - **What the AI produced:** under Leon's approved plan, executable service,
@@ -87,15 +118,15 @@ One row per substantive feature where AI generated a meaningful part of the impl
   lifetime is seven days, configured as `invitations.expires_after_days` in
   RuleSet. Invitation issuing screens, email delivery, partner approval and
   household approval remain with their respective stories.
-- **Verification:** all 74 backend cases collect without importing absent
-  invitation symbols at module load. The new backend tests currently fail
-  because the Invitation model, acceptance endpoint and invitation RuleSet do
-  not exist yet; all 11 new frontend cases fail because the route/page does
-  not exist. The existing 75 accounts/rules backend tests and 29 sign-in and
+- **Verification at the tests-first commit:** all 74 backend cases collected
+  without importing absent invitation symbols at module load. They failed
+  because the Invitation model, acceptance endpoint and invitation RuleSet did
+  not exist yet; all 11 frontend cases failed because the route/page did not
+  exist. The existing 75 accounts/rules backend tests and 29 sign-in and
   translation frontend tests pass. Mypy, frontend type checking, Ruff, ESLint,
   formatting and module-boundary checks pass for the test changes.
-- **Limits:** this is the tests-first step of US-04, not a completed invitation
-  implementation. No test is skipped or replaced with a fake implementation.
+- **Limits:** #430 now supplies the backend implementation; the 11 frontend
+  invitation tests still await #431. No test is skipped or replaced with a fake implementation.
   The tests must pass alongside #430 and #431 in the story PR before #429 is
   closed or changed-code/domain coverage is claimed.
 
