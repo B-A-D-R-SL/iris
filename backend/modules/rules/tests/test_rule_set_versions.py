@@ -121,3 +121,16 @@ def test_publish_rejects_naive_effective_date(publisher) -> None:
             publisher,
             effective_from=datetime(2026, 1, 1),  # noqa: DTZ001 - validation case
         )
+
+
+@pytest.mark.django_db
+def test_publish_rolls_back_if_audit_fails(publisher, monkeypatch):
+    from modules.rules import services
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("audit failed")
+
+    monkeypatch.setattr(services, "record", fail)
+    with pytest.raises(RuntimeError, match="audit failed"):
+        publish("priority", deepcopy(DEFAULT_RULE_VALUES["priority"]), publisher)
+    assert not RuleSetVersion.objects.exists()

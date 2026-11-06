@@ -287,3 +287,22 @@ def test_append_only_migration_is_reversible(event_inputs):
     assert event.action == "decision"
     with pytest.raises(IntegrityError, match="append-only"), transaction.atomic():
         AuditEvent.objects.filter(pk=event.pk).delete()
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        {},
+        {"rule_type": "unknown", "version": 1},
+        {"rule_type": "priority", "version": True},
+        {"rule_type": "priority", "version": 0},
+        {"rule_type": "priority", "version": 1, "name": "sensitive"},
+    ],
+)
+def test_rule_publication_rejects_invalid_metadata(event_inputs, metadata):
+    event_inputs.update(
+        action="rule_published", target_type="rule_set_version", metadata=metadata
+    )
+    with pytest.raises(ValidationError):
+        services.record(**event_inputs)
+    assert not AuditEvent.objects.exists()

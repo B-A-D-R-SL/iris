@@ -78,9 +78,10 @@ export interface components {
     /**
      * @description * `view` - View
      * * `decision` - Decision
+     * * `rule_published` - Rule Published
      * @enum {string}
      */
-    ActionEnum: "view" | "decision";
+    ActionEnum: "view" | "decision" | "rule_published";
     AddressInput: {
       city: string;
       postal_code: string;

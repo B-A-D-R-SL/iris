@@ -1,5 +1,7 @@
+# AI contribution: 50% or more AI-generated
 """Write operations for versioned business-rule settings."""
 
+import logging
 from datetime import datetime
 from typing import Any
 
@@ -8,8 +10,20 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from modules.rules.domain.schemas import RuleValidationError, validate_rule_values
+from modules.audit.services import record
+from modules.rules.domain.schemas import (
+    RULE_TYPES,
+    RuleValidationError,
+    validate_rule_values,
+)
 from modules.rules.models import RuleSetVersion
+
+logger = logging.getLogger(__name__)
+
+
+def supported_rule_types() -> set[str]:
+    """Return the rule types accepted for publication."""
+    return set(RULE_TYPES)
 
 
 def publish(
@@ -40,13 +54,29 @@ def publish(
             .first()
         )
         next_version = 1 if latest_version is None else latest_version.version + 1
-        return RuleSetVersion.objects.create(  # type: ignore[misc]
+        rule = RuleSetVersion.objects.create(  # type: ignore[misc]
             rule_type=normalized_rule_type,
             version=next_version,
             values=values,
             effective_from=effective_at,
             created_by=user,
         )
+        record(
+            user,
+            "rule_published",
+            "rule_set_version",
+            rule.pk,
+            {
+                "rule_type": normalized_rule_type,
+                "version": next_version,
+            },
+        )
+        transaction.on_commit(
+            lambda: logger.info(
+                "rule_published rule_version_id=%s actor_id=%s", rule.pk, user.pk
+            )
+        )
+        return rule
 
 
 def _validate_rule_type(rule_type: str) -> str:

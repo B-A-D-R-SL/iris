@@ -110,7 +110,22 @@ def _load_lico_values(path: Path) -> dict[str, Any]:
     except ValueError as exc:
         raise CommandError("LICO filename must use the form lico_<year>.csv.") from exc
 
-    thresholds: dict[int, int] = {}
+    metadata, thresholds = _read_lico_csv(path)
+    retrieved_on = _validate_lico_metadata(metadata)
+    _validate_lico_sizes(thresholds)
+
+    return {
+        "year": year,
+        "source_url": metadata["source_url"],
+        "retrieved_on": retrieved_on,
+        "thresholds": {
+            str(family_size): thresholds[family_size]
+            for family_size in sorted(thresholds)
+        },
+    }
+
+
+def _read_lico_csv(path: Path) -> tuple[dict[str, str], dict[int, int]]:
     metadata: dict[str, str] = {}
     try:
         with path.open(newline="", encoding="utf-8-sig") as data_file:
@@ -127,26 +142,31 @@ def _load_lico_values(path: Path) -> dict[str, Any]:
                         metadata[key] = value.strip()
                     continue
                 csv_lines.append(line)
-
-            reader = csv.DictReader(csv_lines)
-            if reader.fieldnames != ["family_size", "threshold_cents"]:
-                raise CommandError(
-                    "LICO CSV headers must be family_size,threshold_cents."
-                )
-            for line_number, row in enumerate(reader, start=comment_line_count + 2):
-                if None in row:
-                    raise CommandError(
-                        f"LICO CSV line {line_number} must have exactly two columns."
-                    )
-                family_size, threshold_cents = _parse_lico_row(row, line_number)
-                if family_size in thresholds:
-                    raise CommandError(
-                        f"LICO CSV contains family size {family_size} more than once."
-                    )
-                thresholds[family_size] = threshold_cents
+        return metadata, _parse_lico_rows(csv_lines, comment_line_count)
     except OSError as exc:
         raise CommandError(f"Could not read LICO data file {path}: {exc}") from exc
 
+
+def _parse_lico_rows(lines: list[str], comment_line_count: int) -> dict[int, int]:
+    reader = csv.DictReader(lines)
+    if reader.fieldnames != ["family_size", "threshold_cents"]:
+        raise CommandError("LICO CSV headers must be family_size,threshold_cents.")
+    thresholds: dict[int, int] = {}
+    for line_number, row in enumerate(reader, start=comment_line_count + 2):
+        if None in row:
+            raise CommandError(
+                f"LICO CSV line {line_number} must have exactly two columns."
+            )
+        family_size, threshold_cents = _parse_lico_row(row, line_number)
+        if family_size in thresholds:
+            raise CommandError(
+                f"LICO CSV contains family size {family_size} more than once."
+            )
+        thresholds[family_size] = threshold_cents
+    return thresholds
+
+
+def _validate_lico_metadata(metadata: dict[str, str]) -> str:
     if metadata.get("source_url") != LICO_SOURCE_URL:
         raise CommandError(f"LICO CSV source_url must be {LICO_SOURCE_URL}.")
     retrieved_on = metadata.get("retrieved_on", "")
@@ -157,7 +177,10 @@ def _load_lico_values(path: Path) -> dict[str, Any]:
         raise CommandError(
             "LICO CSV retrieved_on must use an ISO date (YYYY-MM-DD)."
         ) from exc
+    return retrieved_on
 
+
+def _validate_lico_sizes(thresholds: dict[int, int]) -> None:
     if set(thresholds) != EXPECTED_LICO_SIZES:
         missing = sorted(EXPECTED_LICO_SIZES - set(thresholds))
         unexpected = sorted(set(thresholds) - EXPECTED_LICO_SIZES)
@@ -165,16 +188,6 @@ def _load_lico_values(path: Path) -> dict[str, Any]:
             "LICO CSV must contain family sizes 1 through 7 exactly once; "
             f"missing={missing}, unexpected={unexpected}."
         )
-
-    return {
-        "year": year,
-        "source_url": metadata["source_url"],
-        "retrieved_on": retrieved_on,
-        "thresholds": {
-            str(family_size): thresholds[family_size]
-            for family_size in sorted(thresholds)
-        },
-    }
 
 
 def _parse_lico_row(row: dict[str, str], line_number: int) -> tuple[int, int]:
