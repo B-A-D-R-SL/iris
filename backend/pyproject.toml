@@ -106,6 +106,9 @@ modules = [
 ignore_imports = [
     # Cross-module test fixtures do not create a production module dependency.
     "modules.accounts.tests.test_accounts -> modules.stores.tests.factories",
+    "modules.accounts.tests.test_invitations -> modules.stores.tests.factories",
+    "modules.accounts.tests.test_invitation_api -> modules.stores.tests.factories",
+    "modules.accounts.tests.conftest -> modules.rules.models",
     "modules.audit.tests.** -> modules.stores.tests.factories",
     "modules.rules.tests.test_rule_set_versions -> modules.accounts.tests.factories",
     "modules.households.tests.** -> modules.accounts.tests.factories",

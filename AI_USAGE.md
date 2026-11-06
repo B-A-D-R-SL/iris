@@ -17,6 +17,7 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | ChatGPT (OpenAI) | Implemented the US-11 Store model, migration, admin registration, service, and test factory from Leon's approved T-02.11.2 plan. | Leon Kojakian (#441) |
 | ChatGPT (OpenAI) | Implemented the idempotent B.A.D.R. Store seed command and expanded its tests from Leon's approved T-02.11.3 plan. | Leon Kojakian (#442) |
 | ChatGPT (OpenAI) | Implemented the T-01.01.3 sign-in screen, browser session handling, sign-out controls, translations, and frontend tests under Leon's approved plan. | Leon Kojakian (#425) |
+| ChatGPT (OpenAI) | Drafted executable invitation service, API, RuleSet, and frontend tests from Leon's approved T-01.04.1 plan; Leon specified that invitations create new accounts only. | Leon Kojakian (#429) |
 | ChatGPT (OpenAI) | Implemented and reviewed the Categories reference module (#377), Django module scaffolding, import-boundary checks, documentation, and tests for SET-14 (#405). | Owner of #377 and #405 |
 | ChatGPT (OpenAI) | The user provided architecture-aligned skeleton code and pseudocode as the foundation for US-17. ChatGPT assisted in generating approximately 50% of the remaining implementation, including walk-in registration models, normalization, services, staff API, tests, migrations, and documentation. ChatGPT also assisted with debugging Docker/PostgreSQL migrations, Ruff, mypy, import-linter, OpenAPI, and frontend API types. The user directed the implementation and performed local verification. | Owner of #463 and #464 (US-17) |
 | Claude Code (Anthropic) | Analyzed US-12 against the team pack, then implemented the PartnerApplication model, Store link, submission service, public API, Django admin, translations and tests from Ryan's approved T-02.12.2/T-02.12.1 plan. | Ryan Cheung (#444, #445) |
@@ -33,6 +34,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| T-01.04.1 Invitation acceptance tests (#429) | `backend/modules/accounts/tests/{factories,conftest,test_invitations,test_invitation_api}.py`, `backend/modules/rules/tests/test_invitation_rules.py`, `frontend/src/areas/public/pages/AcceptInvitation.test.tsx`, test-only import exceptions in `backend/pyproject.toml`, `AI_USAGE.md` | 50% or more AI-generated | Not yet opened (`US-04-Accept-an-invitation-and-set-a-password` branch); implementation follows in #430 and #431 |
 | T-09.62.1 Audit tests (#548) | `backend/modules/audit/tests/test_audit.py` | 50% or more AI-generated | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-09.62.2 Audit model and service (#549) | `backend/modules/audit/{models.py,services.py,README.md,migrations/}` | 50% or more AI-generated (migrations exempt) | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-01.01.1 Sign-in and sign-out tests (#423) | `backend/modules/accounts/tests/test_accounts.py`, `frontend/src/app/App.test.tsx`, `AI_USAGE.md` | 50% or more AI-generated | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
@@ -74,6 +76,28 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | T-05.35.2 Category admin API and screen (#503) and T-05.35.1 tests (#502) | `backend/modules/listings/tests/test_category_admin.py`, `backend/modules/categories/` (`domain/rules.py`, `queries.py`, `services.py`, `api/serializers.py`, `api/staff_views.py`, `api/staff_urls.py`, `tests/test_staff_api.py`, French catalog, README), `backend/iris/urls.py`, `backend/pyproject.toml` (test-only import exceptions), `frontend/src/features/categories/` (`adminApi.ts`, `categoryForm.ts`, `CategoryDialog.tsx`, `CategoriesPage.tsx` and tests), translations, regenerated API types, `docs/02-requirements/forms-and-fields.md`, `docs/03-design/{api,database-schema}.md`, `AI_USAGE.md` | 50% or more AI-generated (generated API declarations and compiled catalog exempt) | Not yet opened (`user_story/US-35` branch) |
 
 ## Examples, verification and corrections
+
+### T-01.04.1 Invitation acceptance tests (#429)
+
+- **What the AI produced:** under Leon's approved plan, executable service,
+  API-to-database, RuleSet and public-page tests, generated invitation inputs,
+  deterministic clock fixtures and narrowly scoped test import exceptions.
+- **Owner's decisions:** invitations create new accounts only; existing active
+  and inactive accounts must never be overwritten. The initial invitation
+  lifetime is seven days, configured as `invitations.expires_after_days` in
+  RuleSet. Invitation issuing screens, email delivery, partner approval and
+  household approval remain with their respective stories.
+- **Verification:** all 74 backend cases collect without importing absent
+  invitation symbols at module load. The new backend tests currently fail
+  because the Invitation model, acceptance endpoint and invitation RuleSet do
+  not exist yet; all 11 new frontend cases fail because the route/page does
+  not exist. The existing 75 accounts/rules backend tests and 29 sign-in and
+  translation frontend tests pass. Mypy, frontend type checking, Ruff, ESLint,
+  formatting and module-boundary checks pass for the test changes.
+- **Limits:** this is the tests-first step of US-04, not a completed invitation
+  implementation. No test is skipped or replaced with a fake implementation.
+  The tests must pass alongside #430 and #431 in the story PR before #429 is
+  closed or changed-code/domain coverage is claimed.
 
 ### T-09.62.3 Audit search API and screen (#550)
 

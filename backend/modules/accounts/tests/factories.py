@@ -21,3 +21,14 @@ class UserFactory(factory.django.DjangoModelFactory):
     def _create(cls, model_class, *args, **kwargs):
         """Use create_user so test passwords match production hashing."""
         return model_class.objects.create_user(*args, **kwargs)
+
+
+class InvitationInputFactory(factory.DictFactory):
+    """Generate recipient data for the public invitation creation service."""
+
+    email = factory.Sequence(lambda n: f"invited-recipient-{n}@example.test")
+    first_name = factory.Sequence(lambda n: f"Invited{n}")
+    last_name = factory.Sequence(lambda n: f"Example{n}")
+    role = User.Role.BENEFICIARY
+    store = None
+    invited_by = None
