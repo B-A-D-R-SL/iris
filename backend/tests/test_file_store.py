@@ -22,6 +22,7 @@ from adapters.file_store.base import (
     StoredFileMissing,
 )
 from adapters.file_store.memory import InMemoryFileStore
+from adapters.file_store.registry import configured_store
 
 REFERENCE = re.compile(r"^income-notices/[0-9a-f]{32}$")
 
@@ -216,3 +217,25 @@ def test_memory_store_lists_its_references() -> None:
     reference = store.put(b"x", content_type="image/png", prefix="income-notices")
 
     assert InMemoryFileStore.references() == [reference]
+
+
+def test_configured_store_is_built_once_per_backend() -> None:
+    backend = "adapters.file_store.memory.InMemoryFileStore"
+
+    assert configured_store(backend) is configured_store(backend)
+
+
+def test_configured_store_requires_a_backend() -> None:
+    with pytest.raises(FileStoreUnavailable):
+        configured_store("")
+
+
+def test_from_settings_rejects_a_malformed_connection_string() -> None:
+    with (
+        override_settings(
+            AZURE_STORAGE_CONNECTION_STRING="not a connection string",
+            AZURE_STORAGE_CONTAINER_NAME="iris-test",
+        ),
+        pytest.raises(FileStoreUnavailable),
+    ):
+        from_settings()

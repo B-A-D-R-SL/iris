@@ -74,6 +74,8 @@ def from_settings() -> AzureBlobFileStore:
     container = settings.AZURE_STORAGE_CONTAINER_NAME
     if not connection or not container:
         raise FileStoreUnavailable("Azure Blob Storage is not configured.")
-    return AzureBlobFileStore(
-        ContainerClient.from_connection_string(connection, container)
-    )
+    try:
+        client = ContainerClient.from_connection_string(connection, container)
+    except ValueError as exc:
+        raise FileStoreUnavailable("The storage connection string is invalid.") from exc
+    return AzureBlobFileStore(client)

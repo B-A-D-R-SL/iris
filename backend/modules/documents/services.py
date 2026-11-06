@@ -9,7 +9,7 @@ import logging
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Any, NoReturn, cast
+from typing import Any, NoReturn
 from uuid import UUID
 
 from django.conf import settings
@@ -19,10 +19,10 @@ from django.core.files.uploadedfile import UploadedFile
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.db import transaction
 from django.utils import timezone
-from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
 
 from adapters.file_store.base import FileStore, FileStoreUnavailable, StoredFileMissing
+from adapters.file_store.registry import configured_store
 from modules.accounts.queries import is_intake_staff
 from modules.audit import services as audit_services
 from modules.documents.domain.notice import (
@@ -100,11 +100,8 @@ def _upload_limits() -> UploadLimits:
 
 
 def _file_store() -> FileStore:
-    backend = settings.FILE_STORE_BACKEND
     try:
-        if not backend:
-            raise FileStoreUnavailable("FILE_STORE_BACKEND is empty.")
-        return cast(FileStore, import_string(backend)())
+        return configured_store(settings.FILE_STORE_BACKEND)
     except FileStoreUnavailable as exc:
         logger.error("File store failed", extra={"event": "notice_file_store_failed"})
         raise NoticeServiceUnavailable from exc

@@ -6,6 +6,7 @@ from django.db import connections, transaction
 from django.test import TransactionTestCase
 
 from adapters.file_store.memory import InMemoryFileStore
+from adapters.file_store.registry import configured_store
 
 
 def _audit_safe_teardown(test_case, teardown):
@@ -53,5 +54,6 @@ def _allow_audit_test_flush():
 
 @pytest.fixture(autouse=True)
 def _empty_file_store():
-    """Each test starts with no stored files in the in-memory fake."""
+    """Each test starts with no stored files and no cached store."""
     InMemoryFileStore.clear()
+    configured_store.cache_clear()
