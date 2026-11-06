@@ -160,6 +160,14 @@ def _value_problems(values: Mapping[str, object], today: date) -> dict[str, Prob
     return problems
 
 
+def extension_for(content_type: str) -> str:
+    """File extension for a stored notice's type, for its download name."""
+    for _, file_type in _SIGNATURES:
+        if file_type.content_type == content_type:
+            return file_type.extension
+    return "bin"
+
+
 def detect_file_type(content: bytes, max_bytes: int) -> FileType:
     """BR-DOC-004: a non-empty JPEG, PNG or PDF of at most `max_bytes`."""
     if not content:

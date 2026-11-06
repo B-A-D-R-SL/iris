@@ -15,6 +15,7 @@ from modules.documents.domain.notice import (
     NoticeRulesBroken,
     Problem,
     detect_file_type,
+    extension_for,
     parse_entry,
 )
 from modules.documents.messages import problem_messages
@@ -274,3 +275,18 @@ def test_every_problem_has_a_french_and_english_message(problem: Problem) -> Non
 
     assert english and french
     assert english != french
+
+
+@pytest.mark.parametrize(
+    ("content_type", "extension"),
+    [
+        ("application/pdf", "pdf"),
+        ("image/jpeg", "jpg"),
+        ("image/png", "png"),
+        ("text/html", "bin"),
+    ],
+)
+def test_download_extension_follows_the_detected_type(
+    content_type: str, extension: str
+) -> None:
+    assert extension_for(content_type) == extension

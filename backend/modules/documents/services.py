@@ -8,24 +8,28 @@ Logs carry static event names only (docs/guides/observability.md, review rule 5)
 import logging
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
-from typing import Any, cast
+from datetime import datetime, timedelta
+from typing import Any, NoReturn, cast
 from uuid import UUID
 
 from django.conf import settings
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import UploadedFile
+from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.db import transaction
 from django.utils import timezone
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
 
-from adapters.file_store.base import FileStore, FileStoreUnavailable
+from adapters.file_store.base import FileStore, FileStoreUnavailable, StoredFileMissing
+from modules.audit import services as audit_services
 from modules.documents.domain.notice import (
     DidNotFile,
     FiledNotice,
     NoticeRulesBroken,
     detect_file_type,
+    extension_for,
     parse_entry,
 )
 from modules.documents.messages import problem_messages
@@ -36,10 +40,29 @@ logger = logging.getLogger("iris.documents")
 
 NOTICE_PREFIX = "income-notices"
 STAFF_ROLES = frozenset(("intake_worker", "admin"))
+# BR-DOC-006: file links are signed for one staff user with this salt.
+SIGNING_SALT = "documents.notice-file"
 
 
 class NoticeServiceUnavailable(Exception):
     """Notice storage or the notice_upload rule is unavailable; callers answer 503."""
+
+
+class NoticeFileNotFound(Exception):
+    """No file to give: unknown notice, no file, or an invalid, expired or other's link."""
+
+
+@dataclass(frozen=True)
+class FileLink:
+    token: str
+    expires_at: datetime
+
+
+@dataclass(frozen=True)
+class NoticeFile:
+    content: bytes
+    content_type: str
+    filename: str
 
 
 @dataclass(frozen=True)
@@ -175,3 +198,66 @@ def record_staff_notice(
         if store is not None:
             _delete_quietly(store, fields["file_ref"])
         raise
+
+
+def _notice_with_file(notice_id: UUID | str) -> IncomeNotice:
+    notice = IncomeNotice.objects.filter(pk=notice_id).exclude(file_ref="").first()
+    if notice is None:
+        raise NoticeFileNotFound
+    return notice
+
+
+def issue_file_link(notice_id: UUID, staff_user: AbstractBaseUser) -> FileLink:
+    """BR-DOC-006: a link to one notice's file for this staff user, audited as a view."""
+    _require_staff(staff_user)
+    limits = _upload_limits()
+    notice = _notice_with_file(notice_id)
+    token = TimestampSigner(salt=SIGNING_SALT).sign_object(
+        {"n": str(notice.pk), "u": str(staff_user.pk)}
+    )
+    audit_services.record(staff_user, "view", "income_notice", notice.pk, {})
+    logger.info("Notice file link issued", extra={"event": "notice_file_link_issued"})
+    return FileLink(token, timezone.now() + timedelta(minutes=limits.link_minutes))
+
+
+def _linked_notice_id(token: str, staff_user: AbstractBaseUser, minutes: int) -> str:
+    """The notice id a valid, unexpired link of this staff user points to."""
+    try:
+        payload = TimestampSigner(salt=SIGNING_SALT).unsign_object(
+            token, max_age=timedelta(minutes=minutes)
+        )
+    except SignatureExpired as exc:
+        _refuse_link("notice_file_link_expired", exc)
+    except BadSignature as exc:
+        _refuse_link("notice_file_link_invalid", exc)
+    if not isinstance(payload, dict) or payload.get("u") != str(staff_user.pk):
+        _refuse_link("notice_file_link_wrong_user")
+    return str(payload["n"])
+
+
+def _refuse_link(event: str, cause: Exception | None = None) -> NoReturn:
+    logger.warning("Notice file link refused", extra={"event": event})
+    raise NoticeFileNotFound from cause
+
+
+def open_file(
+    token: str, staff_user: AbstractBaseUser, *, file_store: FileStore | None = None
+) -> NoticeFile:
+    """BR-DOC-006: the file behind a link, for the staff user it was issued to."""
+    _require_staff(staff_user)
+    limits = _upload_limits()
+    notice = _notice_with_file(
+        _linked_notice_id(token, staff_user, limits.link_minutes)
+    )
+    store = file_store if file_store is not None else _file_store()
+    try:
+        stored = store.read(notice.file_ref)
+    except StoredFileMissing as exc:
+        logger.error("Notice file missing", extra={"event": "notice_file_missing"})
+        raise NoticeFileNotFound from exc
+    except FileStoreUnavailable as exc:
+        logger.error("File store failed", extra={"event": "notice_file_store_failed"})
+        raise NoticeServiceUnavailable from exc
+    logger.info("Notice file downloaded", extra={"event": "notice_file_downloaded"})
+    filename = f"notice-{notice.tax_year}.{extension_for(stored.content_type)}"
+    return NoticeFile(stored.content, stored.content_type, filename)

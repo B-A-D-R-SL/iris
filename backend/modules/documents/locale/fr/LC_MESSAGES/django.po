@@ -48,3 +48,15 @@ msgstr "Choisissez un fichier JPEG, PNG ou PDF."
 
 msgid "Only active intake workers and admins can manage notices."
 msgstr "Seuls les intervenant·e·s à l'accueil et les administrateurs actifs peuvent gérer les avis de cotisation."
+
+msgid "Notice storage is unavailable. Try again later."
+msgstr "Le stockage des avis est indisponible. Réessayez plus tard."
+
+msgid "The request was refused."
+msgstr "La demande a été refusée."
+
+msgid "This notice has no file."
+msgstr "Cet avis n'a pas de fichier."
+
+msgid "This file link is invalid or has expired."
+msgstr "Ce lien de fichier est invalide ou expiré."
