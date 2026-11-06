@@ -20,6 +20,8 @@ from modules.households import queries, services
 from modules.households.api.serializers import (
     WalkInDraftInputSerializer,
     WalkInDraftReadSerializer,
+    WalkInSubmissionInputSerializer,
+    WalkInSubmissionReadSerializer,
 )
 from modules.households.models import Household
 
@@ -145,3 +147,26 @@ class WalkInDetailView(WalkInErrorHandlingMixin, GenericAPIView):
         except DjangoValidationError as exc:
             raise _service_validation(exc) from exc
         return Response(WalkInDraftReadSerializer(household).data)
+
+
+class WalkInSubmissionView(WalkInErrorHandlingMixin, GenericAPIView):
+    serializer_class = WalkInSubmissionInputSerializer
+    permission_classes = (IsIntakeWorkerOrAdmin,)
+
+    @extend_schema(
+        request=WalkInSubmissionInputSerializer,
+        responses={200: WalkInSubmissionReadSerializer},
+        tags=["staff households"],
+        summary="Submit a walk-in draft and check for duplicates",
+    )
+    def post(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
+        # Staff can submit any worker's walk-in draft.
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            household = services.submit_walk_in(id, request.user)
+        except Household.DoesNotExist as exc:
+            raise Http404 from exc
+        except DjangoValidationError as exc:
+            raise _service_validation(exc) from exc
+        return Response(WalkInSubmissionReadSerializer(household).data)

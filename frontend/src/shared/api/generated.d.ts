@@ -58,6 +58,10 @@ export interface paths {
     /** Edit an existing walk-in household draft */
     patch: operations["staff_households_partial_update"];
   };
+  "/api/staff/households/{id}/submit/": {
+    /** Submit a walk-in draft and check for duplicates */
+    post: operations["staff_households_submit_create"];
+  };
   "/api/store/listings/": {
     /** Post a listing for the signed-in user's active store */
     post: operations["store_listings_create"];
@@ -486,6 +490,14 @@ export interface components {
       | "renewal_needed"
       | "suspended"
       | "rejected";
+    WalkInSubmissionRead: {
+      /** Format: uuid */
+      id: string;
+      status: components["schemas"]["WalkInDraftReadStatusEnum"];
+      status_reason: string;
+      /** Format: date-time */
+      submitted_at: string | null;
+    };
   };
   responses: never;
   parameters: never;
@@ -774,6 +786,21 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["WalkInDraftRead"];
+        };
+      };
+    };
+  };
+  /** Submit a walk-in draft and check for duplicates */
+  staff_households_submit_create: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["WalkInSubmissionRead"];
         };
       };
     };
