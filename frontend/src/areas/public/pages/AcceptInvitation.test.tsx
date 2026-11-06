@@ -97,6 +97,32 @@ describe("US-04 accept an invitation and set a password", () => {
     expect(screen.getByLabelText(/^Mot de passe$/)).toHaveValue(password);
   });
 
+  it("refocuses repeated local failures without interrupting password editing", async () => {
+    const fetchMock = mockAcceptance();
+    renderInvitation();
+    const user = await fillPasswords("", "");
+    const submit = screen.getByRole("button", { name: SUBMIT });
+    await user.click(submit);
+    expect((await screen.findByRole("alert")).closest('[tabindex="-1"]')).toHaveFocus();
+
+    await user.click(submit);
+    expect(screen.getByRole("alert").closest('[tabindex="-1"]')).toHaveFocus();
+    const password = screen.getByLabelText(/^Mot de passe$/);
+    await user.type(password, PASSWORD);
+    expect(password).toHaveFocus();
+    expect(password).toHaveValue(PASSWORD);
+
+    const confirmation = screen.getByLabelText(/^Confirmer le mot de passe$/);
+    await user.click(confirmation);
+    await user.type(confirmation, `${PASSWORD}-different`);
+    expect(confirmation).toHaveFocus();
+    expect(confirmation).toHaveValue(`${PASSWORD}-different`);
+    await user.click(submit);
+
+    expect(screen.getByRole("alert").closest('[tabindex="-1"]')).toHaveFocus();
+    expect(acceptanceCalls(fetchMock)).toHaveLength(0);
+  });
+
   it("sends the route token and password with CSRF and language, then opens sign-in", async () => {
     const fetchMock = mockAcceptance();
     renderInvitation();
@@ -182,6 +208,41 @@ describe("US-04 accept an invitation and set a password", () => {
     expect(acceptanceCalls(fetchMock)).toHaveLength(1);
   });
 
+  it("refocuses repeated server failures without interrupting password editing", async () => {
+    const fetchMock = mockAcceptance(async () =>
+      Response.json(
+        {
+          code: "validation_error",
+          message: "Vérifiez les champs indiqués.",
+          fields: { password: [PASSWORD_ERROR] },
+        },
+        { status: 400 },
+      ),
+    );
+    renderInvitation();
+    const user = await fillPasswords();
+    const submit = screen.getByRole("button", { name: SUBMIT });
+    await user.click(submit);
+    expect((await screen.findByRole("alert")).closest('[tabindex="-1"]')).toHaveFocus();
+
+    const password = screen.getByLabelText(/^Mot de passe$/);
+    await user.type(password, "-retry");
+    expect(password).toHaveFocus();
+    expect(password).toHaveValue(`${PASSWORD}-retry`);
+    const confirmation = screen.getByLabelText(/^Confirmer le mot de passe$/);
+    await user.type(confirmation, "-retry");
+    expect(confirmation).toHaveFocus();
+    expect(confirmation).toHaveValue(`${PASSWORD}-retry`);
+    await user.click(submit);
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert").closest('[tabindex="-1"]')).toHaveFocus();
+    });
+    expect(acceptanceCalls(fetchMock)).toHaveLength(2);
+    expect(password).toHaveValue(`${PASSWORD}-retry`);
+    expect(confirmation).toHaveValue(`${PASSWORD}-retry`);
+  });
+
   it("translates an expired-link error on language change without submitting again", async () => {
     const fetchMock = mockAcceptance(async () =>
       Response.json(
@@ -198,10 +259,12 @@ describe("US-04 accept an invitation and set a password", () => {
     await user.click(screen.getByRole("button", { name: SUBMIT }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Ce lien d’invitation a expiré.");
 
-    await user.click(screen.getByRole("button", { name: "English" }));
+    const languageSwitch = screen.getByRole("button", { name: "English" });
+    await user.click(languageSwitch);
 
     expect(screen.getByRole("alert")).toHaveTextContent(/expired/i);
     expect(screen.getByRole("alert")).not.toHaveTextContent("Ce lien d’invitation a expiré.");
+    expect(languageSwitch).toHaveFocus();
     expect(acceptanceCalls(fetchMock)).toHaveLength(1);
   });
 

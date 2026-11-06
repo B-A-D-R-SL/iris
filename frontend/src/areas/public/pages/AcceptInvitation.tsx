@@ -49,6 +49,7 @@ function useInvitationFlow() {
   const [pending, setPending] = useState(false);
   const [invalid, setInvalid] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
+  const [failedSubmissions, setFailedSubmissions] = useState(0);
   const locked = useRef(false);
   const language = i18n.resolvedLanguage ?? "fr";
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -59,6 +60,7 @@ function useInvitationFlow() {
     const { hasErrors } = await form.validate();
     setInvalid(hasErrors);
     if (hasErrors) {
+      setFailedSubmissions((count) => count + 1);
       locked.current = false;
       return;
     }
@@ -72,12 +74,13 @@ function useInvitationFlow() {
         error: caught instanceof InvitationError ? caught : new InvitationError("unavailable"),
         language,
       });
+      setFailedSubmissions((count) => count + 1);
     } finally {
       locked.current = false;
       setPending(false);
     }
   }
-  return { form, user, complete, pending, invalid, failure, language, submit };
+  return { form, user, complete, pending, invalid, failure, language, submit, failedSubmissions };
 }
 
 type InvitationFlow = ReturnType<typeof useInvitationFlow>;
@@ -123,10 +126,11 @@ function PasswordFields({ flow }: { flow: InvitationFlow }) {
   );
 }
 
-/** Announce errors and move focus without exposing the invitation token. */
+/** Focus new failed submissions while letting visitors edit fields uninterrupted. */
 function InvitationErrorNotice({ flow }: { flow: InvitationFlow }) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
+  const { failedSubmissions } = flow;
   const key = flow.invalid
     ? "checkPassword"
     : flow.failure
@@ -136,8 +140,8 @@ function InvitationErrorNotice({ flow }: { flow: InvitationFlow }) {
     Object.keys(flow.form.errors).length +
     (passwordError(flow) && !flow.form.errors.password ? 1 : 0);
   useEffect(() => {
-    if (key) ref.current?.focus();
-  }, [key, flow.form.errors, flow.failure]);
+    if (failedSubmissions > 0) ref.current?.focus();
+  }, [failedSubmissions]);
   if (!key) return null;
   return (
     <div ref={ref} tabIndex={-1}>
