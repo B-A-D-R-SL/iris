@@ -63,3 +63,12 @@ msgstr "Ce lien de fichier est invalide ou expiré."
 
 msgid "Leave the reason empty when the person filed a tax return."
 msgstr "Laissez la raison vide si la personne a produit une déclaration de revenus."
+
+msgid "Confirmed"
+msgstr "Confirmé"
+
+msgid "Did not file"
+msgstr "N'a pas produit de déclaration"
+
+msgid "Staff"
+msgstr "Personnel"

@@ -4,8 +4,9 @@
 import pytest
 from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
-from django.utils import timezone
+from django.utils import timezone, translation
 
+from modules.documents.models import IncomeNotice
 from modules.documents.queries import current_notices
 from modules.documents.tests.factories import (
     make_confirmed_notice,
@@ -74,3 +75,14 @@ def test_current_notices_returns_only_current_rows() -> None:
 def test_has_file() -> None:
     assert make_confirmed_notice().has_file is True
     assert make_did_not_file_notice().has_file is False
+
+
+def test_status_and_source_labels_are_translated() -> None:
+    with translation.override("fr"):
+        labels = [
+            str(IncomeNotice.Status.CONFIRMED.label),
+            str(IncomeNotice.Status.DID_NOT_FILE.label),
+            str(IncomeNotice.Source.STAFF.label),
+        ]
+
+    assert labels == ["Confirmé", "N'a pas produit de déclaration", "Personnel"]
