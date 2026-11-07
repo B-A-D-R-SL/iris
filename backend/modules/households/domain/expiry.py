@@ -9,8 +9,6 @@ the ``file_validity.approved_months`` rule; callers pass it in.
 import calendar
 from datetime import datetime, timedelta
 
-MINIMUM_APPROVED_MONTHS = 1
-
 # Must match Household.Status in models.py; test_expiry.py checks that they do.
 STATUS_APPROVED = "approved"
 STATUS_RENEWAL_NEEDED = "renewal_needed"
@@ -34,8 +32,12 @@ def add_months(moment: datetime, months: int) -> datetime:
 
 
 def approved_expiry(moment: datetime, approved_months: object) -> datetime:
-    """Expiry of a file approved at ``moment``, using ``file_validity.approved_months``."""
-    if type(approved_months) is not int or approved_months < MINIMUM_APPROVED_MONTHS:
+    """Expiry of a file approved at ``moment``, using ``file_validity.approved_months``.
+
+    The rule schema sets the real minimum. This only refuses values that would
+    break the date math.
+    """
+    if type(approved_months) is not int or approved_months <= 0:
         raise ValueError("approved_months must be a positive integer.")
     return add_months(moment, approved_months)
 
