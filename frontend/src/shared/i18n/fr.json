@@ -263,6 +263,22 @@
       "unavailable": "La connexion est indisponible. Réessayez.",
       "useAnotherAccount": "Utiliser un autre compte"
     },
+    "invitation": {
+      "title": "Définir votre mot de passe",
+      "submit": "Définir mon mot de passe",
+      "passwordHelp": "Utilisez au moins 10 caractères. Évitez les mots de passe courants et les mots similaires à votre nom ou à votre courriel.",
+      "passwordTooShort": "Utilisez au moins 10 caractères.",
+      "passwordMismatch": "Entrez le même mot de passe dans les deux champs.",
+      "expired": "Ce lien d’invitation a expiré.",
+      "used": "Ce lien d’invitation a déjà été utilisé.",
+      "invalid": "Ce lien d’invitation est invalide.",
+      "emailRegistered": "Un compte utilise déjà ce courriel.",
+      "unavailable": "L’acceptation des invitations est indisponible. Réessayez.",
+      "checkPassword": "Vérifiez le mot de passe et sa confirmation.",
+      "success": "Le nouveau compte est prêt.",
+      "signedInGuidance": "Vous êtes toujours connecté à votre compte actuel. Utilisez Déconnexion dans l’en-tête avant de vous connecter au nouveau compte.",
+      "newLinkHelp": "Demandez un nouveau lien à la personne qui vous a invité."
+    },
     "signup": {
       "email": "Courriel",
       "password": "Mot de passe",
