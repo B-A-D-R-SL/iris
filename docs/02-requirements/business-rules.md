@@ -22,6 +22,24 @@ Tokens contain 32 random bytes; store only their SHA-256 hash. The public
 acceptance endpoint sets the password and leaves the browser session unchanged.
 Issuing screens and invitation emails belong to the calling workflows.
 
+## Pickups (US-44)
+
+The following rule IDs are introduced for review with US-44 (#520).
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-RES-001 | Only an active `store_staff` or `store_manager` account assigned to a store can look up or confirm a pickup, and only for reservations on that store's listings. A code that belongs to another store's live reservation is answered "picked up somewhere else", naming no store and no household; any other code is unknown. |
+| BR-RES-002 | A pickup is confirmed only while the reservation is `reserved` and the time is within the listing's pickup window, both ends included. The store, status and window are checked again under a row lock when confirming, so the pickup is recorded once, with the confirming staff member and the time. Late confirmation of a no-show is US-45. |
+| BR-RES-003 | Before confirming, staff see the household holder's and the alternate's first name and last initial, the listing title, the unit and the quantity. No contact detail or full name is sent. An anonymized household is treated as an unknown code. |
+| BR-RES-004 | Pickup codes are unique per listing, not per store. If two `reserved` reservations at the same store share the typed code, the lookup is refused and staff find the person in today's pickups instead. A finished reservation with the same code never hides a live one. |
+| BR-RES-005 | **Default:** Confirming a pickup does not change listing stock: the units stay counted as taken so they are not offered again. |
+
+Codes are compared after removing spaces and changing to uppercase; the length
+comes from the reservation's `pickup_code` column (6). BR-RES-001 to BR-RES-005
+are checked in `backend/modules/reservations/queries.py` and `services.py`,
+the names in `backend/modules/households/domain/names.py`, and the window in
+`backend/modules/reservations/domain/pickup.py`.
+
 ## Partner applications (US-12)
 
 ### BR-PARTNER-01: One open application per contact email

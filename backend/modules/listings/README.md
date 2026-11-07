@@ -24,6 +24,8 @@ Own the listings feature boundary within the Iris modular monolith.
   (US-34).
 - `queries.categories_for_posting(at=...)`: the active categories a store may
   post in, with prohibited codes left out (US-34).
+- `queries.pickup_listings(store_id)`: the store's listings as plain values
+  (title, unit, pickup window) for pickup lookup and confirmation (US-44).
 
 ## Endpoints
 

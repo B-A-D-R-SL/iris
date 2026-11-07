@@ -13,8 +13,11 @@ account. The record also preserves staff verification and creation timestamps.
 - `services.create_walk_in(data, staff_user) -> Household`
 - `services.update_draft(household_id, data, staff_user) -> Household`
 - `queries.walk_in_for_staff(household_id) -> Household | None`
+- `queries.pickup_names(household_id)`: holder and alternate as first name and
+  last initial for store pickups, or None once anonymized (US-44)
 - `domain/address.py`: `normalize_address`, `normalize_postal_code`
 - `domain/person.py`: `normalize_person`, age/name validation
+- `domain/names.py`: `short_name`, `short_full_name` ("Fatou D.")
 
 Services are transactional, enforce active staff roles, and call `full_clean()`
 before persistence. Editing is restricted to drafts; member replacement cannot
