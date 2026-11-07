@@ -164,6 +164,16 @@ ignore_imports = [
     "modules.listings.tests.** -> modules.rules.models",
     "modules.listings.tests.** -> modules.rules.domain.schemas",
 
+    # reservations pickup tests (US-44) -> test setup only: saved users, stores,
+    # households with a holder, and listings with an open pickup window.
+    "modules.reservations.tests.** -> modules.accounts.models",
+    "modules.reservations.tests.** -> modules.accounts.tests.factories",
+    "modules.reservations.tests.** -> modules.households.models",
+    "modules.reservations.tests.** -> modules.households.tests.factories",
+    "modules.reservations.tests.** -> modules.listings.models",
+    "modules.reservations.tests.** -> modules.listings.tests.factories",
+    "modules.reservations.tests.** -> modules.stores.tests.factories",
+
     # reservations -> listings, households, priority
     "modules.reservations.** -> modules.listings.services",
     "modules.reservations.** -> modules.listings.queries",
