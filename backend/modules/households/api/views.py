@@ -5,18 +5,25 @@ from typing import Any
 from uuid import UUID
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.http import Http404
 from django.utils.translation import gettext_lazy as _
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import GenericAPIView
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
+from modules.audit import services as audit_services
 from modules.households import queries, services
+from modules.households.api.search_serializers import (
+    HouseholdSearchInputSerializer,
+    HouseholdSearchResultSerializer,
+)
 from modules.households.api.serializers import (
     WalkInDraftInputSerializer,
     WalkInDraftReadSerializer,
@@ -90,9 +97,45 @@ def _service_validation(exc: DjangoValidationError) -> ValidationError:
     return ValidationError({"non_field_errors": exc.messages})
 
 
+class HouseholdSearchPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+
 class WalkInCollectionView(WalkInErrorHandlingMixin, GenericAPIView):
     serializer_class = WalkInDraftInputSerializer
     permission_classes = (IsIntakeWorkerOrAdmin,)
+    pagination_class = HouseholdSearchPagination
+
+    @extend_schema(
+        operation_id="staff_households_list",
+        parameters=[
+            OpenApiParameter(
+                "q",
+                str,
+                description="Partial name, email, phone, member number or address. Blank returns no files.",
+            ),
+        ],
+        responses={200: HouseholdSearchResultSerializer(many=True)},
+        tags=["staff households"],
+        summary="Find a household (intake workers and administrators)",
+    )
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        params = HouseholdSearchInputSerializer(data=request.query_params)
+        params.is_valid(raise_exception=True)
+        page = self.paginate_queryset(queries.search(params.validated_data["q"]))
+        # Record only returned IDs, never the search text or personal details.
+        # A failed audit prevents disclosure. Search queries themselves only read.
+        with transaction.atomic():
+            data = HouseholdSearchResultSerializer(page, many=True).data
+            if request.method == "GET":
+                audit_services.record_household_views(
+                    request.user, (household.pk for household in page)
+                )
+        response = self.get_paginated_response(data)
+        response["Cache-Control"] = "private, no-store"
+        return response
 
     @extend_schema(
         request=WalkInDraftInputSerializer,

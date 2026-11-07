@@ -788,6 +788,15 @@ Each owner maintains its model and migrations and exposes services for writes an
 
 Staff search uses PostgreSQL pg_trgm, unaccent, and trigram indexes for partial and accent-insensitive matching.
 
+US-63 implements this with stored generated columns on the owning tables:
+`Household.search_email_key`, `search_number_key`, `search_address_key`,
+`search_address_text`, and `Member.search_name_key`. PostgreSQL backfills and
+maintains these derived values. Six GIN indexes cover those keys and the existing
+normalized phone field. The immutable normalization wrapper uses the fixed
+`public.unaccent` dictionary; dictionary changes require recomputing stored keys.
+These internal columns are excluded from API responses. Name search does not use
+the DOB component of `person_key`.
+
 Source: [Issue #553](https://github.com/B-A-D-R-SL/iris/issues/553).
 
 ## Migration order

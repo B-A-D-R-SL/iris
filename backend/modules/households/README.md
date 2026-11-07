@@ -13,6 +13,8 @@ account. The record also preserves staff verification and creation timestamps.
 - `services.create_walk_in(data, staff_user) -> Household`
 - `services.update_draft(household_id, data, staff_user) -> Household`
 - `queries.walk_in_for_staff(household_id) -> Household | None`
+- `queries.search(q) -> QuerySet[Household]`: partial, accent-insensitive staff search;
+  reads only and excludes anonymized files. Blank input returns no files.
 - `domain/address.py`: `normalize_address`, `normalize_postal_code`
 - `domain/person.py`: `normalize_person`, age/name validation
 
@@ -24,6 +26,9 @@ creator, verifier or internal keys directly.
 ## API routes
 
 - `POST /api/staff/households/`: create a draft and holder member
+- `GET /api/staff/households/?q=...&page=1&page_size=20`: search household/member
+  names, household email/phone, member number and address. Pages are capped at
+  100 results. Names describe the holder even when another member matched.
 - `GET /api/staff/households/{uuid}/`: read draft and who created it
 - `PATCH /api/staff/households/{uuid}/`: patch draft steps, including members
 
@@ -94,3 +99,28 @@ names unsupported by the current US-62 branch, which only handles view/decision.
 The walk-in screens (T-03.17.4) are in `frontend/src/areas/staff/pages/WalkIn/`.
 Approval, income notices, status transitions and the set-password email belong
 to US-18 and US-57; none of them are implemented here.
+
+## Staff search (US-63, #553 and #554)
+
+Migration `0004_staff_search_indexes` enables `pg_trgm` and `unaccent`, adds
+stored PostgreSQL generated keys and GIN trigram indexes, and backfills existing
+rows. PostgreSQL maintains the keys for normal saves, updates and bulk writes.
+The fixed `public.unaccent` dictionary must not be changed without a migration
+that recomputes the stored keys. Reversing removes the derived keys/indexes and
+module function, preserves source records, and leaves shared extensions installed.
+
+Search never searches the DOB-containing `person_key`. Its explicit response
+contains only holder names, contact/address fields, member number, channel and
+status. The collection's existing POST registration operation is preserved.
+Responses use `Cache-Control: private, no-store`; search text is excluded from
+logs. Each disclosed household ID is recorded through
+`audit.services.record_household_views` in one atomic batch, with empty metadata.
+Audit failure prevents the response from exposing results. HEAD creates no events.
+
+The screen replaces the staff placeholder at `/staff/households`. It supports
+French/English, a 300 ms debounce, cancelled superseded requests, paginated
+results and links to resume existing walk-in drafts. US-64 owns the later full
+household page; this change does not create that page or approval workflows.
+
+See [search verification](../../../docs/guides/household-search.md) for database
+isolation, repeatable benchmarks and the remaining staging/device checks.

@@ -56,6 +56,8 @@ export interface paths {
     patch: operations["staff_categories_update"];
   };
   "/api/staff/households/": {
+    /** Find a household (intake workers and administrators) */
+    get: operations["staff_households_list"];
     /** Create a resumable walk-in household draft */
     post: operations["staff_households_create"];
   };
@@ -187,6 +189,43 @@ export interface components {
       /** @default fr */
       preferred_language?: components["schemas"]["LanguageEnum"];
     };
+    HouseholdSearchResult: {
+      channel: components["schemas"]["ChannelEnum"];
+      city: string;
+      /** Format: email */
+      email: string | null;
+      first_name: string | null;
+      /** Format: uuid */
+      id: string;
+      last_name: string | null;
+      member_number: string | null;
+      phone: string;
+      postal_code: string;
+      status: components["schemas"]["HouseholdStatusEnum"];
+      street_name: string;
+      street_number: string;
+      unit: string;
+    };
+    /**
+     * @description * `draft` - Brouillon
+     * * `submitted` - Demande soumise
+     * * `review_required` - Review required
+     * * `awaiting_visit` - Awaiting visit
+     * * `approved` - Approuvé
+     * * `renewal_needed` - Renewal needed
+     * * `suspended` - Suspendu
+     * * `rejected` - Refusé
+     * @enum {string}
+     */
+    HouseholdStatusEnum:
+      | "draft"
+      | "submitted"
+      | "review_required"
+      | "awaiting_visit"
+      | "approved"
+      | "renewal_needed"
+      | "suspended"
+      | "rejected";
     /** @description Confirm completion without returning credentials or account information. */
     InvitationAccepted: {
       accepted: boolean;
@@ -300,6 +339,21 @@ export interface components {
        */
       previous?: string | null;
       results: components["schemas"]["AuditEvent"][];
+    };
+    PaginatedHouseholdSearchResultList: {
+      /** @example 123 */
+      count: number;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=4
+       */
+      next?: string | null;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=2
+       */
+      previous?: string | null;
+      results: components["schemas"]["HouseholdSearchResult"][];
     };
     /** @description Submitted partner form; field rules from forms-and-fields.md. */
     PartnerApplication: {
@@ -479,7 +533,7 @@ export interface components {
       phone: string;
       postal_code: string;
       preferred_language: components["schemas"]["LanguageEnum"];
-      status: components["schemas"]["WalkInDraftReadStatusEnum"];
+      status: components["schemas"]["HouseholdStatusEnum"];
       street_name: string;
       street_number: string;
       unit: string;
@@ -490,26 +544,6 @@ export interface components {
       /** Format: email */
       verified_by_email: string | null;
     };
-    /**
-     * @description * `draft` - Brouillon
-     * * `submitted` - Demande soumise
-     * * `review_required` - Review required
-     * * `awaiting_visit` - Awaiting visit
-     * * `approved` - Approuvé
-     * * `renewal_needed` - Renewal needed
-     * * `suspended` - Suspendu
-     * * `rejected` - Refusé
-     * @enum {string}
-     */
-    WalkInDraftReadStatusEnum:
-      | "draft"
-      | "submitted"
-      | "review_required"
-      | "awaiting_visit"
-      | "approved"
-      | "renewal_needed"
-      | "suspended"
-      | "rejected";
   };
   responses: never;
   parameters: never;
@@ -784,6 +818,26 @@ export interface operations {
       503: {
         content: {
           "application/json": components["schemas"]["CategoryError"];
+        };
+      };
+    };
+  };
+  /** Find a household (intake workers and administrators) */
+  staff_households_list: {
+    parameters: {
+      query?: {
+        /** @description Un numéro de page de l'ensemble des résultats. */
+        page?: number;
+        /** @description Nombre de résultats à retourner par page. */
+        page_size?: number;
+        /** @description Partial name, email, phone, member number or address. Blank returns no files. */
+        q?: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PaginatedHouseholdSearchResultList"];
         };
       };
     };

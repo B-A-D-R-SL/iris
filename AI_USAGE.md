@@ -38,6 +38,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| US-63 Household search (#553, #554; tests #552) | `backend/modules/households/`, `backend/modules/audit/{services.py,README.md,tests/test_household_views.py}`, `backend/iris/settings/base.py`, `frontend/src/areas/staff/pages/Search*`, `frontend/src/features/households/{searchApi,useHouseholdSearch}*`, `frontend/src/test/householdSearch.ts`, routes, translations, generated API types and search documentation | 50% or more AI-generated; generated migration and API types exempt | Pending review |
 | T-01.04.3 Invitation password page (#431) | `frontend/src/areas/public/pages/AcceptInvitation{,.test}.tsx`, `frontend/src/features/accounts/invitations{,.test}.ts`, `frontend/src/app/App.tsx`, `frontend/src/shared/i18n/{fr,en}.json`, `frontend/src/shared/logger.ts`, `.coderabbit.yaml`, `backend/modules/accounts/README.md`, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
 | T-01.04.2 Invitation model, services and acceptance API (#430) | `backend/modules/accounts/{models.py,services.py,api/,locale/fr/LC_MESSAGES/,README.md,migrations/0005_invitation.py}`, `backend/modules/accounts/tests/{conftest,test_invitations,test_invitation_logging,test_invitation_errors}.py`, `backend/modules/rules/{domain/schemas.py,tests/test_invitation_rules.py}`, `docs/02-requirements/business-rules.md`, `docs/03-design/{api,database-schema,domain-model}.md`, `docs/04-architecture/architecture.md`, `frontend/src/shared/api/generated.d.ts`, `AI_USAGE.md` | 50% or more AI-generated for source changes; Django migration, compiled catalog and generated API declarations exempt | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
 | T-01.04.1 Invitation acceptance tests (#429) | `backend/modules/accounts/tests/{factories,conftest,test_invitations,test_api}.py`, `backend/modules/rules/tests/test_invitation_rules.py`, `frontend/src/areas/public/pages/AcceptInvitation.test.tsx`, test-only import exceptions in `backend/pyproject.toml`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657); implementation supplied by #430 and #431 |
@@ -82,6 +83,32 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | T-05.35.2 Category admin API and screen (#503) and T-05.35.1 tests (#502) | `backend/modules/listings/tests/test_category_admin.py`, `backend/modules/categories/` (`domain/rules.py`, `queries.py`, `services.py`, `api/serializers.py`, `api/staff_views.py`, `api/staff_urls.py`, `tests/test_staff_api.py`, French catalog, README), `backend/iris/urls.py`, `backend/pyproject.toml` (test-only import exceptions), `frontend/src/features/categories/` (`adminApi.ts`, `categoryForm.ts`, `CategoryDialog.tsx`, `CategoriesPage.tsx` and tests), translations, regenerated API types, `docs/02-requirements/forms-and-fields.md`, `docs/03-design/{api,database-schema}.md`, `AI_USAGE.md` | 50% or more AI-generated (generated API declarations and compiled catalog exempt) | Not yet opened (`user_story/US-35` branch) |
 
 ## Examples, verification and corrections
+
+### US-63 Household search and tests (#552, #553, #554)
+
+- **What the AI produced:** under Mark's direction, the staff search API,
+  normalized search columns and indexes, migration, audit integration and
+  French/English search screen with pagination and a typing delay. Search covers
+  partial or accented member names, email, phone, address and member number.
+  ChatGPT also helped write tests, generated API types and documentation.
+- **Owner's decisions:** Mark requested the backend before the frontend and
+  required the existing Docker setup to be preserved. For safety, he reviewed
+  the database connection, backup and migration.
+- **Verification:** Mark went through the code and reviewed the implementation.
+  He manually checked the saved-draft flow and local database in pgAdmin,
+  reviewed the search fields and household/member links, and reviewed the
+  automated results. ChatGPT ran the automated checks for permissions,
+  read-only queries, API/database integration, accents, pagination, migrations
+  and audit failure handling. The full backend suite passed **915 tests** with
+  **93.30% coverage**; the frontend passed **431 tests** with **94.55% line coverage**.
+  Lint, type checks, module boundaries, Django checks, API validation, production
+  build and dependency audits passed. With 5,000 fictional households, 300 warm
+  HTTP requests at 100 requests/second achieved **87.78 ms p95**.
+- **Problems found and corrections:** broad searches were initially too slow;
+  stored normalized columns and trigram indexes improved performance. The earlier
+  pytest setup error did not recur in the full rerun. The first cold HTTP request
+  took **1.2 seconds**; first-request, staging and phone/4G performance still need
+  verification. Details are in the [verification guide](docs/guides/household-search.md).
 
 ### T-01.04.3 Invitation password page (#431)
 

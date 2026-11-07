@@ -139,6 +139,7 @@ SPECTACULAR_SETTINGS = {
     # Explicit shared enum for the account and household language fields.
     "ENUM_NAME_OVERRIDES": {
         "LanguageEnum": [("fr", "Français"), ("en", "English")],
+        "HouseholdStatusEnum": "modules.households.models.HouseholdStatus",
     },
     # Document the Django health view without changing its authentication or behavior.
     "APPEND_PATHS": {
