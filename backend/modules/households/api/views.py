@@ -33,6 +33,7 @@ from modules.households.policies import can_manage_walk_ins
 
 
 def _flatten_errors(detail: Any, prefix: str = "") -> dict[str, list[str]]:
+    """Turn nested serializer errors into field paths used by the staff forms."""
     if isinstance(detail, dict):
         fields: dict[str, list[str]] = {}
         for key, value in detail.items():
@@ -52,6 +53,7 @@ def _flatten_errors(detail: Any, prefix: str = "") -> dict[str, list[str]]:
 def walk_in_exception_handler(
     exc: Exception, context: dict[str, Any]
 ) -> Response | None:
+    """Return the shared validation envelope while retaining refusal status codes."""
     response = exception_handler(exc, context)
     if response is None:
         return None
@@ -73,6 +75,7 @@ def walk_in_exception_handler(
 
 class WalkInErrorHandlingMixin:
     def get_exception_handler(self) -> Any:
+        """Apply the walk-in error contract to every staff household operation."""
         return walk_in_exception_handler
 
 
@@ -83,12 +86,14 @@ class IsIntakeWorkerOrAdmin(BasePermission):
 
 
 def _validated(data: Any, *, partial: bool = False) -> dict[str, Any]:
+    """Validate submitted draft fields before passing them to a service."""
     serializer = WalkInDraftInputSerializer(data=data, partial=partial)
     serializer.is_valid(raise_exception=True)
     return dict(serializer.validated_data)
 
 
 def _service_validation(exc: DjangoValidationError) -> ValidationError:
+    """Preserve field errors when adapting service validation to the API contract."""
     if hasattr(exc, "message_dict"):
         return ValidationError(exc.message_dict)
     return ValidationError({"non_field_errors": exc.messages})
@@ -113,6 +118,7 @@ class WalkInCollectionView(WalkInErrorHandlingMixin, GenericAPIView):
         summary="Find a household (intake workers and administrators)",
     )
     def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Search the shared staff scope and persist disclosure audits before responding."""
         params = HouseholdSearchInputSerializer(data=request.query_params)
         params.is_valid(raise_exception=True)
         page = self.paginate_queryset(
@@ -139,6 +145,7 @@ class WalkInCollectionView(WalkInErrorHandlingMixin, GenericAPIView):
         summary="Create a resumable walk-in household draft",
     )
     def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Create a resumable draft and return validated field errors on refusal."""
         data = _validated(request.data)
         try:
             household = services.create_walk_in(data, request.user)
@@ -155,6 +162,7 @@ class WalkInDetailView(WalkInErrorHandlingMixin, GenericAPIView):
 
     @staticmethod
     def _get_household(id: UUID) -> Household:
+        """Refuse missing, anonymized or non-walk-in files through the draft endpoint."""
         household = queries.walk_in_for_staff(id)
         if household is None:
             raise Http404
@@ -166,6 +174,7 @@ class WalkInDetailView(WalkInErrorHandlingMixin, GenericAPIView):
         summary="Resume an existing walk-in household draft",
     )
     def get(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
+        """Return a shared walk-in draft after staff and object-scope checks."""
         return Response(WalkInDraftReadSerializer(self._get_household(id)).data)
 
     @extend_schema(
@@ -175,6 +184,7 @@ class WalkInDetailView(WalkInErrorHandlingMixin, GenericAPIView):
         summary="Edit an existing walk-in household draft",
     )
     def patch(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
+        """Edit an eligible shared draft while preserving validation and refusal errors."""
         data = _validated(request.data, partial=True)
         try:
             household = services.update_draft(id, data, request.user)

@@ -12,6 +12,7 @@ import { SearchResults } from "./SearchResults";
 
 type SearchState = ReturnType<typeof useHouseholdSearch>;
 
+/** Clear the input without submitting the surrounding search form. */
 function ClearSearch({ onClear }: { onClear: () => void }) {
   const { t } = useTranslation();
   return (
@@ -27,6 +28,7 @@ function ClearSearch({ onClear }: { onClear: () => void }) {
   );
 }
 
+/** Keep input and keyboard focus local while the search hook handles request pacing. */
 function SearchControls({ state }: { state: SearchState }) {
   const { t } = useTranslation();
   const input = useRef<HTMLInputElement>(null);
@@ -59,6 +61,7 @@ function SearchControls({ state }: { state: SearchState }) {
   );
 }
 
+/** Render current server results or translated waiting, refusal and failure states. */
 function SearchContent({ state }: { state: SearchState }) {
   const { t } = useTranslation();
   const { result } = state;
@@ -91,6 +94,7 @@ function SearchContent({ state }: { state: SearchState }) {
   return <SearchResults data={result.data} page={state.page} onPage={state.setPage} />;
 }
 
+/** Present the staff search workflow after its API-backed route access check succeeds. */
 export function Search() {
   const { t } = useTranslation();
   const state = useHouseholdSearch();

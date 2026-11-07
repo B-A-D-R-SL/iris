@@ -2,7 +2,30 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { searchFile, searchPage } from "../../test/householdSearch";
-import { HouseholdSearchError, searchHouseholds } from "./searchApi";
+import { checkHouseholdSearchAccess, HouseholdSearchError, searchHouseholds } from "./searchApi";
+
+describe("household search access check", () => {
+  it("uses HEAD without requesting household results", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = new AbortController();
+    expect(await checkHouseholdSearchAccess(controller.signal)).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/staff/households/",
+      expect.objectContaining({
+        method: "HEAD",
+        credentials: "same-origin",
+        cache: "no-store",
+        signal: controller.signal,
+      }),
+    );
+  });
+
+  it.each([401, 403, 500])("preserves a refused access status %s", async (status) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status })));
+    await expect(checkHouseholdSearchAccess()).rejects.toMatchObject({ status });
+  });
+});
 
 describe("household search request contract", () => {
   it("encodes the query and sends the session, language, cache policy and cancellation signal", async () => {

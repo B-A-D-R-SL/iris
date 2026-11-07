@@ -11,6 +11,7 @@ NAMES = ("Élodie", "Zoé", "André", "François", "Camille")
 
 
 def _household(number: int, staff) -> Household:
+    """Build a fictional file with varied contacts, statuses and normalized addresses."""
     street_name = "rue Émile" if number % 3 else "avenue Exemple"
     return Household(
         member_number=f"IR-{number:06d}",
@@ -30,6 +31,7 @@ def _household(number: int, staff) -> Household:
 
 
 def _members(household: Household, number: int) -> list[Member]:
+    """Build accented holder/child names with realistic fictional household sizes."""
     members = []
     for index in range(1 + number % 7):
         first = NAMES[(number + index) % len(NAMES)]

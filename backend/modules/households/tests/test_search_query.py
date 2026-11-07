@@ -57,6 +57,7 @@ def test_each_search_field_finds_the_expected_household(household, query):
 
 
 def test_member_matches_are_deduplicated_and_holder_name_is_returned(household):
+    """Return each file once even when its email and several members match."""
     MemberFactory(household=household, first_name="Élodie", last_name="Exemple")
     result = list(search("exemple"))
     assert [file.pk for file in result] == [household.pk]
@@ -90,6 +91,7 @@ def test_anonymized_files_are_excluded(household):
 
 
 def test_contact_search_supports_legacy_seed_files_without_members():
+    """Keep imported files searchable even before a holder member has been recorded."""
     file = HouseholdFactory(email="seed-file@example.test")
     result = search("seed-file").get()
     assert result.pk == file.pk
@@ -112,6 +114,7 @@ def test_french_ligatures_and_accents_share_the_database_normalization(household
 
 @pytest.mark.django_db(transaction=True)
 def test_search_runs_in_a_database_enforced_read_only_transaction(household):
+    """Demonstrate that household matching never requires a database write."""
     with transaction.atomic():
         with connection.cursor() as cursor:
             cursor.execute("SET TRANSACTION READ ONLY")

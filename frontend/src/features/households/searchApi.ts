@@ -26,6 +26,20 @@ export class HouseholdSearchError extends Error {
   }
 }
 
+/** Ask the search endpoint to authorize this session without returning household data. */
+export async function checkHouseholdSearchAccess(signal?: AbortSignal): Promise<boolean> {
+  const response = await fetch("/api/staff/households/", {
+    method: "HEAD",
+    credentials: "same-origin",
+    cache: "no-store",
+    signal,
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) throw new HouseholdSearchError(response.status);
+  return true;
+}
+
+/** Validate the identifying fields and server-provided resume permission. */
 function isResult(value: unknown): value is HouseholdSearchResult {
   if (typeof value !== "object" || value === null) return false;
   const row = value as Record<string, unknown>;
@@ -41,6 +55,7 @@ function isResult(value: unknown): value is HouseholdSearchResult {
   );
 }
 
+/** Refuse incomplete or malformed pagination envelopes before rendering them. */
 function isPage(value: unknown): value is HouseholdSearchPage {
   if (typeof value !== "object" || value === null) return false;
   const page = value as Record<string, unknown>;
@@ -53,6 +68,7 @@ function isPage(value: unknown): value is HouseholdSearchPage {
   );
 }
 
+/** Search with session authentication, cancellation and no persistent HTTP cache. */
 export async function searchHouseholds(
   q: string,
   page: number,

@@ -8,7 +8,58 @@ import pytest
 from modules.households.tests import search_load_client as driver
 
 
+@pytest.mark.parametrize(
+    ("status", "payload", "error"),
+    [
+        (403, b"<html>Forbidden</html>", "Search load request failed: HTTP 403"),
+        (500, b"<html>Unavailable</html>", "Search load request failed: HTTP 500"),
+        (200, b"not JSON", "Invalid household search response"),
+        (200, b"\xff", "Invalid household search response"),
+        (200, b"[]", "Invalid household search response"),
+        (200, b"null", "Invalid household search response"),
+        (200, b"42", "Invalid household search response"),
+        (200, b"{}", "Invalid household search response"),
+        (200, b'{"results": null}', "Invalid household search response"),
+        (200, b'{"results": {}}', "Invalid household search response"),
+    ],
+)
+def test_load_rejects_http_errors_and_malformed_responses(
+    monkeypatch, status, payload, error
+):
+    """Preserve HTTP failures even when the server sends HTML or invalid JSON."""
+
+    class Response:
+        def read(self):
+            return payload
+
+    response = Response()
+    response.status = status
+
+    class Connection:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def request(self, *args, **kwargs):
+            pass
+
+        def getresponse(self):
+            return response
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(driver, "HTTPConnection", Connection)
+    client = driver.LoadClient("http://localhost:8000", "test-cookie")
+    try:
+        with pytest.raises(RuntimeError, match=error):
+            client.get("private-search", scheduled=0)
+    finally:
+        client.close()
+
+
 def test_latency_separates_client_queue_from_request_time(monkeypatch):
+    """Distinguish client queue delay from the time spent executing a request."""
+
     class Response:
         status = 200
 
@@ -56,6 +107,7 @@ def test_latency_separates_client_queue_from_request_time(monkeypatch):
 
 
 def test_load_can_offer_requests_while_32_are_in_flight(monkeypatch):
+    """Detect a client worker limit that queues otherwise permissible requests."""
     ready = Event()
     lock = Lock()
     calls = 0
@@ -65,6 +117,7 @@ def test_load_can_offer_requests_while_32_are_in_flight(monkeypatch):
             pass
 
         def get(self, term, scheduled):
+            """Hold requests until the driver has exercised its concurrency budget."""
             nonlocal calls
             with lock:
                 calls += 1
@@ -89,6 +142,7 @@ def test_load_can_offer_requests_while_32_are_in_flight(monkeypatch):
 
 
 def test_cold_request_failure_closes_client_connections(monkeypatch):
+    """Release client resources even when the first HTTP request is refused."""
     closed = Event()
 
     class Client:

@@ -2,6 +2,7 @@
 """NFR-04: paced real HTTP requests, isolated by pytest's live-server database."""
 
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -21,10 +22,12 @@ from modules.households.tests.search_dataset import seed_search_dataset
 pytestmark = pytest.mark.django_db(transaction=True)
 REQUESTS_PER_SECOND = 100
 REQUEST_COUNT = 300
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
 def search_server(transactional_db):
+    """Serve the real WSGI application against pytest's disposable database."""
     # Functional API tests measure coverage; this process measures normal runtime
     # without coverage tracing or pytest's log-capture overhead.
     env = {
@@ -66,6 +69,7 @@ def search_server(transactional_db):
 
 
 def test_api_p95_under_500ms_at_100_requests_per_second(client, search_server):
+    """Enforce the real HTTP latency targets with authenticated audited searches."""
     staff = UserFactory(role="intake_worker")
     seed_search_dataset(staff)
     client.force_login(staff)
@@ -90,7 +94,10 @@ def test_api_p95_under_500ms_at_100_requests_per_second(client, search_server):
         check=True,
     )
     report = {"households": 5000, **json.loads(result.stdout)}
-    print(json.dumps(report))
+    logger.info(
+        "Household search HTTP load measured",
+        extra={"event": "household_search_load_measured", "metrics": report},
+    )
     assert report["requests"] == REQUEST_COUNT, report
     assert report["db_queries_max"] > 0, report
     assert report["cold_http_ms"] < 1000, report

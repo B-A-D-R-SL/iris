@@ -11,12 +11,14 @@ from modules.audit.models import AuditEvent
 
 
 def _actor_role(actor: AbstractBaseUser) -> str:
+    """Require a persisted account and capture its validated role for the event."""
     if not isinstance(actor, get_user_model()) or actor._state.adding:
         raise ValidationError({"actor": "A saved user is required."})
     return str(actor._meta.get_field("role").clean(getattr(actor, "role", None), actor))
 
 
 def _target_identifier(target_type: str, target_id: str | int | UUID) -> str:
+    """Reject empty targets and canonicalize household UUIDs for audit searches."""
     if not isinstance(target_id, (str, int, UUID)) or isinstance(target_id, bool):
         raise ValidationError({"target_id": "A record identifier is required."})
     if not str(target_id).strip():
@@ -31,6 +33,7 @@ def _target_identifier(target_type: str, target_id: str | int | UUID) -> str:
 
 
 def _validate_metadata(metadata: dict[str, str]) -> None:
+    """Permit only fixed decision outcomes, excluding arbitrary personal payloads."""
     if (
         not isinstance(metadata, dict)
         or metadata.keys() - {"outcome"}

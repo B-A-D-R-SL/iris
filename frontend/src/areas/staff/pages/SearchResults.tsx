@@ -10,6 +10,7 @@ import {
 } from "../../../features/households/searchApi";
 import classes from "./Search.module.css";
 
+/** Format only the contact fields the API chose to disclose. */
 function HouseholdContact({ file }: { file: HouseholdSearchResult }) {
   const { t } = useTranslation();
   const street = [file.street_number, file.street_name].filter(Boolean).join(" ");
@@ -33,6 +34,7 @@ function HouseholdContact({ file }: { file: HouseholdSearchResult }) {
   );
 }
 
+/** Render the server's household summary and resume capability without recomputing access. */
 function HouseholdCard({ file }: { file: HouseholdSearchResult }) {
   const { t } = useTranslation();
   const name = [file.first_name, file.last_name].filter(Boolean).join(" ");
@@ -69,6 +71,7 @@ interface ResultsProps {
   onPage: (page: number) => void;
 }
 
+/** Display the API's exact count and page links with translated labels. */
 export function SearchResults({ data, page, onPage }: ResultsProps) {
   const { t } = useTranslation();
   return (

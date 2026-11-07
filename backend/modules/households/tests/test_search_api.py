@@ -69,6 +69,7 @@ def test_staff_searches_through_session_authentication(client, file, role):
 
 @pytest.mark.parametrize("role", ["beneficiary", "store_staff", "store_manager"])
 def test_other_roles_cannot_search(client, file, role):
+    """Refuse non-console roles without creating disclosure audit events."""
     store = StoreFactory() if role.startswith("store_") else None
     user = UserFactory(role=role, store=store)
     client.force_login(user)
@@ -111,6 +112,7 @@ def test_blank_and_unmatched_searches_do_not_disclose_or_audit_files(
 
 
 def test_pagination_has_stable_order_and_audits_only_returned_files(client):
+    """Return stable non-overlapping pages and audit only the disclosed records."""
     staff = UserFactory(role="intake_worker")
     files = [
         HouseholdFactory(created_by=staff, member_number=f"IR-{i:06d}")
@@ -129,6 +131,7 @@ def test_pagination_has_stable_order_and_audits_only_returned_files(client):
 
 
 def test_page_size_is_capped_and_head_does_not_create_view_events(client, file):
+    """Allow a metadata-only access probe without creating view events."""
     staff = UserFactory(role="admin")
     client.force_login(staff)
     response = client.head(URL, {"q": "elodie", "page_size": 9999})
@@ -137,7 +140,32 @@ def test_page_size_is_capped_and_head_does_not_create_view_events(client, file):
     assert client.delete(URL).status_code == 405
 
 
+@pytest.mark.parametrize(
+    ("role", "allowed"),
+    [
+        ("intake_worker", True),
+        ("admin", True),
+        ("beneficiary", False),
+        ("store_staff", False),
+        ("store_manager", False),
+    ],
+)
+def test_head_access_probe_uses_server_permissions_without_disclosure(
+    client, file, role, allowed
+):
+    """Authorize the screen through the API without returning or auditing files."""
+    # rule: BR-HH-ACCESS-001; BR-HH-AUDIT-001
+    store = StoreFactory() if role.startswith("store_") else None
+    actor = UserFactory(role=role, store=store)
+    client.force_login(actor)
+    response = client.head(URL)
+    assert response.status_code == (200 if allowed else 403)
+    assert response.content == b""
+    assert search_events(actor=actor.pk).count() == 0
+
+
 def test_large_page_requests_are_limited_to_100_files(client):
+    """Cap disclosed and audited rows even if the client asks for a larger page."""
     staff = UserFactory(role="admin")
     Household.objects.bulk_create(
         [
@@ -156,6 +184,8 @@ def test_large_page_requests_are_limited_to_100_files(client):
 def test_audit_failure_prevents_disclosure_and_rolls_back_events(
     client, file, monkeypatch
 ):
+    """Roll back audit writes and withhold results if recording views fails."""
+    # rule: BR-HH-AUDIT-001
     from modules.households.api import views
 
     staff = UserFactory(role="admin")
@@ -179,6 +209,8 @@ def test_audit_failure_prevents_disclosure_and_rolls_back_events(
 def test_staff_share_files_but_anonymized_files_are_excluded_before_pagination(
     client, file, role
 ):
+    """Share staff files while excluding anonymized records from every response."""
+    # rule: BR-HH-ACCESS-001; BR-HH-ACCESS-002
     staff = UserFactory(role=role)
     assert file.created_by_id != staff.pk
     hidden = HouseholdFactory(member_number="IR-000000", anonymized_at=timezone.now())
@@ -211,6 +243,7 @@ def test_staff_share_files_but_anonymized_files_are_excluded_before_pagination(
 def test_resume_action_matches_the_server_edit_rule(
     client, file, role, channel, status
 ):
+    """Keep the advertised resume capability consistent with actual PATCH permission."""
     file.channel, file.status = channel, status
     file.save(update_fields=["channel", "status"])
     client.force_login(UserFactory(role=role))
@@ -236,6 +269,7 @@ def test_resume_action_is_refused_without_request_context(file):
 
 
 def test_resume_flags_do_not_add_a_database_query_per_result(client):
+    """Bound database work independently of the number of returned resume flags."""
     staff = UserFactory(role="intake_worker")
     Household.objects.bulk_create(
         [
@@ -273,6 +307,7 @@ def test_invalid_search_page_numbers_are_refused_without_audit(client, file, pag
 
 
 def test_last_page_shortcut_keeps_the_expected_count_and_links(client):
+    """Retain the last-page shortcut and exact response links after count optimization."""
     files = [HouseholdFactory(member_number=f"IR-{i:06d}") for i in range(3)]
     client.force_login(UserFactory(role="admin"))
     response = client.get(URL, {"q": "Exemple", "page": "last", "page_size": 2})

@@ -113,9 +113,11 @@ to US-18 and US-57; none of them are implemented here.
 Migration `0004_staff_search_indexes` enables `pg_trgm` and `unaccent`, adds
 stored PostgreSQL generated keys and GIN trigram indexes, and backfills existing
 rows. PostgreSQL maintains the keys for normal saves, updates and bulk writes.
-The fixed `public.unaccent` dictionary must not be changed without a migration
-that recomputes the stored keys. Reversing removes the derived keys/indexes and
-module function, preserves source records, and leaves shared extensions installed.
+Existing extensions retain their installed schemas; new extensions use `public`.
+The wrapper pins the installed unaccent function and dictionary. Dictionary
+changes require a migration that recomputes the stored keys. Reversing removes
+the derived keys/indexes and module function, preserves source records, and
+leaves shared extensions installed.
 
 Search never searches the DOB-containing `person_key`. Its explicit response
 contains only holder names, contact/address fields, member number, channel and

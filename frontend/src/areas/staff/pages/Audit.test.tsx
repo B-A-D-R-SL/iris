@@ -79,8 +79,11 @@ describe("Audit search", () => {
   });
 
   it("restricts the route to admins", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
       if (String(input).endsWith("/api/me/")) return Response.json(testUser("intake_worker"));
+      if (String(input) === "/api/staff/households/" && options?.method === "HEAD") {
+        return new Response(null, { status: 200 });
+      }
       return new Response(null, { status: 404 });
     });
     vi.stubGlobal("fetch", fetchMock);

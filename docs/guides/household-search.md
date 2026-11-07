@@ -26,16 +26,17 @@ the holder, regardless of which member matched. Empty input returns no files.
 The existing walk-in draft POST/PATCH endpoints remain supported.
 
 Intake workers and administrators share access to every non-anonymized household,
-regardless of creator, including unassigned files. This follows the team-pack
-permission matrix. The actor is checked by `search_for_staff` before searching;
+regardless of creator, including unassigned files. The shared scope is defined
+in BR-HH-ACCESS-001 in [business rules](../02-requirements/business-rules.md).
+The actor is checked by `search_for_staff` before searching;
 the object scope is applied before counting or pagination. The API returns a
 `can_resume` boolean from the same policy used for editing, and the frontend
 renders it without recomputing permission from household status or channel.
 
 Numeric pages use a PostgreSQL window count to obtain the total and page in one
 SELECT, rather than running the search twice for a separate COUNT and results.
-Authentication and auditing still run normally: a matching request uses four SQL
-statements in the load report. The optional `page=last` shortcut retains DRF's
+Authentication and auditing run normally for every request. The optional
+`page=last` shortcut retains DRF's
 count-first behavior. Invalid and excessively large page numbers are refused
 with 404 before auditing; page sizes and response fields are unchanged.
 
@@ -63,8 +64,12 @@ search does not update household/member rows. Migration execution needs the
 appropriate schema/extension privileges; normal search needs SELECT plus the
 existing audit INSERT permission.
 
-The immutable normalization wrapper pins `public.unaccent`. Changes to that
-dictionary require recomputing the generated keys in a migration. Reversal
+New extensions are installed in `public`. If either extension already exists in
+another schema, the migration reuses it there without relocating shared objects.
+The normalization function remains in `public`; it pins the installed unaccent
+function and dictionary. The migration resolves the existing trigram operator
+class while building the indexes and restores normal schema lookup at commit.
+Dictionary changes require recomputing the generated keys in a migration. Reversal
 removes derived search columns/indexes and the wrapper, preserves source records,
 and retains the shared extensions for other modules.
 
@@ -80,24 +85,18 @@ same pull request as #553 and #554.
 | Allowed/refused access for every role | API and access tests cover all roles, cross-creator/unassigned access, anonymized-file refusal before pagination, and resume flags matching actual edit permissions. |
 | Edge/error case | `test_search_api.py` covers invalid input, empty/no matches, page boundaries and failed auditing; query tests cover literal SQL/LIKE metacharacters. |
 | API/database integration | `test_staff_searches_through_session_authentication` uses a real session, PostgreSQL household/member records and persisted audit events. |
-| At least 70% changed-code coverage; domain at least 90% | Original search implementation: backend 100% (176/176), frontend 97.10% (67/69) of added/modified executable lines. Household domain coverage is 93% for person validation and 100% for address validation; no domain rules changed. |
-
-These original changed-line figures compare the search implementation with
-the PR's original base `be4e22a`, using executable lines recorded by coverage.py
-and V8. They differ from total coverage: 93.61% for the backend and 94.55% total
-frontend line coverage. Generated declarations, migrations and non-executable
-lines do not contribute to the changed-line denominators.
+| At least 70% changed-code coverage; domain at least 90% | Use the current CI coverage reports to assess the changed code and household domain; this guide does not retain run-specific coverage snapshots. |
 
 Frontend `Search.test.tsx` and `searchApi.test.ts` additionally cover the bilingual
-screen, exact debounce timing, request cancellation, pagination, errors, role
-guards, keyboard clearing and accessibility.
+screen, exact debounce timing, request cancellation, pagination, errors,
+API-driven screen access, keyboard clearing and accessibility.
 
 ## Repeatable verification
 
 ```powershell
 docker compose exec -e DJANGO_SETTINGS_MODULE=iris.settings.test backend python -m pytest modules/households/tests modules/audit/tests -q
-docker compose exec -e DJANGO_SETTINGS_MODULE=iris.settings.test backend python -m pytest modules/households/tests/test_search_performance.py -q -s
-docker compose exec -e DJANGO_SETTINGS_MODULE=iris.settings.test backend python -m pytest modules/households/tests/test_search_load.py -q -s
+docker compose exec -e DJANGO_SETTINGS_MODULE=iris.settings.test backend python -m pytest modules/households/tests/test_search_performance.py -q --log-cli-level=INFO
+docker compose exec -e DJANGO_SETTINGS_MODULE=iris.settings.test backend python -m pytest modules/households/tests/test_search_load.py -q --log-cli-level=INFO
 ```
 
 pytest-django creates its own blank PostgreSQL database, normally `test_iris`,
@@ -126,8 +125,7 @@ do not distort server runtime. The server refuses a database name without the
 `test_` prefix. Its credentials/session cookie travel through stdin, never command
 arguments or report output. Latency includes client queueing, response transfer
 and JSON decoding. The client has 64 workers: 100 requests/second at 500 ms may
-need 50 requests in flight, so the old 16-worker cap could queue requests before
-they reached the server. Queue time remains included in the asserted latency.
+need 50 requests in flight, so the driver leaves concurrency headroom. Queue time remains included in the asserted latency.
 The report separates client queue, HTTP request, application and SQL execution
 timings, plus the maximum SQL statement count. SQL timing excludes connection
 setup and transaction commit; those remain included in application/HTTP timing.
@@ -143,15 +141,20 @@ first timed request. Process initialization is separate from request latency;
 the first real search still includes authentication, queries, serialization and
 audit persistence. Invalid routes prevent the WSGI application from starting.
 
+The frontend checks access with an authenticated HEAD request to the search API
+before rendering the screen. A refusal or failed check withholds the screen;
+requests can be retried after a service failure. The API independently enforces
+permissions on every subsequent search. This check returns no household data
+and creates no view events. Other application routes keep their existing guards.
+
 The frontend tests cover exact debounce timing, old-request cancellation, page
-reset, empty/error/refused states, both languages, role guards, keyboard clearing
+reset, empty/error/refused states, both languages, API-driven access, keyboard clearing
 and axe accessibility checks. Search responses bypass HTTP caching; React Query
 discards unused results and the existing auth provider clears them at sign-out.
 
 The load-driver regression tests check that 32 requests can be in flight, client
 queue and request timings are measured separately, and connections are closed
-when the cold request fails. The concurrency case fails with the old 16-worker
-limit. These are tests of the driver; the real HTTP test still exercises session
+when the cold request fails. These are tests of the driver; the real HTTP test still exercises session
 authentication, database reads, serialization and audit writes.
 
 A real HTTP regression also sends two searches over the same HTTP connection and
@@ -159,34 +162,22 @@ checks the PostgreSQL backend PID in a test-only response header. It fails when
 `DATABASE_CONN_MAX_AGE=0`, independently of machine speed. A separate subprocess
 test checks that the ASGI entry point disables WSGI connection persistence.
 
-## Scope and remaining environment checks
+## Remaining environment checks
 
-The provided GitHub CI failure after `307e20a` passed 950 backend tests and failed
-the HTTP load test at 1,439.86 ms p95. Coverage passed at 93.53%. Combining the
-pagination count and page had already reduced the request to four SQL statements,
-but every HTTP request still established and authenticated a new PostgreSQL
-connection because Django's default `CONN_MAX_AGE` is zero.
+Run the repeatable checks above and use their current output and CI artifacts.
+The performance tests attach numeric reports to structured log records and to
+failed assertions. This guide records requirements and commands, without storing
+benchmark snapshots, test totals, coverage results or PR iteration history.
 
-On 2026-11-07, an isolated local backend and PostgreSQL 17 instance sharing the
-same two CPU cores reproduced the failure at 1,185.65 ms p95. Enabling connection
-reuse in the application settings reduced the focused load run to 71.75 ms p95,
-106.10 ms maximum, 42.59 ms application p95 and 24.18 ms SQL p95. All 300 requests
-succeeded at 99.94 completed requests/second. The first HTTP request took 44.03 ms.
-The dataset, query, 100 requests/second rate, 300-request count and response-time
-limits are unchanged; no HTTP or query warm-up was added. The temporary diagnostic
-environment was separate from the working development services.
+Repeat the load test on staging with its actual worker and database connection
+configuration before claiming the deployment meets NFR-04. First page load below
+three seconds on a representative phone/4G connection and manual browser/contrast
+checks remain deployment/device checks; API timing and jsdom tests do not
+establish those results.
 
-The full backend suite then passed all 953 tests with 93.46% coverage under the
-same two-core conditions (Python 3.13.18). Ruff, formatting, mypy, all three
-module-boundary contracts and the missing-migrations check also passed. These
-are local results; GitHub CI must verify the committed change. The frontend and
-API contract are unchanged by this fix.
-
-The local benchmark establishes behavior on the tested development machine.
-Repeat it on staging with its actual worker configuration before claiming the
-deployment meets NFR-04. First page load below three seconds on a representative
-phone/4G connection and manual browser/contrast checks remain deployment/device
-checks; API timing and jsdom tests do not establish those results.
+Search results disclose household details, so BR-HH-AUDIT-001 requires auditing
+returned files before disclosure. Keep those events until an audit/privacy policy
+defines any retention, archival or change to the disclosure logging requirements.
 
 The future full household page belongs to US-64. Search links only to the existing
 walk-in draft screen when that action is applicable.

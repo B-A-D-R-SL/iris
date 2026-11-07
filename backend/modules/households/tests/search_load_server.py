@@ -17,6 +17,7 @@ def _timed_application(application):
     """Expose aggregate timings only on the isolated test server, without SQL/PII."""
 
     def timed(environ, start_response):
+        """Measure the request and its queries without logging SQL or parameters."""
         started = perf_counter()
         database_seconds = 0.0
         queries = 0
@@ -31,6 +32,7 @@ def _timed_application(application):
                 database_seconds += perf_counter() - query_started
 
         def response(status, headers, exc_info=None):
+            """Expose numeric test diagnostics alongside the application's response."""
             headers = [
                 *headers,
                 ("X-Iris-Test-App-Ms", str((perf_counter() - started) * 1000)),
@@ -50,6 +52,7 @@ def _timed_application(application):
 
 
 def serve() -> None:
+    """Start an uninstrumented loopback server restricted to a disposable database."""
     options = json.load(sys.stdin)
     database = options["database"]
     if not database["NAME"].startswith("test_"):

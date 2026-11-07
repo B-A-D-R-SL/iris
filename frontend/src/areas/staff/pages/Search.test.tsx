@@ -14,6 +14,7 @@ function mockApi(
   handler: (url: URL, init?: RequestInit) => Response | Promise<Response> = () =>
     Response.json(searchPage()),
   role: Role | "signed-out" = "intake_worker",
+  accessStatus?: number,
 ) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), "http://iris.local");
@@ -21,6 +22,10 @@ function mockApi(
       return role === "signed-out"
         ? new Response(null, { status: 401 })
         : Response.json(testUser(role));
+    }
+    if (url.pathname === "/api/staff/households/" && init?.method === "HEAD") {
+      const allowed = role === "intake_worker" || role === "admin";
+      return new Response(null, { status: accessStatus ?? (allowed ? 200 : 403) });
     }
     if (url.pathname === "/api/staff/households/") return handler(url, init);
     return new Response(null, { status: 404 });
@@ -188,6 +193,41 @@ describe("staff household search empty and error states", () => {
 });
 
 describe("staff household search permissions", () => {
+  it("expires a cached signed-in profile when the access API returns 401", async () => {
+    const fetchMock = mockApi(undefined, "intake_worker", 401);
+    renderWithProviders(<App />, { route: "/staff/households" });
+    expect(await screen.findByRole("heading", { name: "Connexion" })).toBeInTheDocument();
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([, options]) => options?.method === "HEAD")).toHaveLength(
+      1,
+    );
+  });
+
+  it("withholds search when the API refuses a user whose role previously allowed it", async () => {
+    const handler = vi.fn(() => Response.json(searchPage()));
+    mockApi(handler, "admin", 403);
+    renderWithProviders(<App />, { route: "/staff/households" });
+    await screen.findByRole("heading", { name: "Accès refusé" });
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("uses the API authorization response instead of a frontend role list", async () => {
+    mockApi(undefined, "beneficiary", 200);
+    renderWithProviders(<App />, { route: "/staff/households" });
+    expect(await screen.findByRole("searchbox")).toBeInTheDocument();
+  });
+
+  it("fails closed and lets the user retry when the access check is unavailable", async () => {
+    const fetchMock = mockApi(undefined, "intake_worker", 500);
+    renderWithProviders(<App />, { route: "/staff/households" });
+    await screen.findByRole("alert");
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    const before = fetchMock.mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(before));
+  });
+
   it.each([401, 403])("explains refused HTTP %s and links back to sign-in", async (status) => {
     mockApi(() => new Response(null, { status }));
     renderSearch();

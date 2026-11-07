@@ -38,7 +38,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
-| US-63 Household search (#553, #554; tests #552) | `backend/modules/households/`, `backend/modules/audit/{services.py,README.md,tests/test_household_views.py}`, `backend/iris/{asgi.py,settings/base.py,settings/local.py}`, `backend/{.env.example,tests/test_backend_config.py}`, `frontend/src/areas/staff/pages/Search*`, `frontend/src/features/households/{searchApi,useHouseholdSearch}*`, `frontend/src/test/householdSearch.ts`, routes, translations, generated API types and search documentation | 50% or more AI-generated; generated migration and API types exempt | [#662](https://github.com/B-A-D-R-SL/iris/pull/662) |
+| US-63 Household search (#553, #554; tests #552) | `backend/modules/households/`, `backend/modules/audit/{services.py,README.md,tests/test_household_views.py}`, `backend/iris/{asgi.py,settings/base.py,settings/local.py}`, `backend/{.env.example,tests/test_backend_config.py}`, `frontend/src/app/{App,RequireHouseholdSearch}.tsx`, `frontend/src/areas/staff/pages/Search*`, `frontend/src/features/households/{searchApi,useHouseholdSearch}*`, `frontend/src/test/{householdSearch.ts,render.tsx}`, routes, translations, generated API types and search documentation | 50% or more AI-generated; generated migration and API types exempt | [#662](https://github.com/B-A-D-R-SL/iris/pull/662) |
 | T-01.04.3 Invitation password page (#431) | `frontend/src/areas/public/pages/AcceptInvitation{,.test}.tsx`, `frontend/src/features/accounts/invitations{,.test}.ts`, `frontend/src/app/App.tsx`, `frontend/src/shared/i18n/{fr,en}.json`, `frontend/src/shared/logger.ts`, `.coderabbit.yaml`, `backend/modules/accounts/README.md`, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
 | T-01.04.2 Invitation model, services and acceptance API (#430) | `backend/modules/accounts/{models.py,services.py,api/,locale/fr/LC_MESSAGES/,README.md,migrations/0005_invitation.py}`, `backend/modules/accounts/tests/{conftest,test_invitations,test_invitation_logging,test_invitation_errors}.py`, `backend/modules/rules/{domain/schemas.py,tests/test_invitation_rules.py}`, `docs/02-requirements/business-rules.md`, `docs/03-design/{api,database-schema,domain-model}.md`, `docs/04-architecture/architecture.md`, `frontend/src/shared/api/generated.d.ts`, `AI_USAGE.md` | 50% or more AI-generated for source changes; Django migration, compiled catalog and generated API declarations exempt | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
 | T-01.04.1 Invitation acceptance tests (#429) | `backend/modules/accounts/tests/{factories,conftest,test_invitations,test_api}.py`, `backend/modules/rules/tests/test_invitation_rules.py`, `frontend/src/areas/public/pages/AcceptInvitation.test.tsx`, test-only import exceptions in `backend/pyproject.toml`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657); implementation supplied by #430 and #431 |
@@ -94,21 +94,24 @@ One row per substantive feature where AI generated a meaningful part of the impl
 - **Owner's decisions:** Mark requested the backend before the frontend and
   required the existing Docker setup to be preserved. For safety, he reviewed
   the database connection, backup and migration.
-- **Verification:** Mark went through the code and reviewed the implementation.
-  He manually checked the saved-draft flow and local database in pgAdmin,
-  reviewed the search fields and household/member links, and reviewed the
-  automated results. ChatGPT ran the automated checks for permissions,
-  read-only queries, API/database integration, accents, pagination, migrations
-  and audit failure handling. The initial full backend suite passed **915 tests** with
-  **93.30% coverage**; the frontend passed **431 tests** with **94.55% line coverage**.
-  Lint, type checks, module boundaries, Django checks, API validation, production
-  build and dependency audits passed. With 5,000 fictional households, 300 warm
-  HTTP requests at 100 requests/second achieved **87.78 ms p95**.
-- **Problems found and corrections:** broad searches were initially too slow;
-  stored normalized columns and trigram indexes improved performance. The earlier
-  pytest setup error did not recur in the full rerun. The first cold HTTP request
-  took **1.2 seconds**; first-request, staging and phone/4G performance still need
-  verification. Details are in the [verification guide](docs/guides/household-search.md).
+- **Verification:** Mark reviewed the implementation, saved-draft flow, local
+  database, search fields and household/member links. Automated checks cover role
+  permissions, shared staff access, anonymized-file refusal, read-only queries,
+  API/database integration, accents, pagination, migration reversal, audit failure
+  handling, response validation and search authorization in the frontend. Lint,
+  formatting, type checks, module boundaries and migration checks are part of the
+  verification workflow. Current test and coverage results belong in CI output;
+  this record does not retain numerical performance or coverage snapshots for US-63.
+- **Problems found and corrections:** normalized search columns and trigram
+  indexes address broad searches, WSGI startup validates routes before accepting
+  requests, and healthy database connection reuse avoids repeated connection
+  setup. The ASGI entry point configures its lifetime before Django loads settings.
+  Test diagnostics use structured logging; the subprocess JSON protocol remains
+  separate. Existing PostgreSQL extensions are reused in their installed schemas.
+  Search access is decided by the API, including the frontend screen's access
+  probe. Mark confirmed shared staff access and accepted the central AI inventory's
+  size. Staging and phone/4G checks remain deployment verification. Repeatable
+  commands and thresholds are in the [verification guide](docs/guides/household-search.md).
 
 
 ### T-01.04.3 Invitation password page (#431)

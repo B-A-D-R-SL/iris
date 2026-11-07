@@ -30,9 +30,9 @@ def walk_in_for_staff(household_id: UUID) -> Household | None:
 def search_for_staff(q: str, actor: StaffActor) -> QuerySet[Household]:
     """Authorize shared staff scope before searching and paginating.
 
-    The team-pack permission matrix grants intake workers/admins all household
-    files; created_by records provenance, not exclusive ownership. The object
-    boundary is every non-anonymized household, including unassigned files.
+    BR-HH-ACCESS-001 grants intake workers/admins shared household files;
+    created_by records provenance, not exclusive ownership. BR-HH-ACCESS-002
+    excludes anonymized households before counting or pagination.
     """
     if not can_manage_walk_ins(actor):
         raise PermissionDenied(

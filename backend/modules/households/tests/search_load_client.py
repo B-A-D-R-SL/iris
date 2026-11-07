@@ -23,7 +23,10 @@ CLIENT_WORKERS = 64
 
 
 class LoadClient:
+    """Reuse one HTTP connection per load worker and measure scheduled latency."""
+
     def __init__(self, base: str, cookie: str):
+        """Bind the isolated server address and keep the session cookie private."""
         address = urlsplit(base)
         if address.hostname is None:
             raise ValueError("The load server must have a hostname.")
@@ -35,6 +38,7 @@ class LoadClient:
         self.lock = Lock()
 
     def get(self, term: str, scheduled: float) -> dict[str, float]:
+        """Validate a response before collecting queue, HTTP and database timings."""
         started = perf_counter()
         if not hasattr(self.worker, "connection"):
             self.worker.connection = HTTPConnection(self.host, self.port, timeout=10)
@@ -47,9 +51,16 @@ class LoadClient:
             headers={"Cookie": self.cookie, "Accept": "application/json"},
         )
         response = connection.getresponse()
-        body = json.loads(response.read())
-        if response.status != 200 or "results" not in body:
+        payload = response.read()
+        if response.status != 200:
             raise RuntimeError(f"Search load request failed: HTTP {response.status}")
+        try:
+            body = json.loads(payload)
+        except ValueError as exc:
+            raise RuntimeError("Invalid household search response") from exc
+        if not isinstance(body, dict) or not isinstance(body.get("results"), list):
+            # Remote protocol failures use one error type, including wrong JSON types.
+            raise RuntimeError("Invalid household search response")  # noqa: TRY004
         finished = perf_counter()
         return {
             "http_ms": (finished - scheduled) * 1000,
@@ -61,11 +72,13 @@ class LoadClient:
         }
 
     def close(self) -> None:
+        """Close every worker connection after success or a failed request."""
         for connection in self.connections:
             connection.close()
 
 
 def run_load(base: str, cookie: str, rps: int, count: int) -> dict:
+    """Measure one cold request followed by paced requests with bounded workers."""
     client = LoadClient(base, cookie)
     pacing = Event()
     try:
@@ -90,7 +103,10 @@ def run_load(base: str, cookie: str, rps: int, count: int) -> dict:
 
 
 def _report(samples: list[dict[str, float]], cold_ms: float, elapsed: float, rps: int):
+    """Summarize aggregate timings without exposing searches or credentials."""
+
     def p95(key: str) -> float:
+        """Compute the same percentile consistently for each numeric measurement."""
         return round(quantiles([sample[key] for sample in samples], n=100)[94], 2)
 
     return {

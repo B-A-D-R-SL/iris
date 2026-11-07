@@ -159,6 +159,7 @@ class Household(models.Model):
         ]
 
     def clean(self) -> None:
+        """Normalize contact/address keys and keep identity verification fields consistent."""
         super().clean()
         if self.email:
             self.email = self.email.strip().lower()
@@ -244,6 +245,7 @@ class Member(models.Model):
         ]
 
     def clean(self) -> None:
+        """Validate member identity fields and maintain the duplicate-detection key."""
         super().clean()
         self.first_name, self.last_name = (
             self.first_name.strip(),

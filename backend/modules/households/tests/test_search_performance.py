@@ -1,7 +1,7 @@
 # AI contribution: 50% or more AI-generated
 """US-63: fully evaluated searches and authenticated API reads at 5,000 files."""
 
-import json
+import logging
 from statistics import median, quantiles
 from time import perf_counter
 
@@ -15,6 +15,7 @@ from modules.households.queries import search
 from modules.households.tests.search_dataset import seed_search_dataset
 
 pytestmark = pytest.mark.django_db
+logger = logging.getLogger(__name__)
 SEARCH_CASES = (
     ("Élod", None),
     ("Exemple", 5000),
@@ -54,11 +55,13 @@ def cold_api_ms(client, seeded_search_dataset) -> float:
 def test_first_authenticated_search_is_under_one_second_with_5000_households(
     cold_api_ms,
 ):
+    """Check cold API latency after seeding the required household population."""
     assert Household.objects.count() == 5000
     assert cold_api_ms < 1000, {"cold_api_ms": round(cold_api_ms, 2)}
 
 
 def test_search_counts_are_correct_with_5000_households(client, seeded_search_dataset):
+    """Check exact counts and supported search fields independently of timing."""
     assert Household.objects.count() == 5000
     assert Member.objects.count() > 5000
     url = reverse("staff-households-create")
@@ -74,6 +77,7 @@ def test_search_counts_are_correct_with_5000_households(client, seeded_search_da
 def test_search_and_api_requests_are_under_one_second_with_5000_households(
     client, cold_api_ms
 ):
+    """Fully evaluate database and API searches before enforcing latency limits."""
     url = reverse("staff-households-create")
     query_times, api_times = [], []
     for term, _ in SEARCH_CASES:
@@ -94,7 +98,10 @@ def test_search_and_api_requests_are_under_one_second_with_5000_households(
         "api_p95_ms": round(quantiles(api_times, n=100)[94] * 1000, 2),
         "api_max_ms": round(max(api_times) * 1000, 2),
     }
-    print(json.dumps(timings))
+    logger.info(
+        "Household search sequential requests measured",
+        extra={"event": "household_search_sequential_measured", "metrics": timings},
+    )
     assert max(query_times) < 1, timings
     assert max(api_times) < 1, timings
     assert quantiles(api_times, n=100)[94] < 0.5, timings

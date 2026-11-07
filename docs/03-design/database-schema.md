@@ -792,8 +792,9 @@ US-63 implements this with stored generated columns on the owning tables:
 `Household.search_email_key`, `search_number_key`, `search_address_key`,
 `search_address_text`, and `Member.search_name_key`. PostgreSQL backfills and
 maintains these derived values. Six GIN indexes cover those keys and the existing
-normalized phone field. The immutable normalization wrapper uses the fixed
-`public.unaccent` dictionary; dictionary changes require recomputing stored keys.
+normalized phone field. The immutable normalization wrapper pins the installed
+unaccent function and dictionary. Existing extension schemas are preserved; new
+extensions use `public`. Dictionary changes require recomputing stored keys.
 These internal columns are excluded from API responses. Name search does not use
 the DOB component of `person_key`.
 

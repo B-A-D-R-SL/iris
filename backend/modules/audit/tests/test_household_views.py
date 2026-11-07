@@ -21,6 +21,8 @@ def actor(db, django_user_model):
 def test_page_views_use_one_insert_and_preserve_each_identifier(
     actor, django_assert_num_queries
 ):
+    """Record every disclosed file using one insert with no personal metadata."""
+    # rule: BR-HH-AUDIT-001
     identifiers = [uuid4(), uuid4(), uuid4()]
     with django_assert_num_queries(1):
         events = record_household_views(actor, identifiers)

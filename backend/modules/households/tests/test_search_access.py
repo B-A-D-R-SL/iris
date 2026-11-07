@@ -20,6 +20,8 @@ pytestmark = pytest.mark.django_db
     "kind", ["beneficiary", "store_staff", "store_manager", "inactive", "anonymous"]
 )
 def test_search_query_refuses_unauthorized_actors_even_without_results(kind, query):
+    """Enforce shared staff permission before empty or matching searches run."""
+    # rule: BR-HH-ACCESS-001
     if kind == "anonymous":
         actor = AnonymousUser()
     elif kind == "inactive":
@@ -33,6 +35,8 @@ def test_search_query_refuses_unauthorized_actors_even_without_results(kind, que
 
 @pytest.mark.parametrize("role", ["intake_worker", "admin"])
 def test_anonymized_walk_in_draft_never_advertises_a_resume_action(role):
+    """Refuse resuming anonymized drafts for every otherwise authorized staff role."""
+    # rule: BR-HH-ACCESS-002
     staff = UserFactory(role=role)
     household = HouseholdFactory(anonymized_at=timezone.now())
     assert can_resume_walk_in(household, staff) is False

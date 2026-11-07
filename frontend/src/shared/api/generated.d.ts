@@ -56,15 +56,27 @@ export interface paths {
     patch: operations["staff_categories_update"];
   };
   "/api/staff/households/": {
-    /** Find a household (intake workers and administrators) */
+    /**
+     * Find a household (intake workers and administrators)
+     * @description Search the shared staff scope and persist disclosure audits before responding.
+     */
     get: operations["staff_households_list"];
-    /** Create a resumable walk-in household draft */
+    /**
+     * Create a resumable walk-in household draft
+     * @description Create a resumable draft and return validated field errors on refusal.
+     */
     post: operations["staff_households_create"];
   };
   "/api/staff/households/{id}/": {
-    /** Resume an existing walk-in household draft */
+    /**
+     * Resume an existing walk-in household draft
+     * @description Return a shared walk-in draft after staff and object-scope checks.
+     */
     get: operations["staff_households_retrieve"];
-    /** Edit an existing walk-in household draft */
+    /**
+     * Edit an existing walk-in household draft
+     * @description Edit an eligible shared draft while preserving validation and refusal errors.
+     */
     patch: operations["staff_households_partial_update"];
   };
   "/api/store/listings/": {
@@ -825,7 +837,10 @@ export interface operations {
       };
     };
   };
-  /** Find a household (intake workers and administrators) */
+  /**
+   * Find a household (intake workers and administrators)
+   * @description Search the shared staff scope and persist disclosure audits before responding.
+   */
   staff_households_list: {
     parameters: {
       query?: {
@@ -845,7 +860,10 @@ export interface operations {
       };
     };
   };
-  /** Create a resumable walk-in household draft */
+  /**
+   * Create a resumable walk-in household draft
+   * @description Create a resumable draft and return validated field errors on refusal.
+   */
   staff_households_create: {
     requestBody?: {
       content: {
@@ -862,7 +880,10 @@ export interface operations {
       };
     };
   };
-  /** Resume an existing walk-in household draft */
+  /**
+   * Resume an existing walk-in household draft
+   * @description Return a shared walk-in draft after staff and object-scope checks.
+   */
   staff_households_retrieve: {
     parameters: {
       path: {
@@ -877,7 +898,10 @@ export interface operations {
       };
     };
   };
-  /** Edit an existing walk-in household draft */
+  /**
+   * Edit an existing walk-in household draft
+   * @description Edit an eligible shared draft while preserving validation and refusal errors.
+   */
   staff_households_partial_update: {
     parameters: {
       path: {

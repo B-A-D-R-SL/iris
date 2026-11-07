@@ -17,16 +17,46 @@ class Migration(migrations.Migration):
     operations = [
         # Shared extensions remain installed on rollback; other modules may use them.
         migrations.RunSQL(
-            "CREATE EXTENSION IF NOT EXISTS pg_trgm; CREATE EXTENSION IF NOT EXISTS unaccent;",
+            "CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public; "
+            "CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA public;",
             reverse_sql=migrations.RunSQL.noop,
         ),
         migrations.RunSQL(
-            # Generated keys require an immutable expression. Pin the stock
-            # dictionary; changing its rules requires recomputing these keys.
+            # Reuse existing extension namespaces without relocating shared
+            # database objects. Generated keys pin the installed stock dictionary;
+            # changing that dictionary requires recomputing the stored keys.
             """
-            CREATE FUNCTION public.iris_household_search_key(text)
-            RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
-            AS $$ SELECT lower(public.unaccent('public.unaccent'::regdictionary, $1)) $$;
+            DO $setup$
+            DECLARE
+                unaccent_schema name;
+                trigram_schema name;
+            BEGIN
+                SELECT namespace.nspname INTO unaccent_schema
+                FROM pg_extension extension
+                JOIN pg_namespace namespace ON namespace.oid = extension.extnamespace
+                WHERE extension.extname = 'unaccent';
+                SELECT namespace.nspname INTO trigram_schema
+                FROM pg_extension extension
+                JOIN pg_namespace namespace ON namespace.oid = extension.extnamespace
+                WHERE extension.extname = 'pg_trgm';
+
+                -- Resolve gin_trgm_ops for the indexes added in this transaction.
+                -- Retain the connection's existing table/schema lookup order.
+                PERFORM set_config(
+                    'search_path',
+                    current_setting('search_path') || format(', %I', trigram_schema),
+                    true
+                );
+                EXECUTE format(
+                    'CREATE FUNCTION public.iris_household_search_key(text) '
+                    'RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT AS %L',
+                    format(
+                        'SELECT lower(%I.unaccent(%L::regdictionary, $1))',
+                        unaccent_schema, format('%I.unaccent', unaccent_schema)
+                    )
+                );
+            END
+            $setup$;
             """,
             reverse_sql="DROP FUNCTION public.iris_household_search_key(text);",
         ),
