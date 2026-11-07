@@ -45,6 +45,8 @@ def _messages(value: Any) -> list[str]:
 
 def _invitation_service_error(exc: DjangoValidationError) -> Response:
     """Expose intentional service errors without returning their submitted secrets."""
+    # These are translated invitation/password validation messages for users.
+    # Other exception types follow DRF's normal server-error handling below.
     code = getattr(exc, "code", "validation_error")
     fields = exc.message_dict if hasattr(exc, "error_dict") else {}
     return Response(

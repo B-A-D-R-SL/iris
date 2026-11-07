@@ -1,4 +1,6 @@
 <!-- AI contribution: 50% or more AI-generated -->
+<!-- Size exception: keep the cross-module field definitions beside the complete
+Mermaid ERD so foreign keys and migration ordering can be reviewed together. -->
 # Iris database schema — Release 1 draft
 
 This is a logical design draft based on the documented requirements. Field labels describe the information to store, and types describe logical values. This document does not establish a deployed SQL schema.

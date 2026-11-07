@@ -1,4 +1,6 @@
 <!-- AI contribution: 50% or more AI-generated -->
+<!-- Size exception: this shared architecture reference keeps module boundaries
+and connected workflow diagrams together for cross-module consistency review. -->
 
 # Iris architecture — Release 1 draft
 

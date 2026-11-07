@@ -1,5 +1,5 @@
 # AI contribution: 50% or more AI-generated
-"""US-04 acceptance contracts through the public API and PostgreSQL."""
+"""US-04 public API, role and PostgreSQL integration contracts."""
 
 from typing import Any
 

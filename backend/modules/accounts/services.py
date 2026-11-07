@@ -1,6 +1,7 @@
 # AI contribution: 50% or more AI-generated
 """Public account invitation operations with atomic, single-use acceptance."""
 
+import logging
 import re
 import secrets
 from datetime import datetime, timedelta
@@ -15,6 +16,8 @@ from django.utils.translation import gettext_lazy as _
 
 from modules.accounts.models import Invitation, User
 from modules.rules import queries as rule_queries
+
+logger = logging.getLogger("iris.accounts")
 
 _TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_-]{43}\Z")
 _EMAIL_UNIQUE_CONSTRAINTS = frozenset(
@@ -84,6 +87,9 @@ def create_invitation(
     )
     invitation.full_clean()
     invitation.save()
+    transaction.on_commit(
+        lambda: logger.info("invitation_created", extra={"event": "invitation_created"})
+    )
     return token
 
 
@@ -153,4 +159,9 @@ def accept_invitation(token: str, password: str) -> User:
     user = _create_invited_user(invitation, password)
     invitation.accepted_at = now
     invitation.save(update_fields=["accepted_at"])
+    transaction.on_commit(
+        lambda: logger.info(
+            "invitation_accepted", extra={"event": "invitation_accepted"}
+        )
+    )
     return user

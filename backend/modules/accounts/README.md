@@ -88,4 +88,7 @@ approval and household linking remain in US-05, US-06, US-13 and US-18.
 ## Audit events
 
 Authentication logs `sign_in_failed` and `sign_in_rate_limited` without account
-identifiers. Document later business audit events when their workflows are added.
+identifiers. Invitation services emit `invitation_created` and
+`invitation_accepted` only after transaction commit, without recipient details,
+account identifiers, tokens or passwords. Document later business audit events
+when their workflows are added.

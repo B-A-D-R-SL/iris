@@ -2,6 +2,7 @@
 /** Token-authorized account setup; acceptance never changes the browser session. */
 import type { components } from "../../shared/api/generated";
 import { csrfToken } from "../../shared/api/csrf";
+import { logger } from "../../shared/logger";
 
 type InvitationValues = components["schemas"]["AcceptInvitation"];
 const ACCEPT = "/api/invitations/accept/";
@@ -47,13 +48,20 @@ function fieldMessages(value: unknown): Record<string, string[]> {
 
 /** Keep only the known machine code; never expose raw response or network text. */
 async function responseError(response: Response): Promise<InvitationError> {
-  const data: unknown = await response.json().catch(() => null);
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    logger.warning("invitation_response_invalid");
+    return new InvitationError("unavailable");
+  }
   if (
     response.status !== 400 ||
     !isRecord(data) ||
     typeof data.code !== "string" ||
     !(ERROR_CODES as readonly string[]).includes(data.code)
   ) {
+    logger.warning("invitation_response_invalid");
     return new InvitationError("unavailable");
   }
   return new InvitationError(data.code as InvitationErrorCode, fieldMessages(data.fields));
@@ -92,6 +100,7 @@ export async function acceptInvitation(values: InvitationValues, language: strin
     throw await responseError(response);
   } catch (error) {
     if (error instanceof InvitationError) throw error;
+    logger.error("invitation_request_failed");
     throw new InvitationError("unavailable");
   }
 }

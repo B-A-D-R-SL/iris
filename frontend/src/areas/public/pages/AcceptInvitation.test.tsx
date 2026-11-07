@@ -64,6 +64,8 @@ beforeEach(() => {
   document.cookie = "csrftoken=invitation-csrf-test; path=/";
 });
 
+// Size exception: this callback registers the related route tests under one suite;
+// each independently executed test still stays within the 50-line limit.
 describe("US-04 accept an invitation and set a password", () => {
   it("shows accessible password and confirmation fields in French and English", async () => {
     mockAcceptance();

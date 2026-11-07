@@ -36,9 +36,9 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
-| T-01.04.3 Invitation password page (#431) | `frontend/src/areas/public/pages/AcceptInvitation{,.test}.tsx`, `frontend/src/features/accounts/invitations{,.test}.ts`, `frontend/src/app/App.tsx`, `frontend/src/shared/i18n/{fr,en}.json`, `backend/modules/accounts/README.md`, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
-| T-01.04.2 Invitation model, services and acceptance API (#430) | `backend/modules/accounts/{models.py,services.py,api/,locale/fr/LC_MESSAGES/,README.md,migrations/0005_invitation.py}`, `backend/modules/accounts/tests/{conftest,test_invitations}.py`, `backend/modules/rules/{domain/schemas.py,tests/test_invitation_rules.py}`, `docs/02-requirements/business-rules.md`, `docs/03-design/{api,database-schema,domain-model}.md`, `docs/04-architecture/architecture.md`, `frontend/src/shared/api/generated.d.ts`, `AI_USAGE.md` | 50% or more AI-generated for source changes; Django migration, compiled catalog and generated API declarations exempt | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
-| T-01.04.1 Invitation acceptance tests (#429) | `backend/modules/accounts/tests/{factories,conftest,test_invitations,test_invitation_api}.py`, `backend/modules/rules/tests/test_invitation_rules.py`, `frontend/src/areas/public/pages/AcceptInvitation.test.tsx`, test-only import exceptions in `backend/pyproject.toml`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657); implementation supplied by #430 and #431 |
+| T-01.04.3 Invitation password page (#431) | `frontend/src/areas/public/pages/AcceptInvitation{,.test}.tsx`, `frontend/src/features/accounts/invitations{,.test}.ts`, `frontend/src/app/App.tsx`, `frontend/src/shared/i18n/{fr,en}.json`, `frontend/src/shared/logger.ts`, `.coderabbit.yaml`, `backend/modules/accounts/README.md`, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
+| T-01.04.2 Invitation model, services and acceptance API (#430) | `backend/modules/accounts/{models.py,services.py,api/,locale/fr/LC_MESSAGES/,README.md,migrations/0005_invitation.py}`, `backend/modules/accounts/tests/{conftest,test_invitations,test_invitation_logging}.py`, `backend/modules/rules/{domain/schemas.py,tests/test_invitation_rules.py}`, `docs/02-requirements/business-rules.md`, `docs/03-design/{api,database-schema,domain-model}.md`, `docs/04-architecture/architecture.md`, `frontend/src/shared/api/generated.d.ts`, `AI_USAGE.md` | 50% or more AI-generated for source changes; Django migration, compiled catalog and generated API declarations exempt | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
+| T-01.04.1 Invitation acceptance tests (#429) | `backend/modules/accounts/tests/{factories,conftest,test_invitations,test_api}.py`, `backend/modules/rules/tests/test_invitation_rules.py`, `frontend/src/areas/public/pages/AcceptInvitation.test.tsx`, test-only import exceptions in `backend/pyproject.toml`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657); implementation supplied by #430 and #431 |
 | T-09.62.1 Audit tests (#548) | `backend/modules/audit/tests/test_audit.py` | 50% or more AI-generated | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-09.62.2 Audit model and service (#549) | `backend/modules/audit/{models.py,services.py,README.md,migrations/}` | 50% or more AI-generated (migrations exempt) | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-01.01.1 Sign-in and sign-out tests (#423) | `backend/modules/accounts/tests/test_accounts.py`, `frontend/src/app/App.test.tsx`, `AI_USAGE.md` | 50% or more AI-generated | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
@@ -116,6 +116,23 @@ One row per substantive feature where AI generated a meaningful part of the impl
   tests** passed (17 page cases and 21 API-helper cases), including two new
   focus regressions and a language-switch focus assertion. ESLint, Prettier,
   TypeScript and the production build passed for this correction.
+- **PR #657 pre-merge corrections:** under Leon's approved scope, renamed the
+  role/API tests to `test_api.py` and updated the import-boundary exception;
+  added event-only backend logs after commit and frontend failure events;
+  documented size exceptions for the shared references and test-registration
+  callbacks. `.coderabbit.yaml` excepts only the file length of the two complete
+  locale catalogs, without changing function or complexity limits. The accounts
+  README documents the new commit-time events. Intentional translated password
+  validation feedback remains available to users.
+- **Review-fix verification:** 132 existing accounts/invitation-rule cases and
+  all four new logging tests passed. The new tests inspect raw event records,
+  verify deferred emission and rollback suppression, and reject recipient or
+  secret data in logs. All 45 focused frontend tests passed with one worker and
+  a 15-second test timeout, including real logger-output privacy assertions,
+  the invitation page and translation parity. Ruff, mypy, module boundaries,
+  ESLint, Prettier, TypeScript, production build, YAML parsing and individual
+  function/test size checks passed. The four new logging cases were rerun with
+  `iris.settings.test` after correcting their per-phase log-capture fixture.
 
 ### T-01.04.2 Invitation model, services and acceptance API (#430)
 

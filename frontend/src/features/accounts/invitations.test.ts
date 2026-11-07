@@ -13,10 +13,13 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   document.cookie = "csrftoken=; Max-Age=0; Path=/";
   document.cookie = "django_language=; Max-Age=0; Path=/";
 });
 
+// Size exception: this callback registers independent tests, each below 50 lines.
+// One API-contract suite shares the cookie and mock cleanup above across its cases.
 describe("US-04 invitation acceptance API", () => {
   it("sends only the generated request fields with language, CSRF and unchanged password", async () => {
     const fetchMock = vi.fn(async () => new Response(null, { status: 200 }));
@@ -77,6 +80,8 @@ describe("US-04 invitation acceptance API", () => {
     "invitation_invalid",
     "email_already_registered",
   ])("preserves the known %s machine code without copying response text", async (code) => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -89,9 +94,13 @@ describe("US-04 invitation acceptance API", () => {
       message: code,
       fields: {},
     });
+    expect(warning).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
   });
 
   it("keeps valid password field messages and discards malformed field lists", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -116,6 +125,8 @@ describe("US-04 invitation acceptance API", () => {
       code: "validation_error",
       fields: { password: ["This password is too common."] },
     });
+    expect(warning).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -124,6 +135,7 @@ describe("US-04 invitation acceptance API", () => {
     { name: "unknown code", body: { code: "other", message: VALUES.password } },
     { name: "missing code", body: { message: "missing code" } },
   ])("uses a safe unavailable error for an unrecognized response: $name", async ({ body }) => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json(body, { status: 400 })),
@@ -131,6 +143,13 @@ describe("US-04 invitation acceptance API", () => {
     await expect(acceptInvitation(VALUES, "fr")).rejects.toMatchObject({
       code: "unavailable",
       message: "unavailable",
+    });
+    expect(warning).toHaveBeenCalledOnce();
+    const entry = JSON.parse(String(warning.mock.calls[0]?.[0]));
+    expect(entry).toEqual({
+      timestamp: expect.any(String),
+      level: "WARNING",
+      event: "invitation_response_invalid",
     });
   });
 
@@ -151,20 +170,37 @@ describe("US-04 invitation acceptance API", () => {
   it.each([400, 403, 500, 503, 201])(
     "treats a non-JSON HTTP %s response as unavailable",
     async (status) => {
+      const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
       vi.stubGlobal(
         "fetch",
-        vi.fn(async () => new Response("not JSON", { status })),
+        vi.fn(
+          async () =>
+            new Response(`${VALUES.token} ${VALUES.password} person@example.test ${ACCEPT}`, {
+              status,
+            }),
+        ),
       );
 
       await expect(acceptInvitation(VALUES, "fr")).rejects.toMatchObject({ code: "unavailable" });
+      expect(warning).toHaveBeenCalledOnce();
+      const entry = JSON.parse(String(warning.mock.calls[0]?.[0]));
+      expect(entry).toEqual({
+        timestamp: expect.any(String),
+        level: "WARNING",
+        event: "invitation_response_invalid",
+      });
+      for (const secret of [VALUES.token, VALUES.password, "person@example.test", ACCEPT]) {
+        expect(String(warning.mock.calls[0]?.[0])).not.toContain(secret);
+      }
     },
   );
 
   it("handles a network rejection without exposing the underlying message", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
-        throw new Error(`network ${VALUES.password}`);
+        throw new Error(`network ${VALUES.token} ${VALUES.password} person@example.test ${ACCEPT}`);
       }),
     );
 
@@ -172,11 +208,22 @@ describe("US-04 invitation acceptance API", () => {
       code: "unavailable",
       message: "unavailable",
     });
+    expect(error).toHaveBeenCalledOnce();
+    const entry = JSON.parse(String(error.mock.calls[0]?.[0]));
+    expect(entry).toEqual({
+      timestamp: expect.any(String),
+      level: "ERROR",
+      event: "invitation_request_failed",
+    });
+    for (const secret of [VALUES.token, VALUES.password, "person@example.test", ACCEPT]) {
+      expect(String(error.mock.calls[0]?.[0])).not.toContain(secret);
+    }
   });
 
   it.each(["network", "status"])(
     "does not submit after a %s bootstrap failure",
     async (failure) => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
       document.cookie = "csrftoken=; Max-Age=0; Path=/";
       const fetchMock = vi.fn(async () => {
         if (failure === "network") throw new Error("session unavailable");
@@ -186,6 +233,7 @@ describe("US-04 invitation acceptance API", () => {
 
       await expect(acceptInvitation(VALUES, "fr")).rejects.toBeInstanceOf(InvitationError);
       expect(fetchMock).toHaveBeenCalledExactlyOnceWith(SESSION, { credentials: "same-origin" });
+      expect(error).toHaveBeenCalledTimes(failure === "network" ? 1 : 0);
     },
   );
 });
