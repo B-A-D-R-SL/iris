@@ -1,8 +1,17 @@
 # AI contribution: 50% or more AI-generated
 # I have drafted a plan, told AI to implement it, and reviewed the code
-"""Load the fixed fictional dataset used for local development and staging."""
+"""Load the fixed fictional dataset used for local development and staging.
 
-import calendar
+This command imports module models and writes their tables itself. That is a
+deliberate exception: each module otherwise writes only its own tables, and
+only through its services. The dataset needs files the real workflows cannot
+produce directly, including households that are already approved, due for
+renewal, suspended, or rejected, plus listings and reservations that are
+already published, picked up, cancelled, or missed. The import-linter contract
+"Only the seed command imports module models" allows this file alone to import
+``modules.*.models``.
+"""
+
 import os
 import random
 import uuid
@@ -30,8 +39,11 @@ from iris.seedset import (
     SeedPlan,
     build_seed_plan,
 )
+
+# Exception: fictional rows in states the workflows cannot create. See the module docstring.
 from modules.accounts.models import User
 from modules.categories.models import Category
+from modules.households.domain.expiry import approved_expiry, expiry_for_status
 from modules.households.models import Household, HouseholdStatus
 from modules.listings.models import Listing, ListingStatus
 from modules.reservations.models import MadeByType, Reservation, ReservationStatus
@@ -89,7 +101,7 @@ class Command(BaseCommand):
             raise CommandError(str(exc)) from exc
 
         moment = timezone.now()
-        approved_until = _approved_expiry(moment)
+        approved_until = _approved_until(moment)
         stores = _ensure_stores(plan, badr)
         people = _ensure_people(plan, stores, password)
         households = _ensure_households(plan, people, moment, approved_until)
@@ -252,7 +264,12 @@ def _ensure_household(
         verified_by=verified_by if verified else None,
         verified_at=moment if verified else None,
         approved_at=moment - APPROVAL_AGE if approved else None,
-        expires_at=_expiry(planned.status, moment, approved_until),
+        expires_at=expiry_for_status(
+            planned.status,
+            moment,
+            approved_until,
+            suspended_for=SUSPENDED_TERM,
+        ),
     )
     household.full_clean()
     saved, _created = Household.objects.get_or_create(
@@ -261,35 +278,17 @@ def _ensure_household(
     return saved
 
 
-def _expiry(status: str, moment: Any, approved_until: Any) -> Any:
-    """Renewal is already due. Approval length comes from the rules."""
-    if status == HouseholdStatus.RENEWAL_NEEDED:
-        return moment - timedelta(days=1)
-    if status == HouseholdStatus.SUSPENDED:
-        return moment + SUSPENDED_TERM
-    if status == HouseholdStatus.APPROVED:
-        return approved_until
-    return None
-
-
-def _approved_expiry(moment: Any) -> Any:
-    """Use file_validity.approved_months instead of a hard-coded year."""
+def _approved_until(moment: Any) -> Any:
+    """Read file_validity.approved_months. The date math lives in the household domain."""
     rules = rule_queries.active("file_validity", at=moment)
     if rules is None:
         raise CommandError("Seed the file_validity rules before households.")
-    months = rules.values.get("approved_months")
-    if type(months) is not int or months < 1:
-        raise CommandError("file_validity.approved_months must be a positive integer.")
-    return _add_months(moment, months)
-
-
-def _add_months(moment: Any, months: int) -> Any:
-    """Move a timezone-aware instant forward by whole months."""
-    month_index = moment.month - 1 + months
-    year = moment.year + month_index // 12
-    month = month_index % 12 + 1
-    day = min(moment.day, calendar.monthrange(year, month)[1])
-    return moment.replace(year=year, month=month, day=day)
+    try:
+        return approved_expiry(moment, rules.values.get("approved_months"))
+    except ValueError as exc:
+        raise CommandError(
+            "file_validity.approved_months must be a positive integer."
+        ) from exc
 
 
 def _ensure_listings(

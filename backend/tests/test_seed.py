@@ -10,9 +10,10 @@ from django.core.management.base import CommandError
 from django.db.models import Sum
 from django.utils import timezone
 
-from iris.management.commands.seed import APPROVAL_AGE, _add_months
+from iris.management.commands.seed import APPROVAL_AGE
 from iris.seedset import HOUSEHOLD_STATUS_COUNTS, RESERVATION_STATUS_COUNTS
 from modules.accounts.models import User
+from modules.households.domain.expiry import add_months
 from modules.households.models import Household, HouseholdStatus
 from modules.listings.models import Listing
 from modules.reservations.models import Reservation, ReservationStatus
@@ -74,7 +75,7 @@ def test_approved_household_expiry_follows_file_validity(seeded: None) -> None:
     assert household is not None and household.approved_at is not None
     months = DEFAULT_RULE_VALUES["file_validity"]["approved_months"]
     moment = household.approved_at + APPROVAL_AGE
-    assert household.expires_at == _add_months(moment, months)
+    assert household.expires_at == add_months(moment, months)
 
 
 @pytest.mark.django_db
@@ -179,10 +180,3 @@ def test_seed_refuses_accounts_without_a_password_when_debug_is_off(
 
     with pytest.raises(CommandError, match="SEED_PASSWORD"):
         call_command("seed", stdout=StringIO())
-
-
-def test_add_months_clamps_the_day() -> None:
-    """31 January plus one month lands on the last day of February."""
-    moment = timezone.now().replace(year=2026, month=1, day=31)
-    assert _add_months(moment, 1) == moment.replace(month=2, day=28)
-    assert _add_months(moment, 12).year == 2027
