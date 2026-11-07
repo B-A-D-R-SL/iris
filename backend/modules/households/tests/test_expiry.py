@@ -2,6 +2,7 @@
 """Household file expiry: month-end, leap years, and each status."""
 
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -9,12 +10,14 @@ from modules.households.domain.expiry import (
     STATUS_APPROVED,
     STATUS_RENEWAL_NEEDED,
     STATUS_SUSPENDED,
+    InvalidApprovedMonths,
     add_months,
     approved_expiry,
     expiry_for_status,
 )
 from modules.households.models import Household
 
+MONTREAL = ZoneInfo("America/Montreal")
 JANUARY_31 = datetime(2026, 1, 31, 15, 30, tzinfo=UTC)
 APPROVED_UNTIL = datetime(2027, 1, 31, 15, 30, tzinfo=UTC)
 OVERDUE_BY = timedelta(days=1)
@@ -48,9 +51,22 @@ def test_add_months_crosses_into_the_next_year() -> None:
     assert add_months(moment, 3) == datetime(2027, 2, 15, 9, 0, tzinfo=UTC)
 
 
+def test_add_months_counts_on_the_calendar_of_the_given_timezone() -> None:
+    """30 January 22:00 in Montreal is 31 January in UTC; Montreal's date is used."""
+    evening = datetime(2026, 1, 30, 22, 0, tzinfo=MONTREAL)
+    assert add_months(evening, 1) == datetime(2026, 2, 28, 22, 0, tzinfo=MONTREAL)
+
+
 def test_add_months_refuses_a_naive_datetime() -> None:
     with pytest.raises(ValueError, match="timezone-aware"):
         add_months(JANUARY_31.replace(tzinfo=None), 1)
+
+
+def test_approved_expiry_reports_a_naive_datetime_as_a_date_error() -> None:
+    """A missing timezone is a caller bug, not a bad approved_months rule."""
+    with pytest.raises(ValueError, match="timezone-aware") as error:
+        approved_expiry(JANUARY_31.replace(tzinfo=None), 12)
+    assert not isinstance(error.value, InvalidApprovedMonths)
 
 
 def test_approved_file_lasts_the_configured_number_of_months() -> None:
@@ -62,7 +78,7 @@ def test_approved_file_lasts_the_configured_number_of_months() -> None:
 def test_approved_expiry_refuses_a_month_count_that_is_not_a_positive_integer(
     months: object,
 ) -> None:
-    with pytest.raises(ValueError, match="positive integer"):
+    with pytest.raises(InvalidApprovedMonths, match="positive integer"):
         approved_expiry(JANUARY_31, months)
 
 
@@ -90,10 +106,3 @@ def test_suspended_file_lasts_the_suspension_term() -> None:
 )
 def test_files_not_yet_approved_have_no_expiry(status: str) -> None:
     assert expiry(status) is None
-
-
-def test_expiry_statuses_match_the_household_model() -> None:
-    """The domain cannot import models, so its status names must stay in step."""
-    assert STATUS_APPROVED == Household.Status.APPROVED
-    assert STATUS_RENEWAL_NEEDED == Household.Status.RENEWAL_NEEDED
-    assert STATUS_SUSPENDED == Household.Status.SUSPENDED

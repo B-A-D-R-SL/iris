@@ -43,7 +43,11 @@ from iris.seedset import (
 # Exception: fictional rows in states the workflows cannot create. See the module docstring.
 from modules.accounts.models import User
 from modules.categories.models import Category
-from modules.households.domain.expiry import approved_expiry, expiry_for_status
+from modules.households.domain.expiry import (
+    InvalidApprovedMonths,
+    approved_expiry,
+    expiry_for_status,
+)
 from modules.households.models import Household, HouseholdStatus
 from modules.listings.models import Listing, ListingStatus
 from modules.reservations.models import MadeByType, Reservation, ReservationStatus
@@ -103,10 +107,13 @@ class Command(BaseCommand):
             raise CommandError(str(exc)) from exc
 
         moment = timezone.now()
-        approved_until = _approved_until(moment)
+        approved_at = moment - APPROVAL_AGE
+        approved_until = _approved_until(moment, approved_at)
         stores = _ensure_stores(plan, badr)
         people = _ensure_people(plan, stores, password)
-        households = _ensure_households(plan, people, moment, approved_until)
+        households = _ensure_households(
+            plan, people, moment, approved_at, approved_until
+        )
         listings = _ensure_listings(plan, stores, people, moment)
         _ensure_reservations(plan, listings, households, people, moment)
         self.stdout.write(
@@ -214,6 +221,7 @@ def _ensure_households(
     plan: SeedPlan,
     people: dict[str, User],
     moment: Any,
+    approved_at: Any,
     approved_until: Any,
 ) -> dict[int, Household]:
     """Create each fictional file once."""
@@ -229,6 +237,7 @@ def _ensure_households(
             created_by=intake[(planned.number - 1) % len(intake)],
             verified_by=intake[planned.number % len(intake)],
             moment=moment,
+            approved_at=approved_at,
             approved_until=approved_until,
         )
     return households
@@ -240,6 +249,7 @@ def _ensure_household(
     created_by: User,
     verified_by: User,
     moment: Any,
+    approved_at: Any,
     approved_until: Any,
 ) -> Household:
     """Insert one file. A second run keeps the saved status and address."""
@@ -265,7 +275,7 @@ def _ensure_household(
         identity_checked_in_person=verified,
         verified_by=verified_by if verified else None,
         verified_at=moment if verified else None,
-        approved_at=moment - APPROVAL_AGE if approved else None,
+        approved_at=approved_at if approved else None,
         expires_at=expiry_for_status(
             planned.status,
             moment,
@@ -281,14 +291,20 @@ def _ensure_household(
     return saved
 
 
-def _approved_until(moment: Any) -> Any:
-    """Read file_validity.approved_months. The date math lives in the household domain."""
+def _approved_until(moment: Any, approved_at: Any) -> Any:
+    """Count file_validity.approved_months from the seed's approval date.
+
+    The rule is the one in force at ``moment``, and the months are counted on
+    the Montreal calendar. The date math lives in the household domain.
+    """
     rules = rule_queries.active("file_validity", at=moment)
     if rules is None:
         raise CommandError("Seed the file_validity rules before households.")
     try:
-        return approved_expiry(moment, rules.values.get("approved_months"))
-    except ValueError as exc:
+        return approved_expiry(
+            timezone.localtime(approved_at), rules.values.get("approved_months")
+        )
+    except InvalidApprovedMonths as exc:
         raise CommandError(
             "file_validity.approved_months must be a positive integer."
         ) from exc

@@ -222,12 +222,12 @@ forbidden_modules = [
     "modules.*.tasks",
 ]
 
-# Contract 4: the seed command is the one place outside a module that may
-# import that module's models. The reason is written at the top of seed.py.
+# Contract 4: the seed command is the one place outside the modules that may
+# import their models. The reason is written at the top of seed.py.
 [[tool.importlinter.contracts]]
 name = "Only the seed command imports module models"
 type = "forbidden"
-source_modules = ["iris"]
+source_modules = ["iris", "adapters"]
 forbidden_modules = ["modules.*.models"]
 # Services and queries may import their own models. This contract checks the
 # direct import only, and the one allowed direct import is the seed command.

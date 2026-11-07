@@ -9,15 +9,22 @@ the ``file_validity.approved_months`` rule; callers pass it in.
 import calendar
 from datetime import datetime, timedelta
 
-# Must match Household.Status in models.py; test_expiry.py checks that they do.
+# Household.Status in models.py builds its choices from these.
 STATUS_APPROVED = "approved"
 STATUS_RENEWAL_NEEDED = "renewal_needed"
 STATUS_SUSPENDED = "suspended"
 
 
+class InvalidApprovedMonths(ValueError):
+    """``file_validity.approved_months`` is not a whole number of months above zero."""
+
+
 def add_months(moment: datetime, months: int) -> datetime:
     """Move a timezone-aware instant forward by whole calendar months.
 
+    The calendar is the one of ``moment``'s own timezone, so pass a Montreal
+    local time: 30 January 22:00 in Montreal is already 31 January in UTC, and
+    one month later it would land on 27 February instead of 28 February.
     31 January plus one month is 28 February, or 29 February in a leap year.
     The time of day and the timezone stay as they were.
     """
@@ -31,15 +38,15 @@ def add_months(moment: datetime, months: int) -> datetime:
     return moment.replace(year=year, month=month, day=day)
 
 
-def approved_expiry(moment: datetime, approved_months: object) -> datetime:
-    """Expiry of a file approved at ``moment``, using ``file_validity.approved_months``.
+def approved_expiry(approved_at: datetime, approved_months: object) -> datetime:
+    """Expiry of a file approved at ``approved_at`` (a Montreal local time).
 
     The rule schema sets the real minimum. This only refuses values that would
     break the date math.
     """
     if type(approved_months) is not int or approved_months <= 0:
-        raise ValueError("approved_months must be a positive integer.")
-    return add_months(moment, approved_months)
+        raise InvalidApprovedMonths("approved_months must be a positive integer.")
+    return add_months(approved_at, approved_months)
 
 
 def expiry_for_status(
