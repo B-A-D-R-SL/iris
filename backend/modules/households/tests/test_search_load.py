@@ -90,4 +90,6 @@ def test_api_p95_under_500ms_at_100_requests_per_second(client, search_server):
     report = {"households": 5000, **json.loads(result.stdout)}
     print(json.dumps(report))
     assert report["requests"] == REQUEST_COUNT, report
+    assert report["db_queries_max"] > 0, report
+    assert report["cold_http_ms"] < 1000, report
     assert report["http_p95_ms"] < 500, report

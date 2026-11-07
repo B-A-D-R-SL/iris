@@ -29,6 +29,7 @@ from modules.households.api.serializers import (
     WalkInDraftReadSerializer,
 )
 from modules.households.models import Household
+from modules.households.policies import can_manage_walk_ins
 
 
 def _flatten_errors(detail: Any, prefix: str = "") -> dict[str, list[str]]:
@@ -77,12 +78,8 @@ class WalkInErrorHandlingMixin:
 
 class IsIntakeWorkerOrAdmin(BasePermission):
     def has_permission(self, request: Request, view: Any) -> bool:
-        user = request.user
-        return bool(
-            user.is_authenticated
-            and user.is_active
-            and getattr(user, "role", None) in services.STAFF_ROLES
-        )
+        """Check the same staff permission used by edits and advertised actions."""
+        return can_manage_walk_ins(request.user)
 
 
 def _validated(data: Any, *, partial: bool = False) -> dict[str, Any]:
@@ -124,11 +121,15 @@ class WalkInCollectionView(WalkInErrorHandlingMixin, GenericAPIView):
     def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         params = HouseholdSearchInputSerializer(data=request.query_params)
         params.is_valid(raise_exception=True)
-        page = self.paginate_queryset(queries.search(params.validated_data["q"]))
+        page = self.paginate_queryset(
+            queries.search_for_staff(params.validated_data["q"], request.user)
+        )
         # Record only returned IDs, never the search text or personal details.
         # A failed audit prevents disclosure. Search queries themselves only read.
         with transaction.atomic():
-            data = HouseholdSearchResultSerializer(page, many=True).data
+            data = HouseholdSearchResultSerializer(
+                page, many=True, context=self.get_serializer_context()
+            ).data
             if request.method == "GET":
                 audit_services.record_household_views(
                     request.user, (household.pk for household in page)

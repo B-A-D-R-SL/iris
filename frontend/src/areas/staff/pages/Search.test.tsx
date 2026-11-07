@@ -43,7 +43,7 @@ function renderSearch() {
 
 afterEach(() => vi.useRealTimers());
 
-describe("staff household search", () => {
+describe("staff household search timing and translations", () => {
   it("waits 300 ms and sends only the latest input", async () => {
     const handler = vi.fn((url: URL) => {
       expect(url.searchParams.get("page")).toBe("1");
@@ -81,7 +81,9 @@ describe("staff household search", () => {
       }),
     ).toHaveAttribute("href", `/staff/walk-in/${searchFile().id}`);
   });
+});
 
+describe("staff household search clearing and cancellation", () => {
   it("clears results immediately and never searches blank input", async () => {
     const handler = vi.fn(() => Response.json(searchPage()));
     mockApi(handler);
@@ -118,7 +120,9 @@ describe("staff household search", () => {
     expect(screen.queryByText("Élodie Exemple")).not.toBeInTheDocument();
     expect(screen.getByText("Zoé Exemple")).toBeInTheDocument();
   });
+});
 
+describe("staff household search pagination", () => {
   it("paginates and resets to page one when the input changes", async () => {
     const handler = vi.fn((url: URL) => {
       const second = url.searchParams.get("page") === "2";
@@ -144,7 +148,9 @@ describe("staff household search", () => {
     await screen.findByText("Élodie Exemple");
     expect(handler.mock.calls.at(-1)?.[0].searchParams.get("page")).toBe("1");
   });
+});
 
+describe("staff household search empty and error states", () => {
   it("shows an empty state and supports files without a holder or email", async () => {
     mockApi((url) =>
       Response.json(
@@ -179,7 +185,9 @@ describe("staff household search", () => {
     await screen.findByText("Élodie Exemple");
     expect(requests).toBe(2);
   });
+});
 
+describe("staff household search permissions", () => {
   it.each([401, 403])("explains refused HTTP %s and links back to sign-in", async (status) => {
     mockApi(() => new Response(null, { status }));
     renderSearch();
@@ -216,7 +224,9 @@ describe("staff household search", () => {
       expect(handler).not.toHaveBeenCalled();
     },
   );
+});
 
+describe("staff household search accessibility", () => {
   it("passes accessibility checks for the result structure", async () => {
     mockApi();
     const { container } = renderSearch();
@@ -238,5 +248,27 @@ describe("staff household search", () => {
     await user.keyboard("{Enter}");
     expect(input).toHaveValue("");
     expect(input).toHaveFocus();
+  });
+});
+
+describe("staff household search server actions", () => {
+  it.each([
+    ["walk_in", "draft", false],
+    ["online", "approved", true],
+  ] as const)("renders the API resume flag for %s/%s: %s", async (channel, status, canResume) => {
+    mockApi(() =>
+      Response.json(
+        searchPage({ results: [searchFile({ channel, status, can_resume: canResume })] }),
+      ),
+    );
+    renderSearch();
+    searchInput("elodie");
+    await screen.findByText("Élodie Exemple");
+    const link = screen.queryByRole("link", { name: "Reprendre l’inscription" });
+    if (canResume) {
+      expect(link).toHaveAttribute("href", `/staff/walk-in/${searchFile().id}`);
+    } else {
+      expect(link).not.toBeInTheDocument();
+    }
   });
 });

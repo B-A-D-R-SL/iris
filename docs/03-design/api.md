@@ -188,7 +188,7 @@ US-13 staff screens exist.
 | POST       | `/api/households/me/application/submit/`                | Beneficiary          | Submit                                            | Planned |
 | PATCH      | `/api/households/me/alternate/`                         | Beneficiary          | Alternate for pickups                             | Planned |
 | POST       | `/api/households/me/renewal/`                           | Beneficiary          | Start a renewal                                   | Planned |
-| GET        | `/api/staff/households/?q=`                             | Intake worker, admin | Partial, accent-insensitive search; paginated and audited | Implemented (US-63) |
+| GET        | `/api/staff/households/?q=`                             | Intake worker, admin | Partial, accent-insensitive search; shared non-anonymized files, pagination, audits and server-derived `can_resume` | Implemented (US-63) |
 | POST/PATCH | `/api/staff/households/`, `/api/staff/households/{id}/` | Intake worker, admin | Walk-in create and edit (drafts only)             | Implemented (US-17) |
 | POST       | `/api/staff/households/{id}/notices/`                   | Intake worker, admin | Walk-in notice (scan + typed values)              | Planned |
 | POST       | `/api/staff/households/{id}/approve/`                   | Intake worker, admin | Approve a walk-in (eligibility runs)              | Planned |

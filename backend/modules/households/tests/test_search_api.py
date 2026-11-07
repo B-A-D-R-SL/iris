@@ -3,7 +3,10 @@
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from modules.accounts.tests.factories import UserFactory
@@ -45,6 +48,7 @@ def test_staff_searches_through_session_authentication(client, file, role):
         "last_name",
         "status",
         "channel",
+        "can_resume",
         "email",
         "phone",
         "street_number",
@@ -169,3 +173,84 @@ def test_audit_failure_prevents_disclosure_and_rolls_back_events(
         client.get(URL, {"q": "elodie"})
     assert search_events(actor=staff.pk).count() == 0
     assert Household.objects.filter(pk=file.pk).count() == 1
+
+
+@pytest.mark.parametrize("role", ["intake_worker", "admin"])
+def test_staff_share_files_but_anonymized_files_are_excluded_before_pagination(
+    client, file, role
+):
+    staff = UserFactory(role=role)
+    assert file.created_by_id != staff.pk
+    hidden = HouseholdFactory(member_number="IR-000000", anonymized_at=timezone.now())
+    unassigned = HouseholdFactory(created_by=None, member_number="IR-000002")
+    client.force_login(staff)
+    first = client.get(URL, {"q": "Exemple", "page_size": 1}).json()
+    second = client.get(URL, {"q": "Exemple", "page_size": 1, "page": 2}).json()
+    assert first["count"] == second["count"] == 2
+    assert [first["results"][0]["id"], second["results"][0]["id"]] == [
+        str(file.pk),
+        str(unassigned.pk),
+    ]
+    assert set(search_events(actor=staff.pk).values_list("target_id", flat=True)) == {
+        str(file.pk),
+        str(unassigned.pk),
+    }
+    detail = reverse("staff-households-detail", kwargs={"id": hidden.pk})
+    assert client.get(detail).status_code == 404
+    assert (
+        client.patch(
+            detail, {"address": {"unit": "5"}}, content_type="application/json"
+        ).status_code
+        == 404
+    )
+
+
+@pytest.mark.parametrize("role", ["intake_worker", "admin"])
+@pytest.mark.parametrize("channel", ["walk_in", "online"])
+@pytest.mark.parametrize("status", ["draft", "approved"])
+def test_resume_action_matches_the_server_edit_rule(
+    client, file, role, channel, status
+):
+    file.channel, file.status = channel, status
+    file.save(update_fields=["channel", "status"])
+    client.force_login(UserFactory(role=role))
+    result = client.get(URL, {"q": "elodie"}).json()["results"][0]
+    expected = channel == "walk_in" and status == "draft"
+    assert result["can_resume"] is expected
+    response = client.patch(
+        reverse("staff-households-detail", kwargs={"id": file.pk}),
+        {"address": {"unit": "5"}},
+        content_type="application/json",
+    )
+    assert response.status_code == (
+        200 if expected else 404 if channel == "online" else 400
+    )
+
+
+def test_resume_action_is_refused_without_request_context(file):
+    from modules.households.api.search_serializers import (
+        HouseholdSearchResultSerializer,
+    )
+
+    assert HouseholdSearchResultSerializer(file).data["can_resume"] is False
+
+
+def test_resume_flags_do_not_add_a_database_query_per_result(client):
+    staff = UserFactory(role="intake_worker")
+    Household.objects.bulk_create(
+        [
+            Household(email=f"resume-budget-{i}@example.test", phone="+15145550100")
+            for i in range(20)
+        ]
+    )
+    client.force_login(staff)
+    client.head(URL, {"q": "resume-budget-"})
+    with CaptureQueriesContext(connection) as one:
+        first = client.get(URL, {"q": "resume-budget-", "page_size": 1})
+    with CaptureQueriesContext(connection) as twenty:
+        page = client.get(URL, {"q": "resume-budget-", "page_size": 20})
+    assert first.status_code == page.status_code == 200
+    assert len(first.json()["results"]) == 1
+    assert len(page.json()["results"]) == 20
+    assert all(row["can_resume"] for row in page.json()["results"])
+    assert len(twenty) == len(one)

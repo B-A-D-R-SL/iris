@@ -4,46 +4,68 @@
 import re
 from uuid import UUID
 
-from django.db.models import OuterRef, QuerySet, Subquery, Value
+from django.core.exceptions import PermissionDenied
+from django.db.models import OuterRef, Q, QuerySet, Subquery, Value
+from django.utils.translation import gettext_lazy as _
 
 from modules.households.models import Household, Member
+from modules.households.policies import StaffActor, can_manage_walk_ins
 from modules.households.search_expressions import SearchKey
 
 
 def walk_in_for_staff(household_id: UUID) -> Household | None:
+    """Read a shared walk-in file, excluding anonymized records."""
     return (
         Household.objects.select_related("created_by", "verified_by")
         .prefetch_related("members")
-        .filter(pk=household_id, channel=Household.Channel.WALK_IN)
+        .filter(
+            pk=household_id,
+            channel=Household.Channel.WALK_IN,
+            anonymized_at__isnull=True,
+        )
         .first()
     )
 
 
+def search_for_staff(q: str, actor: StaffActor) -> QuerySet[Household]:
+    """Authorize shared staff scope before searching and paginating.
+
+    The team-pack permission matrix grants intake workers/admins all household
+    files; created_by records provenance, not exclusive ownership. The object
+    boundary is every non-anonymized household, including unassigned files.
+    """
+    if not can_manage_walk_ins(actor):
+        raise PermissionDenied(
+            _("Only active intake workers and admins can manage walk-ins.")
+        )
+    return search(q)
+
+
 def _matching_ids(households: QuerySet[Household], value: str) -> QuerySet:
-    """UNION preserves indexable predicates and deduplicates member matches."""
+    """Combine stored keys without compiling a UNION for every request."""
     needle = SearchKey(Value(value))
     members = Member.objects.all()
-    addresses = households
-    keys = households
+    addresses = Q()
+    keys = Q()
     for token in value.split():
         part = SearchKey(Value(token))
         members = members.filter(search_name_key__contains=part)
-        addresses = addresses.filter(search_address_text__contains=part)
-        keys = keys.filter(search_address_key__contains=part)
+        addresses &= Q(search_address_text__contains=part)
+        keys &= Q(search_address_key__contains=part)
 
-    branches = [
-        households.filter(search_email_key__contains=needle).values("pk"),
-        households.filter(search_number_key__contains=needle).values("pk"),
-        addresses.values("pk"),
-        keys.values("pk"),
-        members.values("household_id"),
-    ]
+    matches = (
+        Q(search_email_key__contains=needle)
+        | Q(search_number_key__contains=needle)
+        | addresses
+        | keys
+        | Q(pk__in=members.values("household_id"))
+    )
     if re.fullmatch(r"[\d\s()+.\-]+", value):
         digits = re.sub(r"\D", "", value)
         if digits:
-            branches.append(households.filter(phone__contains=digits).values("pk"))
+            matches |= Q(phone__contains=digits)
 
-    return branches[0].union(*branches[1:])
+    return households.filter(matches).values("pk")
 
 
 def search(q: str) -> QuerySet[Household]:
@@ -51,6 +73,8 @@ def search(q: str) -> QuerySet[Household]:
 
     Input stays in bound ORM parameters, including LIKE wildcard characters.
     Anonymized files and DOB-containing duplicate keys are never searched.
+    Staff share all remaining files regardless of creator; API callers enter
+    through search_for_staff to enforce the actor permission first.
     """
     value = " ".join(q.split())
     households = Household.objects.filter(anonymized_at__isnull=True)
@@ -71,6 +95,7 @@ def search(q: str) -> QuerySet[Household]:
             "member_number",
             "status",
             "channel",
+            "anonymized_at",
             "email",
             "phone",
             "street_number",

@@ -17,6 +17,9 @@ SEARCH_TERMS = (
     "rue emile",
     "missing-file",
 )
+# At 100 requests/second and 500 ms, 50 requests may legitimately be in flight.
+# Leave headroom so the client does not impose a tighter concurrency limit.
+CLIENT_WORKERS = 64
 
 
 class LoadClient:
@@ -31,7 +34,8 @@ class LoadClient:
         self.connections: list[HTTPConnection] = []
         self.lock = Lock()
 
-    def get(self, term: str, scheduled: float) -> float:
+    def get(self, term: str, scheduled: float) -> dict[str, float]:
+        started = perf_counter()
         if not hasattr(self.worker, "connection"):
             self.worker.connection = HTTPConnection(self.host, self.port, timeout=10)
             with self.lock:
@@ -46,7 +50,15 @@ class LoadClient:
         body = json.loads(response.read())
         if response.status != 200 or "results" not in body:
             raise RuntimeError(f"Search load request failed: HTTP {response.status}")
-        return perf_counter() - scheduled
+        finished = perf_counter()
+        return {
+            "http_ms": (finished - scheduled) * 1000,
+            "queue_ms": (started - scheduled) * 1000,
+            "request_ms": (finished - started) * 1000,
+            "app_ms": float(response.getheader("X-Iris-Test-App-Ms") or 0),
+            "db_ms": float(response.getheader("X-Iris-Test-Db-Ms") or 0),
+            "db_queries": float(response.getheader("X-Iris-Test-Db-Queries") or 0),
+        }
 
     def close(self) -> None:
         for connection in self.connections:
@@ -56,12 +68,10 @@ class LoadClient:
 def run_load(base: str, cookie: str, rps: int, count: int) -> dict:
     client = LoadClient(base, cookie)
     pacing = Event()
-    cold_started = perf_counter()
-    client.get("IR-004234", cold_started)
-    cold_ms = round((perf_counter() - cold_started) * 1000, 2)
-    started = perf_counter()
     try:
-        with ThreadPoolExecutor(max_workers=16) as pool:
+        cold_ms = client.get("IR-004234", perf_counter())["http_ms"]
+        started = perf_counter()
+        with ThreadPoolExecutor(max_workers=CLIENT_WORKERS) as pool:
             futures = []
             for index in range(count):
                 scheduled = started + index / rps
@@ -72,17 +82,30 @@ def run_load(base: str, cookie: str, rps: int, count: int) -> dict:
                         client.get, SEARCH_TERMS[index % len(SEARCH_TERMS)], scheduled
                     )
                 )
-            durations = [future.result() for future in futures]
+            samples = [future.result() for future in futures]
     finally:
         client.close()
     elapsed = perf_counter() - started
+    return _report(samples, cold_ms, elapsed, rps)
+
+
+def _report(samples: list[dict[str, float]], cold_ms: float, elapsed: float, rps: int):
+    def p95(key: str) -> float:
+        return round(quantiles([sample[key] for sample in samples], n=100)[94], 2)
+
     return {
-        "requests": len(durations),
-        "cold_http_ms": cold_ms,
+        "requests": len(samples),
+        "cold_http_ms": round(cold_ms, 2),
         "offered_rps": rps,
-        "completed_rps": round(len(durations) / elapsed, 2),
-        "http_p95_ms": round(quantiles(durations, n=100)[94] * 1000, 2),
-        "http_max_ms": round(max(durations) * 1000, 2),
+        "completed_rps": round(len(samples) / elapsed, 2),
+        "client_workers": CLIENT_WORKERS,
+        "http_p95_ms": p95("http_ms"),
+        "http_max_ms": round(max(sample["http_ms"] for sample in samples), 2),
+        "client_queue_p95_ms": p95("queue_ms"),
+        "request_p95_ms": p95("request_ms"),
+        "app_p95_ms": p95("app_ms"),
+        "db_p95_ms": p95("db_ms"),
+        "db_queries_max": int(max(sample["db_queries"] for sample in samples)),
     }
 
 

@@ -189,7 +189,10 @@ export interface components {
       /** @default fr */
       preferred_language?: components["schemas"]["LanguageEnum"];
     };
+    /** @description Expose minimal household fields and the server-authorized resume action. */
     HouseholdSearchResult: {
+      /** @description Fail closed when serialization has no authenticated request context. */
+      can_resume: boolean;
       channel: components["schemas"]["ChannelEnum"];
       city: string;
       /** Format: email */

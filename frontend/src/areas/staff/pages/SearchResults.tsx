@@ -51,7 +51,7 @@ function HouseholdCard({ file }: { file: HouseholdSearchResult }) {
           <Badge variant="light">{t(householdStatusLabels[file.status])}</Badge>
         </Group>
         <HouseholdContact file={file} />
-        {file.channel === "walk_in" && file.status === "draft" && (
+        {file.can_resume && (
           <Group>
             <Button component={Link} to={`/staff/walk-in/${file.id}`} variant="outline">
               {t("household.search.resume")}

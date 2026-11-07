@@ -15,6 +15,8 @@ account. The record also preserves staff verification and creation timestamps.
 - `queries.walk_in_for_staff(household_id) -> Household | None`
 - `queries.search(q) -> QuerySet[Household]`: partial, accent-insensitive staff search;
   reads only and excludes anonymized files. Blank input returns no files.
+- `queries.search_for_staff(q, actor) -> QuerySet[Household]`: the API entry point;
+  validates staff permission before applying the shared household scope.
 - `domain/address.py`: `normalize_address`, `normalize_postal_code`
 - `domain/person.py`: `normalize_person`, age/name validation
 

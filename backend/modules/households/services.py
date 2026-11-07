@@ -13,8 +13,8 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from modules.households.models import Household, HouseholdDraftEvent, Member
+from modules.households.policies import can_manage_walk_ins, is_editable_walk_in
 
-STAFF_ROLES = frozenset(("intake_worker", "admin"))
 ADDRESS_FIELDS = frozenset(
     ("street_number", "street_name", "unit", "city", "postal_code")
 )
@@ -24,11 +24,7 @@ CONSENT_TEXT_VERSION = "2026-11-v1"
 
 
 def _require_staff(user: AbstractBaseUser) -> None:
-    if (
-        not user.is_authenticated
-        or not user.is_active
-        or getattr(user, "role", None) not in STAFF_ROLES
-    ):
+    if not can_manage_walk_ins(user):
         raise PermissionDenied(
             _("Only active intake workers and admins can manage walk-ins.")
         )
@@ -159,9 +155,11 @@ def update_draft(
     if not data:
         raise ValidationError({"non_field_errors": _("Provide at least one change.")})
     household = Household.objects.select_for_update().get(
-        id=household_id, channel=Household.Channel.WALK_IN
+        id=household_id,
+        channel=Household.Channel.WALK_IN,
+        anonymized_at__isnull=True,
     )
-    if household.status != Household.Status.DRAFT:
+    if not is_editable_walk_in(household):
         raise ValidationError(
             {"status": _("Only draft household files can be edited.")}
         )

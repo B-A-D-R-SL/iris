@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { searchFile, searchPage } from "../../test/householdSearch";
 import { HouseholdSearchError, searchHouseholds } from "./searchApi";
 
-describe("household search API", () => {
+describe("household search request contract", () => {
   it("encodes the query and sends the session, language, cache policy and cancellation signal", async () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json(searchPage()));
     vi.stubGlobal("fetch", fetchMock);
@@ -36,7 +36,9 @@ describe("household search API", () => {
       expect(String(error)).not.toContain("private-search");
     },
   );
+});
 
+describe("household search response validation", () => {
   it.each([
     null,
     [],
@@ -44,6 +46,8 @@ describe("household search API", () => {
     searchPage({ count: -1 }),
     searchPage({ results: [{ ...searchFile(), status: "unexpected" } as never] }),
     searchPage({ results: [{ ...searchFile(), phone: null } as never] }),
+    searchPage({ results: [{ ...searchFile(), can_resume: undefined } as never] }),
+    searchPage({ results: [{ ...searchFile(), can_resume: "true" } as never] }),
     { ...searchPage(), next: {} },
   ])("rejects malformed responses", async (body) => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(body)));

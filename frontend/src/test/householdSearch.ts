@@ -10,6 +10,7 @@ export function searchFile(overrides: Partial<HouseholdSearchResult> = {}): Hous
     member_number: "IR-000123",
     status: "draft",
     channel: "walk_in",
+    can_resume: true,
     email: "elodie@example.test",
     phone: "+15145550123",
     street_number: "123",
