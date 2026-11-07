@@ -121,11 +121,13 @@ def _create_invited_user(invitation: Invitation, password: str) -> User:
         "is_active": True,
     }
     if not isinstance(password, str) or not password.strip():
-        raise ValidationError({"password": _("Enter a password.")})
+        raise ValidationError(
+            {"password": ValidationError(_("Enter a password."), code="required")}
+        )
     try:
         validate_password(password, user=User(**values))
     except ValidationError as exc:
-        raise ValidationError({"password": exc.messages}) from exc
+        raise ValidationError({"password": exc.error_list}) from exc
     try:
         with transaction.atomic():
             return User.objects.create_user(password=password, **values)

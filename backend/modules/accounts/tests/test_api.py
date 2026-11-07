@@ -39,6 +39,17 @@ def assert_error(response: Any, code: str) -> dict[str, Any]:
     return body
 
 
+def assert_created_account(recipient: User, invitation: Any) -> None:
+    """Check persisted identity, assignment and password independently of HTTP."""
+    assert recipient.first_name == invitation.first_name
+    assert recipient.last_name == invitation.last_name
+    assert recipient.role == invitation.role
+    assert recipient.store_id == invitation.store_id
+    assert recipient.is_active
+    assert recipient.check_password(PASSWORD)
+    assert recipient.password != PASSWORD
+
+
 @pytest.mark.parametrize("caller_role", CALLER_ROLES)
 def test_valid_token_is_allowed_for_anonymous_and_every_role(
     issue_invitation: Any, caller_role: str | None
@@ -104,11 +115,7 @@ def test_acceptance_then_sign_in_uses_the_new_account_and_database(
     invitation.refresh_from_db()
     recipient = User.objects.get(email=invitation.email)
     assert invitation.accepted_at is not None
-    assert recipient.first_name == invitation.first_name
-    assert recipient.last_name == invitation.last_name
-    assert recipient.role == invitation.role and recipient.store_id is None
-    assert recipient.is_active and recipient.check_password(PASSWORD)
-    assert recipient.password != PASSWORD
+    assert_created_account(recipient, invitation)
 
     signed_in = APIClient()
     login = signed_in.post(

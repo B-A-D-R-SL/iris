@@ -8,6 +8,7 @@ type FrontendEvent =
   | "auth_tab_sync_unavailable"
   | "sign_in_failed_unexpectedly"
   | "sign_out_failed"
+  | "invitation_accept_failed_unexpectedly"
   | "invitation_response_invalid"
   | "invitation_request_failed";
 type Level = "INFO" | "WARNING" | "ERROR";

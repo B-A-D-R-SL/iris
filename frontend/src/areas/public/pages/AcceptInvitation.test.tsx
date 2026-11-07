@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useLocation } from "react-router";
 
 import App from "../../../app/App";
+import * as invitationApi from "../../../features/accounts/invitations";
 import { expectNoAxeViolations, renderWithProviders, testUser } from "../../../test/render";
 
 const ACCEPT = "/api/invitations/accept/";
@@ -182,6 +183,61 @@ describe("US-04 accept an invitation and set a password", () => {
 
     await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/sign-in"));
     expect(acceptanceCalls(fetchMock)).toHaveLength(2);
+  });
+
+  it("logs only a fixed event when a page dependency unexpectedly fails", async () => {
+    const logs = vi.spyOn(console, "error").mockImplementation(() => {});
+    const dependency = vi
+      .spyOn(invitationApi, "acceptInvitation")
+      .mockRejectedValueOnce(
+        new Error(`Unexpected test failure: ${TOKEN} ${PASSWORD} /invitation/${TOKEN}`),
+      );
+    try {
+      mockAcceptance();
+      renderInvitation();
+      const user = await fillPasswords();
+      await user.click(screen.getByRole("button", { name: SUBMIT }));
+
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(/indisponible|réessay/i);
+      expect(alert.closest('[tabindex="-1"]')).toHaveFocus();
+      expect(screen.getByLabelText(/^Mot de passe$/)).toHaveValue(PASSWORD);
+      expect(logs).toHaveBeenCalledOnce();
+      expect(JSON.parse(String(logs.mock.calls[0]?.[0]))).toEqual({
+        timestamp: expect.any(String),
+        level: "ERROR",
+        event: "invitation_accept_failed_unexpectedly",
+      });
+      const output = JSON.stringify(logs.mock.calls);
+      expect(output).not.toContain(TOKEN);
+      expect(output).not.toContain(PASSWORD);
+      expect(output).not.toContain("Unexpected test failure");
+    } finally {
+      dependency.mockRestore();
+      logs.mockRestore();
+    }
+  });
+
+  it("does not log an unexpected page failure for a handled request failure", async () => {
+    const logs = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      mockAcceptance(async () => {
+        throw new TypeError("Synthetic network failure");
+      });
+      renderInvitation();
+      const user = await fillPasswords();
+      await user.click(screen.getByRole("button", { name: SUBMIT }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(/indisponible|réessay/i);
+      expect(logs).toHaveBeenCalledOnce();
+      expect(JSON.parse(String(logs.mock.calls[0]?.[0]))).toEqual({
+        timestamp: expect.any(String),
+        level: "ERROR",
+        event: "invitation_request_failed",
+      });
+    } finally {
+      logs.mockRestore();
+    }
   });
 
   it("shows backend password errors under the field and focuses the error summary", async () => {

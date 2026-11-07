@@ -22,6 +22,25 @@ from modules.accounts.api.serializers import (
     InvitationErrorSerializer,
 )
 
+_INVITATION_MESSAGES = {
+    "invitation_invalid": _("This invitation link is invalid."),
+    "invitation_expired": _("This invitation link has expired."),
+    "invitation_used": _("This invitation link has already been used."),
+    "email_already_registered": _("An account already uses this email address."),
+    "invitation_unavailable": _(
+        "Invitations are temporarily unavailable. Try again later."
+    ),
+}
+_PASSWORD_MESSAGES = {
+    "required": _("Enter a password."),
+    "password_too_short": _("This password is too short."),
+    "password_too_similar": _(
+        "This password is too similar to your personal information."
+    ),
+    "password_too_common": _("This password is too common."),
+    "password_entirely_numeric": _("This password is entirely numeric."),
+}
+
 
 @extend_schema(
     responses={
@@ -43,17 +62,43 @@ def _messages(value: Any) -> list[str]:
     return [str(value)]
 
 
+def _password_message(error: DjangoValidationError) -> str:
+    """Map approved codes, interpolating only Django's safe numeric length parameter."""
+    code = getattr(error, "code", None)
+    if code == "password_too_short":
+        params = getattr(error, "params", None)
+        minimum = params.get("min_length") if isinstance(params, dict) else None
+        if type(minimum) is int and minimum > 0:
+            return str(
+                _("This password must contain at least %(min_length)s characters.")
+                % {"min_length": minimum}
+            )
+    message = _PASSWORD_MESSAGES.get(code) if isinstance(code, str) else None
+    return str(message or _("Enter a valid value."))
+
+
+def _invitation_fields(exc: DjangoValidationError) -> dict[str, list[str]]:
+    """Hide unknown service field names and never serialize exception message text."""
+    fields: dict[str, list[str]] = {}
+    for field, errors in getattr(exc, "error_dict", {}).items():
+        if field == "password":
+            fields[field] = [_password_message(error) for error in errors]
+        else:
+            fields["non_field_errors"] = [str(_("Enter a valid value."))]
+    return fields
+
+
 def _invitation_service_error(exc: DjangoValidationError) -> Response:
-    """Expose intentional service errors without returning their submitted secrets."""
-    # These are translated invitation/password validation messages for users.
-    # Other exception types follow DRF's normal server-error handling below.
-    code = getattr(exc, "code", "validation_error")
-    fields = exc.message_dict if hasattr(exc, "error_dict") else {}
+    """Return approved translated messages; arbitrary exception data stays private."""
+    code = getattr(exc, "code", None)
+    if not isinstance(code, str) or code not in _INVITATION_MESSAGES:
+        code = "validation_error"
+    fields = _invitation_fields(exc)
     return Response(
         {
             "code": code,
-            "message": (
-                str(_("Check the highlighted fields.")) if fields else exc.messages[0]
+            "message": str(
+                _INVITATION_MESSAGES.get(code, _("Check the highlighted fields."))
             ),
             "fields": fields,
         },

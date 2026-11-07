@@ -9,6 +9,7 @@ import { acceptInvitation, InvitationError } from "../../../features/accounts/in
 import { useAuth } from "../../../shared/auth/authContext";
 import { isRequired, validationMessage } from "../../../shared/forms";
 import { useFieldWrapper } from "../../../shared/forms/fieldProps";
+import { logger } from "../../../shared/logger";
 import { Notice } from "../../../shared/ui";
 
 type ErrorKey =
@@ -70,6 +71,8 @@ function useInvitationFlow() {
       form.reset();
       setComplete(true);
     } catch (caught) {
+      if (!(caught instanceof InvitationError))
+        logger.error("invitation_accept_failed_unexpectedly");
       setFailure({
         error: caught instanceof InvitationError ? caught : new InvitationError("unavailable"),
         language,

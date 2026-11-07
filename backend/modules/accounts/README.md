@@ -52,6 +52,10 @@ require CSRF
 protection (403 when refused); unsupported methods return 405. A failed request
 does not create a user or consume the invitation.
 
+Recognized invitation and password-validation codes map to approved French and
+English messages. Unknown validation details receive generic feedback rather
+than exception text. Password validation still uses the configured sign-up rules.
+
 ## Local setup after pulling
 
 Apply the invitation migration and seed the invitation rules before issuing
@@ -79,6 +83,9 @@ session sees confirmation and guidance to use the existing sign-out control
 before signing into the new account. Acceptance never signs in or signs out
 automatically. Recoverable errors preserve the entered values for retry;
 expired links explain that the inviter must provide a new link.
+Unexpected page failures emit only the fixed
+`invitation_accept_failed_unexpectedly` event; handled API errors are not logged
+again by the page.
 
 ## Later workflows
 

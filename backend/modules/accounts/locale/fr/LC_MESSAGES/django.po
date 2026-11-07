@@ -65,6 +65,22 @@ msgstr "Les invitations sont temporairement indisponibles. Réessayez plus tard.
 msgid "Enter a password."
 msgstr "Entrez un mot de passe."
 
+msgid "This password is too short."
+msgstr "Ce mot de passe est trop court."
+
+#, python-format
+msgid "This password must contain at least %(min_length)s characters."
+msgstr "Ce mot de passe doit contenir au moins %(min_length)s caractères."
+
+msgid "This password is too similar to your personal information."
+msgstr "Ce mot de passe ressemble trop à vos renseignements personnels."
+
+msgid "This password is too common."
+msgstr "Ce mot de passe est trop courant."
+
+msgid "This password is entirely numeric."
+msgstr "Ce mot de passe est entièrement numérique."
+
 msgid "This field cannot be submitted."
 msgstr "Ce champ ne peut pas être envoyé."
 

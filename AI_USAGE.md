@@ -1,4 +1,6 @@
 <!-- AI contribution: 50% or more AI-generated -->
+<!-- Size exception: the course uses this central contribution inventory to audit
+file declarations alongside their verification history across features. -->
 # AI usage
 
 How the Iris team uses generative AI, as required by the course rubric. This file stays up to date every iteration.
@@ -37,7 +39,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
 | T-01.04.3 Invitation password page (#431) | `frontend/src/areas/public/pages/AcceptInvitation{,.test}.tsx`, `frontend/src/features/accounts/invitations{,.test}.ts`, `frontend/src/app/App.tsx`, `frontend/src/shared/i18n/{fr,en}.json`, `frontend/src/shared/logger.ts`, `.coderabbit.yaml`, `backend/modules/accounts/README.md`, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
-| T-01.04.2 Invitation model, services and acceptance API (#430) | `backend/modules/accounts/{models.py,services.py,api/,locale/fr/LC_MESSAGES/,README.md,migrations/0005_invitation.py}`, `backend/modules/accounts/tests/{conftest,test_invitations,test_invitation_logging}.py`, `backend/modules/rules/{domain/schemas.py,tests/test_invitation_rules.py}`, `docs/02-requirements/business-rules.md`, `docs/03-design/{api,database-schema,domain-model}.md`, `docs/04-architecture/architecture.md`, `frontend/src/shared/api/generated.d.ts`, `AI_USAGE.md` | 50% or more AI-generated for source changes; Django migration, compiled catalog and generated API declarations exempt | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
+| T-01.04.2 Invitation model, services and acceptance API (#430) | `backend/modules/accounts/{models.py,services.py,api/,locale/fr/LC_MESSAGES/,README.md,migrations/0005_invitation.py}`, `backend/modules/accounts/tests/{conftest,test_invitations,test_invitation_logging,test_invitation_errors}.py`, `backend/modules/rules/{domain/schemas.py,tests/test_invitation_rules.py}`, `docs/02-requirements/business-rules.md`, `docs/03-design/{api,database-schema,domain-model}.md`, `docs/04-architecture/architecture.md`, `frontend/src/shared/api/generated.d.ts`, `AI_USAGE.md` | 50% or more AI-generated for source changes; Django migration, compiled catalog and generated API declarations exempt | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
 | T-01.04.1 Invitation acceptance tests (#429) | `backend/modules/accounts/tests/{factories,conftest,test_invitations,test_api}.py`, `backend/modules/rules/tests/test_invitation_rules.py`, `frontend/src/areas/public/pages/AcceptInvitation.test.tsx`, test-only import exceptions in `backend/pyproject.toml`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657); implementation supplied by #430 and #431 |
 | T-09.62.1 Audit tests (#548) | `backend/modules/audit/tests/test_audit.py` | 50% or more AI-generated | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-09.62.2 Audit model and service (#549) | `backend/modules/audit/{models.py,services.py,README.md,migrations/}` | 50% or more AI-generated (migrations exempt) | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
@@ -133,6 +135,23 @@ One row per substantive feature where AI generated a meaningful part of the impl
   ESLint, Prettier, TypeScript, production build, YAML parsing and individual
   function/test size checks passed. The four new logging cases were rerun with
   `iris.settings.test` after correcting their per-phase log-capture fixture.
+
+- **PR #657 remaining error/size checks:** restored the ledger's adjacent size
+  justification and extracted persisted-account assertions while retaining the
+  API-to-database-to-sign-in path. Django password codes and safe parameters now
+  survive service wrapping; approved invitation/password translations replace
+  arbitrary exception text. Unknown codes and field names receive generic
+  feedback. The French catalog was compiled from the updated `.po`. Unexpected
+  page failures log only a fixed event, and handled API errors are not logged
+  twice. The accounts README documents this behavior.
+- **Final targeted verification:** all 129 invitation API, service, logging,
+  error-mapping and RuleSet cases passed with `iris.settings.test`, including
+  37 new mapping/privacy cases. All 47 focused frontend cases passed (19 page,
+  21 helper, one logger and six translation cases), including two new page-error
+  regressions. Ruff, mypy, module boundaries, ESLint, Prettier, TypeScript,
+  production build and translation-catalog checks passed. Individual changed
+  functions/tests satisfy 50 lines; the main integration test and its account
+  helper have assertion-inclusive complexity scores of nine and eight.
 
 ### T-01.04.2 Invitation model, services and acceptance API (#430)
 
