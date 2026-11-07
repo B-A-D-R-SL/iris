@@ -1,5 +1,8 @@
 # AI contribution: 50% or more AI-generated
 import json
+import os
+import subprocess
+import sys
 
 import django
 from django.conf import settings
@@ -26,3 +29,26 @@ def test_health_endpoint(client: Client) -> None:
 
     assert response.status_code == 200
     assert json.loads(response.content) == {"status": "ok"}
+
+
+def test_asgi_disables_wsgi_connection_persistence():
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import iris.asgi; from django.conf import settings; "
+                "print(settings.DATABASES['default']['CONN_MAX_AGE'])"
+            ),
+        ],
+        env={
+            **os.environ,
+            "DJANGO_SETTINGS_MODULE": "iris.settings.test",
+            "DATABASE_CONN_MAX_AGE": "60",
+        },
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=15,
+    )
+    assert result.stdout.strip() == "0"

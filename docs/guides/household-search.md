@@ -39,6 +39,14 @@ statements in the load report. The optional `page=last` shortcut retains DRF's
 count-first behavior. Invalid and excessively large page numbers are refused
 with 404 before auditing; page sizes and response fields are unchanged.
 
+WSGI workers reuse healthy PostgreSQL connections for up to 60 seconds, controlled
+by `DATABASE_CONN_MAX_AGE`. A health check precedes reuse. Local runserver and the
+ASGI entry point disable persistence. Each WSGI worker thread can hold one
+connection; size the database connection limit for the deployed worker/thread
+count. Set the lifetime to `0` to disable reuse. This is application configuration;
+the load server inherits it without a test-only connection override. See
+[Django's connection guidance](https://docs.djangoproject.com/en/6.1/ref/databases/#persistent-connections).
+
 Results include contact details and status, never dates of birth, income, notices,
 duplicate keys or staff verification data. Anonymized files are excluded. All
 roles are checked server-side. Returned file IDs generate append-only `view`
@@ -72,9 +80,9 @@ same pull request as #553 and #554.
 | Allowed/refused access for every role | API and access tests cover all roles, cross-creator/unassigned access, anonymized-file refusal before pagination, and resume flags matching actual edit permissions. |
 | Edge/error case | `test_search_api.py` covers invalid input, empty/no matches, page boundaries and failed auditing; query tests cover literal SQL/LIKE metacharacters. |
 | API/database integration | `test_staff_searches_through_session_authentication` uses a real session, PostgreSQL household/member records and persisted audit events. |
-| At least 70% changed-code coverage; domain at least 90% | Added/modified executable lines: backend 100% (176/176), frontend 97.10% (67/69). Household domain coverage is 93% for person validation and 100% for address validation; no domain rules changed. |
+| At least 70% changed-code coverage; domain at least 90% | Original search implementation: backend 100% (176/176), frontend 97.10% (67/69) of added/modified executable lines. Household domain coverage is 93% for person validation and 100% for address validation; no domain rules changed. |
 
-Changed-line figures compare the candidate code, including new source files, with
+These original changed-line figures compare the search implementation with
 the PR's original base `be4e22a`, using executable lines recorded by coverage.py
 and V8. They differ from total coverage: 93.61% for the backend and 94.55% total
 frontend line coverage. Generated declarations, migrations and non-executable
@@ -87,14 +95,16 @@ guards, keyboard clearing and accessibility.
 ## Repeatable verification
 
 ```powershell
-docker compose exec backend python -m pytest modules/households/tests modules/audit/tests -q
-docker compose exec backend python -m pytest modules/households/tests/test_search_performance.py -q -s
-docker compose exec backend python -m pytest modules/households/tests/test_search_load.py -q -s
+docker compose exec -e DJANGO_SETTINGS_MODULE=iris.settings.test backend python -m pytest modules/households/tests modules/audit/tests -q
+docker compose exec -e DJANGO_SETTINGS_MODULE=iris.settings.test backend python -m pytest modules/households/tests/test_search_performance.py -q -s
+docker compose exec -e DJANGO_SETTINGS_MODULE=iris.settings.test backend python -m pytest modules/households/tests/test_search_load.py -q -s
 ```
 
 pytest-django creates its own blank PostgreSQL database, normally `test_iris`,
 applies migrations and removes it after the run. It does not seed the working
 `iris` database or the preserved database from a local environment repair.
+The explicit settings override replaces Compose's `iris.settings.local`, whose
+development-only database lifetime is zero, with the same test settings as CI.
 
 The performance fixture deterministically inserts 5,000 fictional households and
 1–7 members per household, with accented names, different statuses, null emails,
@@ -144,34 +154,33 @@ when the cold request fails. The concurrency case fails with the old 16-worker
 limit. These are tests of the driver; the real HTTP test still exercises session
 authentication, database reads, serialization and audit writes.
 
+A real HTTP regression also sends two searches over the same HTTP connection and
+checks the PostgreSQL backend PID in a test-only response header. It fails when
+`DATABASE_CONN_MAX_AGE=0`, independently of machine speed. A separate subprocess
+test checks that the ASGI entry point disables WSGI connection persistence.
+
 ## Scope and remaining environment checks
 
-The latest provided GitHub CI run, for commit `2dc1e17`, passed 944 backend tests
-and failed the HTTP load test. Its first request passed at 32.09 ms, but warm
-p95 was 790.89 ms against the unchanged 500 ms target. Application p95 was
-722.73 ms and SQL execution p95 302.64 ms; client queue p95 was 52.63 ms.
-All 300 responses succeeded. That run's total backend coverage was 93.47%.
+The provided GitHub CI failure after `307e20a` passed 950 backend tests and failed
+the HTTP load test at 1,439.86 ms p95. Coverage passed at 93.53%. Combining the
+pagination count and page had already reduced the request to four SQL statements,
+but every HTTP request still established and authenticated a new PostgreSQL
+connection because Django's default `CONN_MAX_AGE` is zero.
 
-Profiling locally showed pagination repeating the search for the count and page.
-The follow-up combines those reads with a window count and adds a regression
-requiring one household SELECT for a normal page. It also tests invalid and
-overflowing page numbers and preserves the last-page shortcut. The dataset,
-100 requests/second rate, 300-request count and response-time limits are unchanged.
+On 2026-11-07, an isolated local backend and PostgreSQL 17 instance sharing the
+same two CPU cores reproduced the failure at 1,185.65 ms p95. Enabling connection
+reuse in the application settings reduced the focused load run to 71.75 ms p95,
+106.10 ms maximum, 42.59 ms application p95 and 24.18 ms SQL p95. All 300 requests
+succeeded at 99.94 completed requests/second. The first HTTP request took 44.03 ms.
+The dataset, query, 100 requests/second rate, 300-request count and response-time
+limits are unchanged; no HTTP or query warm-up was added. The temporary diagnostic
+environment was separate from the working development services.
 
-Local verification after this optimization on 2026-11-07: all 951 backend tests
-passed with 93.61% total coverage. First API response: 14.67 ms; API maximum:
-25.44 ms. First real HTTP response: 48.39 ms. The HTTP load run completed all
-300 responses with p95 81.73 ms, maximum 119.84 ms, client queue p95 0.29 ms,
-application p95 46.24 ms and SQL execution p95 21.89 ms. At most four SQL
-statements were captured per request, including authentication and auditing.
-
-Ruff, formatting, mypy, all three module-boundary contracts and API type/schema
-consistency passed locally for this optimization. The API contract and frontend
-code are unchanged; their preceding local verification passed 435 frontend tests
-with 94.55% total line coverage, TypeScript, ESLint and the production build.
-These are local results, not a passing GitHub CI run. CI must verify the new
-optimization after committing and pushing. No Docker, database connection or CI
-settings were changed.
+The full backend suite then passed all 953 tests with 93.46% coverage under the
+same two-core conditions (Python 3.13.18). Ruff, formatting, mypy, all three
+module-boundary contracts and the missing-migrations check also passed. These
+are local results; GitHub CI must verify the committed change. The frontend and
+API contract are unchanged by this fix.
 
 The local benchmark establishes behavior on the tested development machine.
 Repeat it on staging with its actual worker configuration before claiming the

@@ -37,6 +37,10 @@ def _timed_application(application):
                 ("X-Iris-Test-Db-Ms", str(database_seconds * 1000)),
                 ("X-Iris-Test-Db-Queries", str(queries)),
             ]
+            if connection.connection is not None:
+                headers.append(
+                    ("X-Iris-Test-Db-Pid", str(connection.connection.info.backend_pid))
+                )
             return start_response(status, headers, exc_info)
 
         with connection.execute_wrapper(execute):
