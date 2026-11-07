@@ -2,15 +2,16 @@
 """When a household file expires. Plain dates, no database and no Django.
 
 US-18's approval service and the seed command both call these functions, so
-the length of an approved file lives in one place.
+the length of an approved file lives in one place. The month count comes from
+the ``file_validity.approved_months`` rule; callers pass it in.
 """
 
 import calendar
 from datetime import datetime, timedelta
 
 MINIMUM_APPROVED_MONTHS = 1
-RENEWAL_ALREADY_DUE = timedelta(days=1)
 
+# Must match Household.Status in models.py; test_expiry.py checks that they do.
 STATUS_APPROVED = "approved"
 STATUS_RENEWAL_NEEDED = "renewal_needed"
 STATUS_SUSPENDED = "suspended"
@@ -22,6 +23,8 @@ def add_months(moment: datetime, months: int) -> datetime:
     31 January plus one month is 28 February, or 29 February in a leap year.
     The time of day and the timezone stay as they were.
     """
+    if moment.tzinfo is None:
+        raise ValueError("moment must be timezone-aware.")
     month_index = moment.month - 1 + months
     year = moment.year + month_index // 12
     month = month_index % 12 + 1
@@ -40,17 +43,19 @@ def approved_expiry(moment: datetime, approved_months: object) -> datetime:
 def expiry_for_status(
     status: str,
     moment: datetime,
+    *,
     approved_until: datetime,
+    renewal_overdue_by: timedelta,
     suspended_for: timedelta,
 ) -> datetime | None:
     """Expiry stored on a file in this status.
 
-    An approved file lasts until ``approved_until``. A renewal-needed file is
-    already one day past ``moment``. A suspended file lasts ``suspended_for``.
-    Every other status has no expiry.
+    An approved file lasts until ``approved_until``. A renewal-needed file
+    expired ``renewal_overdue_by`` before ``moment``. A suspended file lasts
+    ``suspended_for`` after ``moment``. Every other status has no expiry.
     """
     if status == STATUS_RENEWAL_NEEDED:
-        return moment - RENEWAL_ALREADY_DUE
+        return moment - renewal_overdue_by
     if status == STATUS_SUSPENDED:
         return moment + suspended_for
     if status == STATUS_APPROVED:

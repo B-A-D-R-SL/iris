@@ -75,7 +75,9 @@ VERIFIED_STATUSES = frozenset(
 )
 OPENING_HOURS = {"monday": "09:00-17:00"}
 PICKUP_LENGTH = timedelta(hours=2)
+# Fictional ages for the demo files. No rule sets these; the approval length does.
 APPROVAL_AGE = timedelta(days=30)
+RENEWAL_OVERDUE_BY = timedelta(days=1)
 SUSPENDED_TERM = timedelta(days=30)
 
 
@@ -267,7 +269,8 @@ def _ensure_household(
         expires_at=expiry_for_status(
             planned.status,
             moment,
-            approved_until,
+            approved_until=approved_until,
+            renewal_overdue_by=RENEWAL_OVERDUE_BY,
             suspended_for=SUSPENDED_TERM,
         ),
     )
