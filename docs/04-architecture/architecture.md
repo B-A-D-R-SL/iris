@@ -209,7 +209,11 @@ flowchart TB
 The domain layer imports no Django, ORM, network code or adapters.
 
 Each module writes its own tables. Cross-module access uses public
-service/query interfaces.
+service/query interfaces. The one exception is `manage.py seed`
+(`backend/iris/management/commands/seed.py`): it writes fictional rows in
+states the workflows cannot create yet, such as approved files and picked-up
+reservations. The import-linter contract "Only the seed command imports module
+models" keeps every other file in `iris` and `adapters` out of module models.
 
 Values for eligibility, limits and time windows come from versioned
 rules, not frontend decisions.
