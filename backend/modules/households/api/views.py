@@ -12,7 +12,6 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import GenericAPIView
-from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -20,6 +19,7 @@ from rest_framework.views import exception_handler
 
 from modules.audit import services as audit_services
 from modules.households import queries, services
+from modules.households.api.pagination import HouseholdSearchPagination
 from modules.households.api.search_serializers import (
     HouseholdSearchInputSerializer,
     HouseholdSearchResultSerializer,
@@ -92,12 +92,6 @@ def _service_validation(exc: DjangoValidationError) -> ValidationError:
     if hasattr(exc, "message_dict"):
         return ValidationError(exc.message_dict)
     return ValidationError({"non_field_errors": exc.messages})
-
-
-class HouseholdSearchPagination(PageNumberPagination):
-    page_size = 20
-    page_size_query_param = "page_size"
-    max_page_size = 100
 
 
 class WalkInCollectionView(WalkInErrorHandlingMixin, GenericAPIView):

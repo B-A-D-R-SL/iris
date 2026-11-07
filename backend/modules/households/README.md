@@ -42,6 +42,12 @@ specific error types, and `messages.py` gives each one its translated text.
 All require a session for an active `intake_worker` or `admin`. Other signed-in
 roles are rejected with HTTP 403. The API contains no ID document information.
 
+Numeric search pages fetch the exact total and results in one query using a
+PostgreSQL window count. This avoids executing the same match twice, and keeps
+the count and results in one database snapshot. The response envelope, ordering,
+20-result default and 100-result cap are unchanged. Invalid/overflowing page
+numbers return 404; DRF's optional `page=last` shortcut remains supported.
+
 ### Example request
 
 ```json

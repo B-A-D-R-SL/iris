@@ -32,6 +32,13 @@ the object scope is applied before counting or pagination. The API returns a
 `can_resume` boolean from the same policy used for editing, and the frontend
 renders it without recomputing permission from household status or channel.
 
+Numeric pages use a PostgreSQL window count to obtain the total and page in one
+SELECT, rather than running the search twice for a separate COUNT and results.
+Authentication and auditing still run normally: a matching request uses four SQL
+statements in the load report. The optional `page=last` shortcut retains DRF's
+count-first behavior. Invalid and excessively large page numbers are refused
+with 404 before auditing; page sizes and response fields are unchanged.
+
 Results include contact details and status, never dates of birth, income, notices,
 duplicate keys or staff verification data. Anonymized files are excluded. All
 roles are checked server-side. Returned file IDs generate append-only `view`
@@ -65,11 +72,11 @@ same pull request as #553 and #554.
 | Allowed/refused access for every role | API and access tests cover all roles, cross-creator/unassigned access, anonymized-file refusal before pagination, and resume flags matching actual edit permissions. |
 | Edge/error case | `test_search_api.py` covers invalid input, empty/no matches, page boundaries and failed auditing; query tests cover literal SQL/LIKE metacharacters. |
 | API/database integration | `test_staff_searches_through_session_authentication` uses a real session, PostgreSQL household/member records and persisted audit events. |
-| At least 70% changed-code coverage; domain at least 90% | Added/modified executable lines: backend 100% (141/141), frontend 97.10% (67/69). Household domain coverage is 93% for person validation and 100% for address validation; no domain rules changed. |
+| At least 70% changed-code coverage; domain at least 90% | Added/modified executable lines: backend 100% (176/176), frontend 97.10% (67/69). Household domain coverage is 93% for person validation and 100% for address validation; no domain rules changed. |
 
 Changed-line figures compare the candidate code, including new source files, with
 the PR's original base `be4e22a`, using executable lines recorded by coverage.py
-and V8. They differ from total coverage: 93.55% for the backend and 94.55% total
+and V8. They differ from total coverage: 93.61% for the backend and 94.55% total
 frontend line coverage. Generated declarations, migrations and non-executable
 lines do not contribute to the changed-line denominators.
 
@@ -139,40 +146,32 @@ authentication, database reads, serialization and audit writes.
 
 ## Scope and remaining environment checks
 
-Initial local verification on 2026-11-07: all 915 backend tests passed (93.30% total
-coverage), and all 431 frontend tests passed (94.55% line coverage). That
-full-suite HTTP benchmark offered 100 requests/second across 5,000 households:
-300 successful responses, p95 87.78 ms, maximum 129.82 ms. Cold HTTP initialization
-was reported separately at 1,196.69 ms, exceeding one second. The warm checks do
-not establish a first-request time below one second. Sequential query maximum
-was 14.58 ms and authenticated API maximum was 31.10 ms. These numbers describe
-this local run.
+The latest provided GitHub CI run, for commit `2dc1e17`, passed 944 backend tests
+and failed the HTTP load test. Its first request passed at 32.09 ms, but warm
+p95 was 790.89 ms against the unchanged 500 ms target. Application p95 was
+722.73 ms and SQL execution p95 302.64 ms; client queue p95 was 52.63 ms.
+All 300 responses succeeded. That run's total backend coverage was 93.47%.
 
-The first GitHub CI run passed 914 backend cases and failed the HTTP load check:
-p95 1,455.84 ms, with 300 successful responses. The follow-up reduces SQL query
-construction by combining the stored-key predicates instead of a UNION, raises
-the load client's capacity from 16 to 64, and adds the diagnostic timings above.
-The 5,000-household dataset, 100 requests/second rate, 300-request count and 500 ms
-p95 limit are unchanged. CI must be rerun to establish whether the failure is
-resolved there; local measurements alone do not establish that.
+Profiling locally showed pagination repeating the search for the count and page.
+The follow-up combines those reads with a window count and adds a regression
+requiring one household SELECT for a normal page. It also tests invalid and
+overflowing page numbers and preserves the last-page shortcut. The dataset,
+100 requests/second rate, 300-request count and response-time limits are unchanged.
 
-Latest local review-fix verification on 2026-11-07: all 945 backend tests passed
-with 93.55% total coverage, and all 435 frontend tests passed with 94.55% total
-line coverage. The API's first measured response took 19.00 ms. The real HTTP
-server's first request took 59.22 ms and is now explicitly required below one
-second. Across 300 paced HTTP requests, p95 was 104.59 ms and maximum 162.83 ms;
-client queue p95 was 0.27 ms, application p95 61.69 ms and SQL execution p95
-33.33 ms. At most five SQL statements were captured per request. A regression
-also verifies that returning 20 resume flags uses the same query count as one.
+Local verification after this optimization on 2026-11-07: all 951 backend tests
+passed with 93.61% total coverage. First API response: 14.67 ms; API maximum:
+25.44 ms. First real HTTP response: 48.39 ms. The HTTP load run completed all
+300 responses with p95 81.73 ms, maximum 119.84 ms, client queue p95 0.29 ms,
+application p95 46.24 ms and SQL execution p95 21.89 ms. At most four SQL
+statements were captured per request, including authentication and auditing.
 
-Ruff, formatting, mypy, all three module-boundary contracts, TypeScript, ESLint,
-the production build and API schema/generation checks passed locally. The flagged
-frontend test callbacks are split into groups below 50 lines. The API returns
-`can_resume` from the shared server edit policy; access tests explicitly cover
-shared staff scope and anonymized-file refusal. These results are local Docker
-and frontend test results, not a passing GitHub CI run. CI verification remains
-pending after the changes are committed and pushed. No Docker, database
-connection or CI settings were changed.
+Ruff, formatting, mypy, all three module-boundary contracts and API type/schema
+consistency passed locally for this optimization. The API contract and frontend
+code are unchanged; their preceding local verification passed 435 frontend tests
+with 94.55% total line coverage, TypeScript, ESLint and the production build.
+These are local results, not a passing GitHub CI run. CI must verify the new
+optimization after committing and pushing. No Docker, database connection or CI
+settings were changed.
 
 The local benchmark establishes behavior on the tested development machine.
 Repeat it on staging with its actual worker configuration before claiming the

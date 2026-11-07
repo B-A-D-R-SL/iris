@@ -254,3 +254,30 @@ def test_resume_flags_do_not_add_a_database_query_per_result(client):
     assert len(page.json()["results"]) == 20
     assert all(row["can_resume"] for row in page.json()["results"])
     assert len(twenty) == len(one)
+    household_reads = [
+        entry
+        for entry in twenty
+        if entry["sql"].lstrip().startswith("SELECT")
+        and '"households_household"' in entry["sql"]
+    ]
+    assert len(household_reads) == 1
+
+
+@pytest.mark.parametrize("page", ["0", "-1", "1.5", "unknown", "9" * 80])
+def test_invalid_search_page_numbers_are_refused_without_audit(client, file, page):
+    staff = UserFactory(role="intake_worker")
+    client.force_login(staff)
+    response = client.get(URL, {"q": "elodie", "page": page})
+    assert response.status_code == 404
+    assert search_events(actor=staff.pk).count() == 0
+
+
+def test_last_page_shortcut_keeps_the_expected_count_and_links(client):
+    files = [HouseholdFactory(member_number=f"IR-{i:06d}") for i in range(3)]
+    client.force_login(UserFactory(role="admin"))
+    response = client.get(URL, {"q": "Exemple", "page": "last", "page_size": 2})
+    assert response.status_code == 200
+    page = response.json()
+    assert page["count"] == 3
+    assert [row["id"] for row in page["results"]] == [str(files[2].pk)]
+    assert page["next"] is None and page["previous"] is not None
