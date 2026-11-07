@@ -614,3 +614,10 @@ At least half of the AI-assisted features need an example here. For each one:
   - While checking the fixes, we found that the `frontend` Docker container keeps the code copied at build time, so frontend checks run with `docker compose exec frontend` used stale files. The frontend checks were re-run in a container with the working folder mounted: 359 tests pass at 93% coverage (categories feature 94%). Backend after the fixes: 727 tests pass at 93% coverage.
 - **Remaining:**
   - Peer review and CI.
+
+## SET-33 — Release 1 colour prototype specification (draft, November 7, 2026)
+
+- **Tool:** ChatGPT (OpenAI), with connected GitHub and read-only Figma access.
+- **AI contribution:** 50% or more AI-generated for `docs/03-design/release1-colour-prototype-spec.md`.
+- **Use:** Compared the existing B.A.D.R. Figma brand colours and original wireframe layout with the documented forms, business rules, roles, routes, accessibility targets and #651 acceptance criteria; drafted a design handoff and measured specified contrast pairs.
+- **Human verification required:** Check the resulting document and actual Figma mockups against the running app, confirm policy defaults, perform real Figma colour-blindness simulation and interactive flow review. The connector refused Figma edits in read-only mode, so this entry does **not** claim any Figma designs were generated or modified.
