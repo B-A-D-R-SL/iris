@@ -94,6 +94,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 - **Locking:** ChatGPT helped expose the lock-and-check context and split the concurrency test. The caller saves inside the transaction while address and person locks are held.
 
+- **Submission history:** ChatGPT helped record submission actors and roles in the household transaction and log outcomes only after commit. Tests cover audit failures, outer rollbacks and logs without personal data.
+
 ### T-09.62.3 Audit search API and screen (#550)
 
 - **AI assistance:** ChatGPT/Codex helped write and review code for the

@@ -1,5 +1,5 @@
 # AI contribution: 50% or more AI-generated
-"""Household draft, members, and transactionally persisted draft-change audit."""
+"""Household records and registration history."""
 
 import uuid
 
@@ -202,14 +202,12 @@ class Member(models.Model):
 
 
 class HouseholdDraftEvent(models.Model):
-    """Write-once household-specific audit until US-62 is integrated.
-
-    Keep event payload free of names, DOB, phone, address and email.
-    """
+    """Keep registration history separate from personal data."""
 
     class Action(models.TextChoices):
         CREATED = "created", _("Created")
         UPDATED = "updated", _("Updated")
+        SUBMITTED = "submitted", _("Submitted")
 
     id = models.BigAutoField(primary_key=True)
     household = models.ForeignKey(

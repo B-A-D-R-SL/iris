@@ -75,6 +75,10 @@ For existing databases, run `python manage.py seed_rules` after deployment.
 It adds missing rule types without replacing existing versions. No data migration
 is needed for this setting; normal schema migrations still apply.
 
+Each submission records a `submitted` household event with its actor, actor role
+and time, in the same transaction. Operational logs use `household_submitted` or
+`household_duplicate_review` only after commit, with no personal data or IDs.
+
 Migration `0004_normalize_duplicate_keys` updates old search keys and clears keys
 for missing or removed personal data. Names and addresses stay unchanged.
 Rollback keeps the updated keys because older schemas also accept them.
@@ -131,14 +135,10 @@ details creates it, and incomplete details return a `holder` field error.
 
 ## Audit integration / US-62 dependency
 
-`HouseholdDraftEvent` currently captures a **minimal internal audit trail** of
-create/update actions, actor ID, role at the moment of action, and timestamp,
-without personal-data payloads. It is an interim solution because `audit` is a
-SET-14 scaffold on `main` (as observed 2026-10-31). **Coordinate with the US-62
-owner before merging**: when the central `audit.services.record()` supports
-household creation/edit events, replace the local event implementation with it,
-and decide whether to migrate existing local event history. Do not send action
-names unsupported by the current US-62 branch, which only handles view/decision.
+`HouseholdDraftEvent` stores create, update and submission actions with the actor,
+role and time. It has no personal-data payload. Events are saved in the same
+transaction as the household change. The central audit service currently accepts
+view and decision actions, so registration actions remain in the household history.
 
 The walk-in screens (T-03.17.4) are in `frontend/src/areas/staff/pages/WalkIn/`.
 Approval, income notices, approval/rejection transitions and the set-password

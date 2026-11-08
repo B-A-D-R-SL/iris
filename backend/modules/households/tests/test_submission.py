@@ -7,7 +7,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 
 from modules.accounts.tests.factories import UserFactory
-from modules.households.models import Household, Member
+from modules.households.models import Household, HouseholdDraftEvent, Member
 from modules.households.services import submit_walk_in
 from modules.households.tests.factories import HouseholdFactory, MemberFactory
 from modules.stores.tests.factories import StoreFactory
@@ -153,6 +153,9 @@ def test_more_than_fifteen_members_cannot_be_submitted(
     household.refresh_from_db()
     assert household.status == Household.Status.DRAFT
     assert household.submitted_at is None
+    assert not household.draft_events.filter(
+        action=HouseholdDraftEvent.Action.SUBMITTED
+    ).exists()
 
 
 # rule: BR-HH-001

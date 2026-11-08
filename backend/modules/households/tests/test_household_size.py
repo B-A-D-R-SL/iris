@@ -86,6 +86,7 @@ def test_submission_reads_configured_limit(
     assert household.status == (
         Household.Status.SUBMITTED if total == 3 else Household.Status.DRAFT
     )
+    assert household.draft_events.filter(action="submitted").count() == (total == 3)
 
 
 # rule: BR-HH-001

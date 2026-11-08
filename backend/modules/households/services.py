@@ -2,6 +2,7 @@
 """Create, edit and submit walk-in files for staff."""
 
 import hashlib
+import logging
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from typing import Any
@@ -17,6 +18,8 @@ from django.utils.translation import gettext_lazy as _
 from modules.households.limits import max_household_people
 from modules.households.models import Household, HouseholdDraftEvent, Member
 from modules.households.queries import find_possible_duplicates
+
+logger = logging.getLogger("iris.households")
 
 STAFF_ROLES = frozenset(("intake_worker", "admin"))
 ADDRESS_FIELDS = frozenset(
@@ -287,4 +290,12 @@ def submit_walk_in(household_id: UUID, staff_user: AbstractBaseUser) -> Househol
         household.status_reason = POSSIBLE_DUPLICATE if duplicate else ""
         household.submitted_at = timezone.now()
         household.save()
+        HouseholdDraftEvent.objects.create(
+            household=household,
+            actor_id=staff_user.pk,
+            actor_role=getattr(staff_user, "role", ""),
+            action=HouseholdDraftEvent.Action.SUBMITTED,
+        )
+        event = "household_duplicate_review" if duplicate else "household_submitted"
+        transaction.on_commit(lambda: logger.info(event, extra={"event": event}))
     return household
