@@ -2,7 +2,8 @@
 """Create, edit and submit walk-in files for staff."""
 
 import hashlib
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from typing import Any
 from uuid import UUID
 
@@ -254,28 +255,36 @@ def _lock_duplicate_keys(household: Household, members: list[Member]) -> None:
             cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_id])
 
 
-@transaction.atomic
+@contextmanager
+def locked_duplicate_check(
+    household_id: UUID, staff_user: AbstractBaseUser
+) -> Iterator[tuple[Household, bool]]:
+    """Hold submission locks while the caller saves the checked draft."""
+    with transaction.atomic():
+        _require_staff(staff_user)
+        household = Household.objects.select_for_update().get(
+            pk=household_id, channel=Household.Channel.WALK_IN
+        )
+        if household.status != Household.Status.DRAFT:
+            raise ValidationError(
+                {"status": _("Only draft household files can be submitted.")}
+            )
+        members = _submission_members(household)
+        _lock_duplicate_keys(household, members)
+        for member in members:
+            member.save(update_fields=["person_key"])
+        yield household, find_possible_duplicates(household).exists()
+
+
 def submit_walk_in(household_id: UUID, staff_user: AbstractBaseUser) -> Household:
     """Submit a draft or send a possible duplicate for review."""
-    _require_staff(staff_user)
-    # Block draft edits while this submission runs.
-    household = Household.objects.select_for_update().get(
-        pk=household_id, channel=Household.Channel.WALK_IN
-    )
-    if household.status != Household.Status.DRAFT:
-        raise ValidationError(
-            {"status": _("Only draft household files can be submitted.")}
+    with locked_duplicate_check(household_id, staff_user) as (household, duplicate):
+        household.status = (
+            Household.Status.REVIEW_REQUIRED
+            if duplicate
+            else Household.Status.SUBMITTED
         )
-    members = _submission_members(household)
-    _lock_duplicate_keys(household, members)
-    # Save the keys rebuilt by full_clean().
-    for member in members:
-        member.save(update_fields=["person_key"])
-    duplicate = find_possible_duplicates(household).exists()
-    household.status = (
-        Household.Status.REVIEW_REQUIRED if duplicate else Household.Status.SUBMITTED
-    )
-    household.status_reason = POSSIBLE_DUPLICATE if duplicate else ""
-    household.submitted_at = timezone.now()
-    household.save()
+        household.status_reason = POSSIBLE_DUPLICATE if duplicate else ""
+        household.submitted_at = timezone.now()
+        household.save()
     return household

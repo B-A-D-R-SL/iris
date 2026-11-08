@@ -92,6 +92,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 - **Household size:** draft, submission and serializer checks share `household_size.max_people`. The approved seed default is 15 including the holder (BR-HH-001). Tests cover configured limits, missing configuration and idempotent seeding. Existing databases need `python manage.py seed_rules`; existing versions are kept.
 
+- **Locking:** ChatGPT helped expose the lock-and-check context and split the concurrency test. The caller saves inside the transaction while address and person locks are held.
+
 ### T-09.62.3 Audit search API and screen (#550)
 
 - **AI assistance:** ChatGPT/Codex helped write and review code for the

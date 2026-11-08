@@ -13,6 +13,8 @@ account. The record also preserves staff verification and creation timestamps.
 - `services.create_walk_in(data, staff_user) -> Household`
 - `services.update_draft(household_id, data, staff_user) -> Household`
 - `services.submit_walk_in(household_id, staff_user) -> Household`
+- `services.locked_duplicate_check(household_id, staff_user)`: context for a
+  checked draft and an evaluated duplicate flag; save inside the context.
 - `queries.walk_in_for_staff(household_id) -> Household | None`
 - `queries.find_possible_duplicates(household) -> QuerySet[Household]`
 - `domain/address.py`: `normalize_address`, `normalize_postal_code`
@@ -60,10 +62,10 @@ empty keys, the file itself, and files whose personal data was removed.
 files do not count. Expired approvals still count. The issue does not define
 "active", so the owner needs to confirm this choice.
 
-Submission locks the draft to prevent edits. It then locks the address and
-people in a fixed order before checking for duplicates. PostgreSQL holds these
-locks until the outer transaction commits or rolls back. Future approval code
-must follow the same steps before approving a file.
+`locked_duplicate_check()` locks the draft, address and people before evaluating
+the match. Save the result inside its `with` block. PostgreSQL holds these locks
+until the outer transaction commits or rolls back. The query alone is a preview.
+Future approval code must use the same lock-and-check operation.
 
 Draft, submission and serializer checks read `household_size.max_people` through
 `limits.py`. The seed default is 15 people total, including the holder.

@@ -28,10 +28,7 @@ def walk_in_for_staff(household_id: UUID) -> Household | None:
 
 
 def find_possible_duplicates(household: Household) -> QuerySet[Household]:
-    """Find other open files with the same address/unit or person.
-
-    Submission must lock the keys before calling this query.
-    """
+    """Preview matches; use services.locked_duplicate_check() before writing."""
     if household._state.adding:
         raise ValueError("A saved household is required.")
 
