@@ -248,4 +248,4 @@ The initial frontend and backend foundations, Docker Compose environment, databa
 
 The initial backend and frontend checks passed. The additional strict TypeScript, logging, routing, and formatting changes should be revalidated using the commands above before the pull request.
 
-**Known limitation:** Azurite starts successfully, but Blob Storage operations have not yet passed integration testing due to an API-version incompatibility with the newer Azure SDK. This remains to be addressed.
+**Azurite:** Compose starts Azurite with `--skipApiVersionCheck`, so the current Azure SDK in `backend/uv.lock` can store and read blobs even when it uses a newer storage API version than Azurite 3.35 knows (checked for T-03.18.2: private container, upload, download and delete).

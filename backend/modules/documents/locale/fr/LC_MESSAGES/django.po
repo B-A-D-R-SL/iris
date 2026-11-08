@@ -1,0 +1,77 @@
+# AI contribution: 50% or more AI-generated
+msgid ""
+msgstr ""
+"Project-Id-Version: Iris\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-AI-Contribution: 50% or more AI-generated\n"
+
+msgid "Enter this information."
+msgstr "Entrez cette information."
+
+#, python-format
+msgid "Enter a tax year from %(year)s on."
+msgstr "Entrez une année d'imposition à partir de %(year)s."
+
+msgid "Enter a tax year that has ended."
+msgstr "Entrez une année d'imposition terminée."
+
+msgid "The notice date must be after the end of the tax year."
+msgstr "La date de l'avis doit suivre la fin de l'année d'imposition."
+
+msgid "The notice date cannot be in the future."
+msgstr "La date de l'avis ne peut pas être dans le futur."
+
+msgid "Enter an amount of 0 or more."
+msgstr "Entrez un montant de 0 ou plus."
+
+msgid "Explain why this person did not file a tax return."
+msgstr "Expliquez pourquoi cette personne n'a pas produit de déclaration de revenus."
+
+#, python-format
+msgid "Use at most %(count)s characters."
+msgstr "Utilisez au plus %(count)s caractères."
+
+msgid "Leave this empty when the person did not file a tax return."
+msgstr "Laissez ce champ vide si la personne n'a pas produit de déclaration de revenus."
+
+msgid "The file is empty."
+msgstr "Le fichier est vide."
+
+msgid "The file is larger than the allowed size."
+msgstr "Le fichier dépasse la taille permise."
+
+msgid "Choose a JPEG, PNG or PDF file."
+msgstr "Choisissez un fichier JPEG, PNG ou PDF."
+
+msgid "Only active intake workers and admins can manage notices."
+msgstr "Seuls les intervenant·e·s à l'accueil et les administrateurs actifs peuvent gérer les avis de cotisation."
+
+msgid "Notice storage is unavailable. Try again later."
+msgstr "Le stockage des avis est indisponible. Réessayez plus tard."
+
+msgid "The request was refused."
+msgstr "La demande a été refusée."
+
+msgid "This notice has no file."
+msgstr "Cet avis n'a pas de fichier."
+
+msgid "This file link is invalid or has expired."
+msgstr "Ce lien de fichier est invalide ou expiré."
+
+msgid "Leave the reason empty when the person filed a tax return."
+msgstr "Laissez la raison vide si la personne a produit une déclaration de revenus."
+
+msgid "Confirmed"
+msgstr "Confirmé"
+
+msgid "Did not file"
+msgstr "N'a pas produit de déclaration"
+
+msgid "Staff"
+msgstr "Personnel"
+
+msgid "Notice settings are not set up yet. Ask an administrator."
+msgstr "Les paramètres des avis ne sont pas encore configurés. Contactez un administrateur."

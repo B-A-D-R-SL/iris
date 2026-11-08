@@ -7,7 +7,8 @@ from .address import _fold
 
 MAX_NAME_LENGTH = 100
 MAX_PERSON_AGE = 120
-MIN_HOLDER_AGE = 18
+ADULT_AGE = 18
+MIN_HOLDER_AGE = ADULT_AGE
 
 
 class BirthDateOutOfRange(ValueError):
@@ -35,6 +36,11 @@ def age_in_years(birth: date, today: date) -> int:
     return (
         today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
     )
+
+
+def is_adult(birth: date, today: date) -> bool:
+    """18 or older on `today` (BR-DOC-007; eligibility counts the same adults)."""
+    return age_in_years(birth, today) >= ADULT_AGE
 
 
 def validate_birth_date(birth: date, today: date, *, holder: bool = False) -> None:
