@@ -45,6 +45,12 @@ The eligibility owner and reviewers must confirm them before merge.
 Threshold values come from the versioned `lico_thresholds` RuleSet,
 not from hardcoded values.
 
+## Household size
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-HH-001 | Drafts and submissions use the active `household_size.max_people` RuleSet limit, including the holder. Approved seed default: 15 people (14 additional members). Missing configuration prevents size validation; there is no runtime fallback. |
+
 ## Duplicate households (US-25)
 
 Rules for #479 and #478. The owner needs to confirm which files count as active.

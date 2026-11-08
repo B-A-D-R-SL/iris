@@ -10,6 +10,14 @@ from django.utils import timezone
 from modules.accounts.tests.factories import UserFactory
 from modules.households.models import Member
 from modules.households.tests.factories import HouseholdFactory, MemberFactory
+from modules.rules.services import publish
+
+
+@pytest.fixture(autouse=True)
+def household_size_rules(request):
+    if request.node.get_closest_marker("django_db") or "db" in request.fixturenames:
+        request.getfixturevalue("db")
+        return publish("household_size", {"max_people": 15}, UserFactory(role="admin"))
 
 
 @pytest.fixture
@@ -22,6 +30,7 @@ def ready_household_factory(submission_worker):
     sequence = count(1)
 
     def create(*, first_name=None, date_of_birth=date(1990, 1, 1), **values):
+        """Distinct holders keep address-only tests from matching by person."""
         defaults = {
             "created_by": submission_worker,
             "identity_checked_in_person": True,

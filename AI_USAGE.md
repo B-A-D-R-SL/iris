@@ -33,7 +33,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
-| US-25 duplicate check and tests (#479, #478) | `backend/modules/households/{queries.py,services.py,api/,tests/,locale/fr/LC_MESSAGES/django.po,migrations/0004_normalize_duplicate_keys.py,README.md}`, `backend/iris/settings/base.py`, `docs/02-requirements/business-rules.md`, `docs/03-design/api.md`, generated API types, `AI_USAGE.md` | 50% or more AI-generated | |
+| US-25 duplicate check and tests (#479, #478) | `backend/modules/households/`, `backend/iris/settings/base.py`, `docs/02-requirements/business-rules.md`, `docs/03-design/api.md`, generated API types, `AI_USAGE.md` | 50% or more AI-generated | [#660](https://github.com/B-A-D-R-SL/iris/pull/660) |
 | T-09.62.1 Audit tests (#548) | `backend/modules/audit/tests/test_audit.py` | 50% or more AI-generated | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-09.62.2 Audit model and service (#549) | `backend/modules/audit/{models.py,services.py,README.md,migrations/}` | 50% or more AI-generated (migrations exempt) | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-01.01.1 Sign-in and sign-out tests (#423) | `backend/modules/accounts/tests/test_accounts.py`, `frontend/src/app/App.test.tsx`, `AI_USAGE.md` | 50% or more AI-generated | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
@@ -89,6 +89,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
 - **Fixes:** migration 0004 updates old search keys. Rollback keeps those keys;
   names and addresses stay unchanged. The API keeps its existing status type name.
   The development database was not migrated.
+
+- **Household size:** draft, submission and serializer checks share `household_size.max_people`. The approved seed default is 15 including the holder (BR-HH-001). Tests cover configured limits, missing configuration and idempotent seeding. Existing databases need `python manage.py seed_rules`; existing versions are kept.
 
 ### T-09.62.3 Audit search API and screen (#550)
 

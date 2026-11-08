@@ -13,6 +13,7 @@ from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from modules.households.limits import max_household_people
 from modules.households.models import Household, HouseholdDraftEvent, Member
 from modules.households.queries import find_possible_duplicates
 
@@ -21,7 +22,6 @@ ADDRESS_FIELDS = frozenset(
     ("street_number", "street_name", "unit", "city", "postal_code")
 )
 MEMBER_FIELDS = frozenset(("first_name", "last_name", "date_of_birth"))
-# Version of the data-processing consent text read to the person.
 CONSENT_TEXT_VERSION = "2026-11-v1"
 POSSIBLE_DUPLICATE = "POSSIBLE_DUPLICATE"
 
@@ -54,7 +54,7 @@ def _apply_address(household: Household, values: Mapping[str, Any]) -> None:
 def _apply_verification(
     household: Household, verified: bool, actor: AbstractBaseUser
 ) -> None:
-    """Record who checked the ID and when; re-sending the same answer changes nothing."""
+    """Keep the original verification time when the answer is unchanged."""
     if verified == household.identity_checked_in_person:
         return
     household.identity_checked_in_person = verified
@@ -63,7 +63,7 @@ def _apply_verification(
 
 
 def _apply_consent(household: Household, given: bool) -> None:
-    """Store when consent was given and which text; keep the first time if re-sent."""
+    """Keep the first consent time when consent is sent again."""
     if not given:
         household.consent_data_processing_at = None
         household.consent_text_version = ""
@@ -88,15 +88,16 @@ def _save_member(
 
 
 def _replace_other_members(household: Household, members: list[dict[str, Any]]) -> None:
-    if len(members) > 14:
+    limit = max_household_people()
+    if len(members) > limit - 1:
         raise ValidationError(
             {
                 "members": _(
-                    "A household can have at most 15 people including the holder."
+                    "A household can have at most %(limit)s people including the holder."
                 )
+                % {"limit": limit}
             }
         )
-    # This is only allowed in draft state; notice records must not reference these rows yet.
     try:
         household.members.exclude(relation=Member.Relation.HOLDER).delete()
     except ProtectedError as exc:
@@ -117,7 +118,7 @@ def _replace_other_members(household: Household, members: list[dict[str, Any]]) 
 
 @transaction.atomic
 def create_walk_in(data: Mapping[str, Any], staff_user: AbstractBaseUser) -> Household:
-    """Create a resumable walk-in draft. The holder is automatically member one."""
+    """The holder is automatically member one."""
     _require_staff(staff_user)
     holder = data.get("holder")
     if not isinstance(holder, Mapping) or not MEMBER_FIELDS.issubset(holder):
@@ -201,7 +202,6 @@ def update_draft(
 
 
 def _submission_members(household: Household) -> list[Member]:
-    """Check the saved address, consent, identity check and members."""
     if household.anonymized_at is not None:
         raise ValidationError({"status": _("An anonymized file cannot be submitted.")})
     household.full_clean()
@@ -220,12 +220,14 @@ def _submission_members(household: Household) -> list[Member]:
         raise ValidationError(
             {"holder": _("Enter the holder's name and date of birth.")}
         )
-    if len(members) > 15:
+    limit = max_household_people()
+    if len(members) > limit:
         raise ValidationError(
             {
                 "members": _(
-                    "A household can have at most 15 people including the holder."
+                    "A household can have at most %(limit)s people including the holder."
                 )
+                % {"limit": limit}
             }
         )
     for member in members:

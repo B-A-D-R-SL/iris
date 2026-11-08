@@ -1,5 +1,4 @@
 # AI contribution: 50% or more AI-generated
-"""Tests for submission, permissions and rollback."""
 
 from unittest.mock import patch
 
@@ -142,6 +141,7 @@ def test_anonymized_draft_cannot_be_submitted(
     assert household.status == Household.Status.DRAFT
 
 
+# rule: BR-HH-001
 def test_more_than_fifteen_members_cannot_be_submitted(
     ready_household_factory, submission_worker
 ):
@@ -152,6 +152,18 @@ def test_more_than_fifteen_members_cannot_be_submitted(
     assert "members" in exc.value.message_dict
     household.refresh_from_db()
     assert household.status == Household.Status.DRAFT
+    assert household.submitted_at is None
+
+
+# rule: BR-HH-001
+def test_exactly_fifteen_people_can_submit(ready_household_factory, submission_worker):
+    household = ready_household_factory()
+    MemberFactory.create_batch(14, household=household)
+    result = submit_walk_in(household.pk, submission_worker)
+    household.refresh_from_db()
+    assert household.members.count() == 15
+    assert household.status == result.status == Household.Status.SUBMITTED
+    assert household.submitted_at is not None
 
 
 def test_submission_revalidates_member_data(ready_household_factory, submission_worker):

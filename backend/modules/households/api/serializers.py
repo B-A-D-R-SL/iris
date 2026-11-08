@@ -5,6 +5,7 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
@@ -12,6 +13,7 @@ from rest_framework import serializers
 
 from modules.households.domain.address import normalize_postal_code
 from modules.households.domain.person import valid_name, validate_birth_date
+from modules.households.limits import max_household_people
 from modules.households.messages import domain_error_message
 from modules.households.models import Household, Member
 
@@ -136,8 +138,7 @@ class MemberInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
 
 @extend_schema_field(MemberInputSerializer(many=True))
 class CompleteMembersField(serializers.Field):
-    """The member list replaces every other member, so each item must be complete,
-    even in a PATCH (a nested serializer would inherit the PATCH's partial mode)."""
+    """Require complete replacements; nested serializers inherit PATCH partial mode."""
 
     def to_internal_value(self, data: Any) -> list[dict[str, Any]]:
         if not isinstance(data, list):
@@ -162,9 +163,15 @@ class WalkInDraftInputSerializer(RejectUnknownFieldsMixin, serializers.Serialize
     consent_data_processing = serializers.BooleanField(required=False)
 
     def validate_members(self, members):
-        if len(members) > 14:
+        """The holder already occupies one place in the household."""
+        try:
+            limit = max_household_people()
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
+        if len(members) > limit - 1:
             raise serializers.ValidationError(
-                _("Add at most 14 people besides the holder.")
+                _("Add at most %(limit)s people besides the holder.")
+                % {"limit": limit - 1}
             )
         return members
 

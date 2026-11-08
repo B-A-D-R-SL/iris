@@ -169,7 +169,7 @@ The [address fields](#address-fields), with these differences: the unit label is
 
 ### Step 3: household members
 
-The holder is person 1 automatically. "Ajouter une personne / Add a person" adds a row; at most 15 people, holder included.
+The holder is person 1 automatically. "Ajouter une personne / Add a person" adds a row. The household limit comes from `household_size.max_people`; the seed default is 15 people, including the holder.
 
 | Field | Français | English | Type | Required | Rules |
 | --- | --- | --- | --- | --- | --- |
@@ -215,5 +215,4 @@ Used by `goods_categories` (partner application) and `category` (listing). Seed 
 | `clothing` | Vêtements | Clothing | No |
 | `school_supplies` | Fournitures scolaires | School supplies | No |
 | `other` | Autre | Other | No |
-
 

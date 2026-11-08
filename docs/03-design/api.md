@@ -162,8 +162,9 @@ US-13 staff screens exist.
 | GET/POST   | `/api/staff/households/{id}/notes/`                     | Intake worker, admin | Staff notes                                       | Planned |
 
 Submission accepts `{}`. Active intake workers and admins can submit any
-worker's walk-in draft. It needs an address, one holder, at most 15 members,
-an identity check, and consent. Approval is separate.
+worker's walk-in draft. It needs an address, one holder, an identity check, and
+consent. The household limit comes from `household_size.max_people`; the seed
+default is 15 people, including the holder. Approval is separate.
 
 Success returns 200 with `{id, status, status_reason, submitted_at}`. A clean file
 is `submitted`; a possible duplicate is `review_required` with reason

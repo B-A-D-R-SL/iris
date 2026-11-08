@@ -43,8 +43,9 @@ signed-out requests return 401.
 
 ## Duplicate checking (US-25, #479 and #478)
 
-Submission needs a complete address, one holder, at most 15 members, an identity
-check, and consent. Income notices and approval belong to US-18.
+Submission needs a complete address, one holder, an identity check, and consent.
+The household limit comes from `household_size.max_people`; the seed default is
+15 people, including the holder. Income notices and approval belong to US-18.
 
 A clean file becomes `submitted`. A matching address (including unit) or person
 (first name, last name and birth date) sends it to `review_required` with reason
@@ -63,6 +64,14 @@ Submission locks the draft to prevent edits. It then locks the address and
 people in a fixed order before checking for duplicates. PostgreSQL holds these
 locks until the outer transaction commits or rolls back. Future approval code
 must follow the same steps before approving a file.
+
+Draft, submission and serializer checks read `household_size.max_people` through
+`limits.py`. The seed default is 15 people total, including the holder.
+This is the approved rule `BR-HH-001`.
+Missing configuration is refused, not replaced with a runtime default.
+For existing databases, run `python manage.py seed_rules` after deployment.
+It adds missing rule types without replacing existing versions. No data migration
+is needed for this setting; normal schema migrations still apply.
 
 Migration `0004_normalize_duplicate_keys` updates old search keys and clears keys
 for missing or removed personal data. Names and addresses stay unchanged.
