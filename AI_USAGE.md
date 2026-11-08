@@ -38,6 +38,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| US-63 Household search (#553, #554; tests #552) | `backend/modules/households/`, `backend/modules/audit/{services.py,README.md,tests/test_household_views.py}`, `backend/iris/{asgi.py,settings/base.py,settings/local.py}`, `backend/{.env.example,tests/test_backend_config.py}`, `frontend/src/app/{App,RequireHouseholdSearch}.tsx`, `frontend/src/areas/staff/pages/Search*`, `frontend/src/features/households/{searchApi,useHouseholdSearch}*`, `frontend/src/test/{householdSearch.ts,render.tsx}`, routes, translations, generated API types and search documentation | 50% or more AI-generated; generated migration and API types exempt | [#662](https://github.com/B-A-D-R-SL/iris/pull/662) |
 | FIX-15 Seed command boundary and household expiry (#641) | `backend/iris/management/commands/seed.py`, `backend/modules/households/domain/expiry.py`, `backend/modules/households/models.py`, `backend/modules/households/tests/test_expiry.py`, `backend/tests/test_seed.py`, `backend/pyproject.toml`, `docs/04-architecture/architecture.md`, `AI_USAGE.md` | 50% or more AI-generated | [#663](https://github.com/B-A-D-R-SL/iris/pull/663) |
 | T-01.04.3 Invitation password page (#431) | `frontend/src/areas/public/pages/AcceptInvitation{,.test}.tsx`, `frontend/src/features/accounts/invitations{,.test}.ts`, `frontend/src/app/App.tsx`, `frontend/src/shared/i18n/{fr,en}.json`, `frontend/src/shared/logger.ts`, `.coderabbit.yaml`, `backend/modules/accounts/README.md`, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
 | T-01.04.2 Invitation model, services and acceptance API (#430) | `backend/modules/accounts/{models.py,services.py,api/,locale/fr/LC_MESSAGES/,README.md,migrations/0005_invitation.py}`, `backend/modules/accounts/tests/{conftest,test_invitations,test_invitation_logging,test_invitation_errors}.py`, `backend/modules/rules/{domain/schemas.py,tests/test_invitation_rules.py}`, `docs/02-requirements/business-rules.md`, `docs/03-design/{api,database-schema,domain-model}.md`, `docs/04-architecture/architecture.md`, `frontend/src/shared/api/generated.d.ts`, `AI_USAGE.md` | 50% or more AI-generated for source changes; Django migration, compiled catalog and generated API declarations exempt | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
@@ -83,6 +84,37 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | T-05.35.2 Category admin API and screen (#503) and T-05.35.1 tests (#502) | `backend/modules/listings/tests/test_category_admin.py`, `backend/modules/categories/` (`domain/rules.py`, `queries.py`, `services.py`, `api/serializers.py`, `api/staff_views.py`, `api/staff_urls.py`, `tests/test_staff_api.py`, French catalog, README), `backend/iris/urls.py`, `backend/pyproject.toml` (test-only import exceptions), `frontend/src/features/categories/` (`adminApi.ts`, `categoryForm.ts`, `CategoryDialog.tsx`, `CategoriesPage.tsx` and tests), translations, regenerated API types, `docs/02-requirements/forms-and-fields.md`, `docs/03-design/{api,database-schema}.md`, `AI_USAGE.md` | 50% or more AI-generated (generated API declarations and compiled catalog exempt) | Not yet opened (`user_story/US-35` branch) |
 
 ## Examples, verification and corrections
+
+### US-63 Household search and tests (#552, #553, #554)
+
+- **What the AI produced:** under Mark's direction, the staff search API,
+  normalized search columns and indexes, migration, audit integration and
+  French/English search screen with pagination and a typing delay. Search covers
+  partial or accented member names, email, phone, address and member number.
+  ChatGPT also helped write tests, generated API types and documentation.
+- **Owner's decisions:** Mark requested the backend before the frontend and
+  required the existing Docker setup to be preserved. For safety, he reviewed
+  the database connection, backup and migration.
+- **Verification:** Mark reviewed the implementation, saved-draft flow, local
+  database, search fields and household/member links. Automated checks cover role
+  permissions, shared staff access, anonymized-file refusal, read-only queries,
+  API/database integration, accents, pagination, migration reversal, audit failure
+  handling, response validation and search authorization in the frontend. Lint,
+  formatting, type checks, module boundaries and migration checks are part of the
+  verification workflow. Current test and coverage results belong in CI output;
+  this record does not retain numerical performance or coverage snapshots for US-63.
+- **Problems found and corrections:** normalized search columns and trigram
+  indexes address broad searches, WSGI startup validates routes before accepting
+  requests, and healthy database connection reuse avoids repeated connection
+  setup. The ASGI entry point identifies its server interface before Django loads
+  settings; settings disable persistence without rewriting the configured lifetime.
+  Test diagnostics use structured logging; the subprocess JSON protocol remains
+  separate. Existing PostgreSQL extensions are reused in their installed schemas.
+  Search access is decided by the API, including the frontend screen's access
+  probe. Mark confirmed shared staff access and accepted the central AI inventory's
+  size. Staging and phone/4G checks remain deployment verification. Repeatable
+  commands and thresholds are in the [verification guide](docs/guides/household-search.md).
+
 
 ### T-01.04.3 Invitation password page (#431)
 

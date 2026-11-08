@@ -139,6 +139,7 @@ SPECTACULAR_SETTINGS = {
     # Explicit shared enum for the account and household language fields.
     "ENUM_NAME_OVERRIDES": {
         "LanguageEnum": [("fr", "Français"), ("en", "English")],
+        "HouseholdStatusEnum": "modules.households.models.HouseholdStatus",
     },
     # Document the Django health view without changing its authentication or behavior.
     "APPEND_PATHS": {
@@ -207,6 +208,17 @@ if not database_url:
 DATABASES = {"default": env.db("DATABASE_URL")}
 if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
     raise ImproperlyConfigured("DATABASE_URL must use PostgreSQL")
+
+# Reuse each WSGI worker's connection instead of authenticating to PostgreSQL
+# on every request. Django recommends disabling persistence under ASGI; its
+# entry point identifies the interface before settings load. Local settings
+# also disable persistence for runserver.
+DATABASES["default"]["CONN_MAX_AGE"] = (
+    0
+    if env("IRIS_SERVER_INTERFACE", default="wsgi") == "asgi"
+    else env.int("DATABASE_CONN_MAX_AGE", default=60)
+)
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 
 
 # Password validation

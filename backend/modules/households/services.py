@@ -13,8 +13,8 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from modules.households.models import Household, HouseholdDraftEvent, Member
+from modules.households.policies import can_manage_walk_ins, is_editable_walk_in
 
-STAFF_ROLES = frozenset(("intake_worker", "admin"))
 ADDRESS_FIELDS = frozenset(
     ("street_number", "street_name", "unit", "city", "postal_code")
 )
@@ -24,17 +24,15 @@ CONSENT_TEXT_VERSION = "2026-11-v1"
 
 
 def _require_staff(user: AbstractBaseUser) -> None:
-    if (
-        not user.is_authenticated
-        or not user.is_active
-        or getattr(user, "role", None) not in STAFF_ROLES
-    ):
+    """Enforce the shared staff policy before inspecting or changing a household."""
+    if not can_manage_walk_ins(user):
         raise PermissionDenied(
             _("Only active intake workers and admins can manage walk-ins.")
         )
 
 
 def _apply_holder(household: Household, values: Mapping[str, Any]) -> None:
+    """Apply supplied holder contact fields without clearing omitted draft values."""
     if "phone" in values:
         household.phone = values["phone"]
     if "email" in values:
@@ -44,6 +42,7 @@ def _apply_holder(household: Household, values: Mapping[str, Any]) -> None:
 
 
 def _apply_address(household: Household, values: Mapping[str, Any]) -> None:
+    """Update only permitted address fields and normalize empty values."""
     for name in ADDRESS_FIELDS & values.keys():
         setattr(household, name, values[name] or "")
 
@@ -75,6 +74,7 @@ def _save_member(
     relation: str,
     member: Member | None = None,
 ) -> Member:
+    """Validate and save a new member or the existing holder in the draft transaction."""
     if member is None:
         member = Member(household=household, relation=relation)
     for field in MEMBER_FIELDS & values.keys():
@@ -85,6 +85,7 @@ def _save_member(
 
 
 def _replace_other_members(household: Household, members: list[dict[str, Any]]) -> None:
+    """Replace draft dependants while refusing oversized lists or referenced records."""
     if len(members) > 14:
         raise ValidationError(
             {
@@ -159,9 +160,11 @@ def update_draft(
     if not data:
         raise ValidationError({"non_field_errors": _("Provide at least one change.")})
     household = Household.objects.select_for_update().get(
-        id=household_id, channel=Household.Channel.WALK_IN
+        id=household_id,
+        channel=Household.Channel.WALK_IN,
+        anonymized_at__isnull=True,
     )
-    if household.status != Household.Status.DRAFT:
+    if not is_editable_walk_in(household):
         raise ValidationError(
             {"status": _("Only draft household files can be edited.")}
         )
