@@ -2,7 +2,7 @@
 # Stores module
 
 **Owner pair:** Fairness & partners
-**Status:** Store (US-11) and partner applications (US-12) implemented; decisions (US-13) planned
+**Status:** Store (US-11) and partner applications (US-12) implemented; decision service (US-13) implemented; staff API and screens planned
 
 ## Responsibility
 
@@ -38,6 +38,9 @@ lead to them, within the Iris modular monolith.
   `ApplicationAlreadyOpen` while the contact email has a submitted application,
   and a `ValidationError` for inactive or unknown category codes.
 
+- `services.approve_application(application, admin, *, mailer=None)`: creates a store and store-manager invitation in one transaction, records the decision, and sends the invitation after commit. Configure `FRONTEND_URL` as the public frontend origin. The application’s free-text hours are preserved in `opening_hours.notes` until a structured schedule is provided.
+- `services.reject_application(application, admin, reason, *, mailer=None)`: requires a non-blank reason of at most 500 characters, records the decision, and emails the applicant after commit. Both functions require an active admin and raise `ApplicationAlreadyDecided` if the application is no longer submitted. Mail delivery failures are logged without personal data and do not undo the decision.
+
 ## Endpoints
 
 - `POST /api/partner-applications/`: public, 5 requests per hour per IP. Contract
@@ -46,6 +49,8 @@ lead to them, within the Iris modular monolith.
 ## Dependencies
 
 - `categories.queries`: active category codes for `goods_categories`.
+- `accounts.services`: manager invitation issuance.
+- `audit.services`: decision audit events.
 - `adapters.mailer`: confirmation email (`SmtpMailer`; Mailpit locally). Moves to
   the templated email system and background jobs with US-57.
 
@@ -56,4 +61,4 @@ Do not import another module's models or internal domain code.
 
 ## Audit events
 
-None yet. US-13 records approval and rejection decisions in the audit log.
+Approval and rejection record a `decision` on `partner_application`, with only the outcome in metadata.

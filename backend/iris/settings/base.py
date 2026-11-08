@@ -35,6 +35,9 @@ DEBUG = False
 
 ALLOWED_HOSTS: list[str] = []
 
+# Public frontend origin used to construct invitation links.
+FRONTEND_URL = env("FRONTEND_URL", default="")
+
 
 # Application definition
 

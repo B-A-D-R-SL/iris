@@ -139,3 +139,143 @@ def submit_application(
             raise ApplicationAlreadyOpen(email) from None
         raise
     return application
+
+
+class ApplicationAlreadyDecided(Exception):
+    """The application is no longer awaiting a decision."""
+
+
+def _locked_application(
+    application: PartnerApplication, admin: Any
+) -> PartnerApplication:
+    from django.core.exceptions import PermissionDenied
+
+    if (
+        not admin
+        or not admin.is_authenticated
+        or not admin.is_active
+        or admin.role != "admin"
+    ):
+        raise PermissionDenied("An active admin is required.")
+    locked = PartnerApplication.objects.select_for_update().get(pk=application.pk)
+    if locked.status != ApplicationStatus.SUBMITTED:
+        raise ApplicationAlreadyDecided
+    return locked
+
+
+def _send_decision(mailer: Mailer, email: str, subject: str, body: str) -> None:
+    try:
+        mailer.send([email], subject, text=body)
+    except Exception:  # noqa: BLE001 - decision must remain committed.
+        logger.error("partner_application_decision_email_failed")
+
+
+@transaction.atomic
+def approve_application(
+    application: PartnerApplication, admin: Any, *, mailer: Mailer | None = None
+) -> PartnerApplication:
+    """Create the store and manager invitation atomically, then email after commit."""
+    from django.conf import settings
+    from django.core.validators import URLValidator
+    from django.utils import timezone
+
+    from modules.accounts import services as account_services
+    from modules.audit import services as audit_services
+
+    application = _locked_application(application, admin)
+    base_url = settings.FRONTEND_URL.rstrip("/")
+    URLValidator(schemes=["https", "http"])(base_url)
+    store = Store(
+        name=application.business_name,
+        street_number=application.street_number,
+        street_name=application.street_name,
+        unit=application.unit,
+        city=application.city,
+        postal_code=application.postal_code,
+        phone=application.contact_phone,
+        email=application.contact_email,
+        opening_hours={"notes": application.opening_hours},
+        application=application,
+    )
+    store.full_clean()
+    store.save()
+    token = account_services.create_invitation(
+        email=application.contact_email,
+        first_name=application.contact_first_name,
+        last_name=application.contact_last_name,
+        role="store_manager",
+        store=store,
+        invited_by=admin,
+    )
+    application.status = ApplicationStatus.APPROVED
+    application.decided_by = admin
+    application.decided_at = timezone.now()
+    application.decision_reason = None
+    application.save(
+        update_fields=["status", "decided_by", "decided_at", "decision_reason"]
+    )
+    audit_services.record(
+        admin,
+        "decision",
+        "partner_application",
+        application.pk,
+        {"outcome": "approved"},
+    )
+    link = f"{base_url}/invitation/{token}"
+    if application.language == ApplicationLanguage.FRENCH:
+        subject = "Votre demande de partenariat a été approuvée"
+        body = f"Bonjour,\n\nVotre demande de partenariat a été approuvée. Créez votre compte :\n{link}\n\nL’équipe Iris"
+    else:
+        subject = "Your partner application has been approved"
+        body = f"Hello,\n\nYour partner application has been approved. Create your account:\n{link}\n\nThe Iris team"
+    sender = mailer if mailer is not None else SmtpMailer()
+    transaction.on_commit(
+        lambda: _send_decision(sender, application.contact_email, subject, body)
+    )
+    return application
+
+
+@transaction.atomic
+def reject_application(
+    application: PartnerApplication,
+    admin: Any,
+    reason: str,
+    *,
+    mailer: Mailer | None = None,
+) -> PartnerApplication:
+    """Record a rejection and notify the applicant after the transaction commits."""
+    from django.utils import timezone
+
+    from modules.audit import services as audit_services
+
+    application = _locked_application(application, admin)
+    if not isinstance(reason, str) or not reason.strip() or len(reason.strip()) > 500:
+        raise ValidationError(
+            {"reason": _("Enter a reason of at most 500 characters.")}
+        )
+    reason = reason.strip()
+    application.status = ApplicationStatus.REJECTED
+    application.decided_by = admin
+    application.decided_at = timezone.now()
+    application.decision_reason = reason
+    application.save(
+        update_fields=["status", "decided_by", "decided_at", "decision_reason"]
+    )
+    audit_services.record(
+        admin,
+        "decision",
+        "partner_application",
+        application.pk,
+        {"outcome": "rejected"},
+    )
+    if application.language == ApplicationLanguage.FRENCH:
+        subject = "Votre demande de partenariat a été refusée"
+        body = f"Bonjour,\n\nVotre demande de partenariat a été refusée.\nMotif : {reason}\n\nL’équipe Iris"
+    else:
+        subject = "Your partner application has been declined"
+        body = f"Hello,\n\nYour partner application has been declined.\nReason: {reason}\n\nThe Iris team"
+    sender = mailer if mailer is not None else SmtpMailer()
+    transaction.on_commit(
+        lambda: _send_decision(sender, application.contact_email, subject, body)
+    )
+    return application
