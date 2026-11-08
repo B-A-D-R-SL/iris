@@ -18,6 +18,10 @@ account. The record also preserves staff verification and creation timestamps.
 - `queries.walk_ins_for_staff(staff_user) -> QuerySet[Household]`
 - `queries.walk_in_for_staff(household_id, staff_user) -> Household | None`
 - `queries.find_possible_duplicates(household) -> QuerySet[Household]`
+- `queries.search(q) -> QuerySet[Household]`: partial, accent-insensitive staff search;
+  reads only and excludes anonymized files. Blank input returns no files.
+- `queries.search_for_staff(q, actor) -> QuerySet[Household]`: the API entry point;
+  validates staff permission and walk-in ownership before pagination.
 - `domain/address.py`: `normalize_address`, `normalize_postal_code`
 - `domain/person.py`: `normalize_person`, age/name validation
 
@@ -29,6 +33,9 @@ creator, verifier or internal keys directly.
 ## API routes
 
 - `POST /api/staff/households/`: create a draft and holder member
+- `GET /api/staff/households/?q=...&page=1&page_size=20`: search household/member
+  names, household email/phone, member number and address. Pages are capped at
+  100 results. Names describe the holder even when another member matched.
 - `GET /api/staff/households/{uuid}/`: read draft and who created it
 - `PATCH /api/staff/households/{uuid}/`: patch draft steps, including members
 - `POST /api/staff/households/{uuid}/submit/`: submit saved registration data,
@@ -90,6 +97,14 @@ Tests cover matches, permissions, French/English errors, the API and database,
 and two submissions at once. They check that the second submission waits, then
 sees the first file only if its transaction commits.
 
+## Search pagination
+
+Numeric search pages fetch the exact total and results in one query using a
+PostgreSQL window count. This avoids executing the same match twice, and keeps
+the count and results in one database snapshot. The response envelope, ordering,
+20-result default and 100-result cap are unchanged. Invalid/overflowing page
+numbers return 404; DRF's optional `page=last` shortcut remains supported.
+
 ## Example draft request
 
 ```json
@@ -146,3 +161,37 @@ The walk-in screens (T-03.17.4) are in `frontend/src/areas/staff/pages/WalkIn/`.
 Approval, income notices, approval/rejection transitions and the set-password
 email belong to US-18 and US-57; they are not implemented here. US-25 adds only
 submission and duplicate-review routing.
+
+## Staff search (US-63, #553 and #554)
+
+Intake workers see their own walk-in files and online files. Admins see all
+non-anonymized files. Ownership is applied before counts, pagination and audits;
+resume actions use the same creator/admin policy as draft edits.
+
+Migration `0004_staff_search_indexes` enables `pg_trgm` and `unaccent`, adds
+stored PostgreSQL generated keys and GIN trigram indexes, and backfills existing
+rows. PostgreSQL maintains the keys for normal saves, updates and bulk writes.
+Existing extensions retain their installed schemas; new extensions use `public`.
+The wrapper pins the installed unaccent function and dictionary. Dictionary
+changes require a migration that recomputes the stored keys. Reversing removes
+the derived keys/indexes and module function, preserves source records, and
+leaves shared extensions installed.
+
+Migration `0006_merge_duplicate_and_search` joins the search and duplicate-check
+migration branches without changing data.
+
+Search never searches the DOB-containing `person_key`. Its explicit response
+contains only holder names, contact/address fields, member number, channel and
+status. The collection's existing POST registration operation is preserved.
+Responses use `Cache-Control: private, no-store`; search text is excluded from
+logs. Each disclosed household ID is recorded through
+`audit.services.record_household_views` in one atomic batch, with empty metadata.
+Audit failure prevents the response from exposing results. HEAD creates no events.
+
+The screen replaces the staff placeholder at `/staff/households`. It supports
+French/English, a 300 ms debounce, cancelled superseded requests, paginated
+results and links to resume existing walk-in drafts. US-64 owns the later full
+household page; this change does not create that page or approval workflows.
+
+See [search verification](../../../docs/guides/household-search.md) for database
+isolation, repeatable benchmarks and the remaining staging/device checks.

@@ -6,9 +6,10 @@ from uuid import UUID
 
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.http import Http404
 from django.utils.translation import gettext_lazy as _
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import GenericAPIView
@@ -17,7 +18,13 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
+from modules.audit import services as audit_services
 from modules.households import queries, services
+from modules.households.api.pagination import HouseholdSearchPagination
+from modules.households.api.search_serializers import (
+    HouseholdSearchInputSerializer,
+    HouseholdSearchResultSerializer,
+)
 from modules.households.api.serializers import (
     WalkInDraftInputSerializer,
     WalkInDraftReadSerializer,
@@ -25,9 +32,11 @@ from modules.households.api.serializers import (
     WalkInSubmissionReadSerializer,
 )
 from modules.households.models import Household
+from modules.households.policies import can_manage_walk_ins
 
 
 def _flatten_errors(detail: Any, prefix: str = "") -> dict[str, list[str]]:
+    """Turn nested serializer errors into field paths used by the staff forms."""
     if isinstance(detail, dict):
         fields: dict[str, list[str]] = {}
         for key, value in detail.items():
@@ -47,6 +56,7 @@ def _flatten_errors(detail: Any, prefix: str = "") -> dict[str, list[str]]:
 def walk_in_exception_handler(
     exc: Exception, context: dict[str, Any]
 ) -> Response | None:
+    """Return the shared validation envelope while retaining refusal status codes."""
     response = exception_handler(exc, context)
     if response is None:
         return None
@@ -68,26 +78,25 @@ def walk_in_exception_handler(
 
 class WalkInErrorHandlingMixin:
     def get_exception_handler(self) -> Any:
+        """Apply the walk-in error contract to every staff household operation."""
         return walk_in_exception_handler
 
 
 class IsIntakeWorkerOrAdmin(BasePermission):
     def has_permission(self, request: Request, view: Any) -> bool:
-        user = request.user
-        return bool(
-            user.is_authenticated
-            and user.is_active
-            and getattr(user, "role", None) in services.STAFF_ROLES
-        )
+        """Check the same staff permission used by edits and advertised actions."""
+        return can_manage_walk_ins(request.user)
 
 
 def _validated(data: Any, *, partial: bool = False) -> dict[str, Any]:
+    """Validate submitted draft fields before passing them to a service."""
     serializer = WalkInDraftInputSerializer(data=data, partial=partial)
     serializer.is_valid(raise_exception=True)
     return dict(serializer.validated_data)
 
 
 def _service_validation(exc: DjangoValidationError) -> ValidationError:
+    """Preserve field errors when adapting service validation to the API contract."""
     if hasattr(exc, "message_dict"):
         return ValidationError(exc.message_dict)
     return ValidationError({"non_field_errors": exc.messages})
@@ -96,6 +105,41 @@ def _service_validation(exc: DjangoValidationError) -> ValidationError:
 class WalkInCollectionView(WalkInErrorHandlingMixin, GenericAPIView):
     serializer_class = WalkInDraftInputSerializer
     permission_classes = (IsIntakeWorkerOrAdmin,)
+    pagination_class = HouseholdSearchPagination
+
+    @extend_schema(
+        operation_id="staff_households_list",
+        parameters=[
+            OpenApiParameter(
+                "q",
+                str,
+                description="Partial name, email, phone, member number or address. Blank returns no files.",
+            ),
+        ],
+        responses={200: HouseholdSearchResultSerializer(many=True)},
+        tags=["staff households"],
+        summary="Find a household (intake workers and administrators)",
+    )
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Record disclosure audits before returning authorized search results."""
+        params = HouseholdSearchInputSerializer(data=request.query_params)
+        params.is_valid(raise_exception=True)
+        page = self.paginate_queryset(
+            queries.search_for_staff(params.validated_data["q"], request.user)
+        )
+        # Record only returned IDs, never the search text or personal details.
+        # A failed audit prevents disclosure. Search queries themselves only read.
+        with transaction.atomic():
+            data = HouseholdSearchResultSerializer(
+                page, many=True, context=self.get_serializer_context()
+            ).data
+            if request.method == "GET":
+                audit_services.record_household_views(
+                    request.user, (household.pk for household in page)
+                )
+        response = self.get_paginated_response(data)
+        response["Cache-Control"] = "private, no-store"
+        return response
 
     @extend_schema(
         request=WalkInDraftInputSerializer,
@@ -104,6 +148,7 @@ class WalkInCollectionView(WalkInErrorHandlingMixin, GenericAPIView):
         summary="Create a resumable walk-in household draft",
     )
     def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Create a resumable draft and return validated field errors on refusal."""
         data = _validated(request.data)
         try:
             household = services.create_walk_in(data, request.user)

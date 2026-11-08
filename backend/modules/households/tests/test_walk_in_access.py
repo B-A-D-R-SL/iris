@@ -9,7 +9,8 @@ from rest_framework.test import APIClient
 
 from modules.accounts.tests.factories import UserFactory
 from modules.households.models import Household
-from modules.households.queries import walk_in_for_staff
+from modules.households.policies import can_resume_walk_in
+from modules.households.queries import search_for_staff, walk_in_for_staff
 from modules.households.services import (
     locked_duplicate_check,
     submit_walk_in,
@@ -86,13 +87,19 @@ def test_walk_in_api_enforces_creator_access(access_file, action):
 
 
 @pytest.mark.parametrize("access_file", ACCESS_CASES, indirect=True)
-@pytest.mark.parametrize("action", ["read", "edit", "submit", "locked_check"])
+@pytest.mark.parametrize("action", ["read", "search", "edit", "submit", "locked_check"])
 def test_queries_and_services_enforce_creator_access(access_file, action):
     household, actor, allowed = access_file
     if action == "read":
         assert walk_in_for_staff(household.pk, actor) == (
             household if allowed else None
         )
+        return
+    if action == "search":
+        assert list(search_for_staff("Exemple", actor)) == (
+            [household] if allowed else []
+        )
+        assert can_resume_walk_in(household, actor) is allowed
         return
     before = household.updated_at
     with nullcontext() if allowed else pytest.raises(Household.DoesNotExist):

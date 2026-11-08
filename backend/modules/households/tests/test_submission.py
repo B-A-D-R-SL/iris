@@ -166,9 +166,8 @@ def test_anonymized_draft_cannot_be_submitted(
     from django.utils import timezone
 
     household = ready_household_factory(anonymized_at=timezone.now())
-    with pytest.raises(ValidationError) as exc:
+    with pytest.raises(Household.DoesNotExist):
         submit_walk_in(household.pk, submission_worker)
-    assert "status" in exc.value.message_dict
     household.refresh_from_db()
     assert household.status == Household.Status.DRAFT
 

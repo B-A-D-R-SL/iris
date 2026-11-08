@@ -128,6 +128,34 @@
       "taxYear": "Année d'imposition",
       "lowIncomeCutoff": "Seuil de faible revenu (SFR)",
       "title": "Admissibilité"
+    },
+    "search": {
+      "label": "Rechercher un foyer",
+      "description": "Nom, courriel, téléphone, numéro de membre ou adresse.",
+      "clear": "Effacer la recherche",
+      "start": "Commencez à saisir pour rechercher un foyer",
+      "empty": "Aucun foyer trouvé",
+      "emptyDescription": "Vérifiez votre recherche ou essayez un autre renseignement.",
+      "email": "Courriel",
+      "phone": "Téléphone",
+      "address": "Adresse",
+      "unit": "app. {{unit}}",
+      "notProvided": "Non renseigné",
+      "unnamed": "Nom non renseigné",
+      "noMemberNumber": "Numéro de membre non attribué",
+      "resume": "Reprendre l’inscription",
+      "newRegistration": "Nouvelle inscription",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "page": "Page {{page}}",
+      "pagination": "Pages des résultats",
+      "results": "Résultats de recherche",
+      "staffOnly": "Renseignements réservés au personnel autorisé.",
+      "denied": "Accès refusé",
+      "deniedDescription": "Reconnectez-vous avec un compte de personnel autorisé.",
+      "signIn": "Se reconnecter",
+      "countOne": "{{count}} foyer trouvé",
+      "countOther": "{{count}} foyers trouvés"
     }
   },
   "category": {
@@ -262,6 +290,22 @@
       "locked": "Trop de tentatives. Réessayez dans 15 minutes.",
       "unavailable": "La connexion est indisponible. Réessayez.",
       "useAnotherAccount": "Utiliser un autre compte"
+    },
+    "invitation": {
+      "title": "Définir votre mot de passe",
+      "submit": "Définir mon mot de passe",
+      "passwordHelp": "Utilisez au moins 10 caractères. Évitez les mots de passe courants et les mots similaires à votre nom ou à votre courriel.",
+      "passwordTooShort": "Utilisez au moins 10 caractères.",
+      "passwordMismatch": "Entrez le même mot de passe dans les deux champs.",
+      "expired": "Ce lien d’invitation a expiré.",
+      "used": "Ce lien d’invitation a déjà été utilisé.",
+      "invalid": "Ce lien d’invitation est invalide.",
+      "emailRegistered": "Un compte utilise déjà ce courriel.",
+      "unavailable": "L’acceptation des invitations est indisponible. Réessayez.",
+      "checkPassword": "Vérifiez le mot de passe et sa confirmation.",
+      "success": "Le nouveau compte est prêt.",
+      "signedInGuidance": "Vous êtes toujours connecté à votre compte actuel. Utilisez Déconnexion dans l’en-tête avant de vous connecter au nouveau compte.",
+      "newLinkHelp": "Demandez un nouveau lien à la personne qui vous a invité."
     },
     "signup": {
       "email": "Courriel",

@@ -69,6 +69,10 @@ describe("US-01 sign-in screen", () => {
         signedIn = true;
         return Response.json({});
       }
+      if (url === "/api/staff/households/" && options?.method === "HEAD") {
+        const allowed = signedIn && (role === "intake_worker" || role === "admin");
+        return new Response(null, { status: allowed ? 200 : 403 });
+      }
       return new Response(null, { status: 404 });
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -186,7 +190,7 @@ describe("US-01 sign-in screen", () => {
 
   it("shows the code field only after an MFA challenge, then signs in", async () => {
     let signedIn = false;
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
       const url = String(input);
       if (url === "/api/me/") {
         return signedIn ? Response.json(testUser("admin")) : new Response(null, { status: 401 });
@@ -197,6 +201,9 @@ describe("US-01 sign-in screen", () => {
       if (url.endsWith("/auth/2fa/authenticate")) {
         signedIn = true;
         return Response.json({});
+      }
+      if (url === "/api/staff/households/" && options?.method === "HEAD") {
+        return new Response(null, { status: signedIn ? 200 : 401 });
       }
       return new Response(null, { status: 404 });
     });
@@ -223,6 +230,9 @@ describe("US-01 sign-in screen", () => {
       if (url.endsWith("/auth/session") && options?.method === "DELETE") {
         signedIn = false;
         return new Response(null, { status: 401 });
+      }
+      if (url === "/api/staff/households/" && options?.method === "HEAD") {
+        return new Response(null, { status: signedIn ? 200 : 401 });
       }
       return new Response(null, { status: 404 });
     });

@@ -1,3 +1,4 @@
+<!-- AI contribution: 50% or more AI-generated -->
 # Iris
 
 Iris is a solidarity redistribution platform for sharing food and goods across communities, developed for **Concordia University's SOEN 490 capstone**.
@@ -138,7 +139,7 @@ Backend source code is mounted directly into its container, allowing Django to r
 ### Backend Checks
 
 ```bash
-docker compose exec backend python -m pytest --cov
+docker compose exec -e DJANGO_SETTINGS_MODULE=iris.settings.test backend python -m pytest --cov
 docker compose exec backend ruff check .
 docker compose exec backend ruff format --check .
 docker compose exec backend mypy .

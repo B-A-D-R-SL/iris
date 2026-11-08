@@ -8,6 +8,13 @@ Records who acted, their role at that time, the action, target, and timestamp.
 Public API: `modules.audit.services.record(actor, action, target_type, target_id, metadata)`.
 Returns an `AuditEvent`; invalid inputs raise Django `ValidationError`.
 Database errors propagate to the caller.
+
+Staff household search uses
+`record_household_views(actor, household_ids: Iterable[UUID])` to append one
+`view` event per returned file with a single INSERT. It validates the saved actor,
+role and UUIDs; action/target type/empty metadata are fixed. Foreign keys remain
+database-enforced. Batch inserts join the caller's transaction and roll back with
+it. This avoids repeated actor lookups and never accepts search text as metadata.
 The actor must be a saved user. Target types use lowercase identifiers such as
 `household`; target IDs accept strings, integers, or UUIDs (stored as strings).
 Valid household UUID strings are normalized to lowercase with hyphens so they
@@ -27,7 +34,7 @@ record(request.user, "view", "household", household.pk, {})
 
 Recording joins the caller's transaction and rolls back with it.
 PostgreSQL rejects UPDATE and DELETE through both ORM and SQL; actors referenced
-by events cannot be deleted. Writes from other modules must use `record()`.
+by events cannot be deleted. Writes from other modules use these public services.
 
 Apply migrations in an existing Docker environment:
 

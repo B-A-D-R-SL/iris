@@ -7,6 +7,37 @@ Decisions taken where B.A.D.R. had not specified anything are marked **Default**
 
 Each owner publishes their section of this document in their own pull request. This version contains the listing categories and the prohibited items (SET-12), and partner applications (US-12); the other sections (roles, eligibility, reservations, priority, strikes, notifications, retention) are added by their owners.
 
+## Household access (US-63)
+
+Walk-in ownership follows the approved registration policy. Search applies the
+same scope before counting, pagination and disclosure audits.
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-HH-ACCESS-001 | Active intake workers can search their own non-anonymized walk-in files and online files. Administrators can search all non-anonymized files, including unassigned files. Other roles, inactive users and anonymous callers are refused. Intake workers cannot read, edit or submit another worker's walk-in file; those requests return 404. |
+| BR-HH-ACCESS-002 | Anonymized households are excluded before counting and pagination and cannot be read, edited or offered for resuming through the walk-in endpoints. |
+| BR-HH-AUDIT-001 | Search results disclose household details. Persist a view event for each returned household before disclosing the response; an audit failure prevents disclosure. Events contain household IDs and empty metadata, never search text or personal details. |
+
+These access and privacy rules have no configurable numeric threshold. The API
+enforces them; the frontend uses the search API's authorization response to decide
+whether to open the search screen. Audit retention and any change to disclosure
+logging belong to an agreed audit/privacy policy.
+
+## Invitations (US-04)
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-INV-001 | Set an invitation's expiry from the active `invitations.expires_after_days` RuleSet, initially **7 days** *(setting)*. The saved expiry is exclusive and later rule versions affect only newly created invitations. Missing or unusable configuration prevents invitation creation. |
+| BR-INV-002 | A valid invitation can be accepted once. Create the user and record acceptance atomically; failed validation does not consume the token. Concurrent acceptance cannot create or overwrite multiple accounts. |
+| BR-INV-003 | Invitations create new active accounts only. Refuse an email already registered to any active or inactive account, case-insensitively, both when issuing and when accepting. The invitation supplies the new account's identity, role and optional store. |
+
+Sources: [US-04 #428](https://github.com/B-A-D-R-SL/iris/issues/428),
+[task #430](https://github.com/B-A-D-R-SL/iris/issues/430), and Leon's
+new-account-only scope decision recorded in `AI_USAGE.md`.
+Tokens contain 32 random bytes; store only their SHA-256 hash. The public
+acceptance endpoint sets the password and leaves the browser session unchanged.
+Issuing screens and invitation emails belong to the calling workflows.
+
 ## Partner applications (US-12)
 
 ### BR-PARTNER-01: One open application per contact email

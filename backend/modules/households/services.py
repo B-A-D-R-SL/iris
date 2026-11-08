@@ -17,11 +17,11 @@ from django.utils.translation import gettext_lazy as _
 
 from modules.households.limits import max_household_people
 from modules.households.models import Household, HouseholdDraftEvent, Member
+from modules.households.policies import can_manage_walk_ins, is_editable_walk_in
 from modules.households.queries import find_possible_duplicates, walk_ins_for_staff
 
 logger = logging.getLogger("iris.households")
 
-STAFF_ROLES = frozenset(("intake_worker", "admin"))
 ADDRESS_FIELDS = frozenset(
     ("street_number", "street_name", "unit", "city", "postal_code")
 )
@@ -31,11 +31,7 @@ POSSIBLE_DUPLICATE = "POSSIBLE_DUPLICATE"
 
 
 def _require_staff(user: AbstractBaseUser) -> None:
-    if (
-        not user.is_authenticated
-        or not user.is_active
-        or getattr(user, "role", None) not in STAFF_ROLES
-    ):
+    if not can_manage_walk_ins(user):
         raise PermissionDenied(
             _("Only active intake workers and admins can manage walk-ins.")
         )
@@ -167,7 +163,7 @@ def update_draft(
     household = walk_ins_for_staff(staff_user).select_for_update().get(pk=household_id)
     if not data:
         raise ValidationError({"non_field_errors": _("Provide at least one change.")})
-    if household.status != Household.Status.DRAFT:
+    if not is_editable_walk_in(household):
         raise ValidationError(
             {"status": _("Only draft household files can be edited.")}
         )

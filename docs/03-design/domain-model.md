@@ -1,4 +1,4 @@
-<!-- AI usage: 50% or more AI-generated. -->
+<!-- AI contribution: 50% or more AI-generated -->
 
 # Iris domain model — Release 1 draft
 
@@ -13,7 +13,7 @@ Iris follows an Agile methodology. Small design changes can be made in later spr
 | Concept | Model | Owner module | Meaning |
 | --- | --- | --- | --- |
 | User account | User | accounts | A person who can sign in and act according to their role. |
-| Account invitation | Invitation | accounts | An invitation to create or activate an account with an assigned role and optional store assignment. |
+| Account invitation | Invitation | accounts | A one-use invitation to create a new active account with an assigned role and optional store assignment. |
 | Partner store | Store | stores | An approved business offering goods, including the B.A.D.R. store. |
 | Partner application | PartnerApplication | stores | A business request to become a partner. |
 | Household | Household | households | A household registration and approval file. |
@@ -98,7 +98,7 @@ flowchart LR
 
     PartnerApplication -->|"Approval creates"| Store
     PartnerApplication -->|"Approval creates"| Invitation
-    Invitation -->|"Acceptance creates or activates"| User
+    Invitation -->|"Acceptance creates a new active account"| User
 
     classDef concept fill:#14283e,stroke:#64748b,color:#ffffff;
     class PartnerApplication,Store,Invitation,User concept;
@@ -108,7 +108,9 @@ Approval creates the store and invitation, updates the application, and records 
 
 The invitation email is sent after the transaction commits.
 
-Acceptance creates or activates the user account with the invited role and optional store assignment.
+Acceptance creates a new active user with the invited identity, role and optional store assignment. An existing active or inactive account with the same email is refused case-insensitively; acceptance never overwrites it or switches the browser session.
+
+The invitation's expiry is saved when it is issued, using the active invitation lifetime rule (seven days by default). Later rule versions apply only to new invitations. The acceptance backend belongs to US-04; the invitation page is #431, while issuing workflows, email delivery, partner approval and household linking belong to US-05, US-06, US-13 and US-18.
 
 ## Confirmed business rules
 
