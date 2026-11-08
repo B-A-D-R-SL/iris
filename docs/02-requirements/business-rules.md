@@ -7,6 +7,22 @@ Decisions taken where B.A.D.R. had not specified anything are marked **Default**
 
 Each owner publishes their section of this document in their own pull request. This version contains the listing categories and the prohibited items (SET-12), and partner applications (US-12); the other sections (roles, eligibility, reservations, priority, strikes, notifications, retention) are added by their owners.
 
+## Shared household access (US-63)
+
+Mark confirmed this scope for US-63: intake workers and administrators share
+household files across staff; the registering staff member does not own the file.
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-HH-ACCESS-001 | Active intake workers and administrators can search all non-anonymized households, including files created by another staff member and unassigned files. Other roles, inactive users and anonymous callers are refused. `created_by` records provenance and never restricts staff search scope. |
+| BR-HH-ACCESS-002 | Anonymized households are excluded before counting and pagination and cannot be read, edited or offered for resuming through the walk-in endpoints. |
+| BR-HH-AUDIT-001 | Search results disclose household details. Persist a view event for each returned household before disclosing the response; an audit failure prevents disclosure. Events contain household IDs and empty metadata, never search text or personal details. |
+
+These access and privacy rules have no configurable numeric threshold. The API
+enforces them; the frontend uses the search API's authorization response to decide
+whether to open the search screen. Audit retention and any change to disclosure
+logging belong to an agreed audit/privacy policy.
+
 ## Invitations (US-04)
 
 | Rule ID | Business rule |

@@ -17,6 +17,10 @@ account. The record also preserves staff verification and creation timestamps.
   household the user holds, if it is `approved` and not expired at `at`
   (expiry is checked even before the nightly job runs). Browsing (US-36) uses
   it and reserving (US-41) can too; only the ID leaves the module.
+- `queries.search(q) -> QuerySet[Household]`: partial, accent-insensitive staff search;
+  reads only and excludes anonymized files. Blank input returns no files.
+- `queries.search_for_staff(q, actor) -> QuerySet[Household]`: the API entry point;
+  validates staff permission before applying the shared household scope.
 - `domain/address.py`: `normalize_address`, `normalize_postal_code`
 - `domain/person.py`: `normalize_person`, age/name validation
 
@@ -28,6 +32,9 @@ creator, verifier or internal keys directly.
 ## API routes
 
 - `POST /api/staff/households/`: create a draft and holder member
+- `GET /api/staff/households/?q=...&page=1&page_size=20`: search household/member
+  names, household email/phone, member number and address. Pages are capped at
+  100 results. Names describe the holder even when another member matched.
 - `GET /api/staff/households/{uuid}/`: read draft and who created it
 - `PATCH /api/staff/households/{uuid}/`: patch draft steps, including members
 
@@ -38,6 +45,12 @@ specific error types, and `messages.py` gives each one its translated text.
 
 All require a session for an active `intake_worker` or `admin`. Other signed-in
 roles are rejected with HTTP 403. The API contains no ID document information.
+
+Numeric search pages fetch the exact total and results in one query using a
+PostgreSQL window count. This avoids executing the same match twice, and keeps
+the count and results in one database snapshot. The response envelope, ordering,
+20-result default and 100-result cap are unchanged. Invalid/overflowing page
+numbers return 404; DRF's optional `page=last` shortcut remains supported.
 
 ### Example request
 
@@ -98,3 +111,30 @@ names unsupported by the current US-62 branch, which only handles view/decision.
 The walk-in screens (T-03.17.4) are in `frontend/src/areas/staff/pages/WalkIn/`.
 Approval, income notices, status transitions and the set-password email belong
 to US-18 and US-57; none of them are implemented here.
+
+## Staff search (US-63, #553 and #554)
+
+Migration `0004_staff_search_indexes` enables `pg_trgm` and `unaccent`, adds
+stored PostgreSQL generated keys and GIN trigram indexes, and backfills existing
+rows. PostgreSQL maintains the keys for normal saves, updates and bulk writes.
+Existing extensions retain their installed schemas; new extensions use `public`.
+The wrapper pins the installed unaccent function and dictionary. Dictionary
+changes require a migration that recomputes the stored keys. Reversing removes
+the derived keys/indexes and module function, preserves source records, and
+leaves shared extensions installed.
+
+Search never searches the DOB-containing `person_key`. Its explicit response
+contains only holder names, contact/address fields, member number, channel and
+status. The collection's existing POST registration operation is preserved.
+Responses use `Cache-Control: private, no-store`; search text is excluded from
+logs. Each disclosed household ID is recorded through
+`audit.services.record_household_views` in one atomic batch, with empty metadata.
+Audit failure prevents the response from exposing results. HEAD creates no events.
+
+The screen replaces the staff placeholder at `/staff/households`. It supports
+French/English, a 300 ms debounce, cancelled superseded requests, paginated
+results and links to resume existing walk-in drafts. US-64 owns the later full
+household page; this change does not create that page or approval workflows.
+
+See [search verification](../../../docs/guides/household-search.md) for database
+isolation, repeatable benchmarks and the remaining staging/device checks.

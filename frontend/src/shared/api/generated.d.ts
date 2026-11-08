@@ -63,13 +63,27 @@ export interface paths {
     patch: operations["staff_categories_update"];
   };
   "/api/staff/households/": {
-    /** Create a resumable walk-in household draft */
+    /**
+     * Find a household (intake workers and administrators)
+     * @description Search the shared staff scope and persist disclosure audits before responding.
+     */
+    get: operations["staff_households_list"];
+    /**
+     * Create a resumable walk-in household draft
+     * @description Create a resumable draft and return validated field errors on refusal.
+     */
     post: operations["staff_households_create"];
   };
   "/api/staff/households/{id}/": {
-    /** Resume an existing walk-in household draft */
+    /**
+     * Resume an existing walk-in household draft
+     * @description Return a shared walk-in draft after staff and object-scope checks.
+     */
     get: operations["staff_households_retrieve"];
-    /** Edit an existing walk-in household draft */
+    /**
+     * Edit an existing walk-in household draft
+     * @description Edit an eligible shared draft while preserving validation and refusal errors.
+     */
     patch: operations["staff_households_partial_update"];
   };
   "/api/store/listings/": {
@@ -202,6 +216,46 @@ export interface components {
       /** @default fr */
       preferred_language?: components["schemas"]["LanguageEnum"];
     };
+    /** @description Expose minimal household fields and the server-authorized resume action. */
+    HouseholdSearchResult: {
+      /** @description Fail closed when serialization has no authenticated request context. */
+      can_resume: boolean;
+      channel: components["schemas"]["ChannelEnum"];
+      city: string;
+      /** Format: email */
+      email: string | null;
+      first_name: string | null;
+      /** Format: uuid */
+      id: string;
+      last_name: string | null;
+      member_number: string | null;
+      phone: string;
+      postal_code: string;
+      status: components["schemas"]["HouseholdStatusEnum"];
+      street_name: string;
+      street_number: string;
+      unit: string;
+    };
+    /**
+     * @description * `draft` - Brouillon
+     * * `submitted` - Demande soumise
+     * * `review_required` - Review required
+     * * `awaiting_visit` - Awaiting visit
+     * * `approved` - Approuvé
+     * * `renewal_needed` - Renewal needed
+     * * `suspended` - Suspendu
+     * * `rejected` - Refusé
+     * @enum {string}
+     */
+    HouseholdStatusEnum:
+      | "draft"
+      | "submitted"
+      | "review_required"
+      | "awaiting_visit"
+      | "approved"
+      | "renewal_needed"
+      | "suspended"
+      | "rejected";
     /** @description Confirm completion without returning credentials or account information. */
     InvitationAccepted: {
       accepted: boolean;
@@ -342,6 +396,21 @@ export interface components {
        */
       previous?: string | null;
       results: components["schemas"]["AuditEvent"][];
+    };
+    PaginatedHouseholdSearchResultList: {
+      /** @example 123 */
+      count: number;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=4
+       */
+      next?: string | null;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=2
+       */
+      previous?: string | null;
+      results: components["schemas"]["HouseholdSearchResult"][];
     };
     PaginatedListingCardList: {
       /** @example 123 */
@@ -536,7 +605,7 @@ export interface components {
       phone: string;
       postal_code: string;
       preferred_language: components["schemas"]["LanguageEnum"];
-      status: components["schemas"]["WalkInDraftReadStatusEnum"];
+      status: components["schemas"]["HouseholdStatusEnum"];
       street_name: string;
       street_number: string;
       unit: string;
@@ -547,26 +616,6 @@ export interface components {
       /** Format: email */
       verified_by_email: string | null;
     };
-    /**
-     * @description * `draft` - Brouillon
-     * * `submitted` - Demande soumise
-     * * `review_required` - Review required
-     * * `awaiting_visit` - Awaiting visit
-     * * `approved` - Approuvé
-     * * `renewal_needed` - Renewal needed
-     * * `suspended` - Suspendu
-     * * `rejected` - Refusé
-     * @enum {string}
-     */
-    WalkInDraftReadStatusEnum:
-      | "draft"
-      | "submitted"
-      | "review_required"
-      | "awaiting_visit"
-      | "approved"
-      | "renewal_needed"
-      | "suspended"
-      | "rejected";
   };
   responses: never;
   parameters: never;
@@ -890,7 +939,33 @@ export interface operations {
       };
     };
   };
-  /** Create a resumable walk-in household draft */
+  /**
+   * Find a household (intake workers and administrators)
+   * @description Search the shared staff scope and persist disclosure audits before responding.
+   */
+  staff_households_list: {
+    parameters: {
+      query?: {
+        /** @description Un numéro de page de l'ensemble des résultats. */
+        page?: number;
+        /** @description Nombre de résultats à retourner par page. */
+        page_size?: number;
+        /** @description Partial name, email, phone, member number or address. Blank returns no files. */
+        q?: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PaginatedHouseholdSearchResultList"];
+        };
+      };
+    };
+  };
+  /**
+   * Create a resumable walk-in household draft
+   * @description Create a resumable draft and return validated field errors on refusal.
+   */
   staff_households_create: {
     requestBody?: {
       content: {
@@ -907,7 +982,10 @@ export interface operations {
       };
     };
   };
-  /** Resume an existing walk-in household draft */
+  /**
+   * Resume an existing walk-in household draft
+   * @description Return a shared walk-in draft after staff and object-scope checks.
+   */
   staff_households_retrieve: {
     parameters: {
       path: {
@@ -922,7 +1000,10 @@ export interface operations {
       };
     };
   };
-  /** Edit an existing walk-in household draft */
+  /**
+   * Edit an existing walk-in household draft
+   * @description Edit an eligible shared draft while preserving validation and refusal errors.
+   */
   staff_households_partial_update: {
     parameters: {
       path: {
