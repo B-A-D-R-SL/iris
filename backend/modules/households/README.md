@@ -25,7 +25,9 @@ before persistence. Editing is restricted to drafts; member replacement cannot
 remove a record referenced by another module. Members sent back
 unchanged (same names, date of birth and relation) keep their record, so a
 member with a notice can stay while others are added; removing or changing that
-member is refused. No form can set the status,
+member is refused. The holder keeps one record and is edited in place, so their
+notice stays linked when staff correct their name or date of birth; the notice
+keeps the name it was recorded with. No form can set the status,
 creator, verifier or internal keys directly.
 
 ## API routes
