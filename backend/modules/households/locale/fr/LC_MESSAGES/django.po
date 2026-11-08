@@ -47,6 +47,15 @@ msgstr "Renouvellement requis"
 msgid "Household size rules need configuration."
 msgstr "Les règles de taille du ménage doivent être configurées."
 
+msgid "Review required"
+msgstr "Vérification par l'équipe requise"
+
+msgid "Awaiting visit"
+msgstr "Visite en personne requise"
+
+msgid "Renewal needed"
+msgstr "Renouvellement requis"
+
 msgid "Suspended"
 msgstr "Suspendu"
 

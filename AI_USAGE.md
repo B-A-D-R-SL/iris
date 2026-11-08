@@ -78,25 +78,14 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 ### US-25 Duplicate checking and tests (#479, #478)
 
-- **AI help:** ChatGPT helped build the search, submission service, locks, staff
-  API, translations, migration, tests, and docs.
-- **Approved duplicate policy:** suspended files count as possible duplicates;
-  files whose `expires_at` is in the past do not. Approval stays in US-18.
-- **Checks:** 803 backend tests passed, with 93.21% coverage. The 120 household
-  tests reached 93.49%, including six tests with two database connections.
-  Domain coverage exceeds 90%. Lint, types, module rules, migration checks,
-  schema generation, eight API-generator tests, and TypeScript checks passed.
-- **Fixes:** migration 0004 updates old search keys. Rollback keeps those keys;
-  names and addresses stay unchanged. The API keeps its existing status type name.
-  The development database was not migrated.
-
-- **Household size:** draft, submission and serializer checks share `household_size.max_people`. The approved seed default is 15 including the holder (BR-HH-001). Tests cover configured limits, missing configuration and idempotent seeding. Existing databases need `python manage.py seed_rules`; existing versions are kept.
-
-- **Locking:** ChatGPT helped expose the lock-and-check context and split the concurrency test. The caller saves inside the transaction while address and person locks are held.
-
-- **Submission history:** ChatGPT helped record submission actors and roles in the household transaction and log outcomes only after commit. Tests cover audit failures, outer rollbacks and logs without personal data.
-
-- **File ownership:** intake workers may read, edit and submit only walk-in files they created; admins may manage all walk-in files. Queries, services and API tests cover creator access, another-worker denial and admin access. Another worker's file returns 404 before input validation.
+- **AI help:** ChatGPT helped build the search, submission service, locks, staff API, translations, migration, tests, and docs.
+- **Approved policy:** suspended files count as possible duplicates; files whose `expires_at` is in the past do not. Intake workers may access, edit and submit only their own walk-in files; admins may manage all walk-in files. Another worker's file returns 404. Approval stays in US-18.
+- **Initial checks:** 803 backend tests passed, with 93.21% coverage. The 120 household tests reached 93.49%, including six tests with two database connections. Domain coverage exceeds 90%. Lint, types, module rules, migration checks, schema generation, eight API-generator tests, and TypeScript checks passed.
+- **Fixes:** migration 0004 updates old search keys. Rollback keeps those keys; names and addresses stay unchanged. The API keeps its existing status type name. The development database was not migrated.
+- **PR review:** ChatGPT helped split the concurrency test, record submission actors, log outcomes after commit, and add the 15-person boundary test. Draft, submission and serializer checks share the household-size RuleSet; its approved seed default is 15 including the holder, with tests at a configured limit of 3 and for missing configuration (BR-HH-001). A public lock-and-check context keeps the caller's write in the transaction. French status labels follow the glossary.
+- **Review checks:** 825 backend tests passed at 93.34% coverage; 142 household tests passed at 94.13%. All six concurrency cases, lint, formatting, typing, module boundaries, migration checks, API generation, eight generator tests, and TypeScript checks passed.
+- **RuleSet update:** the full backend suite passed 840 tests at 93.38% coverage. Household and rule tests cover configured limits, missing configuration and idempotent seeding. Existing databases need `python manage.py seed_rules`; existing versions are kept.
+- **Policy checks:** 303 household and RuleSet tests passed, including expiry boundaries, suspended candidates, creator access, another-worker denial and admin access. Ruff lint and formatting, type checks for the changed views, queries and services, and diff checks passed.
 
 ### T-09.62.3 Audit search API and screen (#550)
 

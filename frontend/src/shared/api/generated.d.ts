@@ -473,10 +473,10 @@ export interface components {
     /**
      * @description * `draft` - Brouillon
      * * `submitted` - Demande soumise
-     * * `review_required` - Review required
-     * * `awaiting_visit` - Awaiting visit
+     * * `review_required` - Vérification par l'équipe requise
+     * * `awaiting_visit` - Visite en personne requise
      * * `approved` - Approuvé
-     * * `renewal_needed` - Renewal needed
+     * * `renewal_needed` - Renouvellement requis
      * * `suspended` - Suspendu
      * * `rejected` - Refusé
      * @enum {string}
