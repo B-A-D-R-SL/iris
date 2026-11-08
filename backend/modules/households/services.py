@@ -17,7 +17,7 @@ from django.utils.translation import gettext_lazy as _
 
 from modules.households.limits import max_household_people
 from modules.households.models import Household, HouseholdDraftEvent, Member
-from modules.households.queries import find_possible_duplicates
+from modules.households.queries import find_possible_duplicates, walk_ins_for_staff
 
 logger = logging.getLogger("iris.households")
 
@@ -164,11 +164,9 @@ def update_draft(
 ) -> Household:
     """Patch a draft atomically; non-draft files are never editable here."""
     _require_staff(staff_user)
+    household = walk_ins_for_staff(staff_user).select_for_update().get(pk=household_id)
     if not data:
         raise ValidationError({"non_field_errors": _("Provide at least one change.")})
-    household = Household.objects.select_for_update().get(
-        id=household_id, channel=Household.Channel.WALK_IN
-    )
     if household.status != Household.Status.DRAFT:
         raise ValidationError(
             {"status": _("Only draft household files can be edited.")}
@@ -265,8 +263,8 @@ def locked_duplicate_check(
     """Hold submission locks while the caller saves the checked draft."""
     with transaction.atomic():
         _require_staff(staff_user)
-        household = Household.objects.select_for_update().get(
-            pk=household_id, channel=Household.Channel.WALK_IN
+        household = (
+            walk_ins_for_staff(staff_user).select_for_update().get(pk=household_id)
         )
         if household.status != Household.Status.DRAFT:
             raise ValidationError(

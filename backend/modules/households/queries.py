@@ -3,6 +3,7 @@
 
 from uuid import UUID
 
+from django.contrib.auth.base_user import AbstractBaseUser
 from django.db.models import Q, QuerySet
 from django.utils import timezone
 
@@ -18,11 +19,26 @@ DUPLICATE_CANDIDATE_STATUSES = (
 )
 
 
-def walk_in_for_staff(household_id: UUID) -> Household | None:
+def walk_ins_for_staff(staff_user: AbstractBaseUser) -> QuerySet[Household]:
+    households = Household.objects.filter(channel=Household.Channel.WALK_IN)
+    if not staff_user.is_authenticated or not staff_user.is_active:
+        return households.none()
+    role = getattr(staff_user, "role", None)
+    if role == "admin":
+        return households
+    if role == "intake_worker":
+        return households.filter(created_by_id=staff_user.pk)
+    return households.none()
+
+
+def walk_in_for_staff(
+    household_id: UUID, staff_user: AbstractBaseUser
+) -> Household | None:
     return (
-        Household.objects.select_related("created_by", "verified_by")
+        walk_ins_for_staff(staff_user)
+        .select_related("created_by", "verified_by")
         .prefetch_related("members")
-        .filter(pk=household_id, channel=Household.Channel.WALK_IN)
+        .filter(pk=household_id)
         .first()
     )
 

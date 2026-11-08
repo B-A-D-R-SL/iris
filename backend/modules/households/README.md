@@ -15,7 +15,8 @@ account. The record also preserves staff verification and creation timestamps.
 - `services.submit_walk_in(household_id, staff_user) -> Household`
 - `services.locked_duplicate_check(household_id, staff_user)`: context for a
   checked draft and an evaluated duplicate flag; save inside the context.
-- `queries.walk_in_for_staff(household_id) -> Household | None`
+- `queries.walk_ins_for_staff(staff_user) -> QuerySet[Household]`
+- `queries.walk_in_for_staff(household_id, staff_user) -> Household | None`
 - `queries.find_possible_duplicates(household) -> QuerySet[Household]`
 - `domain/address.py`: `normalize_address`, `normalize_postal_code`
 - `domain/person.py`: `normalize_person`, age/name validation
@@ -40,8 +41,9 @@ specific error types, and `messages.py` gives each one its translated text.
 
 All require a session for an active `intake_worker` or `admin`. Other signed-in
 roles are rejected with HTTP 403. The API contains no ID document information.
-Staff can manage another worker's walk-in file. Online files return 404;
-signed-out requests return 401.
+Intake workers may read, edit and submit only walk-in files they created.
+Admins may manage all walk-in files. Another worker's file, an online file or
+an unknown file returns 404; signed-out requests return 401.
 
 ## Duplicate checking (US-25, #479 and #478)
 

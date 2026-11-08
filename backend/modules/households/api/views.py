@@ -4,6 +4,7 @@
 from typing import Any
 from uuid import UUID
 
+from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import Http404
 from django.utils.translation import gettext_lazy as _
@@ -118,8 +119,8 @@ class WalkInDetailView(WalkInErrorHandlingMixin, GenericAPIView):
     permission_classes = (IsIntakeWorkerOrAdmin,)
 
     @staticmethod
-    def _get_household(id: UUID) -> Household:
-        household = queries.walk_in_for_staff(id)
+    def _get_household(id: UUID, staff_user: AbstractBaseUser) -> Household:
+        household = queries.walk_in_for_staff(id, staff_user)
         if household is None:
             raise Http404
         return household
@@ -130,7 +131,9 @@ class WalkInDetailView(WalkInErrorHandlingMixin, GenericAPIView):
         summary="Resume an existing walk-in household draft",
     )
     def get(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
-        return Response(WalkInDraftReadSerializer(self._get_household(id)).data)
+        return Response(
+            WalkInDraftReadSerializer(self._get_household(id, request.user)).data
+        )
 
     @extend_schema(
         request=WalkInDraftInputSerializer,
@@ -139,6 +142,7 @@ class WalkInDetailView(WalkInErrorHandlingMixin, GenericAPIView):
         summary="Edit an existing walk-in household draft",
     )
     def patch(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
+        self._get_household(id, request.user)
         data = _validated(request.data, partial=True)
         try:
             household = services.update_draft(id, data, request.user)
@@ -160,7 +164,8 @@ class WalkInSubmissionView(WalkInErrorHandlingMixin, GenericAPIView):
         summary="Submit a walk-in draft and check for duplicates",
     )
     def post(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
-        # Staff can submit any worker's walk-in draft.
+        if queries.walk_in_for_staff(id, request.user) is None:
+            raise Http404
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:

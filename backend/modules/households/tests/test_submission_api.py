@@ -1,5 +1,4 @@
 # AI contribution: 50% or more AI-generated
-"""Tests for submission through the API."""
 
 import uuid
 
@@ -29,11 +28,13 @@ def submit_url(household):
 # rule: BR-DUP-001, BR-DUP-002
 @pytest.mark.parametrize("role", ["intake_worker", "admin"])
 @pytest.mark.parametrize("duplicate", [True, False])
-def test_staff_can_submit_another_workers_file_and_see_the_persisted_outcome(
+def test_creator_or_admin_can_submit_and_see_the_persisted_outcome(
     role, duplicate, ready_household_factory
 ):
-    household = ready_household_factory()
     actor = UserFactory(role=role)
+    household = ready_household_factory(
+        **({"created_by": actor} if role == "intake_worker" else {})
+    )
     if duplicate:
         HouseholdFactory(status=Household.Status.APPROVED)
     response = client_for(actor).post(submit_url(household), {}, format="json")

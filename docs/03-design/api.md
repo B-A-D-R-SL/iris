@@ -161,8 +161,10 @@ US-13 staff screens exist.
 | POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`                                     | Planned |
 | GET/POST   | `/api/staff/households/{id}/notes/`                     | Intake worker, admin | Staff notes                                       | Planned |
 
-Submission accepts `{}`. Active intake workers and admins can submit any
-worker's walk-in draft. It needs an address, one holder, an identity check, and
+Intake workers may read, edit and submit only walk-in files they created.
+Admins may manage all walk-in files.
+
+Submission accepts `{}`. It needs an address, one holder, an identity check, and
 consent. The household limit comes from `household_size.max_people`; the seed
 default is 15 people, including the holder. Approval is separate.
 
@@ -172,7 +174,8 @@ is `submitted`; a possible duplicate is `review_required` with reason
 Suspended files remain duplicate candidates. Files whose `expires_at` is in the
 past are excluded from both address and person matching.
 Invalid or repeated submission returns 400; signed out, 401; refused roles or
-inactive staff, 403; online or unknown files, 404. See the
+inactive staff, 403; another worker's file, online or unknown files, 404. Access
+is checked before request validation. See the
 [households module](../../backend/modules/households/README.md) for candidate
 statuses and locking steps.
 

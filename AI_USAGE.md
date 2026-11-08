@@ -96,6 +96,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 - **Submission history:** ChatGPT helped record submission actors and roles in the household transaction and log outcomes only after commit. Tests cover audit failures, outer rollbacks and logs without personal data.
 
+- **File ownership:** intake workers may read, edit and submit only walk-in files they created; admins may manage all walk-in files. Queries, services and API tests cover creator access, another-worker denial and admin access. Another worker's file returns 404 before input validation.
+
 ### T-09.62.3 Audit search API and screen (#550)
 
 - **AI assistance:** ChatGPT/Codex helped write and review code for the

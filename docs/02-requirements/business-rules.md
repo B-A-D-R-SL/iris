@@ -65,6 +65,10 @@ Open statuses: `submitted`, `review_required`, `awaiting_visit`,
 `approved`, `renewal_needed`, and `suspended`. A missing or future expiry does not
 exclude a file.
 
+For walk-in files, intake workers may read, edit and submit only files they
+created. Admins may manage all walk-in files. Return 404 for another worker's
+file to avoid exposing it.
+
 ## Listings
 
 ### Categories
