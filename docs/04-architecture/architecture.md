@@ -1,4 +1,6 @@
-<!-- AI usage: 50% or more AI-generated. -->
+<!-- AI contribution: 50% or more AI-generated -->
+<!-- Size exception: this shared architecture reference keeps module boundaries
+and connected workflow diagrams together for cross-module consistency review. -->
 
 # Iris architecture — Release 1 draft
 
@@ -207,7 +209,11 @@ flowchart TB
 The domain layer imports no Django, ORM, network code or adapters.
 
 Each module writes its own tables. Cross-module access uses public
-service/query interfaces.
+service/query interfaces. The one exception is `manage.py seed`
+(`backend/iris/management/commands/seed.py`): it writes fictional rows in
+states the workflows cannot create yet, such as approved files and picked-up
+reservations. The import-linter contract "Only the seed command imports module
+models" keeps every other file in `iris` and `adapters` out of module models.
 
 Values for eligibility, limits and time windows come from versioned
 rules, not frontend decisions.
@@ -449,8 +455,8 @@ sequenceDiagram
         N-->>M: Deliver invitation link
 
         M->>AC: accept_invitation(token, password)
-        AC->>AC: Verify expiry and one-use token, create or activate User
-        AC->>AC: Assign invited role and Store, mark invitation accepted
+        AC->>AC: Verify expiry and one-use token, refuse an already registered email
+        AC->>AC: Create active User with invited identity, role and Store and mark invitation accepted
         AC-->>M: Account ready for sign-in
     else Reject
         S->>S: Save rejected status and required reason
@@ -459,6 +465,16 @@ sequenceDiagram
         N-->>M: Notify proposed store manager of rejection
     end
 ```
+
+The US-04 backend creates new accounts only: an existing active or inactive
+account with the same email is refused case-insensitively. Acceptance commits
+user creation and invitation consumption together and does not sign the user in
+or change an existing browser session. Issuance stores only the unique SHA-256
+hash of a token generated from 32 random bytes and saves an expiry from the active
+`invitations.expires_after_days` rule (default seven days); later rule versions
+affect only new invitations. The raw token is returned for the calling workflow's
+email. Staff/team issuing screens, partner approval, household linking and email
+delivery remain US-05, US-06, US-13 and US-18; the acceptance page is #431.
 
 
 

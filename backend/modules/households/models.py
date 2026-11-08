@@ -12,6 +12,11 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from modules.households.domain.address import normalize_address, normalize_postal_code
+from modules.households.domain.expiry import (
+    STATUS_APPROVED,
+    STATUS_RENEWAL_NEEDED,
+    STATUS_SUSPENDED,
+)
 from modules.households.domain.person import (
     normalize_person,
     valid_name,
@@ -34,9 +39,9 @@ class Household(models.Model):
         SUBMITTED = "submitted", _("Submitted")
         REVIEW_REQUIRED = "review_required", _("Review required")
         AWAITING_VISIT = "awaiting_visit", _("Awaiting visit")
-        APPROVED = "approved", _("Approved")
-        RENEWAL_NEEDED = "renewal_needed", _("Renewal needed")
-        SUSPENDED = "suspended", _("Suspended")
+        APPROVED = STATUS_APPROVED, _("Approved")
+        RENEWAL_NEEDED = STATUS_RENEWAL_NEEDED, _("Renewal needed")
+        SUSPENDED = STATUS_SUSPENDED, _("Suspended")
         REJECTED = "rejected", _("Rejected")
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

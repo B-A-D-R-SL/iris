@@ -263,6 +263,22 @@
       "unavailable": "Sign in is unavailable. Please try again.",
       "useAnotherAccount": "Use a different account"
     },
+    "invitation": {
+      "title": "Set your password",
+      "submit": "Set my password",
+      "passwordHelp": "Use at least 10 characters. Avoid common passwords and words similar to your name or email address.",
+      "passwordTooShort": "Use at least 10 characters.",
+      "passwordMismatch": "Enter the same password in both fields.",
+      "expired": "This invitation link has expired.",
+      "used": "This invitation link has already been used.",
+      "invalid": "This invitation link is invalid.",
+      "emailRegistered": "An account already uses this email address.",
+      "unavailable": "Invitation acceptance is unavailable. Please try again.",
+      "checkPassword": "Check the password and its confirmation.",
+      "success": "The new account is ready.",
+      "signedInGuidance": "You are still signed in to your current account. Use Sign out in the header before signing in to the new account.",
+      "newLinkHelp": "Ask the person who invited you for a new link."
+    },
     "signup": {
       "email": "Email address",
       "password": "Password",
