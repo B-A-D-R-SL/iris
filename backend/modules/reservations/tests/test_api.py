@@ -86,6 +86,7 @@ class TestApprovedHousehold:
 
     # rule: BR-LIST-004
     def test_browses_only_visible_listings_as_cards(self, approved: APIClient) -> None:
+        """Browses only visible listings as cards."""
         store: Any = StoreFactory(name="Épicerie Exemple")
         category = CategoryFactory(code="bakery")
         listing = _listing(
@@ -126,11 +127,13 @@ class TestApprovedHousehold:
         }
 
     def test_cards_come_sorted_by_pickup_start(self, approved: APIClient) -> None:
+        """Cards come sorted by pickup start."""
         later = _listing(start=NOW + timedelta(hours=4))
         sooner = _listing(start=NOW + timedelta(hours=1))
         assert _ids(approved.get(URL)) == [str(sooner.id), str(later.id)]
 
     def test_an_empty_list_is_still_a_page(self, approved: APIClient) -> None:
+        """An empty list is still a page."""
         response = approved.get(URL)
         assert response.status_code == 200
         assert response.json() == {
@@ -141,6 +144,7 @@ class TestApprovedHousehold:
         }
 
     def test_post_is_not_allowed(self, approved: APIClient) -> None:
+        """POST gets 405 with a fixed message; the endpoint only reads."""
         response = approved.post(URL, {})
         assert response.status_code == 405
         assert response.json() == {
@@ -154,6 +158,7 @@ class TestRefused:
     """Refused: signed out, every other role, and households not approved."""
 
     def test_signed_out_gets_401(self, client: APIClient) -> None:
+        """A signed-out request gets 401 with a fixed message."""
         response = client.get(URL)
         assert response.status_code == 401
         assert response.json() == {
@@ -166,6 +171,7 @@ class TestRefused:
         "role", ["store_staff", "store_manager", "intake_worker", "admin"]
     )
     def test_other_roles_get_403(self, client: APIClient, role: str) -> None:
+        """Every role other than beneficiary gets 403."""
         store = StoreFactory() if role.startswith("store_") else None
         client.force_login(UserFactory(role=role, store=store))
         _listing()
@@ -178,6 +184,7 @@ class TestRefused:
         }
 
     def test_an_inactive_beneficiary_gets_403(self, client: APIClient) -> None:
+        """An inactive beneficiary account gets 403."""
         user = UserFactory(role="beneficiary", is_active=False)
         _household(user)
         client.force_authenticate(user)
@@ -188,6 +195,7 @@ class TestRefused:
     def test_a_household_that_is_not_approved_gets_403(
         self, client: APIClient, status: str
     ) -> None:
+        """Each non-approved household status gets 403."""
         user = UserFactory(role="beneficiary")
         _household(user, status=status)
         client.force_login(user)
@@ -204,6 +212,7 @@ class TestRefused:
     def test_an_expired_file_still_marked_approved_gets_403(
         self, client: APIClient
     ) -> None:
+        """An approved file past its expiry gets 403."""
         user = UserFactory(role="beneficiary")
         _household(user, expires_at=NOW - timedelta(minutes=1))
         client.force_login(user)
@@ -223,10 +232,12 @@ class TestRefused:
         assert response.json()["code"] == "household_not_approved"
 
     def test_refusal_comes_before_filter_validation(self, client: APIClient) -> None:
+        """Refusal comes before filter validation."""
         client.force_login(UserFactory(role="beneficiary"))
         assert client.get(URL, {"store": "not-a-uuid"}).status_code == 403
 
     def test_the_refusal_is_in_french_by_default(self) -> None:
+        """The refusal is in french by default."""
         client = APIClient()
         client.force_login(UserFactory(role="beneficiary"))
         response = client.get(URL)
@@ -238,11 +249,13 @@ class TestFilters:
     """The category, store and today filters, and invalid values."""
 
     def test_category(self, approved: APIClient) -> None:
+        """The category filter keeps only listings in that category."""
         wanted = _listing(category=CategoryFactory(code="bakery"))
         _listing()
         assert _ids(approved.get(URL, {"category": "bakery"})) == [str(wanted.id)]
 
     def test_store(self, approved: APIClient) -> None:
+        """The store filter keeps only that store's listings."""
         store: Any = StoreFactory()
         wanted = _listing(store=store)
         _listing()
@@ -251,12 +264,14 @@ class TestFilters:
     # rule: BR-LIST-005
     @pytest.mark.parametrize("value", ["true", "1"])
     def test_today(self, approved: APIClient, value: str) -> None:
+        """today=true or 1 keeps only pickups that start before Montreal midnight."""
         wanted = _listing(start=NOW + timedelta(hours=2))
         _listing(start=NOW + timedelta(days=1))
         assert _ids(approved.get(URL, {"today": value})) == [str(wanted.id)]
 
     # rule: BR-LIST-005
     def test_today_false_lists_every_day(self, approved: APIClient) -> None:
+        """Today false lists every day."""
         _listing()
         _listing(start=NOW + timedelta(days=1))
         assert len(_ids(approved.get(URL, {"today": "false"}))) == 2
@@ -286,6 +301,7 @@ class TestFilters:
         }
 
     def test_a_filter_error_is_in_french_by_default(self) -> None:
+        """A filter error is in french by default."""
         user = UserFactory(role="beneficiary")
         _household(user)
         client = APIClient()
@@ -303,6 +319,7 @@ class TestPaging:
     def test_twenty_cards_a_page_whatever_page_size_asks(
         self, approved: APIClient
     ) -> None:
+        """Twenty cards a page whatever page size asks."""
         store = StoreFactory()
         category = CategoryFactory()
         ListingFactory.create_batch(
@@ -326,6 +343,7 @@ class TestPaging:
         assert len(asked_for_five["results"]) == 20
 
     def test_a_page_past_the_end_gets_404(self, approved: APIClient) -> None:
+        """A page past the end gets 404 with a fixed message."""
         _listing()
         response = approved.get(URL, {"page": 2})
         assert response.status_code == 404

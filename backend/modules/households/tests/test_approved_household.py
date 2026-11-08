@@ -41,6 +41,7 @@ def holder() -> Any:
 
 # rule: BR-LIST-004
 def test_an_approved_file_that_has_not_expired_gives_its_id(holder: Any) -> None:
+    """An approved file that has not expired gives its id."""
     household = _online_file(holder)
     assert approved_household_id(holder.pk, at=NOW) == household.pk
 
@@ -51,12 +52,14 @@ def test_an_approved_file_that_has_not_expired_gives_its_id(holder: Any) -> None
     [status for status in Household.Status if status != Household.Status.APPROVED],
 )
 def test_any_other_status_gives_none(holder: Any, status: str) -> None:
+    """Any other status gives none."""
     _online_file(holder, status=status)
     assert approved_household_id(holder.pk, at=NOW) is None
 
 
 # rule: BR-LIST-004
 def test_a_file_expiring_exactly_now_is_no_longer_approved(holder: Any) -> None:
+    """A file expiring exactly now is no longer approved."""
     _online_file(holder, expires_at=NOW)
     assert approved_household_id(holder.pk, at=NOW) is None
 
@@ -65,17 +68,20 @@ def test_a_file_expiring_exactly_now_is_no_longer_approved(holder: Any) -> None:
 def test_an_expired_file_the_nightly_job_has_not_moved_yet_gives_none(
     holder: Any,
 ) -> None:
+    """An expired file the nightly job has not moved yet gives none."""
     _online_file(holder, expires_at=NOW - timedelta(hours=3))
     assert approved_household_id(holder.pk, at=NOW) is None
 
 
 # rule: BR-LIST-004
 def test_an_approved_file_without_an_expiry_date_gives_none(holder: Any) -> None:
+    """An approved file without an expiry date gives none."""
     _online_file(holder, expires_at=None)
     assert approved_household_id(holder.pk, at=NOW) is None
 
 
 # rule: BR-LIST-004
 def test_a_user_without_a_household_gives_none(holder: Any) -> None:
+    """A user without a household gives none."""
     _online_file(UserFactory(role="beneficiary"))
     assert approved_household_id(holder.pk, at=NOW) is None

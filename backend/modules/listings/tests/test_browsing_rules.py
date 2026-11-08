@@ -63,10 +63,12 @@ MONTREAL = ZoneInfo("America/Montreal")
 def test_today_ends_at_the_next_montreal_midnight(
     now: datetime, expected: datetime
 ) -> None:
+    """Today ends at the next montreal midnight."""
     assert end_of_local_day(now, MONTREAL) == expected
 
 
 # rule: BR-LIST-005
 def test_a_naive_clock_is_refused() -> None:
+    """A naive clock is refused."""
     with pytest.raises(ValueError, match="timezone-aware"):
         end_of_local_day(datetime(2026, 11, 6, 10), MONTREAL)  # noqa: DTZ001
