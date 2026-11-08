@@ -169,3 +169,86 @@ def test_invitation_failure_rolls_back_store_and_decision(settings, admin):
     assert application.status == ApplicationStatus.SUBMITTED
     assert not Store.objects.filter(application=application).exists()
     assert not AuditEvent.objects.filter(target_id=str(application.pk)).exists()
+
+
+@pytest.mark.parametrize(
+    "role",
+    [
+        User.Role.BENEFICIARY,
+        User.Role.INTAKE_WORKER,
+        User.Role.STORE_MANAGER,
+        User.Role.STORE_STAFF,
+    ],
+)
+@pytest.mark.parametrize("decision", ["approve", "reject"])
+def test_each_non_admin_role_cannot_decide(role, decision, settings):
+    from modules.stores.tests.factories import StoreFactory
+
+    settings.FRONTEND_URL = "https://iris.example"
+    user = UserFactory(
+        role=role,
+        store=StoreFactory()
+        if role in (User.Role.STORE_MANAGER, User.Role.STORE_STAFF)
+        else None,
+    )
+    application = PartnerApplicationFactory()
+    with pytest.raises(PermissionDenied):
+        if decision == "approve":
+            services.approve_application(application, user, mailer=RecordingMailer())
+        else:
+            services.reject_application(
+                application, user, "reason", mailer=RecordingMailer()
+            )
+    application.refresh_from_db()
+    assert application.status == ApplicationStatus.SUBMITTED
+    assert not Store.objects.filter(application=application).exists()
+    assert not AuditEvent.objects.filter(target_id=str(application.pk)).exists()
+
+
+def test_rejection_accepts_maximum_length_reason(
+    admin, django_capture_on_commit_callbacks
+):
+    application = PartnerApplicationFactory(language="en")
+    mailer = RecordingMailer()
+    with django_capture_on_commit_callbacks(execute=True):
+        services.reject_application(application, admin, "x" * 500, mailer=mailer)
+    application.refresh_from_db()
+    assert application.decision_reason == "x" * 500
+    assert mailer.sent[0]["to"] == [application.contact_email]
+    assert "x" * 500 in mailer.sent[0]["text"]
+
+
+def test_mail_failure_preserves_decision_without_logging_personal_data(
+    admin, django_capture_on_commit_callbacks, caplog
+):
+    from modules.stores.tests.test_partner_application_service import FailingMailer
+
+    application = PartnerApplicationFactory(
+        language="en", contact_email="owner@example.test"
+    )
+    with django_capture_on_commit_callbacks(execute=True):
+        services.reject_application(
+            application, admin, "reason", mailer=FailingMailer()
+        )
+    application.refresh_from_db()
+    assert application.status == ApplicationStatus.REJECTED
+    assert AuditEvent.objects.filter(target_id=str(application.pk)).exists()
+    assert "partner_application_decision_email_failed" in caplog.text
+    assert application.contact_email not in caplog.text
+
+
+def test_rejection_audit_failure_rolls_back_and_sends_no_email(
+    admin, django_capture_on_commit_callbacks
+):
+    application = PartnerApplicationFactory()
+    mailer = RecordingMailer()
+    with (
+        django_capture_on_commit_callbacks(execute=True) as callbacks,
+        patch("modules.audit.services.record", side_effect=RuntimeError),
+        pytest.raises(RuntimeError),
+    ):
+        services.reject_application(application, admin, "reason", mailer=mailer)
+    application.refresh_from_db()
+    assert application.status == ApplicationStatus.SUBMITTED
+    assert application.decision_reason is None
+    assert not callbacks and not mailer.sent

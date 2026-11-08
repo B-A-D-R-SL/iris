@@ -39,6 +39,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| T-02.13.1 Partner application review tests (#448) | `backend/modules/stores/tests/test_application_decisions.py`, `AI_USAGE.md` | 50% or more AI-generated | Not yet opened (`US-13-admin-reviews-partner-applications` branch) |
 | T-02.13.2 Partner application decision service (#449) | `backend/modules/stores/{services.py,tests/test_application_decisions.py,README.md}`, `backend/iris/settings/base.py`, `backend/.env.example`, `backend/pyproject.toml`, `AI_USAGE.md` | 50% or more AI-generated | Not yet opened (`US-13-admin-reviews-partner-applications` branch) |
 | FIX-15 Seed command boundary and household expiry (#641) | `backend/iris/management/commands/seed.py`, `backend/modules/households/domain/expiry.py`, `backend/modules/households/models.py`, `backend/modules/households/tests/test_expiry.py`, `backend/tests/test_seed.py`, `backend/pyproject.toml`, `docs/04-architecture/architecture.md`, `AI_USAGE.md` | 50% or more AI-generated | [#663](https://github.com/B-A-D-R-SL/iris/pull/663) |
 | T-01.04.3 Invitation password page (#431) | `frontend/src/areas/public/pages/AcceptInvitation{,.test}.tsx`, `frontend/src/features/accounts/invitations{,.test}.ts`, `frontend/src/app/App.tsx`, `frontend/src/shared/i18n/{fr,en}.json`, `frontend/src/shared/logger.ts`, `.coderabbit.yaml`, `backend/modules/accounts/README.md`, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
@@ -85,6 +86,11 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | T-05.35.2 Category admin API and screen (#503) and T-05.35.1 tests (#502) | `backend/modules/listings/tests/test_category_admin.py`, `backend/modules/categories/` (`domain/rules.py`, `queries.py`, `services.py`, `api/serializers.py`, `api/staff_views.py`, `api/staff_urls.py`, `tests/test_staff_api.py`, French catalog, README), `backend/iris/urls.py`, `backend/pyproject.toml` (test-only import exceptions), `frontend/src/features/categories/` (`adminApi.ts`, `categoryForm.ts`, `CategoryDialog.tsx`, `CategoriesPage.tsx` and tests), translations, regenerated API types, `docs/02-requirements/forms-and-fields.md`, `docs/03-design/{api,database-schema}.md`, `AI_USAGE.md` | 50% or more AI-generated (generated API declarations and compiled catalog exempt) | Not yet opened (`user_story/US-35` branch) |
 
 ## Examples, verification and corrections
+
+### T-02.13.1 Partner application review tests (#448)
+
+- **What the AI produced:** Additional decision-service tests for each non-admin role, the rejection reason length boundary, audit failure rollback, and privacy-safe handling of email failure. API and listing coverage depends on the staff applications API (#450).
+- **Verification:** Ruff passed and pytest collected 19 decision-service cases. Database execution and coverage remain pending because local PostgreSQL is unavailable.
 
 ### T-02.13.2 Partner application decision service (#449)
 
