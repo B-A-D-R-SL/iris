@@ -57,10 +57,10 @@ returns an error and leaves its status unchanged.
 The search uses the existing `address_key` and `person_key` indexes. It skips
 empty keys, the file itself, and files whose personal data was removed.
 
-**Policy for review:** open files are `submitted`, `review_required`,
+Duplicate candidates are `submitted`, `review_required`,
 `awaiting_visit`, `approved`, `renewal_needed`, and `suspended`. Draft and rejected
-files do not count. Expired approvals still count. The issue does not define
-"active", so the owner needs to confirm this choice.
+files do not count. Files whose `expires_at` is in the past are excluded,
+including suspended files. A missing or future expiry does not exclude a file.
 
 `locked_duplicate_check()` locks the draft, address and people before evaluating
 the match. Save the result inside its `with` block. PostgreSQL holds these locks

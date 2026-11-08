@@ -53,16 +53,17 @@ not from hardcoded values.
 
 ## Duplicate households (US-25)
 
-Rules for #479 and #478. The owner needs to confirm which files count as active.
+Approved rules for #479 and #478.
 
 | Rule ID | Business rule |
 | --- | --- |
-| BR-DUP-001 | The same address and unit, or a member with the same names and birth date, in another open file is a possible duplicate. Ignore draft, rejected and anonymized files. |
+| BR-DUP-001 | The same address and unit, or a member with the same names and birth date, in another open file is a possible duplicate. Suspended files count. Ignore draft, rejected and anonymized files, and files whose `expires_at` is in the past. |
 | BR-DUP-002 | Save possible duplicates as review_required with reason POSSIBLE_DUPLICATE. Keep both files. A clean file becomes submitted. Approval is a separate step. |
 | BR-DUP-003 | Submissions sharing an address or person wait on PostgreSQL advisory locks. Take locks in a fixed order before the search and hold them until the outer transaction ends. |
 
-Proposed open statuses: `submitted`, `review_required`, `awaiting_visit`,
-`approved`, `renewal_needed`, and `suspended`. Expired approvals still count.
+Open statuses: `submitted`, `review_required`, `awaiting_visit`,
+`approved`, `renewal_needed`, and `suspended`. A missing or future expiry does not
+exclude a file.
 
 ## Listings
 

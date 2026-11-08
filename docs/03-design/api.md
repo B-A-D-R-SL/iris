@@ -169,10 +169,12 @@ default is 15 people, including the holder. Approval is separate.
 Success returns 200 with `{id, status, status_reason, submitted_at}`. A clean file
 is `submitted`; a possible duplicate is `review_required` with reason
 `POSSIBLE_DUPLICATE`. Details of matching files are not returned.
+Suspended files remain duplicate candidates. Files whose `expires_at` is in the
+past are excluded from both address and person matching.
 Invalid or repeated submission returns 400; signed out, 401; refused roles or
 inactive staff, 403; online or unknown files, 404. See the
-[households module](../../backend/modules/households/README.md) for the proposed
-active-file rules and locking steps.
+[households module](../../backend/modules/households/README.md) for candidate
+statuses and locking steps.
 
 ### Listings and reservations
 

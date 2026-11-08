@@ -4,10 +4,10 @@
 from uuid import UUID
 
 from django.db.models import Q, QuerySet
+from django.utils import timezone
 
 from modules.households.models import Household, Member
 
-# Expired and suspended files still count as possible duplicates.
 DUPLICATE_CANDIDATE_STATUSES = (
     Household.Status.SUBMITTED,
     Household.Status.REVIEW_REQUIRED,
@@ -42,6 +42,7 @@ def find_possible_duplicates(household: Household) -> QuerySet[Household]:
     return (
         Household.objects.filter(
             matches,
+            Q(expires_at__isnull=True) | Q(expires_at__gte=timezone.now()),
             status__in=DUPLICATE_CANDIDATE_STATUSES,
             anonymized_at__isnull=True,
         )

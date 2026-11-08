@@ -1,10 +1,12 @@
 # AI contribution: 50% or more AI-generated
 
+from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.utils import timezone
 
 from modules.accounts.tests.factories import UserFactory
 from modules.households.models import Household, HouseholdDraftEvent, Member
@@ -55,6 +57,36 @@ def test_duplicate_is_saved_for_review_without_changing_existing_file(
     assert other.status == Household.Status.APPROVED
     assert other.status_reason == ""
     assert Household.objects.count() == 2
+
+
+@pytest.mark.parametrize("candidate_status", ["approved", "suspended"])
+@pytest.mark.parametrize("expired", [False, True])
+@pytest.mark.parametrize("match", ["address", "person"])
+def test_duplicate_review_respects_candidate_expiry(
+    candidate_status, expired, match, ready_household_factory, submission_worker
+):
+    household = ready_household_factory()
+    other = HouseholdFactory(
+        street_number="100" if match == "address" else "200",
+        status=candidate_status,
+        expires_at=timezone.now() + timedelta(days=-1 if expired else 1),
+    )
+    if match == "person":
+        holder = household.members.get(relation=Member.Relation.HOLDER)
+        MemberFactory(
+            household=other,
+            first_name=holder.first_name,
+            last_name=holder.last_name,
+            date_of_birth=holder.date_of_birth,
+        )
+    submit_walk_in(household.pk, submission_worker)
+    household.refresh_from_db()
+    assert household.status == (
+        Household.Status.SUBMITTED if expired else Household.Status.REVIEW_REQUIRED
+    )
+    assert household.status_reason == ("" if expired else "POSSIBLE_DUPLICATE")
+    other.refresh_from_db()
+    assert other.status == candidate_status
 
 
 @pytest.mark.parametrize("role", ["beneficiary", "store_staff", "store_manager"])

@@ -47,13 +47,32 @@ def test_only_open_file_statuses_are_candidates(status):
 
 
 # rule: BR-DUP-001
-@pytest.mark.parametrize("status", ["approved", "suspended", "renewal_needed"])
-def test_expiry_does_not_hide_an_existing_file_from_review(status):
-    source = HouseholdFactory()
+@pytest.mark.parametrize(
+    "status",
+    [
+        status
+        for status in Household.Status.values
+        if status not in ("draft", "rejected")
+    ],
+)
+@pytest.mark.parametrize("match", ["address", "person"])
+@pytest.mark.parametrize("expiry_seconds", [None, -1, 0, 1])
+def test_only_unexpired_candidates_match(status, match, expiry_seconds, monkeypatch):
+    now = timezone.now()
+    monkeypatch.setattr("modules.households.queries.timezone.now", lambda: now)
+    source = HouseholdFactory(street_number="100")
     other = HouseholdFactory(
-        status=status, expires_at=timezone.now() - timedelta(days=1)
+        street_number="100" if match == "address" else "200",
+        status=status,
+        expires_at=None
+        if expiry_seconds is None
+        else now + timedelta(seconds=expiry_seconds),
     )
-    assert list(find_possible_duplicates(source)) == [other]
+    if match == "person":
+        MemberFactory(household=source)
+        MemberFactory(household=other)
+    expected = [] if expiry_seconds == -1 else [other]
+    assert list(find_possible_duplicates(source)) == expected
 
 
 # rule: BR-DUP-001

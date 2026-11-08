@@ -80,8 +80,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 - **AI help:** ChatGPT helped build the search, submission service, locks, staff
   API, translations, migration, tests, and docs.
-- **Choices for review:** reuse `person_key`; count suspended and expired files
-  as possible duplicates. The submission endpoint is new. Approval stays in US-18.
+- **Approved duplicate policy:** suspended files count as possible duplicates;
+  files whose `expires_at` is in the past do not. Approval stays in US-18.
 - **Checks:** 803 backend tests passed, with 93.21% coverage. The 120 household
   tests reached 93.49%, including six tests with two database connections.
   Domain coverage exceeds 90%. Lint, types, module rules, migration checks,
