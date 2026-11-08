@@ -39,6 +39,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
 | US-63 Household search (#553, #554; tests #552) | `backend/modules/households/`, `backend/modules/audit/{services.py,README.md,tests/test_household_views.py}`, `backend/iris/{asgi.py,settings/base.py,settings/local.py}`, `backend/{.env.example,tests/test_backend_config.py}`, `frontend/src/app/{App,RequireHouseholdSearch}.tsx`, `frontend/src/areas/staff/pages/Search*`, `frontend/src/features/households/{searchApi,useHouseholdSearch}*`, `frontend/src/test/{householdSearch.ts,render.tsx}`, routes, translations, generated API types and search documentation | 50% or more AI-generated; generated migration and API types exempt | [#662](https://github.com/B-A-D-R-SL/iris/pull/662) |
+| FIX-15 Seed command boundary and household expiry (#641) | `backend/iris/management/commands/seed.py`, `backend/modules/households/domain/expiry.py`, `backend/modules/households/models.py`, `backend/modules/households/tests/test_expiry.py`, `backend/tests/test_seed.py`, `backend/pyproject.toml`, `docs/04-architecture/architecture.md`, `AI_USAGE.md` | 50% or more AI-generated | [#663](https://github.com/B-A-D-R-SL/iris/pull/663) |
 | T-01.04.3 Invitation password page (#431) | `frontend/src/areas/public/pages/AcceptInvitation{,.test}.tsx`, `frontend/src/features/accounts/invitations{,.test}.ts`, `frontend/src/app/App.tsx`, `frontend/src/shared/i18n/{fr,en}.json`, `frontend/src/shared/logger.ts`, `.coderabbit.yaml`, `backend/modules/accounts/README.md`, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
 | T-01.04.2 Invitation model, services and acceptance API (#430) | `backend/modules/accounts/{models.py,services.py,api/,locale/fr/LC_MESSAGES/,README.md,migrations/0005_invitation.py}`, `backend/modules/accounts/tests/{conftest,test_invitations,test_invitation_logging,test_invitation_errors}.py`, `backend/modules/rules/{domain/schemas.py,tests/test_invitation_rules.py}`, `docs/02-requirements/business-rules.md`, `docs/03-design/{api,database-schema,domain-model}.md`, `docs/04-architecture/architecture.md`, `frontend/src/shared/api/generated.d.ts`, `AI_USAGE.md` | 50% or more AI-generated for source changes; Django migration, compiled catalog and generated API declarations exempt | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
 | T-01.04.1 Invitation acceptance tests (#429) | `backend/modules/accounts/tests/{factories,conftest,test_invitations,test_api}.py`, `backend/modules/rules/tests/test_invitation_rules.py`, `frontend/src/areas/public/pages/AcceptInvitation.test.tsx`, test-only import exceptions in `backend/pyproject.toml`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657); implementation supplied by #430 and #431 |
@@ -105,7 +106,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
 - **Problems found and corrections:** normalized search columns and trigram
   indexes address broad searches, WSGI startup validates routes before accepting
   requests, and healthy database connection reuse avoids repeated connection
-  setup. The ASGI entry point configures its lifetime before Django loads settings.
+  setup. The ASGI entry point identifies its server interface before Django loads
+  settings; settings disable persistence without rewriting the configured lifetime.
   Test diagnostics use structured logging; the subprocess JSON protocol remains
   separate. Existing PostgreSQL extensions are reused in their installed schemas.
   Search access is decided by the API, including the frontend screen's access
@@ -283,6 +285,18 @@ At least half of the AI-assisted features need an example here. For each one:
 - **What the AI produced:** the `seed` command, the fixed fictional plan (seed 18), household and reservation tables taken from the published schema, and `docs/04-data/seed-data.md`.
 - **How we verified it:** `test_seed_plan` checks the agreed counts, status spread, stock limits, and fictional contact details. `test_seed` runs `manage.py seed` on an empty database, checks 1 admin, 2 intake workers, B.A.D.R. plus 4 partner stores, 50 households, 30 listings, and 40 reservations, then runs it again and checks that edited rows are kept.
 - **Problems found and corrections:** household and reservation models did not exist yet, so the seed could not insert those rows. The tables follow `docs/03-design/database-schema.md`. Registration and pickup workflows are still owned by their own stories.
+
+### FIX-15 Seed command boundary and household expiry (#641)
+
+- **Firas's direction:** keep the seed's direct writes as a documented exception rather than routing fictional rows through services that cannot create those states, and move the expiry rule into the households domain so US-18 can reuse it. Edits that would collide with open pull requests were left out (the households README).
+- **What the AI produced:** the exception note at the top of `seed.py`; the import-linter contract "Only the seed command imports module models"; `households/domain/expiry.py` (calendar months, approved expiry, expiry per status); `test_expiry.py`; the seed changes; and the matching `test_seed.py`, `architecture.md` and model edits.
+- **How we verified it:** 881 backend tests passed with 93% coverage; ruff, mypy, lint-imports (4 contracts kept) and `makemigrations --check` were clean. `manage.py seed` on a local database still gave 50 households, 30 listings and 40 reservations. Trial merges against the open pull requests found no new conflicts in code.
+- **Problems found and corrections:**
+  - CodeRabbit flagged a minimum-month module constant in `domain/` and a stale pull request link here; both were removed or updated.
+  - MassPaol's review found that approved demo files lasted 12 months and 30 days, because the months were counted from the seed date instead of the backdated approval. `test_seed.py` built its expected value the same way, so it passed anyway. The seed now counts from the approval date, and the test fails on the old behaviour.
+  - Months were counted on the UTC calendar: 30 January 22:00 in Montreal gave 27 February instead of 28 February. The seed now passes Montreal local time, and a test covers that case.
+  - The seed caught every `ValueError` as a bad month count; the domain now raises `InvalidApprovedMonths` and only that is caught. Tests were added for a missing `file_validity` rule and a broken month count.
+  - The contract covered `iris` only; it now covers `adapters` too. The three status names were duplicated in the domain and the model; `Household.Status` now builds them from the domain constants.
 
 ### T-01.01.1 Sign-in and sign-out tests (#423)
 

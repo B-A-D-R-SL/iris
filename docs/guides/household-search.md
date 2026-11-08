@@ -41,8 +41,10 @@ count-first behavior. Invalid and excessively large page numbers are refused
 with 404 before auditing; page sizes and response fields are unchanged.
 
 WSGI workers reuse healthy PostgreSQL connections for up to 60 seconds, controlled
-by `DATABASE_CONN_MAX_AGE`. A health check precedes reuse. Local runserver and the
-ASGI entry point disable persistence. Each WSGI worker thread can hold one
+by `DATABASE_CONN_MAX_AGE`. A health check precedes reuse. Local settings disable
+persistence for runserver. The ASGI entry point sets `IRIS_SERVER_INTERFACE=asgi`
+before Django initializes; base settings then disable persistence without
+overwriting `DATABASE_CONN_MAX_AGE`. Each WSGI worker thread can hold one
 connection; size the database connection limit for the deployed worker/thread
 count. Set the lifetime to `0` to disable reuse. This is application configuration;
 the load server inherits it without a test-only connection override. See

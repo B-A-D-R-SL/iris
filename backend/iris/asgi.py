@@ -13,8 +13,7 @@ from django.core.asgi import get_asgi_application
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "iris.settings.local")
 
-# Configure ASGI before get_asgi_application() loads the Django settings.
-# Database settings stay in settings/base.py; WSGI keeps its normal lifetime.
-os.environ["DATABASE_CONN_MAX_AGE"] = "0"
+# Identify ASGI before Django loads settings and applies its connection policy.
+os.environ["IRIS_SERVER_INTERFACE"] = "asgi"
 
 application = get_asgi_application()

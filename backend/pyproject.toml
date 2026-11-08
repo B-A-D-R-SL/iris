@@ -222,6 +222,20 @@ forbidden_modules = [
     "modules.*.tasks",
 ]
 
+# Contract 4: the seed command is the one place outside the modules that may
+# import their models. The reason is written at the top of seed.py.
+[[tool.importlinter.contracts]]
+name = "Only the seed command imports module models"
+type = "forbidden"
+source_modules = ["iris", "adapters"]
+forbidden_modules = ["modules.*.models"]
+# Services and queries may import their own models. This contract checks the
+# direct import only, and the one allowed direct import is the seed command.
+allow_indirect_imports = true
+ignore_imports = [
+    "iris.management.commands.seed -> modules.*.models",
+]
+
 [tool.ruff.lint]
 # Windows Docker bind mounts may report Python files as executable.
 ignore = ["EXE002"]
