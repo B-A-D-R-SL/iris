@@ -202,6 +202,17 @@ class WalkInSubmissionReadSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class HouseholdStatusInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
+    reason = serializers.CharField(max_length=500, trim_whitespace=True)
+
+
+class HouseholdStatusReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Household
+        fields = ("id", "status", "status_reason", "expires_at")
+        read_only_fields = fields
+
+
 class WalkInDraftReadSerializer(serializers.ModelSerializer):
     members = MemberReadSerializer(many=True, read_only=True)
     created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
@@ -215,6 +226,8 @@ class WalkInDraftReadSerializer(serializers.ModelSerializer):
             "id",
             "channel",
             "status",
+            "status_reason",
+            "member_number",
             "email",
             "preferred_language",
             "phone",
@@ -230,6 +243,7 @@ class WalkInDraftReadSerializer(serializers.ModelSerializer):
             "created_by_email",
             "created_at",
             "updated_at",
+            "expires_at",
             "verified_by_email",
             "verified_at",
         )

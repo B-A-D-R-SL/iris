@@ -27,6 +27,8 @@ from modules.households.api.search_serializers import (
 )
 from modules.households.api.serializers import (
     HouseholdErrorSerializer,
+    HouseholdStatusInputSerializer,
+    HouseholdStatusReadSerializer,
     WalkInDraftInputSerializer,
     WalkInDraftReadSerializer,
     WalkInSubmissionInputSerializer,
@@ -34,7 +36,8 @@ from modules.households.api.serializers import (
 )
 from modules.households.exceptions import HouseholdUnavailable
 from modules.households.models import Household
-from modules.households.policies import can_manage_walk_ins
+from modules.households.policies import can_manage_walk_ins, can_suspend_households
+from modules.reservations import services as reservation_services
 
 
 def _flatten_errors(detail: Any, prefix: str = "") -> dict[str, list[str]]:
@@ -101,6 +104,11 @@ class IsIntakeWorkerOrAdmin(BasePermission):
     def has_permission(self, request: Request, view: Any) -> bool:
         """Check the same staff permission used by edits and advertised actions."""
         return can_manage_walk_ins(request.user)
+
+
+class IsAdmin(BasePermission):
+    def has_permission(self, request: Request, view: Any) -> bool:
+        return can_suspend_households(request.user)
 
 
 def _validated(data: Any, *, partial: bool = False) -> dict[str, Any]:
@@ -235,3 +243,38 @@ class WalkInSubmissionView(WalkInErrorHandlingMixin, GenericAPIView):
         except DjangoValidationError as exc:
             raise _service_validation(exc) from exc
         return Response(WalkInSubmissionReadSerializer(household).data)
+
+
+class HouseholdStatusView(WalkInErrorHandlingMixin, GenericAPIView):
+    serializer_class = HouseholdStatusInputSerializer
+    permission_classes = (IsAdmin,)
+    reactivate = False
+
+    @extend_schema(
+        request=HouseholdStatusInputSerializer,
+        responses={200: HouseholdStatusReadSerializer},
+        tags=["staff households"],
+        summary="Suspend or reactivate a household file (administrator)",
+    )
+    def post(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            with transaction.atomic():
+                household = services.change_suspension(
+                    id,
+                    serializer.validated_data["reason"],
+                    request.user,
+                    reactivate=self.reactivate,
+                )
+                if not self.reactivate:
+                    reservation_services.cancel_open_for_household(household.pk)
+        except Household.DoesNotExist as exc:
+            raise Http404 from exc
+        except DjangoValidationError as exc:
+            raise _service_validation(exc) from exc
+        return Response(HouseholdStatusReadSerializer(household).data)
+
+
+class HouseholdReactivationView(HouseholdStatusView):
+    reactivate = True

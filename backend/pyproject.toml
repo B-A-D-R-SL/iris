@@ -113,6 +113,11 @@ ignore_imports = [
     "modules.rules.tests.test_rule_set_versions -> modules.accounts.tests.factories",
     "modules.households.tests.** -> modules.accounts.tests.factories",
     "modules.households.tests.** -> modules.stores.tests.factories",
+    # US-32 integration tests build reservations and verify their audit records.
+    "modules.households.tests.test_suspension_api -> modules.audit.models",
+    "modules.households.tests.test_suspension_api -> modules.listings.models",
+    "modules.households.tests.test_suspension_api -> modules.listings.tests.factories",
+    "modules.households.tests.test_suspension_api -> modules.reservations.models",
     "modules.stores.tests.test_admin -> modules.accounts.tests.factories",
     "modules.categories.tests.test_staff_api -> modules.accounts.tests.factories",
     "modules.categories.tests.test_staff_api -> modules.stores.tests.factories",
@@ -142,6 +147,8 @@ ignore_imports = [
     "modules.households.** -> modules.priority.queries",
     "modules.households.** -> modules.review.services",
     "modules.households.** -> modules.review.queries",
+    # US-32 coordinates status and reservation cancellation in one transaction.
+    "modules.households.api.** -> modules.reservations.services",
 
     # eligibility -> households
     "modules.eligibility.** -> modules.households.services",
