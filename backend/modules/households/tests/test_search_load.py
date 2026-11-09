@@ -98,10 +98,11 @@ def test_api_p95_under_500ms_at_100_requests_per_second(client, search_server):
         "Household search HTTP load measured",
         extra={"event": "household_search_load_measured", "metrics": report},
     )
-    assert report["requests"] == REQUEST_COUNT, report
-    assert report["db_queries_max"] > 0, report
-    assert report["cold_http_ms"] < 1000, report
-    assert report["http_p95_ms"] < 500, report
+    diagnostics = json.dumps(report, sort_keys=True)
+    assert report["requests"] == REQUEST_COUNT, diagnostics
+    assert report["db_queries_max"] > 0, diagnostics
+    assert report["cold_http_ms"] < 1000, diagnostics
+    assert report["http_p95_ms"] < 500, diagnostics
 
 
 def test_wsgi_reuses_database_connection_between_http_requests(client, search_server):

@@ -143,6 +143,12 @@ first timed request. Process initialization is separate from request latency;
 the first real search still includes authentication, queries, serialization and
 audit persistence. Invalid routes prevent the WSGI application from starting.
 
+The test server queues up to 128 connections so the driver's 64 workers can
+connect even if the accept loop is briefly descheduled. Django's default queue
+of 10 can overflow and add TCP retry delays. The latency and request-rate targets
+stay unchanged. A Linux regression checks the full connection burst before any
+requests are served, and failed load assertions include every timing metric.
+
 The frontend checks access with an authenticated HEAD request to the search API
 before rendering the screen. A refusal or failed check withholds the screen;
 requests can be retried after a service failure. The API independently enforces

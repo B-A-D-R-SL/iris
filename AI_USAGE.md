@@ -98,6 +98,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
 - **Policy checks:** 303 household and RuleSet tests passed, including expiry boundaries, suspended candidates, creator access, another-worker denial and admin access. Ruff lint and formatting, type checks for the changed views, queries and services, and diff checks passed.
 - **Main integration:** ChatGPT resolved the search, invitation and settings conflicts while keeping the approved household rules. Search applies walk-in ownership before counts, pages and audits; resume flags follow the same rule. A merge migration joins the search and duplicate-check branches. API types were regenerated.
 - **Merge checks:** 1,240 backend tests and 443 frontend tests passed. Ruff, backend/frontend type checks, frontend lint, module boundaries, migration checks, API types and diff checks passed.
+- **CI load test:** ChatGPT found that the benchmark server's 10-connection queue could overflow under the 64-worker driver. A Linux regression failed with the original queue. The test server now queues 128 connections; the 100 requests/second and 500 ms p95 targets stay unchanged. Failed assertions include the complete timing report.
+- **Load-test checks:** 1,241 backend tests passed with 93.95% coverage. All 16 load-server/client checks passed in a two-CPU Linux container. Ruff, targeted type checks and diff checks passed.
 
 ### US-63 Household search and tests (#552, #553, #554)
 

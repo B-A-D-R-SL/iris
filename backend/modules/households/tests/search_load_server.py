@@ -13,6 +13,12 @@ from django.db import connection
 from django.test.testcases import QuietWSGIRequestHandler
 
 
+class LoadWSGIServer(ThreadedWSGIServer):
+    """Absorb connection bursts while the accept loop is descheduled."""
+
+    request_queue_size = 128
+
+
 def _timed_application(application):
     """Expose aggregate timings only on the isolated test server, without SQL/PII."""
 
@@ -66,7 +72,7 @@ def serve() -> None:
     # household search runs before the client measures its first request.
     from iris.wsgi import application
 
-    server = ThreadedWSGIServer(("127.0.0.1", 0), QuietWSGIRequestHandler)
+    server = LoadWSGIServer(("127.0.0.1", 0), QuietWSGIRequestHandler)
     server.set_app(_timed_application(application))
     print(json.dumps({"url": f"http://127.0.0.1:{server.server_port}"}), flush=True)
     server.serve_forever()
