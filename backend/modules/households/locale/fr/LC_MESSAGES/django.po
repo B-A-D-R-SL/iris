@@ -8,6 +8,27 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-AI-Contribution: 50% or more AI-generated\n"
 
+msgid "Accepted tax years are not configured."
+msgstr "Les années d'imposition acceptées ne sont pas configurées."
+
+msgid "An adult holder is required."
+msgstr "Une personne responsable adulte est requise."
+
+msgid "Record a notice or non-filing reason for every adult."
+msgstr "Enregistrez un avis ou un motif de non-production pour chaque adulte."
+
+msgid "Complete the household address and telephone number."
+msgstr "Complétez l'adresse et le numéro de téléphone du foyer."
+
+msgid "Data-processing consent is required."
+msgstr "Le consentement au traitement des données est requis."
+
+msgid "File validity is not configured correctly."
+msgstr "La durée de validité des dossiers n'est pas configurée correctement."
+
+msgid "This household file cannot be approved in its current status."
+msgstr "Ce dossier ne peut pas être approuvé dans son état actuel."
+
 msgid "Enter a Canadian postal code."
 msgstr "Entrez un code postal canadien."
 

@@ -110,6 +110,7 @@ ignore_imports = [
     "modules.accounts.tests.test_invitations -> modules.stores.tests.factories",
     "modules.accounts.tests.test_api -> modules.stores.tests.factories",
     "modules.accounts.tests.conftest -> modules.rules.models",
+    "modules.households.tests.** -> modules.documents.tests.factories",
     "modules.audit.tests.** -> modules.stores.tests.factories",
     "modules.rules.tests.test_rule_set_versions -> modules.accounts.tests.factories",
     "modules.households.tests.** -> modules.accounts.tests.factories",
@@ -141,6 +142,7 @@ ignore_imports = [
     "modules.stores.tests.** -> modules.categories.tests.factories",
 
     # households and documents -> accounts: one rule for intake staff (T-03.18.2)
+    "modules.households.** -> modules.accounts.services",
     "modules.households.** -> modules.accounts.queries",
     "modules.documents.** -> modules.accounts.queries",
 

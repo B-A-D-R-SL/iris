@@ -1,5 +1,5 @@
 # AI contribution: 50% or more AI-generated
-"""Staff-only transactional creation and editing of walk-in household drafts and notices."""
+"""Staff-only walk-in drafts, notices and approval."""
 
 from collections.abc import Mapping
 from typing import Any
@@ -14,6 +14,7 @@ from django.utils.translation import gettext_lazy as _
 
 from modules.accounts.queries import is_intake_staff
 from modules.documents import services as document_services
+from modules.households import _approval
 from modules.households.domain.person import is_adult
 from modules.households.models import Household, HouseholdDraftEvent, Member
 
@@ -23,6 +24,36 @@ ADDRESS_FIELDS = frozenset(
 MEMBER_FIELDS = frozenset(("first_name", "last_name", "date_of_birth"))
 # Version of the data-processing consent text read to the person.
 CONSENT_TEXT_VERSION = "2026-11-v1"
+
+
+@transaction.atomic
+def approve_walk_in(household: Household, staff: AbstractBaseUser) -> Household:
+    _require_staff(staff)
+    if getattr(staff, "pk", None) is None or getattr(
+        getattr(staff, "_state", None), "adding", True
+    ):
+        raise PermissionDenied(
+            _("Only active intake workers and admins can manage walk-ins.")
+        )
+    # Draft editing and notice entry take this same lock before changing evidence.
+    locked = Household.objects.select_for_update().get(
+        pk=household.pk,
+        channel=Household.Channel.WALK_IN,
+        anonymized_at__isnull=True,
+    )
+    if locked.status not in {
+        Household.Status.DRAFT,
+        Household.Status.SUBMITTED,
+        Household.Status.REVIEW_REQUIRED,
+    }:
+        raise ValidationError(
+            _("This household file cannot be approved in its current status.")
+        )
+    locked.full_clean()
+    _approval.check_complete(locked)
+    _approval.apply_outcome(locked, staff)
+    _approval.record_outcome(locked, staff)
+    return locked
 
 
 def _require_staff(user: AbstractBaseUser) -> None:
