@@ -24,16 +24,16 @@ def submit_url(household):
     return reverse("staff-households-submit", kwargs={"id": household.pk})
 
 
-# rule: BR-DUP-001, BR-DUP-002
+# rule: BR-DUP-001, BR-DUP-002, BR-HH-ACCESS-001
 @pytest.mark.parametrize("role", ["intake_worker", "admin"])
 @pytest.mark.parametrize("duplicate", [True, False])
-def test_creator_or_admin_can_submit_and_see_the_persisted_outcome(
+def test_staff_can_submit_another_workers_file_and_see_the_persisted_outcome(
     role, duplicate, ready_household_factory
 ):
     actor = UserFactory(role=role)
-    household = ready_household_factory(
-        **({"created_by": actor} if role == "intake_worker" else {})
-    )
+    household = ready_household_factory()
+    creator_id = household.created_by_id
+    assert creator_id != actor.pk
     if duplicate:
         HouseholdFactory(status=Household.Status.APPROVED)
     response = client_for(actor).post(submit_url(household), {}, format="json")
@@ -50,6 +50,9 @@ def test_creator_or_admin_can_submit_and_see_the_persisted_outcome(
     )
     assert response.data["submitted_at"] and household.submitted_at is not None
     assert set(response.data) == {"id", "status", "status_reason", "submitted_at"}
+    assert household.created_by_id == creator_id
+    event = household.draft_events.get(action="submitted")
+    assert (event.actor_id, event.actor_role) == (actor.pk, role)
 
 
 def test_main_path_creates_draft_and_submits_through_api_and_database(
