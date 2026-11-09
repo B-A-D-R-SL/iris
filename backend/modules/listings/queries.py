@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from django.db.models import F, QuerySet
+from django.db.models import F, QuerySet, Value
 from django.utils import timezone
 
 from modules.categories import queries as category_queries
@@ -101,6 +101,40 @@ def visible_listings(household_id: UUID | None, now: datetime) -> QuerySet[Listi
         status=ListingStatus.PUBLISHED,
         quantity_reserved__lt=F("quantity_total"),
         pickup_end__gt=now,
+    )
+
+
+def reservable_listing(
+    household_id: UUID | None, listing_id: UUID, now: datetime
+) -> dict[str, Any] | None:
+    """The limits a household needs to reserve a listing it can see (US-41).
+
+    Uses ``visible_listings``, so a listing the household cannot see (closed,
+    cancelled, ended, or later its tier delay) cannot be reserved either.
+    Returns ``{"id", "max_per_household", "units_left"}``, or None.
+
+    A listing that is open but has no units left is not visible, yet the
+    household should hear "sold out", not "not available": it is returned
+    with ``units_left`` 0. Stock is only ever taken by ``services.take_units``.
+    """
+    fields = ("id", "max_per_household")
+    found = (
+        visible_listings(household_id, now)
+        .filter(pk=listing_id)
+        .values(*fields, units_left=F("quantity_total") - F("quantity_reserved"))
+        .first()
+    )
+    if found is not None or household_id is None:
+        return found
+    return (
+        Listing.objects.filter(
+            pk=listing_id,
+            status=ListingStatus.PUBLISHED,
+            pickup_end__gt=now,
+            quantity_reserved__gte=F("quantity_total"),
+        )
+        .values(*fields, units_left=Value(0))
+        .first()
     )
 
 

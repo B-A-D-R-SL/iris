@@ -1,5 +1,8 @@
 # AI contribution: 50% or more AI-generated
-"""Transactional posting; owning modules supply all cross-module reads."""
+"""Transactional posting, and taking units for reservations (US-41).
+
+Owning modules supply all cross-module reads.
+"""
 
 import logging
 from collections import defaultdict
@@ -284,3 +287,32 @@ def post_listing(
         raise
     logger.info("listing_published", extra={"event": "listing_published"})
     return listing
+
+
+def take_units(listing_id: UUID, quantity: int, *, now: datetime) -> bool:
+    """Count ``quantity`` more units of a listing as reserved, if they are left.
+
+    One conditional UPDATE does the check and the change together, so two
+    reservations at the same moment can never both take the last unit: the
+    database runs them one after the other on this row, and the second sees
+    what the first left (US-41, BR-RES-009). Never read the counter, add to it
+    in Python and save it back. Only a published listing whose pickup has not
+    ended gives units. True when the units were taken, False otherwise.
+
+    Must run inside the caller's transaction, so a failure after this call
+    (the reservation insert) also gives the units back.
+    """
+    if not connection.in_atomic_block:
+        raise RuntimeError("take_units must run inside the caller's transaction.")
+    if quantity < 1:
+        raise ValueError("quantity must be 1 or more.")
+    if now.utcoffset() is None:
+        raise ValueError("The supplied clock must be timezone-aware.")
+    # rule: BR-RES-009 atomic, only while published and before the pickup ends.
+    changed = Listing.objects.filter(
+        pk=listing_id,
+        status=ListingStatus.PUBLISHED,
+        pickup_end__gt=now,
+        quantity_total__gte=F("quantity_reserved") + quantity,
+    ).update(quantity_reserved=F("quantity_reserved") + quantity)
+    return changed == 1
