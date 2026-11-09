@@ -28,14 +28,9 @@ def walk_ins_for_staff(staff_user: AbstractBaseUser) -> QuerySet[Household]:
     households = Household.objects.filter(
         channel=Household.Channel.WALK_IN, anonymized_at__isnull=True
     )
-    if not staff_user.is_authenticated or not staff_user.is_active:
+    if not can_manage_walk_ins(staff_user):
         return households.none()
-    role = getattr(staff_user, "role", None)
-    if role == "admin":
-        return households
-    if role == "intake_worker":
-        return households.filter(created_by_id=staff_user.pk)
-    return households.none()
+    return households
 
 
 def walk_in_for_staff(
@@ -75,17 +70,17 @@ def find_possible_duplicates(household: Household) -> QuerySet[Household]:
 
 
 def search_for_staff(q: str, actor: StaffActor) -> QuerySet[Household]:
-    """Apply ownership before counting, pagination and disclosure audits."""
-    if actor is None or not can_manage_walk_ins(actor):
+    """Authorize shared staff scope before searching and paginating.
+
+    BR-HH-ACCESS-001 grants intake workers/admins shared household files;
+    created_by records provenance, not exclusive ownership. BR-HH-ACCESS-002
+    excludes anonymized households before counting or pagination.
+    """
+    if not can_manage_walk_ins(actor):
         raise PermissionDenied(
             _("Only active intake workers and admins can manage walk-ins.")
         )
-    households = search(q)
-    if getattr(actor, "role", None) == "intake_worker":
-        households = households.filter(
-            Q(channel=Household.Channel.ONLINE) | Q(created_by_id=actor.pk)
-        )
-    return households
+    return search(q)
 
 
 def _matching_households(
@@ -122,7 +117,7 @@ def search(q: str) -> QuerySet[Household]:
 
     Input stays in bound ORM parameters, including LIKE wildcard characters.
     Anonymized files and DOB-containing duplicate keys are never searched.
-    API callers use search_for_staff to enforce roles and ownership.
+    API callers use search_for_staff to enforce staff permissions.
     """
     value = " ".join(q.split())
     households = Household.objects.filter(anonymized_at__isnull=True)

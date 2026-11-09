@@ -1,5 +1,5 @@
 # AI contribution: 50% or more AI-generated
-"""Staff permissions, file ownership and walk-in edit rules."""
+"""Shared staff permissions and walk-in edit rules, evaluated by the backend."""
 
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.models import AnonymousUser
@@ -30,12 +30,5 @@ def is_editable_walk_in(household: Household) -> bool:
 
 
 def can_resume_walk_in(household: Household, actor: StaffActor) -> bool:
-    return bool(
-        can_manage_walk_ins(actor)
-        and is_editable_walk_in(household)
-        and actor is not None
-        and (
-            getattr(actor, "role", None) == "admin"
-            or household.created_by_id == actor.pk
-        )
-    )
+    """Advertise the resume action only when the staff edit rule permits it."""
+    return can_manage_walk_ins(actor) and is_editable_walk_in(household)

@@ -196,7 +196,7 @@ def test_audit_failure_prevents_disclosure_and_rolls_back_events(
 
 
 @pytest.mark.parametrize("role", ["intake_worker", "admin"])
-def test_ownership_and_anonymized_files_are_filtered_before_pagination(
+def test_staff_share_files_but_anonymized_files_are_excluded_before_pagination(
     client, file, role
 ):
     # rule: BR-HH-ACCESS-001; BR-HH-ACCESS-002
@@ -208,7 +208,7 @@ def test_ownership_and_anonymized_files_are_filtered_before_pagination(
     unassigned = HouseholdFactory(created_by=None, member_number="IR-000002")
     own = HouseholdFactory(created_by=staff, member_number="IR-000003")
     client.force_login(staff)
-    expected = [file, unassigned, own] if role == "admin" else [own]
+    expected = [file, unassigned, own]
     disclosed = []
     for number in range(1, len(expected) + 1):
         page = client.get(URL, {"q": "Exemple", "page_size": 1, "page": number}).json()
