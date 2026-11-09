@@ -1,9 +1,10 @@
 # AI contribution: 50% or more AI-generated
-"""Household draft, members, and transactionally persisted draft-change audit."""
+"""Household records and registration history."""
 
 import uuid
 
 from django.conf import settings
+from django.contrib.postgres.indexes import GinIndex
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
@@ -23,6 +24,11 @@ from modules.households.domain.person import (
     validate_birth_date,
 )
 from modules.households.messages import domain_error_message
+from modules.households.search_expressions import (
+    SearchKey,
+    address_search_key,
+    member_name_key,
+)
 
 PHONE_VALIDATOR = RegexValidator(
     r"^\+1\d{10}$", _("Enter a Canadian telephone number.")
@@ -71,6 +77,29 @@ class Household(models.Model):
     city = models.CharField(max_length=80, blank=True)
     postal_code = models.CharField(max_length=7, blank=True)
     address_key = models.CharField(max_length=200, blank=True, db_index=True)
+    # PostgreSQL maintains these stored keys, including bulk writes and old rows.
+    search_email_key = models.GeneratedField(
+        expression=SearchKey("email"),
+        output_field=models.TextField(),
+        db_persist=True,
+        null=True,
+    )
+    search_number_key = models.GeneratedField(
+        expression=SearchKey("member_number"),
+        output_field=models.TextField(),
+        db_persist=True,
+        null=True,
+    )
+    search_address_key = models.GeneratedField(
+        expression=SearchKey("address_key"),
+        output_field=models.TextField(),
+        db_persist=True,
+    )
+    search_address_text = models.GeneratedField(
+        expression=address_search_key(),
+        output_field=models.TextField(),
+        db_persist=True,
+    )
     alternate_name = models.CharField(max_length=100, blank=True)
     alternate_phone = models.CharField(max_length=16, blank=True)
     alternate_email = models.EmailField(max_length=254, null=True, blank=True)
@@ -106,10 +135,36 @@ class Household(models.Model):
         indexes = [  # noqa: RUF012
             models.Index(
                 fields=["status", "expires_at"], name="households__status_4f9d18_idx"
-            )
+            ),
+            GinIndex(
+                fields=["search_email_key"],
+                opclasses=["gin_trgm_ops"],
+                name="household_email_search_gin",
+            ),
+            GinIndex(
+                fields=["search_number_key"],
+                opclasses=["gin_trgm_ops"],
+                name="household_number_search_gin",
+            ),
+            GinIndex(
+                fields=["phone"],
+                opclasses=["gin_trgm_ops"],
+                name="household_phone_search_gin",
+            ),
+            GinIndex(
+                fields=["search_address_key"],
+                opclasses=["gin_trgm_ops"],
+                name="household_key_search_gin",
+            ),
+            GinIndex(
+                fields=["search_address_text"],
+                opclasses=["gin_trgm_ops"],
+                name="household_address_search_gin",
+            ),
         ]
 
     def clean(self) -> None:
+        """Normalize contact/address keys and keep identity verification fields consistent."""
         super().clean()
         if self.email:
             self.email = self.email.strip().lower()
@@ -170,10 +225,22 @@ class Member(models.Model):
     person_key = models.CharField(
         max_length=220, db_index=True, blank=True, editable=False
     )
+    search_name_key = models.GeneratedField(
+        expression=member_name_key(),
+        output_field=models.TextField(),
+        db_persist=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        indexes = [  # noqa: RUF012
+            GinIndex(
+                fields=["search_name_key"],
+                opclasses=["gin_trgm_ops"],
+                name="member_name_search_gin",
+            )
+        ]
         constraints = [  # noqa: RUF012
             models.UniqueConstraint(
                 fields=["household"],
@@ -183,6 +250,7 @@ class Member(models.Model):
         ]
 
     def clean(self) -> None:
+        """Validate member identity fields and maintain the duplicate-detection key."""
         super().clean()
         self.first_name, self.last_name = (
             self.first_name.strip(),
@@ -207,14 +275,12 @@ class Member(models.Model):
 
 
 class HouseholdDraftEvent(models.Model):
-    """Write-once household-specific audit until US-62 is integrated.
-
-    Keep event payload free of names, DOB, phone, address and email.
-    """
+    """Keep registration history separate from personal data."""
 
     class Action(models.TextChoices):
         CREATED = "created", _("Created")
         UPDATED = "updated", _("Updated")
+        SUBMITTED = "submitted", _("Submitted")
 
     id = models.BigAutoField(primary_key=True)
     household = models.ForeignKey(
