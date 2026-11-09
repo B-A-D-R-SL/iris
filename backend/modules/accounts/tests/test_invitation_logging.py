@@ -2,6 +2,7 @@
 """Invitation success events follow commits and contain no recipient or secret data."""
 
 import logging
+from hashlib import sha256
 
 import pytest
 from django.db import transaction
@@ -96,3 +97,56 @@ def test_rolled_back_creation_logs_no_success(
     assert callbacks == []
     assert invitation_logs.records == []
     assert not Invitation.objects.filter(email=invitation_values["email"]).exists()
+
+
+def test_acceptance_logs_private_success_only_after_commit(
+    issue_invitation, invitation_logs, django_capture_on_commit_callbacks
+):
+    """Accepting an invitation emits only its event after the outer commit."""
+    token, invitation = issue_invitation()
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        with transaction.atomic():
+            user = services.accept_invitation(token, PASSWORD)
+            invitation.refresh_from_db()
+            assert invitation.accepted_at is not None
+            assert invitation_logs.records == []
+        assert invitation_logs.records == []
+
+    assert len(callbacks) == 1
+    assert len(invitation_logs.records) == 1
+    _assert_private_event(
+        invitation_logs.records[0],
+        "invitation_accepted",
+        [
+            token,
+            sha256(token.encode("utf-8")).hexdigest(),
+            PASSWORD,
+            user.password,
+            invitation.email,
+            invitation.first_name,
+            invitation.last_name,
+            invitation.pk,
+            user.pk,
+        ],
+    )
+
+
+def test_rolled_back_acceptance_logs_no_success(
+    issue_invitation, invitation_logs, django_capture_on_commit_callbacks
+):
+    """A rollback restores the token, removes the account and emits no success."""
+    token, invitation = issue_invitation()
+    with (
+        django_capture_on_commit_callbacks(execute=True) as callbacks,
+        pytest.raises(RuntimeError),
+        transaction.atomic(),
+    ):
+        services.accept_invitation(token, PASSWORD)
+        assert invitation_logs.records == []
+        raise RuntimeError("caller rolled back")
+
+    assert callbacks == []
+    assert invitation_logs.records == []
+    invitation.refresh_from_db()
+    assert invitation.accepted_at is None
+    assert not User.objects.filter(email=invitation.email).exists()
