@@ -20,6 +20,16 @@ def can_manage_walk_ins(actor: StaffActor) -> bool:
     )
 
 
+def can_suspend_households(actor: StaffActor) -> bool:
+    """Only active administrators may change a household's suspension state."""
+    return bool(
+        actor is not None
+        and actor.is_authenticated
+        and actor.is_active
+        and getattr(actor, "role", None) == "admin"
+    )
+
+
 def is_editable_walk_in(household: Household) -> bool:
     """Only a non-anonymized walk-in draft may be edited or resumed."""
     return (
