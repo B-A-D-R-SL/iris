@@ -146,7 +146,7 @@ Error messages:
 
 Staff page **Inscription en personne / Walk-in registration** (`/staff/walk-in`, resumed at `/staff/walk-in/{id}`), for intake workers and admins. An intake worker registers a household that comes to the office in person (US-17, #461). Wireframes: Staff page, flow W3 (layout only; the fields are the ones below).
 
-Intake workers may access, edit and submit only walk-in files they created. Admins may manage all walk-in files. Another worker's file returns 404.
+Active intake workers and admins share non-anonymized walk-in files, including files created by another worker and unassigned files. `created_by` records who started the file; it does not restrict access.
 
 Four steps: **Personne responsable / Account holder**, **Adresse / Address**, **Membres du foyer / Household members**, **Vérification / Review**. "Continuer / Continue" checks the step and saves the draft; "Enregistrer le brouillon / Save draft" saves it and shows what is still missing. The file stores who created it and when.
 

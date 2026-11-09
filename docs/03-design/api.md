@@ -198,8 +198,10 @@ US-13 staff screens exist.
 | POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`                                     | Planned |
 | GET/POST   | `/api/staff/households/{id}/notes/`                     | Intake worker, admin | Staff notes                                       | Planned |
 
-Intake workers may read, edit and submit only walk-in files they created.
-Admins may manage all walk-in files.
+Active intake workers and admins may read, edit and submit shared,
+non-anonymized walk-in files, including another worker's and unassigned files.
+Edits and submissions still require a draft. `created_by` records provenance,
+not exclusive ownership.
 
 Submission accepts `{}`. It needs an address, one holder, an identity check, and
 consent. The household limit comes from `household_size.max_people`; the seed
@@ -211,8 +213,8 @@ is `submitted`; a possible duplicate is `review_required` with reason
 Suspended files remain duplicate candidates. Files whose `expires_at` is in the
 past are excluded from both address and person matching.
 Invalid or repeated submission returns 400; signed-out or deactivated sessions,
-401; refused signed-in roles, 403; another worker's file, online or unknown
-files, 404. Access is checked before request validation.
+401; refused signed-in roles, 403; anonymized, online or unknown files, 404.
+Access is checked before request validation.
 Create, edit and submit return 503 with code `household_unavailable` and a generic
 retry message when required household-size rules are missing or invalid.
 Submission also returns this response if a duplicate advisory lock times out;

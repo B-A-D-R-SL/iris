@@ -7,14 +7,14 @@ Decisions taken where B.A.D.R. had not specified anything are marked **Default**
 
 Each owner publishes their section of this document in their own pull request. This version contains the listing categories and the prohibited items (SET-12), and partner applications (US-12); the other sections (roles, eligibility, reservations, priority, strikes, notifications, retention) are added by their owners.
 
-## Household access (US-63)
+## Shared household access (US-63)
 
-Walk-in ownership follows the approved registration policy. Search applies the
-same scope before counting, pagination and disclosure audits.
+Mark confirmed this scope for US-63: intake workers and administrators share
+household files across staff; the registering staff member does not own the file.
 
 | Rule ID | Business rule |
 | --- | --- |
-| BR-HH-ACCESS-001 | Active intake workers can search their own non-anonymized walk-in files and online files. Administrators can search all non-anonymized files, including unassigned files. Other roles, inactive users and anonymous callers are refused. Intake workers cannot read, edit or submit another worker's walk-in file; those requests return 404. |
+| BR-HH-ACCESS-001 | Active intake workers and administrators can search all non-anonymized households, including files created by another staff member and unassigned files. Other roles, inactive users and anonymous callers are refused. `created_by` records provenance and never restricts staff search scope. |
 | BR-HH-ACCESS-002 | Anonymized households are excluded before counting and pagination and cannot be read, edited or offered for resuming through the walk-in endpoints. |
 | BR-HH-AUDIT-001 | Search results disclose household details. Persist a view event for each returned household before disclosing the response; an audit failure prevents disclosure. Events contain household IDs and empty metadata, never search text or personal details. |
 
@@ -95,10 +95,6 @@ Approved rules for #479 and #478.
 Open statuses: `submitted`, `review_required`, `awaiting_visit`,
 `approved`, `renewal_needed`, and `suspended`. A missing or future expiry does not
 exclude a file.
-
-For walk-in files, intake workers may read, edit and submit only files they
-created. Admins may manage all walk-in files. Return 404 for another worker's
-file to avoid exposing it.
 
 ## Listings
 
