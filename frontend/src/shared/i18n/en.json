@@ -26,6 +26,8 @@
       "roleBeneficiary": "Household",
       "actionView": "View",
       "actionDecision": "Decision",
+      "actionSuspend": "Suspend",
+      "actionReactivate": "Reactivate",
       "outcomeApproved": "Approved",
       "outcomeRejected": "Rejected",
       "outcomeReview": "Review required",
@@ -144,6 +146,7 @@
       "unnamed": "Name not provided",
       "noMemberNumber": "Member number not assigned",
       "resume": "Resume registration",
+      "open": "Open file",
       "newRegistration": "New registration",
       "previous": "Previous",
       "next": "Next",
@@ -156,6 +159,23 @@
       "signIn": "Sign in again",
       "countOne": "{{count}} household found",
       "countOther": "{{count}} households found"
+    },
+    "manage": {
+      "title": "Household file",
+      "contact": "Contact details",
+      "expires": "Valid until {{date}}",
+      "actions": "Staff actions",
+      "actionHelp": "Every status change requires a reason and is recorded in the audit log.",
+      "suspend": "Suspend file",
+      "reactivate": "Reactivate file",
+      "suspendTitle": "Suspend this household file",
+      "reactivateTitle": "Reactivate this household file",
+      "reason": "Reason",
+      "cancel": "Cancel",
+      "back": "Back to households",
+      "failed": "The status could not be changed. Try again.",
+      "suspendSuccess": "The household file was suspended.",
+      "reactivateSuccess": "The household file was reactivated."
     }
   },
   "category": {

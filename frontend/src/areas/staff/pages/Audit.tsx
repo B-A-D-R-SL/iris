@@ -88,6 +88,8 @@ export function Audit() {
     beneficiary: t("audit.search.roleBeneficiary"),
     view: t("audit.search.actionView"),
     decision: t("audit.search.actionDecision"),
+    suspend: t("audit.search.actionSuspend"),
+    reactivate: t("audit.search.actionReactivate"),
     approved: t("audit.search.outcomeApproved"),
     rejected: t("audit.search.outcomeRejected"),
     review_required: t("audit.search.outcomeReview"),
