@@ -13,6 +13,10 @@ account. The record also preserves staff verification and creation timestamps.
 - `services.create_walk_in(data, staff_user) -> Household`
 - `services.update_draft(household_id, data, staff_user) -> Household`
 - `queries.walk_in_for_staff(household_id) -> Household | None`
+- `queries.approved_household_id(user_id, at=...) -> UUID | None`: the
+  household the user holds, if it is `approved` and not expired at `at`
+  (expiry is checked even before the nightly job runs). Browsing (US-36) uses
+  it and reserving (US-41) can too; only the ID leaves the module.
 - `queries.search(q) -> QuerySet[Household]`: partial, accent-insensitive staff search;
   reads only and excludes anonymized files. Blank input returns no files.
 - `queries.search_for_staff(q, actor) -> QuerySet[Household]`: the API entry point;

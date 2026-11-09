@@ -155,3 +155,16 @@ The listings owner and reviewers must confirm them before merge.
 The margin and the prohibited list come from the versioned `listing_safety`
 RuleSet, not from hardcoded values. The rules are checked in
 `backend/modules/listings/domain/safety.py`.
+
+### Browsing rules (US-36)
+
+The following rule IDs are introduced for review with US-36 (#504).
+The listings owner and reviewers must confirm them before merge.
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-LIST-004 | An approved household (status `approved` and not expired) sees a listing when it is published, has units left and its pickup has not ended. Until tiers exist (US-51), every approved household sees every such listing. |
+| BR-LIST-005 | The "pickup today" filter keeps visible listings whose pickup starts before the next midnight, Montreal time, including a window that started the day before. |
+
+Visibility is decided only in `listings.queries.visible_listings`; the end of
+the day comes from `backend/modules/listings/domain/browsing.py`.
