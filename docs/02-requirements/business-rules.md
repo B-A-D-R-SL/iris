@@ -96,6 +96,14 @@ Open statuses: `submitted`, `review_required`, `awaiting_visit`,
 `approved`, `renewal_needed`, and `suspended`. A missing or future expiry does not
 exclude a file.
 
+## Household suspension (US-32)
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-HH-SUSPEND-001 | Only an active administrator can suspend an approved file or reactivate a suspended file. Both actions require a reason and an audit event. |
+| BR-HH-SUSPEND-002 | Suspension preserves the approval expiry, cancels every reserved reservation without a strike, and returns its units to the listing. Reactivation is refused after expiry. |
+| BR-HH-SUSPEND-003 | A localized status email is queued after commit when the household has an email. A counter-only file without email can still change status. Delivery failure does not undo the change. |
+
 ## Listings
 
 ### Categories

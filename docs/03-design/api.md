@@ -195,7 +195,7 @@ US-13 staff screens exist.
 | POST       | `/api/staff/households/{id}/approve/`                   | Intake worker, admin | Approve a walk-in (eligibility runs)              | Planned |
 | GET        | `/api/staff/households/{id}/`                           | Intake worker, admin | Household page (fields per role)                  | Partly: walk-in draft read for resuming (US-17) |
 | GET        | `/api/staff/notices/{id}/file/`                         | Intake worker, admin | Signed URL valid 5 minutes (audited)              | Planned |
-| POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`                                     | Planned |
+| POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`; preserves expiry                    | Implemented (US-32) |
 | GET/POST   | `/api/staff/households/{id}/notes/`                     | Intake worker, admin | Staff notes                                       | Planned |
 
 Active intake workers and admins may read, edit and submit shared,
