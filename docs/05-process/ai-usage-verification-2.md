@@ -208,3 +208,28 @@
   - While checking the fixes, we found that the `frontend` Docker container keeps the code copied at build time, so frontend checks run with `docker compose exec frontend` used stale files. The frontend checks were re-run in a container with the working folder mounted: 359 tests pass at 93% coverage (categories feature 94%). Backend after the fixes: 727 tests pass at 93% coverage.
 - **Remaining:**
   - Peer review and CI.
+
+### US-41 Reserve a unit (#513: #514, #515, #516, #517)
+
+- **Feature or task:** US-41 (#513), a household reserves units of a listing in one tap and gets a 6-character pickup code. Tasks T-06.41.1 tests (#514), T-06.41.2 Reservation model (#515), T-06.41.3 reserve service (#516) and T-06.41.4 Reserve button and confirmation (#517).
+- **What the AI produced:** with Claude Code, from a plan Ryan reviewed and decided on first (built on the US-36 branch): the model's `created_at`/`updated_at` and the `(household, status)` and `(status, listing)` indexes with a reversible migration and a factory; the pure rules `reservations/domain/codes.py` and `domain/limits.py`; `listings.services.take_units` (one conditional UPDATE) and `listings.queries.reservable_listing`; `households.services.lock_approved_household`; `reservations.services.reserve`; `POST /api/reservations/` in `api/reserve_views.py` and `api/reserve_serializers.py` with French messages; the `ReserveButton` and `ReservationConfirmation` components with French and English texts; the tests; the regenerated API types; rules BR-RES-006 to BR-RES-010 and the documentation.
+- **Owner's decisions:**
+  - Build on `user_story/US-36` (PR #659) and reuse its approval check and permission rather than writing new ones.
+  - The listing's maximum per household counts in total across the household's live reservations on that listing, not per request.
+  - Lock the household's row while reserving, so two phones cannot pass the limit of 3 active reservations together. Acceptance criterion 2 is unchanged: it already covers this, and a concurrency test proves it.
+  - The pickup code is fixed at 6 characters. The `reservations.pickup_code_length` setting is not read: the team pack does not mark it as a setting, the column holds 6 characters, and reading it would break every reservation if an admin set more than 6.
+  - "Pickup not ended" is part of the conditional UPDATE, so an ended listing that the nightly job has not closed yet cannot be reserved.
+  - Keep `made_by_type = household` (the pack says `self`; the seed already uses `household`); add both indexes from the pack.
+  - The Reserve button is a separate component; US-36's detail screen (#507) mounts it.
+- **How we verified it:** 104 new backend tests (pure rules, model constraints, `take_units`, the household lock, every refusal of `reserve()` with nothing changed afterwards, the API for every role, bad input and each refusal in French and English) and 3 concurrency tests with threads on PostgreSQL: 20 households for 5 units give exactly 5 reservations; two phones of one household cannot make a fourth active reservation or pass a listing's maximum. The concurrency tests passed 5 runs in a row, and they fail when `take_units` is temporarily replaced by a read-then-save version (20 reservations for 5 units), so they do catch over-booking. Backend: 1187 tests pass at 95% coverage (`reservations/services.py` and `reserve_views.py` 96%, the new `domain/` files 100%); Ruff, format, mypy, the four import-linter contracts, `makemigrations --check` and reversing the migration pass. Frontend: 454 tests pass (11 new, with axe checks), about 97% line coverage on the new folder; ESLint, TypeScript, Prettier, the build and the API type check pass.
+- **Problems found and corrections:**
+  - The AI's first explanations of the story were too dense for the owner; they were rewritten in plain language with one example before any decision.
+  - The AI first recommended reading the code length from the rule setting; after Ryan asked what the design documents say, it found the pack defines a fixed 6 characters and corrected the advice.
+  - US-44 (Firas) already uses BR-RES-001 to BR-RES-005, so these rules start at BR-RES-006. `AuditEvent` only allows the actions `view` and `decision`, so, as in US-44, no audit event is written; the reservation row keeps who made it and when.
+  - Test mistakes caught on the first runs: store roles need a store (database constraint); factory objects needed casts for mypy; tests checking "must run inside a transaction" need `transaction=True`, because ordinary tests already run in one.
+  - drf-spectacular refused `extend_schema` on the view class with an `operation_id`; it moved to `extend_schema_view(post=...)`.
+  - The backend image has no GNU `msgfmt` and this machine has no Python, so the French catalog was compiled with a stdlib script run in the container and read back with `gettext` to check.
+  - Locally, the backend container sets `DJANGO_SETTINGS_MODULE=iris.settings.local`, which overrides the test settings and turns off connection reuse, so US-63's connection-reuse test fails there. With `--ds=iris.settings.test`, as in CI, every test passes.
+  - Some unchanged frontend tests (posting form, partner application, walk-in) time out under coverage in the local container; they pass alone and in the full run without coverage.
+- **Remaining:**
+  - Mount the Reserve button on the listing detail screen from US-36 (#507), peer review and CI.
