@@ -8,6 +8,7 @@ import { Navigate, Route, Routes } from "react-router";
 
 import { WelcomePage } from "../areas/public/WelcomePage";
 import { SignIn } from "../areas/public/pages/SignIn";
+import { AcceptInvitation } from "../areas/public/pages/AcceptInvitation";
 import { PartnerApply } from "../areas/public/pages/PartnerApply";
 import { Audit } from "../areas/staff/pages/Audit";
 import { WalkIn } from "../areas/staff/pages/WalkIn/WalkIn";
@@ -21,12 +22,14 @@ import { PlaceholderScreen } from "./PlaceholderScreen";
 import { RequireRole } from "./RequireRole";
 import { CategoriesPage } from "../features/categories/CategoriesPage";
 
+// React Router requires Route children here; keep layout and role nesting together.
 export default function App() {
   return (
     <Routes>
       <Route element={<PublicLayout />}>
         <Route index element={<WelcomePage />} />
         <Route path="sign-in" element={<SignIn />} />
+        <Route path="invitation/:token" element={<AcceptInvitation />} />
         <Route
           path="forgot-password"
           element={<PlaceholderScreen titleKey="auth.common.forgotPassword" />}
