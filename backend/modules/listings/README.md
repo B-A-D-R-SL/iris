@@ -36,6 +36,14 @@ Own the listings feature boundary within the Iris modular monolith.
 - `queries.browse_listings(household_id, now, category=, store=,
   pickup_today=)`: visible listings as card dictionaries, filtered and sorted
   by pickup start (US-36). The store's name and address come in the same query.
+- `queries.reservable_listing(household_id, listing_id, now)` (US-41): the
+  `max_per_household` and `units_left` of a listing the household can see, or
+  None. An open listing with no units left comes back with `units_left` 0, so
+  the household hears "sold out".
+- `services.take_units(listing_id, quantity, now=)` (US-41): count units as
+  reserved with one conditional UPDATE (published, pickup not ended, enough
+  left), inside the caller's transaction. The only code that changes
+  `quantity_reserved` upward; True when the units were taken (BR-RES-009).
 
 ## Endpoints
 
