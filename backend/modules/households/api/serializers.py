@@ -15,6 +15,7 @@ from modules.households.domain.person import valid_name, validate_birth_date
 from modules.households.limits import max_household_people
 from modules.households.messages import domain_error_message
 from modules.households.models import Household, Member
+from modules.households.policies import suspension_actions
 
 
 class RejectUnknownFieldsMixin:
@@ -215,10 +216,17 @@ class HouseholdStatusReadSerializer(serializers.ModelSerializer):
 
 class WalkInDraftReadSerializer(serializers.ModelSerializer):
     members = MemberReadSerializer(many=True, read_only=True)
-    created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
+    created_by_email = serializers.EmailField(
+        source="created_by.email", read_only=True, allow_null=True
+    )
     verified_by_email = serializers.EmailField(
         source="verified_by.email", read_only=True, allow_null=True
     )
+    allowed_actions = serializers.SerializerMethodField()
+
+    def get_allowed_actions(self, household: Household) -> list[str]:
+        request = self.context.get("request")
+        return suspension_actions(household, getattr(request, "user", None))
 
     class Meta:
         model = Household
@@ -246,5 +254,6 @@ class WalkInDraftReadSerializer(serializers.ModelSerializer):
             "expires_at",
             "verified_by_email",
             "verified_at",
+            "allowed_actions",
         )
         read_only_fields = fields

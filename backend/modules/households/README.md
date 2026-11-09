@@ -202,6 +202,14 @@ logs. Each disclosed household ID is recorded through
 `audit.services.record_household_views` in one atomic batch, with empty metadata.
 Audit failure prevents the response from exposing results. HEAD creates no events.
 
+The screen replaces the staff placeholder at `/staff/households`. It supports
+French/English, a 300 ms debounce, cancelled superseded requests, paginated
+results and links to resume existing walk-in drafts. US-64 owns the later full
+household page; this change does not create that page or approval workflows.
+
+See [search verification](../../../docs/guides/household-search.md) for database
+isolation, repeatable benchmarks and the remaining staging/device checks.
+
 ## Suspension (US-32)
 
 The suspend and reactivate endpoints require an administrator and a reason. They
@@ -210,11 +218,3 @@ cancels every reserved reservation without a late-cancellation strike and return
 the units to its listing in the same transaction. Both actions are audited with
 the reason. A localized holder email is queued after commit; counter-only files
 without email still change status.
-
-The screen replaces the staff placeholder at `/staff/households`. It supports
-French/English, a 300 ms debounce, cancelled superseded requests, paginated
-results and links to resume existing walk-in drafts. US-64 owns the later full
-household page; this change does not create that page or approval workflows.
-
-See [search verification](../../../docs/guides/household-search.md) for database
-isolation, repeatable benchmarks and the remaining staging/device checks.

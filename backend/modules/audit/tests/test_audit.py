@@ -91,6 +91,13 @@ def test_record_decision(event_inputs, outcome):
     assert event.metadata == {"outcome": outcome}
 
 
+def test_record_decision_preserves_empty_metadata(event_inputs):
+    """Existing decision callers may omit outcome metadata."""
+    event_inputs.update(action="decision", metadata={})
+    event = services.record(**event_inputs)
+    assert event.metadata == {}
+
+
 @pytest.mark.parametrize("target_id", [1, "external-123"])
 def test_record_accepts_other_record_identifiers(event_inputs, target_id):
     event_inputs["target_id"] = target_id

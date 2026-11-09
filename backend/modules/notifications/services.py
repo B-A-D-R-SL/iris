@@ -39,7 +39,10 @@ def _send(mailer: Mailer, email: str, subject: str, body: str) -> None:
         if mailer.send([email], subject, text=body) != 1:
             raise RuntimeError("Email was not accepted")
     except Exception:  # noqa: BLE001 - delivery cannot undo a committed change.
-        logger.error("household_status_email_failed")
+        logger.error(
+            "household_status_email_failed",
+            extra={"event": "household_status_email_failed"},
+        )
 
 
 def queue_household_status_email(

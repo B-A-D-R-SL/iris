@@ -46,6 +46,21 @@ def walk_in_for_staff(
     )
 
 
+def household_for_staff(
+    household_id: UUID, staff_user: AbstractBaseUser
+) -> Household | None:
+    """Return a non-anonymized household for the shared staff detail page."""
+    if not can_manage_walk_ins(staff_user):
+        return None
+    return (
+        Household.objects.filter(anonymized_at__isnull=True)
+        .select_related("created_by", "verified_by")
+        .prefetch_related("members")
+        .filter(pk=household_id)
+        .first()
+    )
+
+
 def find_possible_duplicates(household: Household) -> QuerySet[Household]:
     """Preview matches; use services.locked_duplicate_check() before writing."""
     if household._state.adding:

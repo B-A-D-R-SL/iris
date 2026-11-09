@@ -3,6 +3,7 @@
 
 import hashlib
 import logging
+import re
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from typing import Any
@@ -28,6 +29,7 @@ from modules.households.policies import (
 )
 from modules.households.queries import find_possible_duplicates, walk_ins_for_staff
 from modules.notifications import services as notification_services
+from modules.reservations import services as reservation_services
 
 logger = logging.getLogger("iris.households")
 
@@ -37,6 +39,11 @@ ADDRESS_FIELDS = frozenset(
 MEMBER_FIELDS = frozenset(("first_name", "last_name", "date_of_birth"))
 CONSENT_TEXT_VERSION = "2026-11-v1"
 POSSIBLE_DUPLICATE = "POSSIBLE_DUPLICATE"
+SENSITIVE_REASON = re.compile(
+    r"\b(?:sin|social insurance|income|salary|immigration|refugee|passport|document text)\b"
+    r"|\b\d{3}[ -]?\d{3}[ -]?\d{3}\b|(?:\$|\bCAD\b)\s*\d",
+    re.IGNORECASE,
+)
 
 
 def _status_reason(reason: str) -> str:
@@ -45,6 +52,10 @@ def _status_reason(reason: str) -> str:
         raise ValidationError({"reason": _("Enter a reason.")})
     if len(value) > 500:
         raise ValidationError({"reason": _("Enter at most 500 characters.")})
+    if SENSITIVE_REASON.search(value):
+        raise ValidationError(
+            {"reason": _("Do not include personal or financial information.")}
+        )
     return value
 
 
@@ -88,6 +99,8 @@ def change_suspension(
     household.status_reason = "" if reactivate else clean_reason
     household.full_clean()
     household.save(update_fields=("status", "status_reason", "updated_at"))
+    if not reactivate:
+        reservation_services.cancel_open_for_household(household.pk)
     audit_services.record(
         actor, action, "household", household.pk, {"reason": clean_reason}
     )

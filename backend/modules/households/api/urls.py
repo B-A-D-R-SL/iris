@@ -5,7 +5,7 @@ from django.urls import path
 
 from modules.households.api.views import (
     HouseholdReactivationView,
-    HouseholdStatusView,
+    HouseholdSuspensionView,
     WalkInCollectionView,
     WalkInDetailView,
     WalkInSubmissionView,
@@ -14,7 +14,7 @@ from modules.households.api.views import (
 urlpatterns = [
     path(
         "staff/households/<uuid:id>/suspend/",
-        HouseholdStatusView.as_view(),
+        HouseholdSuspensionView.as_view(),
         name="staff-households-suspend",
     ),
     path(

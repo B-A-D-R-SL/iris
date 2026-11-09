@@ -1,5 +1,6 @@
 // AI contribution: 50% or more AI-generated
 import { csrfToken } from "../../shared/api/csrf";
+import { logger } from "../../shared/logger";
 
 export type HouseholdStatus =
   | "draft"
@@ -20,6 +21,7 @@ export interface StaffHousehold {
   phone: string;
   preferred_language: "fr" | "en";
   expires_at: string | null;
+  allowed_actions: Array<"suspend" | "reactivate">;
   members: Array<{
     id: string;
     first_name: string;
@@ -43,17 +45,23 @@ export class HouseholdStatusFailed extends Error {
 function isHousehold(value: unknown): value is StaffHousehold {
   if (typeof value !== "object" || value === null) return false;
   const row = value as Record<string, unknown>;
-  return (
-    typeof row.id === "string" &&
-    typeof row.status === "string" &&
-    typeof row.status_reason === "string" &&
-    (row.member_number === null || typeof row.member_number === "string") &&
-    (row.email === null || typeof row.email === "string") &&
-    typeof row.phone === "string" &&
-    (row.preferred_language === "fr" || row.preferred_language === "en") &&
-    (row.expires_at === null || typeof row.expires_at === "string") &&
-    Array.isArray(row.members)
-  );
+  const nullableString = (item: unknown) => item === null || typeof item === "string";
+  const actions = row.allowed_actions;
+  const validActions =
+    Array.isArray(actions) &&
+    actions.every((action) => action === "suspend" || action === "reactivate");
+  return [
+    typeof row.id === "string",
+    typeof row.status === "string",
+    typeof row.status_reason === "string",
+    nullableString(row.member_number),
+    nullableString(row.email),
+    typeof row.phone === "string",
+    row.preferred_language === "fr" || row.preferred_language === "en",
+    nullableString(row.expires_at),
+    validActions,
+    Array.isArray(row.members),
+  ].every(Boolean);
 }
 
 function errorBody(value: unknown): value is {
@@ -65,6 +73,15 @@ function errorBody(value: unknown): value is {
   return typeof body.message === "string" && typeof body.fields === "object";
 }
 
+async function responseBody(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    logger.warning("household_status_response_invalid");
+    return null;
+  }
+}
+
 export async function getStaffHousehold(id: string): Promise<StaffHousehold> {
   const response = await fetch(`/api/staff/households/${encodeURIComponent(id)}/`, {
     credentials: "same-origin",
@@ -72,7 +89,7 @@ export async function getStaffHousehold(id: string): Promise<StaffHousehold> {
     headers: { Accept: "application/json" },
   });
   if (!response.ok) throw new HouseholdStatusFailed(response.status, "");
-  const body: unknown = await response.json();
+  const body = await responseBody(response);
   if (!isHousehold(body)) throw new Error("Invalid household response");
   return body;
 }
@@ -97,7 +114,7 @@ export async function changeHouseholdStatus(
     body: JSON.stringify({ reason }),
   });
   if (response.ok) return;
-  const body: unknown = await response.json().catch(() => null);
+  const body = await responseBody(response);
   if (errorBody(body)) {
     throw new HouseholdStatusFailed(response.status, body.message, body.fields);
   }

@@ -3,6 +3,7 @@
 
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.models import AnonymousUser
+from django.utils import timezone
 
 from modules.households.models import Household
 
@@ -28,6 +29,21 @@ def can_suspend_households(actor: StaffActor) -> bool:
         and actor.is_active
         and getattr(actor, "role", None) == "admin"
     )
+
+
+def suspension_actions(household: Household, actor: StaffActor) -> list[str]:
+    """Return status actions the backend currently permits for this file."""
+    if not can_suspend_households(actor) or household.anonymized_at is not None:
+        return []
+    if household.status == Household.Status.APPROVED:
+        return ["suspend"]
+    if (
+        household.status == Household.Status.SUSPENDED
+        and household.expires_at is not None
+        and household.expires_at > timezone.now()
+    ):
+        return ["reactivate"]
+    return []
 
 
 def is_editable_walk_in(household: Household) -> bool:

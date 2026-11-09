@@ -148,7 +148,7 @@ ignore_imports = [
     "modules.households.** -> modules.review.services",
     "modules.households.** -> modules.review.queries",
     # US-32 coordinates status and reservation cancellation in one transaction.
-    "modules.households.api.** -> modules.reservations.services",
+    "modules.households.services -> modules.reservations.services",
 
     # eligibility -> households
     "modules.eligibility.** -> modules.households.services",

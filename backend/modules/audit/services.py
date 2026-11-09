@@ -37,6 +37,8 @@ def _validate_metadata(action: str, metadata: dict[str, str]) -> None:
     if not isinstance(metadata, dict):
         raise ValidationError({"metadata": "Audit metadata must be an object."})
     if action == AuditEvent.Action.DECISION:
+        if not metadata:
+            return
         if set(metadata) != {"outcome"} or metadata["outcome"] not in (
             "approved",
             "rejected",

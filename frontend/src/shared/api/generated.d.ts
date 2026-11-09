@@ -75,13 +75,13 @@ export interface paths {
     post: operations["staff_households_create"];
   };
   "/api/staff/households/{id}/": {
-    /** Resume an existing walk-in household draft */
+    /** View a household file (staff) */
     get: operations["staff_households_retrieve"];
     /** Edit an existing walk-in household draft */
     patch: operations["staff_households_partial_update"];
   };
   "/api/staff/households/{id}/reactivate/": {
-    /** Suspend or reactivate a household file (administrator) */
+    /** Reactivate a household file (administrator) */
     post: operations["staff_households_reactivate_create"];
   };
   "/api/staff/households/{id}/submit/": {
@@ -89,7 +89,7 @@ export interface paths {
     post: operations["staff_households_submit_create"];
   };
   "/api/staff/households/{id}/suspend/": {
-    /** Suspend or reactivate a household file (administrator) */
+    /** Suspend a household file (administrator) */
     post: operations["staff_households_suspend_create"];
   };
   "/api/store/listings/": {
@@ -255,12 +255,12 @@ export interface components {
       reason: string;
     };
     HouseholdStatusRead: {
+      /** Format: date-time */
+      expires_at: string | null;
       /** Format: uuid */
       id: string;
       status: components["schemas"]["WalkInDraftReadStatusEnum"];
       status_reason: string;
-      /** Format: date-time */
-      expires_at: string | null;
     };
     /** @description Confirm completion without returning credentials or account information. */
     InvitationAccepted: {
@@ -593,6 +593,7 @@ export interface components {
       members?: components["schemas"]["MemberInput"][];
     };
     WalkInDraftRead: {
+      allowed_actions: readonly string[];
       channel: components["schemas"]["ChannelEnum"];
       city: string;
       /** Format: date-time */
@@ -601,9 +602,11 @@ export interface components {
       /** Format: date-time */
       created_at: string;
       /** Format: email */
-      created_by_email: string;
+      created_by_email: string | null;
       /** Format: email */
       email: string | null;
+      /** Format: date-time */
+      expires_at: string | null;
       /** Format: uuid */
       id: string;
       identity_checked_in_person: boolean;
@@ -619,8 +622,6 @@ export interface components {
       unit: string;
       /** Format: date-time */
       updated_at: string;
-      /** Format: date-time */
-      expires_at: string | null;
       /** Format: date-time */
       verified_at: string | null;
       /** Format: email */
@@ -1025,7 +1026,7 @@ export interface operations {
       };
     };
   };
-  /** Resume an existing walk-in household draft */
+  /** View a household file (staff) */
   staff_households_retrieve: {
     parameters: {
       path: {
@@ -1067,7 +1068,7 @@ export interface operations {
       };
     };
   };
-  /** Suspend or reactivate a household file (administrator) */
+  /** Reactivate a household file (administrator) */
   staff_households_reactivate_create: {
     parameters: {
       path: {
@@ -1085,6 +1086,21 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["HouseholdStatusRead"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
         };
       };
     };
@@ -1109,7 +1125,7 @@ export interface operations {
       };
     };
   };
-  /** Suspend or reactivate a household file (administrator) */
+  /** Suspend a household file (administrator) */
   staff_households_suspend_create: {
     parameters: {
       path: {
@@ -1127,6 +1143,21 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["HouseholdStatusRead"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
         };
       };
     };
