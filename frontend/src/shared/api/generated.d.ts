@@ -39,6 +39,13 @@ export interface paths {
      */
     post: operations["partner_applications_create"];
   };
+  "/api/reservations/": {
+    /**
+     * Reserve units of a listing for the signed-in household
+     * @description Validate, reserve, and answer 201 with the code or a refusal.
+     */
+    post: operations["reservations_create"];
+  };
   "/api/schema/": {
     /**
      * @description OpenApi3 schema for this API. Format can be selected via content negotiation.
@@ -601,6 +608,28 @@ export interface components {
      * @enum {string}
      */
     ProvinceEnum: "QC";
+    /** @description The reservation just made, with the code to show at the store. */
+    Reservation: {
+      /** Format: date-time */
+      created_at: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      listing_id: string;
+      pickup_code: string;
+      quantity: number;
+      status: string;
+    };
+    /** @description What the household sends: which listing, and how many units. */
+    ReserveInput: {
+      /** Format: uuid */
+      listing_id: string;
+      /**
+       * @description Units to reserve; at most the listing's max per household.
+       * @default 1
+       */
+      quantity?: number;
+    };
     /**
      * @description * `beneficiary` - Beneficiary
      * * `store_staff` - Store Staff
@@ -892,6 +921,56 @@ export interface operations {
       429: {
         content: {
           "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Reserve units of a listing for the signed-in household
+   * @description Validate, reserve, and answer 201 with the code or a refusal.
+   */
+  reservations_create: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReserveInput"];
+        "application/x-www-form-urlencoded": components["schemas"]["ReserveInput"];
+        "multipart/form-data": components["schemas"]["ReserveInput"];
+      };
+    };
+    responses: {
+      201: {
+        content: {
+          "application/json": components["schemas"]["Reservation"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
+        };
+      };
+      401: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
+        };
+      };
+      409: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
+        };
+      };
+      503: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
         };
       };
     };
