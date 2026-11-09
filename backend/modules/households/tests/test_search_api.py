@@ -67,16 +67,6 @@ def test_staff_searches_through_session_authentication(client, file, role):
     )
 
 
-@pytest.mark.parametrize("role", ["beneficiary", "store_staff", "store_manager"])
-def test_other_roles_cannot_search(client, file, role):
-    """Refuse non-console roles without creating disclosure audit events."""
-    store = StoreFactory() if role.startswith("store_") else None
-    user = UserFactory(role=role, store=store)
-    client.force_login(user)
-    assert client.get(URL, {"q": "elodie"}).status_code == 403
-    assert search_events(actor=user.pk).count() == 0
-
-
 def test_anonymous_and_inactive_staff_are_refused(client, file):
     assert client.get(URL, {"q": "elodie"}).status_code in (401, 403)
     inactive = UserFactory(role="admin", is_active=False)

@@ -47,6 +47,9 @@ msgstr "Renouvellement requis"
 msgid "Household size rules need configuration."
 msgstr "Les règles de taille du ménage doivent être configurées."
 
+msgid "Household registration is temporarily unavailable. Please try again."
+msgstr "L'inscription du ménage est temporairement indisponible. Veuillez réessayer."
+
 msgid "Review required"
 msgstr "Vérification par l'équipe requise"
 

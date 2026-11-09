@@ -8,13 +8,15 @@ from contextlib import contextmanager
 from typing import Any
 from uuid import UUID
 
+from django.conf import settings
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import connection, transaction
+from django.db import OperationalError, connection, transaction
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from modules.households.exceptions import DuplicateLockTimeout
 from modules.households.limits import max_household_people
 from modules.households.models import Household, HouseholdDraftEvent, Member
 from modules.households.policies import can_manage_walk_ins, is_editable_walk_in
@@ -248,8 +250,27 @@ def _lock_duplicate_keys(household: Household, members: list[Member]) -> None:
         }
     )
     with connection.cursor() as cursor:
+        cursor.execute("SHOW lock_timeout")
+        previous_timeout = cursor.fetchone()[0]
+        cursor.execute(
+            "SELECT set_config('lock_timeout', %s, true)",
+            [f"{settings.HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS}ms"],
+        )
         for lock_id in lock_ids:
-            cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_id])
+            try:
+                cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_id])
+            except OperationalError as exc:
+                if getattr(exc.__cause__, "sqlstate", None) != "55P03":
+                    raise
+                logger.warning(
+                    "Household duplicate lock timed out",
+                    extra={"event": "household_duplicate_lock_timeout"},
+                )
+                raise DuplicateLockTimeout from exc
+        # Leave later work in an outer transaction under its original timeout.
+        cursor.execute(
+            "SELECT set_config('lock_timeout', %s, true)", [previous_timeout]
+        )
 
 
 @contextmanager

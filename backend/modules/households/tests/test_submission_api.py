@@ -9,7 +9,6 @@ from rest_framework.test import APIClient
 from modules.accounts.tests.factories import UserFactory
 from modules.households.models import Household
 from modules.households.tests.factories import HouseholdFactory
-from modules.stores.tests.factories import StoreFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -94,20 +93,6 @@ def test_main_path_creates_draft_and_submits_through_api_and_database(
     assert Household.objects.count() == 2
 
 
-@pytest.mark.parametrize("role", ["beneficiary", "store_staff", "store_manager"])
-def test_nonstaff_cannot_submit_even_if_they_created_the_file(
-    role, ready_household_factory
-):
-    values = {"store": StoreFactory()} if role.startswith("store_") else {}
-    user = UserFactory(role=role, **values)
-    household = ready_household_factory(created_by=user)
-    response = client_for(user).post(submit_url(household), {}, format="json")
-    assert response.status_code == 403
-    household.refresh_from_db()
-    assert household.status == Household.Status.DRAFT
-    assert household.submitted_at is None
-
-
 def test_signed_out_request_is_refused(ready_household_factory):
     household = ready_household_factory()
     response = client_for().post(submit_url(household), {}, format="json")
@@ -118,13 +103,18 @@ def test_signed_out_request_is_refused(ready_household_factory):
 
 @pytest.mark.parametrize("role", ["intake_worker", "admin"])
 def test_inactive_staff_cannot_submit(role, ready_household_factory):
-    household = ready_household_factory()
-    response = client_for(UserFactory(role=role, is_active=False)).post(
-        submit_url(household), {}, format="json"
-    )
-    assert response.status_code == 403
+    actor = UserFactory(role=role)
+    household = ready_household_factory(created_by=actor)
+    client = APIClient()
+    client.force_login(actor)
+    actor.is_active = False
+    actor.save(update_fields=["is_active"])
+    response = client.post(submit_url(household), {}, format="json")
+    assert response.status_code == 401
     household.refresh_from_db()
     assert household.status == Household.Status.DRAFT
+    assert household.submitted_at is None
+    assert not household.draft_events.exists()
 
 
 @pytest.mark.parametrize(

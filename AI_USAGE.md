@@ -100,6 +100,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
 - **Merge checks:** 1,240 backend tests and 443 frontend tests passed. Ruff, backend/frontend type checks, frontend lint, module boundaries, migration checks, API types and diff checks passed.
 - **CI load test:** ChatGPT found that the benchmark server's 10-connection queue could overflow under the 64-worker driver. A Linux regression failed with the original queue. The test server now queues 128 connections; the 100 requests/second and 500 ms p95 targets stay unchanged. Failed assertions include the complete timing report.
 - **Load-test checks:** 1,241 backend tests passed with 93.95% coverage. All 16 load-server/client checks passed in a two-CPU Linux container. Ruff, targeted type checks and diff checks passed.
+- **Final review fixes:** duplicate advisory locks use a positive, configurable wait limit and restore the caller's timeout after acquisition. A timeout rolls back before returning a generic 503. Missing or invalid size rules use the same translated response and a privacy-safe log event. Tests now use real deactivated sessions and verify transaction boundaries without Django's test wrapper. Role and creator access tests are grouped in `test_api.py`; repeated duplicate cases were removed.
+- **Final checks:** 1,268 backend tests passed with 93.94% coverage, including 490 household, RuleSet and configuration tests. Ruff, backend/frontend type checks, module boundaries, migration checks, API drift checks, eight generator tests and diff checks passed.
 
 ### US-63 Household search and tests (#552, #553, #554)
 

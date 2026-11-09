@@ -8,6 +8,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from modules.accounts.tests.factories import UserFactory
+from modules.audit.queries import search_events
 from modules.households.models import Household
 from modules.households.policies import can_resume_walk_in
 from modules.households.queries import search_for_staff, walk_in_for_staff
@@ -16,6 +17,7 @@ from modules.households.services import (
     submit_walk_in,
     update_draft,
 )
+from modules.stores.tests.factories import StoreFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -45,6 +47,10 @@ def access_file(request, ready_household_factory):
 
 
 def _request(client, action, household_id):
+    if action == "create":
+        return client.post(reverse("staff-households-create"), {}, format="json")
+    if action == "search":
+        return client.get(reverse("staff-households-create"), {"q": "Example"})
     route = (
         "staff-households-submit" if action == "submit" else "staff-households-detail"
     )
@@ -56,6 +62,28 @@ def _request(client, action, household_id):
     return client.post(url, {}, format="json")
 
 
+# rule: BR-HH-ACCESS-001
+@pytest.mark.parametrize("role", ["beneficiary", "store_staff", "store_manager"])
+@pytest.mark.parametrize("action", ["create", "read", "edit", "submit", "search"])
+def test_nonstaff_cannot_manage_even_their_own_file(
+    role, action, ready_household_factory
+):
+    store = StoreFactory() if role.startswith("store_") else None
+    actor = UserFactory(role=role, store=store)
+    household = ready_household_factory(created_by=actor)
+    client = APIClient()
+    client.force_login(actor)
+    response = _request(client, action, household.pk)
+    assert response.status_code == 403
+    household.refresh_from_db()
+    assert Household.objects.count() == 1
+    assert household.status == Household.Status.DRAFT
+    assert household.submitted_at is None
+    assert not household.draft_events.exists()
+    assert not search_events(actor=actor.pk).exists()
+
+
+# rule: BR-HH-ACCESS-001
 @pytest.mark.parametrize("access_file", ACCESS_CASES, indirect=True)
 @pytest.mark.parametrize("action", ["read", "edit", "submit"])
 def test_walk_in_api_enforces_creator_access(access_file, action):
@@ -86,6 +114,7 @@ def test_walk_in_api_enforces_creator_access(access_file, action):
         assert response.data == missing.data
 
 
+# rule: BR-HH-ACCESS-001
 @pytest.mark.parametrize("access_file", ACCESS_CASES, indirect=True)
 @pytest.mark.parametrize("action", ["read", "search", "edit", "submit", "locked_check"])
 def test_queries_and_services_enforce_creator_access(access_file, action):
@@ -119,6 +148,7 @@ def test_queries_and_services_enforce_creator_access(access_file, action):
         assert not household.draft_events.exists()
 
 
+# rule: BR-HH-ACCESS-001
 @pytest.mark.parametrize("action", ["edit", "submit"])
 @pytest.mark.parametrize("payload", [{}, {"status": "approved"}, []])
 def test_other_workers_file_is_hidden_before_input_validation(

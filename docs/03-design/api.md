@@ -210,9 +210,15 @@ is `submitted`; a possible duplicate is `review_required` with reason
 `POSSIBLE_DUPLICATE`. Details of matching files are not returned.
 Suspended files remain duplicate candidates. Files whose `expires_at` is in the
 past are excluded from both address and person matching.
-Invalid or repeated submission returns 400; signed out, 401; refused roles or
-inactive staff, 403; another worker's file, online or unknown files, 404. Access
-is checked before request validation. See the
+Invalid or repeated submission returns 400; signed-out or deactivated sessions,
+401; refused signed-in roles, 403; another worker's file, online or unknown
+files, 404. Access is checked before request validation.
+Create, edit and submit return 503 with code `household_unavailable` and a generic
+retry message when required household-size rules are missing or invalid.
+Submission also returns this response if a duplicate advisory lock times out;
+the draft and its members remain unchanged. The positive setting
+`HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS` defaults to 5000 milliseconds and applies
+only while acquiring those advisory locks. See the
 [households module](../../backend/modules/households/README.md) for candidate
 statuses and locking steps.
 

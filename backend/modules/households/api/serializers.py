@@ -5,7 +5,6 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
@@ -164,10 +163,7 @@ class WalkInDraftInputSerializer(RejectUnknownFieldsMixin, serializers.Serialize
 
     def validate_members(self, members):
         """The holder already occupies one place in the household."""
-        try:
-            limit = max_household_people()
-        except DjangoValidationError as exc:
-            raise serializers.ValidationError(exc.messages) from exc
+        limit = max_household_people()
         if len(members) > limit - 1:
             raise serializers.ValidationError(
                 _("Add at most %(limit)s people besides the holder.")
@@ -178,6 +174,14 @@ class WalkInDraftInputSerializer(RejectUnknownFieldsMixin, serializers.Serialize
     def validate_address(self, address):
         address.pop("province", None)  # fixed QC; never stored as a free-form province.
         return address
+
+
+class HouseholdErrorSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    message = serializers.CharField()
+    fields = serializers.DictField(
+        child=serializers.ListField(child=serializers.CharField())
+    )
 
 
 class MemberReadSerializer(serializers.ModelSerializer):

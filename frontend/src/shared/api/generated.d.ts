@@ -199,6 +199,13 @@ export interface components {
       /** @default fr */
       preferred_language?: components["schemas"]["LanguageEnum"];
     };
+    HouseholdError: {
+      code: string;
+      fields: {
+        [key: string]: string[];
+      };
+      message: string;
+    };
     /** @description Expose minimal household fields and the server-authorized resume action. */
     HouseholdSearchResult: {
       /** @description Fail closed when serialization has no authenticated request context. */
@@ -884,6 +891,11 @@ export interface operations {
           "application/json": components["schemas"]["WalkInDraftRead"];
         };
       };
+      503: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
     };
   };
   /** Resume an existing walk-in household draft */
@@ -921,6 +933,11 @@ export interface operations {
           "application/json": components["schemas"]["WalkInDraftRead"];
         };
       };
+      503: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
     };
   };
   /** Submit a walk-in draft and check for duplicates */
@@ -934,6 +951,11 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["WalkInSubmissionRead"];
+        };
+      };
+      503: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
         };
       };
     };

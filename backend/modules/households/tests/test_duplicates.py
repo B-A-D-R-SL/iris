@@ -55,8 +55,18 @@ def test_only_open_file_statuses_are_candidates(status):
         if status not in ("draft", "rejected")
     ],
 )
-@pytest.mark.parametrize("match", ["address", "person"])
-@pytest.mark.parametrize("expiry_seconds", [None, -1, 0, 1])
+@pytest.mark.parametrize(
+    ("match", "expiry_seconds"),
+    [
+        ("address", -1),
+        ("address", 0),
+        ("address", 1),
+        ("person", None),
+        ("person", -1),
+        ("person", 0),
+        ("person", 1),
+    ],
+)
 def test_only_unexpired_candidates_match(status, match, expiry_seconds, monkeypatch):
     now = timezone.now()
     monkeypatch.setattr("modules.households.queries.timezone.now", lambda: now)

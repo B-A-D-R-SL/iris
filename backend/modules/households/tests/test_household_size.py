@@ -1,7 +1,9 @@
 # AI contribution: 50% or more AI-generated
 """Draft services and serializers share the holder-inclusive limit."""
 
+import logging
 from datetime import date
+from types import SimpleNamespace
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -9,6 +11,7 @@ from django.urls import reverse
 from django.utils.translation import override
 from rest_framework.test import APIClient
 
+from modules.households.exceptions import HouseholdUnavailable
 from modules.households.models import Household
 from modules.households.services import submit_walk_in, update_draft
 from modules.households.tests.factories import MemberFactory
@@ -91,25 +94,79 @@ def test_submission_reads_configured_limit(
 
 # rule: BR-HH-001
 @pytest.mark.parametrize("entry", ["service", "api", "submission"])
-def test_missing_size_rules_prevent_writes(
-    entry, ready_household_factory, submission_worker, monkeypatch
+@pytest.mark.parametrize(
+    "values", [None, {}, {"max_people": 0}, {"max_people": True}, []]
+)
+def test_missing_or_invalid_size_rules_prevent_writes(
+    entry, values, ready_household_factory, submission_worker, monkeypatch, caplog
 ):
     household = ready_household_factory()
-    monkeypatch.setattr("modules.households.limits.rule_queries.active", lambda _: None)
-    with override("en"):
+    rule = None if values is None else SimpleNamespace(values=values)
+    monkeypatch.setattr("modules.households.limits.rule_queries.active", lambda _: rule)
+    with override("en"), caplog.at_level(logging.ERROR, logger="iris.households"):
         if entry == "api":
             response = _patch_members(household, [], submission_worker)
-            assert response.status_code == 400
-            assert response.data["fields"]["members"] == [
-                "Household size rules need configuration."
-            ]
+            assert response.status_code == 503
+            assert response.data == {
+                "code": "household_unavailable",
+                "message": "Household registration is temporarily unavailable. Please try again.",
+                "fields": {},
+            }
         else:
-            with pytest.raises(ValidationError, match="rules need configuration"):
+            with pytest.raises(HouseholdUnavailable):
                 if entry == "submission":
                     submit_walk_in(household.pk, submission_worker)
                 else:
                     update_draft(household.pk, {"members": []}, submission_worker)
+    assert [
+        record.event for record in caplog.records if record.name == "iris.households"
+    ] == ["household_size_unavailable"]
     household.refresh_from_db()
     assert household.status == Household.Status.DRAFT
     assert household.members.count() == 1
+    assert not household.draft_events.exists()
+
+
+# rule: BR-HH-001
+@pytest.mark.parametrize("action", ["create", "submit"])
+@pytest.mark.parametrize(
+    ("language", "message"),
+    [
+        ("en", "Household registration is temporarily unavailable. Please try again."),
+        (
+            "fr",
+            "L'inscription du ménage est temporairement indisponible. Veuillez réessayer.",
+        ),
+    ],
+)
+def test_unavailable_size_rules_have_generic_translated_api_errors(
+    action, language, message, ready_household_factory, submission_worker, monkeypatch
+):
+    household = ready_household_factory()
+    monkeypatch.setattr("modules.households.limits.rule_queries.active", lambda _: None)
+    client = APIClient()
+    client.force_authenticate(submission_worker)
+    data = {}
+    url = reverse("staff-households-submit", kwargs={"id": household.pk})
+    if action == "create":
+        url = reverse("staff-households-create")
+        data = {
+            "holder": {
+                "first_name": "Example",
+                "last_name": "Holder",
+                "date_of_birth": "1990-01-01",
+                "phone": "+15145550101",
+            },
+            "members": [],
+        }
+    response = client.post(url, data, format="json", HTTP_ACCEPT_LANGUAGE=language)
+    assert response.status_code == 503
+    assert response.data == {
+        "code": "household_unavailable",
+        "message": message,
+        "fields": {},
+    }
+    assert Household.objects.count() == 1
+    household.refresh_from_db()
+    assert household.status == Household.Status.DRAFT
     assert not household.draft_events.exists()

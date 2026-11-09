@@ -13,6 +13,7 @@ from modules.households.tests.factories import HouseholdFactory
 pytestmark = pytest.mark.django_db
 
 
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("duplicate", [False, True])
 def test_check_returns_an_evaluated_result_inside_a_transaction(
     duplicate, ready_household_factory, submission_worker
@@ -21,6 +22,7 @@ def test_check_returns_an_evaluated_result_inside_a_transaction(
     source = ready_household_factory()
     if duplicate:
         HouseholdFactory(status=Household.Status.APPROVED)
+    assert not connection.in_atomic_block
     with locked_duplicate_check(source.pk, submission_worker) as (household, matched):
         assert type(matched) is bool and matched is duplicate
         assert connection.in_atomic_block
@@ -28,6 +30,7 @@ def test_check_returns_an_evaluated_result_inside_a_transaction(
             Household.Status.REVIEW_REQUIRED if matched else Household.Status.SUBMITTED
         )
         household.save()
+    assert not connection.in_atomic_block
     source.refresh_from_db()
     assert source.status == (
         Household.Status.REVIEW_REQUIRED if duplicate else Household.Status.SUBMITTED

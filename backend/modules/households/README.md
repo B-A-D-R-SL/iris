@@ -50,7 +50,7 @@ All require a session for an active `intake_worker` or `admin`. Other signed-in
 roles are rejected with HTTP 403. The API contains no ID document information.
 Intake workers may read, edit and submit only walk-in files they created.
 Admins may manage all walk-in files. Another worker's file, an online file or
-an unknown file returns 404; signed-out requests return 401.
+an unknown file returns 404; signed-out or deactivated sessions return 401.
 
 ## Duplicate checking (US-25, #479 and #478)
 
@@ -75,11 +75,18 @@ including suspended files. A missing or future expiry does not exclude a file.
 the match. Save the result inside its `with` block. PostgreSQL holds these locks
 until the outer transaction commits or rolls back. The query alone is a preview.
 Future approval code must use the same lock-and-check operation.
+`HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS` sets a positive advisory-lock wait limit
+(default 5000 milliseconds). Successful acquisition restores the caller's
+previous timeout. A timeout rolls back the submission and returns 503 with code
+`household_unavailable` and a generic retry message. Other database errors are
+not converted to this response.
 
 Draft, submission and serializer checks read `household_size.max_people` through
 `limits.py`. The seed default is 15 people total, including the holder.
 This is the approved rule `BR-HH-001`.
-Missing configuration is refused, not replaced with a runtime default.
+Missing or invalid configuration is refused, not replaced with a runtime default.
+Create, edit and submit return the same generic 503 response without exposing
+configuration details. A privacy-safe event identifies the cause in server logs.
 For existing databases, run `python manage.py seed_rules` after deployment.
 It adds missing rule types without replacing existing versions. No data migration
 is needed for this setting; normal schema migrations still apply.

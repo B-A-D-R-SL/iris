@@ -26,11 +26,13 @@ from modules.households.api.search_serializers import (
     HouseholdSearchResultSerializer,
 )
 from modules.households.api.serializers import (
+    HouseholdErrorSerializer,
     WalkInDraftInputSerializer,
     WalkInDraftReadSerializer,
     WalkInSubmissionInputSerializer,
     WalkInSubmissionReadSerializer,
 )
+from modules.households.exceptions import HouseholdUnavailable
 from modules.households.models import Household
 from modules.households.policies import can_manage_walk_ins
 
@@ -57,6 +59,19 @@ def walk_in_exception_handler(
     exc: Exception, context: dict[str, Any]
 ) -> Response | None:
     """Return the shared validation envelope while retaining refusal status codes."""
+    if isinstance(exc, HouseholdUnavailable):
+        return Response(
+            {
+                "code": "household_unavailable",
+                "message": str(
+                    _(
+                        "Household registration is temporarily unavailable. Please try again."
+                    )
+                ),
+                "fields": {},
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
     response = exception_handler(exc, context)
     if response is None:
         return None
@@ -143,7 +158,7 @@ class WalkInCollectionView(WalkInErrorHandlingMixin, GenericAPIView):
 
     @extend_schema(
         request=WalkInDraftInputSerializer,
-        responses={201: WalkInDraftReadSerializer},
+        responses={201: WalkInDraftReadSerializer, 503: HouseholdErrorSerializer},
         tags=["staff households"],
         summary="Create a resumable walk-in household draft",
     )
@@ -182,7 +197,7 @@ class WalkInDetailView(WalkInErrorHandlingMixin, GenericAPIView):
 
     @extend_schema(
         request=WalkInDraftInputSerializer,
-        responses={200: WalkInDraftReadSerializer},
+        responses={200: WalkInDraftReadSerializer, 503: HouseholdErrorSerializer},
         tags=["staff households"],
         summary="Edit an existing walk-in household draft",
     )
@@ -204,7 +219,7 @@ class WalkInSubmissionView(WalkInErrorHandlingMixin, GenericAPIView):
 
     @extend_schema(
         request=WalkInSubmissionInputSerializer,
-        responses={200: WalkInSubmissionReadSerializer},
+        responses={200: WalkInSubmissionReadSerializer, 503: HouseholdErrorSerializer},
         tags=["staff households"],
         summary="Submit a walk-in draft and check for duplicates",
     )
