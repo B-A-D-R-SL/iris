@@ -1,0 +1,91 @@
+# AI contribution: 50% or more AI-generated
+msgid ""
+msgstr ""
+"Project-Id-Version: Iris\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-AI-Contribution: 50% or more AI-generated\n"
+
+msgid "ID"
+msgstr "ID"
+
+msgid "Email address"
+msgstr "Courriel"
+
+msgid "First name"
+msgstr "Prénom"
+
+msgid "Last name"
+msgstr "Nom de famille"
+
+msgid "Role"
+msgstr "Rôle"
+
+msgid "Store"
+msgstr "Magasin"
+
+msgid "Token hash"
+msgstr "Empreinte du jeton"
+
+msgid "Expires at"
+msgstr "Expire le"
+
+msgid "Accepted at"
+msgstr "Acceptée le"
+
+msgid "Invited by"
+msgstr "Invité par"
+
+msgid "Invitation"
+msgstr "Invitation"
+
+msgid "Invitations"
+msgstr "Invitations"
+
+msgid "Enter a valid value."
+msgstr "Entrez une valeur valide."
+
+msgid "This invitation link is invalid."
+msgstr "Ce lien d’invitation est invalide."
+
+msgid "This invitation link has expired."
+msgstr "Ce lien d’invitation a expiré."
+
+msgid "This invitation link has already been used."
+msgstr "Ce lien d’invitation a déjà été utilisé."
+
+msgid "An account already uses this email address."
+msgstr "Un compte utilise déjà ce courriel."
+
+msgid "Invitations are temporarily unavailable. Try again later."
+msgstr "Les invitations sont temporairement indisponibles. Réessayez plus tard."
+
+msgid "Enter a password."
+msgstr "Entrez un mot de passe."
+
+msgid "This password is too short."
+msgstr "Ce mot de passe est trop court."
+
+#, python-format
+msgid "This password must contain at least %(min_length)s characters."
+msgstr "Ce mot de passe doit contenir au moins %(min_length)s caractères."
+
+msgid "This password is too similar to your personal information."
+msgstr "Ce mot de passe ressemble trop à vos renseignements personnels."
+
+msgid "This password is too common."
+msgstr "Ce mot de passe est trop courant."
+
+msgid "This password is entirely numeric."
+msgstr "Ce mot de passe est entièrement numérique."
+
+msgid "This field cannot be submitted."
+msgstr "Ce champ ne peut pas être envoyé."
+
+msgid "Check the highlighted fields."
+msgstr "Vérifiez les champs indiqués."
+
+msgid "The request was refused."
+msgstr "La demande a été refusée."

@@ -15,6 +15,13 @@ export interface paths {
      */
     get: operations["health_retrieve"];
   };
+  "/api/invitations/accept/": {
+    /**
+     * Accept an invitation and create a new account
+     * @description Public token-authorized action. Creates a new account without signing in or replacing an existing browser session.
+     */
+    post: operations["invitations_accept"];
+  };
   "/api/me/": {
     get: operations["me_retrieve"];
   };
@@ -87,6 +94,11 @@ export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
+    /** @description Accept only the secret token and a password, never account assignments. */
+    AcceptInvitation: {
+      password: string;
+      token: string;
+    };
     /**
      * @description * `view` - View
      * * `decision` - Decision
@@ -186,6 +198,17 @@ export interface components {
       phone: string;
       /** @default fr */
       preferred_language?: components["schemas"]["LanguageEnum"];
+    };
+    /** @description Confirm completion without returning credentials or account information. */
+    InvitationAccepted: {
+      accepted: boolean;
+    };
+    InvitationError: {
+      code: string;
+      fields: {
+        [key: string]: string[];
+      };
+      message: string;
     };
     /**
      * @description * `fr` - Français
@@ -578,6 +601,46 @@ export interface operations {
             /** @enum {string} */
             status: "ok";
           };
+        };
+      };
+    };
+  };
+  /**
+   * Accept an invitation and create a new account
+   * @description Public token-authorized action. Creates a new account without signing in or replacing an existing browser session.
+   */
+  invitations_accept: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AcceptInvitation"];
+        "application/x-www-form-urlencoded": components["schemas"]["AcceptInvitation"];
+        "multipart/form-data": components["schemas"]["AcceptInvitation"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["InvitationAccepted"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["InvitationError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["InvitationError"];
+        };
+      };
+      405: {
+        content: {
+          "application/json": components["schemas"]["InvitationError"];
+        };
+      };
+      503: {
+        content: {
+          "application/json": components["schemas"]["InvitationError"];
         };
       };
     };
