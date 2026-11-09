@@ -21,7 +21,7 @@ account. The record also preserves staff verification and creation timestamps.
 - `queries.search(q) -> QuerySet[Household]`: partial, accent-insensitive staff search;
   reads only and excludes anonymized files. Blank input returns no files.
 - `queries.search_for_staff(q, actor) -> QuerySet[Household]`: the API entry point;
-  validates staff permission and walk-in ownership before pagination.
+  validates shared staff permission before pagination.
 - `domain/address.py`: `normalize_address`, `normalize_postal_code`
 - `domain/person.py`: `normalize_person`, age/name validation
 
@@ -48,9 +48,10 @@ specific error types, and `messages.py` gives each one its translated text.
 
 All require a session for an active `intake_worker` or `admin`. Other signed-in
 roles are rejected with HTTP 403. The API contains no ID document information.
-Intake workers may read, edit and submit only walk-in files they created.
-Admins may manage all walk-in files. Another worker's file, an online file or
-an unknown file returns 404; signed-out or deactivated sessions return 401.
+Intake workers and admins share non-anonymized walk-in files, including another
+worker's and unassigned files. `created_by` records provenance, not ownership.
+An anonymized, online or unknown file returns 404 through the walk-in endpoints;
+signed-out or deactivated sessions return 401.
 
 ## Duplicate checking (US-25, #479 and #478)
 
@@ -171,9 +172,9 @@ submission and duplicate-review routing.
 
 ## Staff search (US-63, #553 and #554)
 
-Intake workers see their own walk-in files and online files. Admins see all
-non-anonymized files. Ownership is applied before counts, pagination and audits;
-resume actions use the same creator/admin policy as draft edits.
+Intake workers and admins see all non-anonymized files, including another
+worker's and unassigned files. Anonymized records are excluded before counts,
+pagination and audits; resume actions use the same staff edit rule as drafts.
 
 Migration `0004_staff_search_indexes` enables `pg_trgm` and `unaccent`, adds
 stored PostgreSQL generated keys and GIN trigram indexes, and backfills existing

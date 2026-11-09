@@ -25,11 +25,12 @@ member number or address. Names and addresses ignore case/accents. Results show
 the holder, regardless of which member matched. Empty input returns no files.
 The existing walk-in draft POST/PATCH endpoints remain supported.
 
-Intake workers can search their own non-anonymized walk-in files and online files.
-Admins can search all non-anonymized files, including unassigned files. The scope is defined
+Intake workers and admins can search all non-anonymized files, including another
+worker's and unassigned files. `created_by` records provenance, not ownership.
+The shared scope is defined
 in BR-HH-ACCESS-001 in [business rules](../02-requirements/business-rules.md).
 The actor is checked by `search_for_staff` before searching;
-the object scope is applied before counting or pagination. The API returns a
+anonymized files are excluded before counting or pagination. The API returns a
 `can_resume` boolean from the same policy used for editing, and the frontend
 renders it without recomputing permission from household status or channel.
 
@@ -84,7 +85,7 @@ same pull request as #553 and #554.
 | --- | --- |
 | Results below one second with 5,000 households | `test_search_performance.py` enforces the first authenticated response and sequential searches below one second; `test_search_load.py` also enforces the first real HTTP response below one second. |
 | Partial names and accents | `test_search_query.py` checks partial names, case, accents, reversed name order and French ligatures. |
-| Allowed/refused access for every role | API and access tests cover all roles, creator-only intake access, admin access to other-worker/unassigned files, anonymized-file refusal before pagination, and resume flags matching actual edit permissions. |
+| Allowed/refused access for every role | API and access tests cover all roles, shared staff access to other-worker/unassigned files, anonymized-file refusal before pagination, and resume flags matching actual edit permissions. |
 | Edge/error case | `test_search_api.py` covers invalid input, empty/no matches, page boundaries and failed auditing; query tests cover literal SQL/LIKE metacharacters. |
 | API/database integration | `test_staff_searches_through_session_authentication` uses a real session, PostgreSQL household/member records and persisted audit events. |
 | At least 70% changed-code coverage; domain at least 90% | Use the current CI coverage reports to assess the changed code and household domain; this guide does not retain run-specific coverage snapshots. |
@@ -123,7 +124,7 @@ after URL configuration is loaded and asserts its duration below one second.
 Search applies its predicates directly to the household queryset. Wrapping the
 same household table in an ID subquery added a second scan and hash join under
 load. Query-plan regressions check that names, member numbers, addresses and
-unmatched searches read that table only once. The matching, ownership, exact
+unmatched searches read that table only once. The matching, staff permissions, exact
 counts and audit rules stay unchanged.
 
 The HTTP check sends 300 requests at a scheduled 100 requests/second, using

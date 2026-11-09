@@ -89,21 +89,22 @@ One row per substantive feature where AI generated a meaningful part of the impl
 ### US-25 Duplicate checking and tests (#479, #478)
 
 - **AI help:** ChatGPT helped build the search, submission service, locks, staff API, translations, migration, tests, and docs.
-- **Approved policy:** suspended files count as possible duplicates; files whose `expires_at` is in the past do not. Intake workers may access, edit and submit only their own walk-in files; admins may manage all walk-in files. Another worker's file returns 404. Approval stays in US-18.
+- **Approved policy:** suspended files count as possible duplicates; files whose `expires_at` is in the past do not. Active intake workers and admins share non-anonymized walk-in files, including another worker's and unassigned files. `created_by` records provenance. Approval stays in US-18.
 - **Initial checks:** 803 backend tests passed, with 93.21% coverage. The 120 household tests reached 93.49%, including six tests with two database connections. Domain coverage exceeds 90%. Lint, types, module rules, migration checks, schema generation, eight API-generator tests, and TypeScript checks passed.
 - **Fixes:** migration 0004 updates old search keys. Rollback keeps those keys; names and addresses stay unchanged. The API keeps its existing status type name. The development database was not migrated.
 - **PR review:** ChatGPT helped split the concurrency test, record submission actors, log outcomes after commit, and add the 15-person boundary test. Draft, submission and serializer checks share the household-size RuleSet; its approved seed default is 15 including the holder, with tests at a configured limit of 3 and for missing configuration (BR-HH-001). A public lock-and-check context keeps the caller's write in the transaction. French status labels follow the glossary.
 - **Review checks:** 825 backend tests passed at 93.34% coverage; 142 household tests passed at 94.13%. All six concurrency cases, lint, formatting, typing, module boundaries, migration checks, API generation, eight generator tests, and TypeScript checks passed.
 - **RuleSet update:** the full backend suite passed 840 tests at 93.38% coverage. Household and rule tests cover configured limits, missing configuration and idempotent seeding. Existing databases need `python manage.py seed_rules`; existing versions are kept.
-- **Policy checks:** 303 household and RuleSet tests passed, including expiry boundaries, suspended candidates, creator access, another-worker denial and admin access. Ruff lint and formatting, type checks for the changed views, queries and services, and diff checks passed.
-- **Main integration:** ChatGPT resolved the search, invitation and settings conflicts while keeping the approved household rules. Search applies walk-in ownership before counts, pages and audits; resume flags follow the same rule. A merge migration joins the search and duplicate-check branches. API types were regenerated.
+- **Policy checks:** 303 household and RuleSet tests passed, including expiry boundaries, suspended candidates and staff permissions. Ruff lint and formatting, type checks for the changed views, queries and services, and diff checks passed.
+- **Main integration:** ChatGPT resolved the search, invitation and settings conflicts while keeping the approved household rules. Search excludes anonymized files before counts, pages and audits; resume flags follow the walk-in edit rule. A merge migration joins the search and duplicate-check branches. API types were regenerated.
 - **Merge checks:** 1,240 backend tests and 443 frontend tests passed. Ruff, backend/frontend type checks, frontend lint, module boundaries, migration checks, API types and diff checks passed.
 - **CI load test:** ChatGPT found that the benchmark server's 10-connection queue could overflow under the 64-worker driver. A Linux regression failed with the original queue. The test server now queues 128 connections; the 100 requests/second and 500 ms p95 targets stay unchanged. Failed assertions include the complete timing report.
 - **Load-test checks:** 1,241 backend tests passed with 93.95% coverage. All 16 load-server/client checks passed in a two-CPU Linux container. Ruff, targeted type checks and diff checks passed.
-- **Final review fixes:** duplicate advisory locks use a positive, configurable wait limit and restore the caller's timeout after acquisition. A timeout rolls back before returning a generic 503. Missing or invalid size rules use the same translated response and a privacy-safe log event. Tests now use real deactivated sessions and verify transaction boundaries without Django's test wrapper. Role and creator access tests are grouped in `test_api.py`; repeated duplicate cases were removed.
+- **Final review fixes:** duplicate advisory locks use a positive, configurable wait limit and restore the caller's timeout after acquisition. A timeout rolls back before returning a generic 503. Missing or invalid size rules use the same translated response and a privacy-safe log event. Tests now use real deactivated sessions and verify transaction boundaries without Django's test wrapper. Staff access tests are grouped in `test_api.py`; repeated duplicate cases were removed.
 - **Final checks:** 1,268 backend tests passed with 93.94% coverage, including 490 household, RuleSet and configuration tests. Ruff, backend/frontend type checks, module boundaries, migration checks, API drift checks, eight generator tests and diff checks passed.
-- **Access-test follow-up:** ChatGPT split the API, query and service tests by operation, keeping all 64 creator/admin cases. All 85 access tests and 1,268 backend tests passed; coverage stayed at 93.94%. Ruff, complexity checks, mypy and diff checks passed. The PR description and verified issue checkboxes were updated; Mark's confirmation of creator-only access remains pending.
+- **Access-test follow-up:** ChatGPT split the API, query and service tests by operation, keeping all 64 staff-access cases. All 85 access tests and 1,268 backend tests passed; coverage stayed at 93.94%. Ruff, complexity checks, mypy and diff checks passed. The PR description and verified issue checkboxes were updated.
 - **Search-load follow-up:** after CI exceeded the 500 ms p95 target, ChatGPT inspected query plans and removed a redundant household ID subquery that caused a second table scan. A regression failed on the old query and passed on the direct predicate. All 85 focused search tests passed. The two-CPU Linux HTTP tests passed at the unchanged 100 requests/second and 500 ms limits (56.71 ms p95); Ruff, mypy, module boundaries and diff checks passed.
+- **Shared-access restoration:** following [MassPaol's confirmation with Mark](https://github.com/B-A-D-R-SL/iris/pull/660#issuecomment-6730240599), ChatGPT restored shared staff access in queries, resume permissions, tests and docs. Cross-worker submissions preserve the original creator and record the submitting actor. Anonymized files, inactive accounts and nonstaff roles remain refused. All 1,266 backend tests passed at 93.97% coverage; Ruff, mypy, module boundaries, migration checks, API drift and diff checks passed.
 
 ### US-63 Household search and tests (#552, #553, #554)
 
@@ -117,7 +118,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
   the database connection, backup and migration.
 - **Verification:** Mark reviewed the implementation, saved-draft flow, local
   database, search fields and household/member links. Automated checks cover role
-  permissions, staff access, anonymized-file refusal, read-only queries,
+  permissions, shared staff access, anonymized-file refusal, read-only queries,
   API/database integration, accents, pagination, migration reversal, audit failure
   handling, response validation and search authorization in the frontend. Lint,
   formatting, type checks, module boundaries and migration checks are part of the
@@ -131,9 +132,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
   Test diagnostics use structured logging; the subprocess JSON protocol remains
   separate. Existing PostgreSQL extensions are reused in their installed schemas.
   Search access is decided by the API, including the frontend screen's access
-  probe. The original shared walk-in scope now follows the approved US-25
-  creator/admin policy. Mark accepted the central AI inventory's size.
-  Staging and phone/4G checks remain deployment verification. Repeatable
+  probe. Mark confirmed shared staff access and accepted the central AI inventory's
+  size. Staging and phone/4G checks remain deployment verification. Repeatable
   commands and thresholds are in the [verification guide](docs/guides/household-search.md).
 
 
