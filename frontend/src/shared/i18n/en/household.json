@@ -187,6 +187,24 @@
       "pickupCode": "Pickup code",
       "title": "Reservation",
       "pickupWindow": "Pickup window"
+    },
+    "reserve": {
+      "button": "Reserve",
+      "quantity": "Quantity",
+      "quantityHelp": "Up to {{max}} for your household.",
+      "done": "Reserved",
+      "doneDetail": "{{title}}, quantity {{quantity}}, is set aside for you.",
+      "showCode": "Show this code at the store when you pick up.",
+      "codeSpelled": "Pickup code: {{code}}",
+      "soldOutTitle": "Sold out",
+      "soldOut": "Sorry, this listing is sold out.",
+      "notEnough": "There are not enough left. Choose a smaller quantity.",
+      "overListingLimit": "That is more than one household can reserve for this listing.",
+      "tooManyActive": "You already have the most reservations allowed at one time. Pick one up or cancel one first.",
+      "notAvailable": "This listing is no longer available.",
+      "notApproved": "Only approved households can reserve.",
+      "tryAgain": "Reserving is not available right now. Try again later.",
+      "failed": "The reservation could not be made. Try again."
     }
   },
   "privacy": {

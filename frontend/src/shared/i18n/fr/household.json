@@ -187,6 +187,24 @@
       "pickupCode": "Code de cueillette",
       "title": "Réservation",
       "pickupWindow": "Plage de cueillette"
+    },
+    "reserve": {
+      "button": "Réserver",
+      "quantity": "Quantité",
+      "quantityHelp": "Jusqu'à {{max}} pour votre foyer.",
+      "done": "Réservé",
+      "doneDetail": "{{title}}, quantité {{quantity}}, est mis de côté pour vous.",
+      "showCode": "Montrez ce code au commerce lors de la cueillette.",
+      "codeSpelled": "Code de cueillette : {{code}}",
+      "soldOutTitle": "Épuisé",
+      "soldOut": "Désolé, cette offre est épuisée.",
+      "notEnough": "Il n'en reste pas assez. Choisissez une plus petite quantité.",
+      "overListingLimit": "C'est plus qu'un foyer peut réserver pour cette offre.",
+      "tooManyActive": "Vous avez déjà le nombre maximal de réservations en cours. Récupérez-en une ou annulez-en une d'abord.",
+      "notAvailable": "Cette offre n'est plus disponible.",
+      "notApproved": "Seuls les foyers approuvés peuvent réserver.",
+      "tryAgain": "La réservation n'est pas disponible pour le moment. Réessayez plus tard.",
+      "failed": "La réservation n'a pas pu être faite. Réessayez."
     }
   },
   "privacy": {
