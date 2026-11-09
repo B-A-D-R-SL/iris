@@ -88,8 +88,10 @@ def search_for_staff(q: str, actor: StaffActor) -> QuerySet[Household]:
     return households
 
 
-def _matching_ids(households: QuerySet[Household], value: str) -> QuerySet:
-    """Combine stored keys without compiling a UNION for every request."""
+def _matching_households(
+    households: QuerySet[Household], value: str
+) -> QuerySet[Household]:
+    """Apply matches directly to avoid scanning households a second time."""
     needle = SearchKey(Value(value))
     members = Member.objects.all()
     addresses = Q()
@@ -112,7 +114,7 @@ def _matching_ids(households: QuerySet[Household], value: str) -> QuerySet:
         if digits:
             matches |= Q(phone__contains=digits)
 
-    return households.filter(matches).values("pk")
+    return households.filter(matches)
 
 
 def search(q: str) -> QuerySet[Household]:
@@ -126,13 +128,12 @@ def search(q: str) -> QuerySet[Household]:
     households = Household.objects.filter(anonymized_at__isnull=True)
     if not value:
         return households.none()
-    matches = _matching_ids(households, value)
+    matches = _matching_households(households, value)
     holder = Member.objects.filter(
         household_id=OuterRef("pk"), relation=Member.Relation.HOLDER
     )
     return (
-        households.filter(pk__in=matches)
-        .annotate(
+        matches.annotate(
             first_name=Subquery(holder.values("first_name")[:1]),
             last_name=Subquery(holder.values("last_name")[:1]),
         )

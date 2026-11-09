@@ -120,6 +120,12 @@ Correctness/count checks are separate from timing checks. The dataset fixture
 only seeds and signs in; `cold_api_ms` explicitly measures the first API request
 after URL configuration is loaded and asserts its duration below one second.
 
+Search applies its predicates directly to the household queryset. Wrapping the
+same household table in an ID subquery added a second scan and hash join under
+load. Query-plan regressions check that names, member numbers, addresses and
+unmatched searches read that table only once. The matching, ownership, exact
+counts and audit rules stay unchanged.
+
 The HTTP check sends 300 requests at a scheduled 100 requests/second, using
 session cookies and reused connections. Both the load client and loopback WSGI
 server run in separate processes, so the client's GIL and coverage instrumentation
