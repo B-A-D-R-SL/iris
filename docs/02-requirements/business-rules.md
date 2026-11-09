@@ -7,6 +7,17 @@ Decisions taken where B.A.D.R. had not specified anything are marked **Default**
 
 Each owner publishes their section of this document in their own pull request. This version contains the listing categories and the prohibited items (SET-12), and partner applications (US-12); the other sections (roles, eligibility, reservations, priority, strikes, notifications, retention) are added by their owners.
 
+## Invitations (US-04)
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-INV-001 | Set expiry from `invitations.expires_after_days` (seed default **7 days**). The saved expiry is exclusive; later rule versions affect only new invitations. Missing or invalid configuration prevents issuing a link. |
+| BR-INV-002 | Accept an invitation once, creating the user and consuming the token atomically. Failed validation leaves the token unused. |
+| BR-INV-003 | Create new accounts only. Refuse email addresses already registered to active or inactive users, case-insensitively, when issuing and accepting. Identity, role and store come from the invitation. |
+
+These are the US-04 rules already implemented on `main` (#430). Only a token's
+SHA-256 hash is stored. Acceptance does not change the browser session.
+
 ## Partner applications (US-12)
 
 ### BR-PARTNER-01: One open application per contact email
@@ -66,6 +77,23 @@ hardcoded values. BR-DOC-001 to BR-DOC-004 are checked in
 `backend/modules/documents/domain/notice.py`; BR-DOC-005 and BR-DOC-006 in
 `backend/modules/documents/services.py` and the `IncomeNotice` constraints;
 BR-DOC-007 in `backend/modules/households/services.py`.
+
+### Walk-in approval (#469)
+
+Every adult needs a current notice or a non-filing reason. Approval rechecks the
+notice against the member's current name, ignoring case and accents and allowing
+extra middle names. A mismatch, including a holder name corrected after upload,
+sets `review_required` with `NAME_MISMATCH`.
+
+Non-filing, an unseen notice, an unaccepted tax year, a postal-code mismatch or
+unverified identity also requires review; existing review flags are not cleared.
+Non-filers are never counted as zero income. Missing mandatory information
+prevents a decision. Accepted tax years come from `auto_approval.accepted_tax_years`.
+Otherwise the eligibility service applies LICO: ineligible files are rejected
+with `INCOME_ABOVE_LICO`, and eligible files are approved for
+`file_validity.approved_months` (seed default **12 calendar months**, Montreal).
+Approved files with email receive a beneficiary set-password invitation after
+commit. The new-account-only invitation rule still applies.
 
 ## Listings
 

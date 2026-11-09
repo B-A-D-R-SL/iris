@@ -1,5 +1,5 @@
 <!-- AI contribution: 50% or more AI-generated -->
-# Households module — implementation for T-03.17.2 and T-03.17.3
+# Households module
 
 **Owner pair:** Registration
 
@@ -12,11 +12,15 @@ account. The record also preserves staff verification and creation timestamps.
 
 - `services.create_walk_in(data, staff_user) -> Household`
 - `services.update_draft(household_id, data, staff_user) -> Household`
+- `services.approve_walk_in(household, staff) -> Household`: checks current
+  evidence, records the outcome and prepares a beneficiary invitation when needed
 - `services.record_walk_in_notice(household_id, data, staff_user) -> IncomeNotice`:
   checks the household is a draft walk-in and the member is one of its adults
   (BR-DOC-007), records the draft change, then calls
   `documents.services.record_staff_notice` (T-03.18.2)
 - `queries.walk_in_for_staff(household_id) -> Household | None`
+- `queries.eligibility_inputs(household_id) -> EligibilityInputs`: verified
+  adult incomes and the full member count for the eligibility service
 - `domain/address.py`: `normalize_address`, `normalize_postal_code`
 - `domain/person.py`: `normalize_person`, age/name validation, `is_adult`
 
@@ -97,15 +101,52 @@ details creates it, and incomplete details return a `holder` field error.
 
 ## Audit integration / US-62 dependency
 
-`HouseholdDraftEvent` currently captures a **minimal internal audit trail** of
-create/update actions, actor ID, role at the moment of action, and timestamp,
-without personal-data payloads. It is an interim solution because `audit` is a
-SET-14 scaffold on `main` (as observed 2026-10-31). **Coordinate with the US-62
-owner before merging**: when the central `audit.services.record()` supports
-household creation/edit events, replace the local event implementation with it,
-and decide whether to migrate existing local event history. Do not send action
-names unsupported by the current US-62 branch, which only handles view/decision.
+`HouseholdDraftEvent` records create/update actions, actor ID, role and timestamp,
+without personal-data payloads. The central audit service currently supports
+view/decision only, so draft events remain local. Approval uses a central
+decision event. Replacing the draft trail and migrating its history still needs
+coordination with the US-62 owner.
 
 The walk-in screens (T-03.17.4) are in `frontend/src/areas/staff/pages/WalkIn/`.
-Income notices are recorded through the endpoint above (T-03.18.2). Approval,
-status transitions and the set-password email belong to US-18 (#469) and US-57.
+Income notices are recorded through the endpoint above (T-03.18.2).
+
+## Walk-in approval (#469)
+
+`approve_walk_in` accepts draft, submitted or review-required walk-ins from an
+active intake worker or admin. It reloads and locks the saved file; it does not
+trust unsaved changes on the argument. Anonymized files are hidden. The holder,
+address, phone, consent and every adult's notice or non-filing reason must be
+complete. Missing information raises validation errors without changing the file.
+
+Only current notices count. Adult ages use Montreal's date at approval. Each
+notice name is checked against the member's current first and last names, including
+holder corrections made after recording the notice. Case and accents are ignored;
+extra middle names are allowed. Postal codes must match the household address.
+
+Review reasons are `NAME_MISMATCH`, `ADDRESS_MISMATCH`, `NOTICE_NOT_SEEN`,
+`TAX_YEAR_NOT_ACCEPTED`, `DID_NOT_FILE` and `IDENTITY_NOT_VERIFIED`. Existing
+review flags are preserved and take priority over rejection. Non-filing,
+unaccepted or unverified evidence goes to review without an income decision;
+it is never treated as zero. Accepted tax years come from
+`auto_approval.accepted_tax_years`. The income-ratio rule for online automatic
+approval does not apply to this staff workflow.
+
+With complete verified income, `eligibility.services.decide_for_household`
+records the calculation. Income above LICO gives `rejected` with
+`INCOME_ABOVE_LICO`; an eligible file without review flags becomes `approved`.
+Validity uses calendar months in Montreal from `file_validity.approved_months`
+(seed default 12), including month-end clamping. Other outcomes have no approval
+or expiry date. A final file cannot be approved again. The review queue UI and
+approval API remain separate tasks; this service stores `review_required`.
+
+Outcome, eligibility, audit and invitation writes share one transaction.
+`audit.services.record` receives only the outcome, never notice or income data.
+Approved files with email call the US-04 invitation service from `main`; existing
+accounts are refused under its new-account-only policy and roll back approval.
+Acceptance creates the account but does not yet link it to the household.
+
+The French or English set-password email is sent through the mailer adapter only
+after commit, using `FRONTEND_URL` and `/invitation/:token`. No email is sent on
+rollback, rejection or review. Delivery failure is logged without recipient,
+token or provider details and cannot undo approval. Durable retries and a resend
+workflow remain for the notifications owner.

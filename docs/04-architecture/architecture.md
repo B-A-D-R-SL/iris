@@ -412,7 +412,7 @@ sequenceDiagram
         H->>H: Prepare household and member decision inputs
         H->>D: Read recorded income evidence through public query
         D-->>H: Income evidence and verification status
-        H->>E: decide_for_household(household_id, decision_inputs)
+        H->>E: decide_for_household(household_id, staff)
         E->>E: Save decision inputs, result and applied rule version
         E-->>H: Eligibility result and threshold
 

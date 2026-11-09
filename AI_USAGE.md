@@ -512,3 +512,11 @@ At least half of the AI-assisted features need an example here. For each one:
 - **Remaining:**
   - Peer review and CI; `python manage.py seed_rules` on databases created before this change, so the `notice_upload` rule exists.
   - #469 reads notices with `documents.queries.current_notices`; #470 builds the screens on the new endpoints.
+
+### T-03.18.3 Walk-in approval (#469), local work on 2026-11-08
+
+- **User direction:** implement on US-18 and bring in the required invitation implementation from `main`. The user then approved 12 logical commits and one push. Human review is still pending.
+- **Produced:** transactional approval, rejection and review outcomes; current adult evidence and corrected-name checks; RuleSet-based expiry; central audit; beneficiary invitations and French/English setup emails after commit. The US-04 model, migration, services, acceptance API/page and tests were brought from `main`, preserving US-18's staff policy and notice-upload rules.
+- **Verification:** 1,125 backend tests passed at 94.16% coverage; 399 frontend tests and eight API-generator tests passed. Ruff, mypy, import contracts, migration drift, TypeScript, ESLint, formatting, build and diff checks passed. During commit splitting, staged frontend and pure-domain tests passed; a fresh database rerun was blocked by paused Docker.
+- **Corrections:** migration tests now restore dependent notice tables before later transaction tests. Simultaneous approvals produce one decision, invitation and email. Console/file mail backends are refused for invitations so setup links cannot enter logs or loose files. Tests sent no real email.
+- **Not included:** the approval endpoint/screens, household-account linking, durable email retries and staff resend flow. Existing-account emails retain US-04's refusal policy; a failed invitation rolls back approval.
