@@ -46,6 +46,14 @@ def access_file(request, ready_household_factory):
     return household, actor, allowed
 
 
+@pytest.fixture
+def access_client(access_file):
+    household, actor, allowed = access_file
+    client = APIClient()
+    client.force_authenticate(user=actor)
+    return household, actor, allowed, client
+
+
 def _request(client, action, household_id):
     if action == "create":
         return client.post(reverse("staff-households-create"), {}, format="json")
@@ -83,69 +91,114 @@ def test_nonstaff_cannot_manage_even_their_own_file(
     assert not search_events(actor=actor.pk).exists()
 
 
-# rule: BR-HH-ACCESS-001
-@pytest.mark.parametrize("access_file", ACCESS_CASES, indirect=True)
-@pytest.mark.parametrize("action", ["read", "edit", "submit"])
-def test_walk_in_api_enforces_creator_access(access_file, action):
-    household, actor, allowed = access_file
-    client = APIClient()
-    client.force_authenticate(user=actor)
+def _assert_unchanged(household, updated_at):
+    household.refresh_from_db()
+    assert household.updated_at == updated_at
+    assert household.status == Household.Status.DRAFT
+    assert household.phone == "+15145550101"
+    assert household.submitted_at is None
+    assert not household.draft_events.exists()
+
+
+def _checked_request(client, action, household, allowed):
     before = household.updated_at
     response = _request(client, action, household.pk)
     assert response.status_code == (200 if allowed else 404), response.data
     household.refresh_from_db()
-    if allowed:
-        if action == "read":
-            assert response.data["id"] == str(household.pk)
-        elif action == "edit":
-            assert household.phone == "+15145550999"
-            assert household.draft_events.get().actor_id == actor.pk
-        else:
-            assert household.status == Household.Status.SUBMITTED
-            assert household.draft_events.get().actor_id == actor.pk
-    else:
+    if not allowed:
         assert response.data["fields"] == {}
-        assert household.updated_at == before
-        assert household.status == Household.Status.DRAFT
-        assert household.phone == "+15145550101"
-        assert household.submitted_at is None
-        assert not household.draft_events.exists()
+        _assert_unchanged(household, before)
         missing = _request(client, action, uuid.uuid4())
         assert response.data == missing.data
+    return response
 
 
 # rule: BR-HH-ACCESS-001
 @pytest.mark.parametrize("access_file", ACCESS_CASES, indirect=True)
-@pytest.mark.parametrize("action", ["read", "search", "edit", "submit", "locked_check"])
-def test_queries_and_services_enforce_creator_access(access_file, action):
+def test_walk_in_api_read_enforces_creator_access(access_client):
+    household, _, allowed, client = access_client
+    response = _checked_request(client, "read", household, allowed)
+    if allowed:
+        assert response.data["id"] == str(household.pk)
+
+
+# rule: BR-HH-ACCESS-001
+@pytest.mark.parametrize("access_file", ACCESS_CASES, indirect=True)
+def test_walk_in_api_edit_enforces_creator_access(access_client):
+    household, actor, allowed, client = access_client
+    _checked_request(client, "edit", household, allowed)
+    if allowed:
+        assert household.phone == "+15145550999"
+        assert household.draft_events.get().actor_id == actor.pk
+
+
+# rule: BR-HH-ACCESS-001
+@pytest.mark.parametrize("access_file", ACCESS_CASES, indirect=True)
+def test_walk_in_api_submit_enforces_creator_access(access_client):
+    household, actor, allowed, client = access_client
+    _checked_request(client, "submit", household, allowed)
+    if allowed:
+        assert household.status == Household.Status.SUBMITTED
+        assert household.draft_events.get().actor_id == actor.pk
+
+
+# rule: BR-HH-ACCESS-001
+@pytest.mark.parametrize("access_file", ACCESS_CASES, indirect=True)
+def test_walk_in_query_enforces_creator_access(access_file):
     household, actor, allowed = access_file
-    if action == "read":
-        assert walk_in_for_staff(household.pk, actor) == (
-            household if allowed else None
-        )
-        return
-    if action == "search":
-        assert list(search_for_staff("Exemple", actor)) == (
-            [household] if allowed else []
-        )
-        assert can_resume_walk_in(household, actor) is allowed
-        return
+    assert walk_in_for_staff(household.pk, actor) == (household if allowed else None)
+
+
+# rule: BR-HH-ACCESS-001
+@pytest.mark.parametrize("access_file", ACCESS_CASES, indirect=True)
+def test_search_query_enforces_creator_access(access_file):
+    household, actor, allowed = access_file
+    assert list(search_for_staff("Exemple", actor)) == ([household] if allowed else [])
+    assert can_resume_walk_in(household, actor) is allowed
+
+
+# rule: BR-HH-ACCESS-001
+@pytest.mark.parametrize("access_file", ACCESS_CASES, indirect=True)
+def test_draft_edit_service_enforces_creator_access(access_file):
+    household, actor, allowed = access_file
     before = household.updated_at
     with nullcontext() if allowed else pytest.raises(Household.DoesNotExist):
-        if action == "edit":
-            update_draft(household.pk, {"holder": {"phone": "+15145550999"}}, actor)
-        elif action == "submit":
-            submit_walk_in(household.pk, actor)
-        else:
-            with locked_duplicate_check(household.pk, actor) as (checked, matched):
-                assert checked.pk == household.pk
-                assert matched is False
-    household.refresh_from_db()
-    if not allowed:
-        assert household.updated_at == before
-        assert household.status == Household.Status.DRAFT
-        assert household.submitted_at is None
-        assert not household.draft_events.exists()
+        update_draft(household.pk, {"holder": {"phone": "+15145550999"}}, actor)
+    if allowed:
+        household.refresh_from_db()
+        assert household.phone == "+15145550999"
+        assert household.draft_events.get().actor_id == actor.pk
+    else:
+        _assert_unchanged(household, before)
+
+
+# rule: BR-HH-ACCESS-001
+@pytest.mark.parametrize("access_file", ACCESS_CASES, indirect=True)
+def test_submission_service_enforces_creator_access(access_file):
+    household, actor, allowed = access_file
+    before = household.updated_at
+    with nullcontext() if allowed else pytest.raises(Household.DoesNotExist):
+        submit_walk_in(household.pk, actor)
+    if allowed:
+        household.refresh_from_db()
+        assert household.status == Household.Status.SUBMITTED
+        assert household.draft_events.get().actor_id == actor.pk
+    else:
+        _assert_unchanged(household, before)
+
+
+# rule: BR-HH-ACCESS-001
+@pytest.mark.parametrize("access_file", ACCESS_CASES, indirect=True)
+def test_locked_duplicate_check_enforces_creator_access(access_file):
+    household, actor, allowed = access_file
+    before = household.updated_at
+    with (
+        nullcontext() if allowed else pytest.raises(Household.DoesNotExist),
+        locked_duplicate_check(household.pk, actor) as (checked, matched),
+    ):
+        assert checked.pk == household.pk
+        assert matched is False
+    _assert_unchanged(household, before)
 
 
 # rule: BR-HH-ACCESS-001

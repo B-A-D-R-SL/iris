@@ -102,6 +102,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 - **Load-test checks:** 1,241 backend tests passed with 93.95% coverage. All 16 load-server/client checks passed in a two-CPU Linux container. Ruff, targeted type checks and diff checks passed.
 - **Final review fixes:** duplicate advisory locks use a positive, configurable wait limit and restore the caller's timeout after acquisition. A timeout rolls back before returning a generic 503. Missing or invalid size rules use the same translated response and a privacy-safe log event. Tests now use real deactivated sessions and verify transaction boundaries without Django's test wrapper. Role and creator access tests are grouped in `test_api.py`; repeated duplicate cases were removed.
 - **Final checks:** 1,268 backend tests passed with 93.94% coverage, including 490 household, RuleSet and configuration tests. Ruff, backend/frontend type checks, module boundaries, migration checks, API drift checks, eight generator tests and diff checks passed.
+- **Access-test follow-up:** ChatGPT split the API, query and service tests by operation, keeping all 64 creator/admin cases. All 85 access tests and 1,268 backend tests passed; coverage stayed at 93.94%. Ruff, complexity checks, mypy and diff checks passed. The PR description and verified issue checkboxes were updated; Mark's confirmation of creator-only access remains pending.
 
 ### US-63 Household search and tests (#552, #553, #554)
 
