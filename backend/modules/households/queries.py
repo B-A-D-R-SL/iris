@@ -2,6 +2,7 @@
 """Read household files, search staff records and preview duplicates."""
 
 import re
+from datetime import datetime
 from uuid import UUID
 
 from django.contrib.auth.base_user import AbstractBaseUser
@@ -66,6 +67,25 @@ def find_possible_duplicates(household: Household) -> QuerySet[Household]:
         )
         .exclude(pk=household.pk)
         .order_by("pk")
+    )
+
+
+def approved_household_id(user_id: UUID, *, at: datetime) -> UUID | None:
+    """The ID of the household this user holds, if it is approved at ``at``.
+
+    Approved means status ``approved`` and not yet expired. Expiry is checked
+    here as well, because the nightly job that moves expired files to
+    ``renewal_needed`` may not have run yet. Suspended, expired and every
+    other status give None. Only the ID leaves this module.
+    """
+    return (
+        Household.objects.filter(
+            holder_id=user_id,
+            status=Household.Status.APPROVED,
+            expires_at__gt=at,
+        )
+        .values_list("id", flat=True)
+        .first()
     )
 
 

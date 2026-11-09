@@ -22,6 +22,13 @@ export interface paths {
      */
     post: operations["invitations_accept"];
   };
+  "/api/listings/": {
+    /**
+     * Browse the listings the signed-in household can see
+     * @description The listings the signed-in household can see, 20 a page.
+     */
+    get: operations["listings_list"];
+  };
   "/api/me/": {
     get: operations["me_retrieve"];
   };
@@ -125,6 +132,14 @@ export interface components {
       metadata: unknown;
       target_id: string;
       target_type: string;
+    };
+    /** @description The API's error shape: { code, message, fields }. */
+    BrowseError: {
+      code: string;
+      fields: {
+        [key: string]: string[];
+      };
+      message: string;
     };
     /**
      * @description * `grocery` - Épicerie
@@ -244,6 +259,33 @@ export interface components {
      * @enum {string}
      */
     LanguageEnum: "fr" | "en";
+    /** @description One card in the browse list, from ``listings.queries.browse_listings``. */
+    ListingCard: {
+      /** Format: date */
+      best_before: string | null;
+      category: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      pickup_end: string;
+      /** Format: date-time */
+      pickup_start: string;
+      store: components["schemas"]["ListingStore"];
+      title: string;
+      unit: string;
+      units_left: number;
+    };
+    /** @description The offering store; a listing's location is always its store's address. */
+    ListingStore: {
+      city: string;
+      /** Format: uuid */
+      id: string;
+      name: string;
+      postal_code: string;
+      street_name: string;
+      street_number: string;
+      unit: string | null;
+    };
     MemberInput: {
       /** Format: date */
       date_of_birth: string;
@@ -354,6 +396,21 @@ export interface components {
        */
       previous?: string | null;
       results: components["schemas"]["HouseholdSearchResult"][];
+    };
+    PaginatedListingCardList: {
+      /** @example 123 */
+      count: number;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=4
+       */
+      next?: string | null;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=2
+       */
+      previous?: string | null;
+      results: components["schemas"]["ListingCard"][];
     };
     /** @description Submitted partner form; field rules from forms-and-fields.md. */
     PartnerApplication: {
@@ -651,6 +708,51 @@ export interface operations {
       503: {
         content: {
           "application/json": components["schemas"]["InvitationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Browse the listings the signed-in household can see
+   * @description The listings the signed-in household can see, 20 a page.
+   */
+  listings_list: {
+    parameters: {
+      query?: {
+        /** @description A category code, as listed by GET /api/categories/. */
+        category?: string;
+        /** @description Un numéro de page de l'ensemble des résultats. */
+        page?: number;
+        /** @description A store ID. */
+        store?: string;
+        /** @description Only listings that can still be picked up today, Montreal time. */
+        today?: boolean;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PaginatedListingCardList"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
+        };
+      };
+      401: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
         };
       };
     };
