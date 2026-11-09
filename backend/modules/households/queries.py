@@ -1,30 +1,72 @@
 # AI contribution: 50% or more AI-generated
-"""Read-only public interfaces for household files and staff search."""
+"""Read household files, search staff records and preview duplicates."""
 
 import re
 from datetime import datetime
 from uuid import UUID
 
+from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import PermissionDenied
 from django.db.models import OuterRef, Q, QuerySet, Subquery, Value
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from modules.households.models import Household, Member
 from modules.households.policies import StaffActor, can_manage_walk_ins
 from modules.households.search_expressions import SearchKey
 
+DUPLICATE_CANDIDATE_STATUSES = (
+    Household.Status.SUBMITTED,
+    Household.Status.REVIEW_REQUIRED,
+    Household.Status.AWAITING_VISIT,
+    Household.Status.APPROVED,
+    Household.Status.RENEWAL_NEEDED,
+    Household.Status.SUSPENDED,
+)
 
-def walk_in_for_staff(household_id: UUID) -> Household | None:
-    """Read a shared walk-in file, excluding anonymized records."""
+
+def walk_ins_for_staff(staff_user: AbstractBaseUser) -> QuerySet[Household]:
+    households = Household.objects.filter(
+        channel=Household.Channel.WALK_IN, anonymized_at__isnull=True
+    )
+    if not can_manage_walk_ins(staff_user):
+        return households.none()
+    return households
+
+
+def walk_in_for_staff(
+    household_id: UUID, staff_user: AbstractBaseUser
+) -> Household | None:
     return (
-        Household.objects.select_related("created_by", "verified_by")
+        walk_ins_for_staff(staff_user)
+        .select_related("created_by", "verified_by")
         .prefetch_related("members")
-        .filter(
-            pk=household_id,
-            channel=Household.Channel.WALK_IN,
+        .filter(pk=household_id)
+        .first()
+    )
+
+
+def find_possible_duplicates(household: Household) -> QuerySet[Household]:
+    """Preview matches; use services.locked_duplicate_check() before writing."""
+    if household._state.adding:
+        raise ValueError("A saved household is required.")
+
+    person_keys = household.members.exclude(person_key="").values("person_key")
+    person_matches = Member.objects.filter(person_key__in=person_keys).values(
+        "household_id"
+    )
+    matches = Q(pk__in=person_matches)
+    if household.address_key:
+        matches |= Q(address_key=household.address_key)
+    return (
+        Household.objects.filter(
+            matches,
+            Q(expires_at__isnull=True) | Q(expires_at__gte=timezone.now()),
+            status__in=DUPLICATE_CANDIDATE_STATUSES,
             anonymized_at__isnull=True,
         )
-        .first()
+        .exclude(pk=household.pk)
+        .order_by("pk")
     )
 
 
@@ -61,8 +103,10 @@ def search_for_staff(q: str, actor: StaffActor) -> QuerySet[Household]:
     return search(q)
 
 
-def _matching_ids(households: QuerySet[Household], value: str) -> QuerySet:
-    """Combine stored keys without compiling a UNION for every request."""
+def _matching_households(
+    households: QuerySet[Household], value: str
+) -> QuerySet[Household]:
+    """Apply matches directly to avoid scanning households a second time."""
     needle = SearchKey(Value(value))
     members = Member.objects.all()
     addresses = Q()
@@ -85,7 +129,7 @@ def _matching_ids(households: QuerySet[Household], value: str) -> QuerySet:
         if digits:
             matches |= Q(phone__contains=digits)
 
-    return households.filter(matches).values("pk")
+    return households.filter(matches)
 
 
 def search(q: str) -> QuerySet[Household]:
@@ -93,20 +137,18 @@ def search(q: str) -> QuerySet[Household]:
 
     Input stays in bound ORM parameters, including LIKE wildcard characters.
     Anonymized files and DOB-containing duplicate keys are never searched.
-    Staff share all remaining files regardless of creator; API callers enter
-    through search_for_staff to enforce the actor permission first.
+    API callers use search_for_staff to enforce staff permissions.
     """
     value = " ".join(q.split())
     households = Household.objects.filter(anonymized_at__isnull=True)
     if not value:
         return households.none()
-    matches = _matching_ids(households, value)
+    matches = _matching_households(households, value)
     holder = Member.objects.filter(
         household_id=OuterRef("pk"), relation=Member.Relation.HOLDER
     )
     return (
-        households.filter(pk__in=matches)
-        .annotate(
+        matches.annotate(
             first_name=Subquery(holder.values("first_name")[:1]),
             last_name=Subquery(holder.values("last_name")[:1]),
         )
@@ -115,6 +157,7 @@ def search(q: str) -> QuerySet[Household]:
             "member_number",
             "status",
             "channel",
+            "created_by_id",
             "anonymized_at",
             "email",
             "phone",

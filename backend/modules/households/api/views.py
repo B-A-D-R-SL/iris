@@ -4,6 +4,7 @@
 from typing import Any
 from uuid import UUID
 
+from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.http import Http404
@@ -25,9 +26,13 @@ from modules.households.api.search_serializers import (
     HouseholdSearchResultSerializer,
 )
 from modules.households.api.serializers import (
+    HouseholdErrorSerializer,
     WalkInDraftInputSerializer,
     WalkInDraftReadSerializer,
+    WalkInSubmissionInputSerializer,
+    WalkInSubmissionReadSerializer,
 )
+from modules.households.exceptions import HouseholdUnavailable
 from modules.households.models import Household
 from modules.households.policies import can_manage_walk_ins
 
@@ -54,6 +59,19 @@ def walk_in_exception_handler(
     exc: Exception, context: dict[str, Any]
 ) -> Response | None:
     """Return the shared validation envelope while retaining refusal status codes."""
+    if isinstance(exc, HouseholdUnavailable):
+        return Response(
+            {
+                "code": "household_unavailable",
+                "message": str(
+                    _(
+                        "Household registration is temporarily unavailable. Please try again."
+                    )
+                ),
+                "fields": {},
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
     response = exception_handler(exc, context)
     if response is None:
         return None
@@ -118,7 +136,7 @@ class WalkInCollectionView(WalkInErrorHandlingMixin, GenericAPIView):
         summary="Find a household (intake workers and administrators)",
     )
     def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        """Search the shared staff scope and persist disclosure audits before responding."""
+        """Record disclosure audits before returning authorized search results."""
         params = HouseholdSearchInputSerializer(data=request.query_params)
         params.is_valid(raise_exception=True)
         page = self.paginate_queryset(
@@ -140,7 +158,7 @@ class WalkInCollectionView(WalkInErrorHandlingMixin, GenericAPIView):
 
     @extend_schema(
         request=WalkInDraftInputSerializer,
-        responses={201: WalkInDraftReadSerializer},
+        responses={201: WalkInDraftReadSerializer, 503: HouseholdErrorSerializer},
         tags=["staff households"],
         summary="Create a resumable walk-in household draft",
     )
@@ -161,9 +179,8 @@ class WalkInDetailView(WalkInErrorHandlingMixin, GenericAPIView):
     permission_classes = (IsIntakeWorkerOrAdmin,)
 
     @staticmethod
-    def _get_household(id: UUID) -> Household:
-        """Refuse missing, anonymized or non-walk-in files through the draft endpoint."""
-        household = queries.walk_in_for_staff(id)
+    def _get_household(id: UUID, staff_user: AbstractBaseUser) -> Household:
+        household = queries.walk_in_for_staff(id, staff_user)
         if household is None:
             raise Http404
         return household
@@ -174,17 +191,18 @@ class WalkInDetailView(WalkInErrorHandlingMixin, GenericAPIView):
         summary="Resume an existing walk-in household draft",
     )
     def get(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
-        """Return a shared walk-in draft after staff and object-scope checks."""
-        return Response(WalkInDraftReadSerializer(self._get_household(id)).data)
+        return Response(
+            WalkInDraftReadSerializer(self._get_household(id, request.user)).data
+        )
 
     @extend_schema(
         request=WalkInDraftInputSerializer,
-        responses={200: WalkInDraftReadSerializer},
+        responses={200: WalkInDraftReadSerializer, 503: HouseholdErrorSerializer},
         tags=["staff households"],
         summary="Edit an existing walk-in household draft",
     )
     def patch(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
-        """Edit an eligible shared draft while preserving validation and refusal errors."""
+        self._get_household(id, request.user)
         data = _validated(request.data, partial=True)
         try:
             household = services.update_draft(id, data, request.user)
@@ -193,3 +211,27 @@ class WalkInDetailView(WalkInErrorHandlingMixin, GenericAPIView):
         except DjangoValidationError as exc:
             raise _service_validation(exc) from exc
         return Response(WalkInDraftReadSerializer(household).data)
+
+
+class WalkInSubmissionView(WalkInErrorHandlingMixin, GenericAPIView):
+    serializer_class = WalkInSubmissionInputSerializer
+    permission_classes = (IsIntakeWorkerOrAdmin,)
+
+    @extend_schema(
+        request=WalkInSubmissionInputSerializer,
+        responses={200: WalkInSubmissionReadSerializer, 503: HouseholdErrorSerializer},
+        tags=["staff households"],
+        summary="Submit a walk-in draft and check for duplicates",
+    )
+    def post(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
+        if queries.walk_in_for_staff(id, request.user) is None:
+            raise Http404
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            household = services.submit_walk_in(id, request.user)
+        except Household.DoesNotExist as exc:
+            raise Http404 from exc
+        except DjangoValidationError as exc:
+            raise _service_validation(exc) from exc
+        return Response(WalkInSubmissionReadSerializer(household).data)

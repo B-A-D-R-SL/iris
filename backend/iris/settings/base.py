@@ -117,6 +117,12 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 
+HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS = env.int(
+    "HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS", default=5000
+)
+if HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS <= 0:
+    raise ImproperlyConfigured("HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS must be positive.")
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "modules.accounts.authentication.SessionAuthentication"
@@ -139,7 +145,8 @@ SPECTACULAR_SETTINGS = {
     # Explicit shared enum for the account and household language fields.
     "ENUM_NAME_OVERRIDES": {
         "LanguageEnum": [("fr", "Français"), ("en", "English")],
-        "HouseholdStatusEnum": "modules.households.models.HouseholdStatus",
+        # Keep the existing status type name.
+        "WalkInDraftReadStatusEnum": "modules.households.models.Household.Status",
     },
     # Document the Django health view without changing its authentication or behavior.
     "APPEND_PATHS": {

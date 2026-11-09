@@ -25,6 +25,23 @@ def test_api_schema_route():
     assert reverse("schema") == "/api/schema/"
 
 
+@pytest.mark.parametrize("timeout", ["0", "-1", "25"])
+def test_duplicate_lock_timeout_must_be_positive(timeout):
+    result = subprocess.run(
+        [sys.executable, "-c", "import iris.settings.base"],
+        env={**os.environ, "HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS": timeout},
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    if timeout == "25":
+        assert result.returncode == 0, result.stderr
+    else:
+        assert result.returncode != 0
+        assert "HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS must be positive." in result.stderr
+
+
 def test_health_endpoint(client: Client) -> None:
     response = client.get("/api/health/")
 

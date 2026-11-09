@@ -1,12 +1,14 @@
 # AI contribution: 50% or more AI-generated
 """US-63: fully evaluated searches and authenticated API reads at 5,000 files."""
 
+import json
 import logging
 from statistics import median, quantiles
 from time import perf_counter
 
 import pytest
 from django.db import connection
+from django.db.models import Count, Window
 from django.urls import reverse
 
 from modules.accounts.tests.factories import UserFactory
@@ -72,6 +74,19 @@ def test_search_counts_are_correct_with_5000_households(client, seeded_search_da
             assert response.json()["results"], term
         else:
             assert response.json()["count"] == expected_count, term
+
+
+def _household_scans(plan):
+    return int(plan.get("Relation Name") == "households_household") + sum(
+        _household_scans(child) for child in plan.get("Plans", [])
+    )
+
+
+@pytest.mark.parametrize("term", ["Élod", "IR-004234", "rue emile", "missing-file"])
+def test_search_plan_does_not_scan_households_twice(term, seeded_search_dataset):
+    query = search(term).annotate(_search_total=Window(Count("pk")))[:20]
+    plan = json.loads(query.explain(format="json"))[0]["Plan"]
+    assert _household_scans(plan) == 1, plan
 
 
 def test_search_and_api_requests_are_under_one_second_with_5000_households(

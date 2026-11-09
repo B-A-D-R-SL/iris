@@ -3,9 +3,18 @@
 
 from django.urls import path
 
-from modules.households.api.views import WalkInCollectionView, WalkInDetailView
+from modules.households.api.views import (
+    WalkInCollectionView,
+    WalkInDetailView,
+    WalkInSubmissionView,
+)
 
 urlpatterns = [
+    path(
+        "staff/households/<uuid:id>/submit/",
+        WalkInSubmissionView.as_view(),
+        name="staff-households-submit",
+    ),
     path(
         "staff/households/",
         WalkInCollectionView.as_view(),

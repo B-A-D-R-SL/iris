@@ -33,7 +33,7 @@ def file():
 
 @pytest.mark.parametrize("role", ["intake_worker", "admin"])
 def test_staff_searches_through_session_authentication(client, file, role):
-    staff = UserFactory(role=role)
+    staff = file.created_by if role == "intake_worker" else UserFactory(role=role)
     client.force_login(staff)
     response = client.get(URL, {"q": "elodie"})
     assert response.status_code == 200
@@ -65,16 +65,6 @@ def test_staff_searches_through_session_authentication(client, file, role):
         str(file.pk),
         {},
     )
-
-
-@pytest.mark.parametrize("role", ["beneficiary", "store_staff", "store_manager"])
-def test_other_roles_cannot_search(client, file, role):
-    """Refuse non-console roles without creating disclosure audit events."""
-    store = StoreFactory() if role.startswith("store_") else None
-    user = UserFactory(role=role, store=store)
-    client.force_login(user)
-    assert client.get(URL, {"q": "elodie"}).status_code == 403
-    assert search_events(actor=user.pk).count() == 0
 
 
 def test_anonymous_and_inactive_staff_are_refused(client, file):
@@ -209,23 +199,24 @@ def test_audit_failure_prevents_disclosure_and_rolls_back_events(
 def test_staff_share_files_but_anonymized_files_are_excluded_before_pagination(
     client, file, role
 ):
-    """Share staff files while excluding anonymized records from every response."""
     # rule: BR-HH-ACCESS-001; BR-HH-ACCESS-002
     staff = UserFactory(role=role)
     assert file.created_by_id != staff.pk
-    hidden = HouseholdFactory(member_number="IR-000000", anonymized_at=timezone.now())
+    hidden = HouseholdFactory(
+        created_by=staff, member_number="IR-000000", anonymized_at=timezone.now()
+    )
     unassigned = HouseholdFactory(created_by=None, member_number="IR-000002")
+    own = HouseholdFactory(created_by=staff, member_number="IR-000003")
     client.force_login(staff)
-    first = client.get(URL, {"q": "Exemple", "page_size": 1}).json()
-    second = client.get(URL, {"q": "Exemple", "page_size": 1, "page": 2}).json()
-    assert first["count"] == second["count"] == 2
-    assert [first["results"][0]["id"], second["results"][0]["id"]] == [
-        str(file.pk),
-        str(unassigned.pk),
-    ]
+    expected = [file, unassigned, own]
+    disclosed = []
+    for number in range(1, len(expected) + 1):
+        page = client.get(URL, {"q": "Exemple", "page_size": 1, "page": number}).json()
+        assert page["count"] == len(expected)
+        disclosed.extend(row["id"] for row in page["results"])
+    assert disclosed == [str(household.pk) for household in expected]
     assert set(search_events(actor=staff.pk).values_list("target_id", flat=True)) == {
-        str(file.pk),
-        str(unassigned.pk),
+        str(household.pk) for household in expected
     }
     detail = reverse("staff-households-detail", kwargs={"id": hidden.pk})
     assert client.get(detail).status_code == 404
@@ -246,7 +237,8 @@ def test_resume_action_matches_the_server_edit_rule(
     """Keep the advertised resume capability consistent with actual PATCH permission."""
     file.channel, file.status = channel, status
     file.save(update_fields=["channel", "status"])
-    client.force_login(UserFactory(role=role))
+    staff = file.created_by if role == "intake_worker" else UserFactory(role=role)
+    client.force_login(staff)
     result = client.get(URL, {"q": "elodie"}).json()["results"][0]
     expected = channel == "walk_in" and status == "draft"
     assert result["can_resume"] is expected
@@ -273,7 +265,11 @@ def test_resume_flags_do_not_add_a_database_query_per_result(client):
     staff = UserFactory(role="intake_worker")
     Household.objects.bulk_create(
         [
-            Household(email=f"resume-budget-{i}@example.test", phone="+15145550100")
+            Household(
+                email=f"resume-budget-{i}@example.test",
+                phone="+15145550100",
+                created_by=staff,
+            )
             for i in range(20)
         ]
     )

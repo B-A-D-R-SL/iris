@@ -25,11 +25,12 @@ member number or address. Names and addresses ignore case/accents. Results show
 the holder, regardless of which member matched. Empty input returns no files.
 The existing walk-in draft POST/PATCH endpoints remain supported.
 
-Intake workers and administrators share access to every non-anonymized household,
-regardless of creator, including unassigned files. The shared scope is defined
+Intake workers and admins can search all non-anonymized files, including another
+worker's and unassigned files. `created_by` records provenance, not ownership.
+The shared scope is defined
 in BR-HH-ACCESS-001 in [business rules](../02-requirements/business-rules.md).
 The actor is checked by `search_for_staff` before searching;
-the object scope is applied before counting or pagination. The API returns a
+anonymized files are excluded before counting or pagination. The API returns a
 `can_resume` boolean from the same policy used for editing, and the frontend
 renders it without recomputing permission from household status or channel.
 
@@ -84,7 +85,7 @@ same pull request as #553 and #554.
 | --- | --- |
 | Results below one second with 5,000 households | `test_search_performance.py` enforces the first authenticated response and sequential searches below one second; `test_search_load.py` also enforces the first real HTTP response below one second. |
 | Partial names and accents | `test_search_query.py` checks partial names, case, accents, reversed name order and French ligatures. |
-| Allowed/refused access for every role | API and access tests cover all roles, cross-creator/unassigned access, anonymized-file refusal before pagination, and resume flags matching actual edit permissions. |
+| Allowed/refused access for every role | API and access tests cover all roles, shared staff access to other-worker/unassigned files, anonymized-file refusal before pagination, and resume flags matching actual edit permissions. |
 | Edge/error case | `test_search_api.py` covers invalid input, empty/no matches, page boundaries and failed auditing; query tests cover literal SQL/LIKE metacharacters. |
 | API/database integration | `test_staff_searches_through_session_authentication` uses a real session, PostgreSQL household/member records and persisted audit events. |
 | At least 70% changed-code coverage; domain at least 90% | Use the current CI coverage reports to assess the changed code and household domain; this guide does not retain run-specific coverage snapshots. |
@@ -120,6 +121,12 @@ Correctness/count checks are separate from timing checks. The dataset fixture
 only seeds and signs in; `cold_api_ms` explicitly measures the first API request
 after URL configuration is loaded and asserts its duration below one second.
 
+Search applies its predicates directly to the household queryset. Wrapping the
+same household table in an ID subquery added a second scan and hash join under
+load. Query-plan regressions check that names, member numbers, addresses and
+unmatched searches read that table only once. The matching, staff permissions, exact
+counts and audit rules stay unchanged.
+
 The HTTP check sends 300 requests at a scheduled 100 requests/second, using
 session cookies and reused connections. Both the load client and loopback WSGI
 server run in separate processes, so the client's GIL and coverage instrumentation
@@ -142,6 +149,12 @@ development server does. There is no HTTP warm-up or household query before the
 first timed request. Process initialization is separate from request latency;
 the first real search still includes authentication, queries, serialization and
 audit persistence. Invalid routes prevent the WSGI application from starting.
+
+The test server queues up to 128 connections so the driver's 64 workers can
+connect even if the accept loop is briefly descheduled. Django's default queue
+of 10 can overflow and add TCP retry delays. The latency and request-rate targets
+stay unchanged. A Linux regression checks the full connection burst before any
+requests are served, and failed load assertions include every timing metric.
 
 The frontend checks access with an authenticated HEAD request to the search API
 before rendering the screen. A refusal or failed check withholds the screen;

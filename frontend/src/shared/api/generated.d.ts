@@ -65,7 +65,7 @@ export interface paths {
   "/api/staff/households/": {
     /**
      * Find a household (intake workers and administrators)
-     * @description Search the shared staff scope and persist disclosure audits before responding.
+     * @description Record disclosure audits before returning authorized search results.
      */
     get: operations["staff_households_list"];
     /**
@@ -75,16 +75,14 @@ export interface paths {
     post: operations["staff_households_create"];
   };
   "/api/staff/households/{id}/": {
-    /**
-     * Resume an existing walk-in household draft
-     * @description Return a shared walk-in draft after staff and object-scope checks.
-     */
+    /** Resume an existing walk-in household draft */
     get: operations["staff_households_retrieve"];
-    /**
-     * Edit an existing walk-in household draft
-     * @description Edit an eligible shared draft while preserving validation and refusal errors.
-     */
+    /** Edit an existing walk-in household draft */
     patch: operations["staff_households_partial_update"];
+  };
+  "/api/staff/households/{id}/submit/": {
+    /** Submit a walk-in draft and check for duplicates */
+    post: operations["staff_households_submit_create"];
   };
   "/api/store/listings/": {
     /** Post a listing for the signed-in user's active store */
@@ -216,6 +214,13 @@ export interface components {
       /** @default fr */
       preferred_language?: components["schemas"]["LanguageEnum"];
     };
+    HouseholdError: {
+      code: string;
+      fields: {
+        [key: string]: string[];
+      };
+      message: string;
+    };
     /** @description Expose minimal household fields and the server-authorized resume action. */
     HouseholdSearchResult: {
       /** @description Fail closed when serialization has no authenticated request context. */
@@ -231,31 +236,11 @@ export interface components {
       member_number: string | null;
       phone: string;
       postal_code: string;
-      status: components["schemas"]["HouseholdStatusEnum"];
+      status: components["schemas"]["WalkInDraftReadStatusEnum"];
       street_name: string;
       street_number: string;
       unit: string;
     };
-    /**
-     * @description * `draft` - Brouillon
-     * * `submitted` - Demande soumise
-     * * `review_required` - Review required
-     * * `awaiting_visit` - Awaiting visit
-     * * `approved` - Approuvé
-     * * `renewal_needed` - Renewal needed
-     * * `suspended` - Suspendu
-     * * `rejected` - Refusé
-     * @enum {string}
-     */
-    HouseholdStatusEnum:
-      | "draft"
-      | "submitted"
-      | "review_required"
-      | "awaiting_visit"
-      | "approved"
-      | "renewal_needed"
-      | "suspended"
-      | "rejected";
     /** @description Confirm completion without returning credentials or account information. */
     InvitationAccepted: {
       accepted: boolean;
@@ -605,7 +590,7 @@ export interface components {
       phone: string;
       postal_code: string;
       preferred_language: components["schemas"]["LanguageEnum"];
-      status: components["schemas"]["HouseholdStatusEnum"];
+      status: components["schemas"]["WalkInDraftReadStatusEnum"];
       street_name: string;
       street_number: string;
       unit: string;
@@ -615,6 +600,34 @@ export interface components {
       verified_at: string | null;
       /** Format: email */
       verified_by_email: string | null;
+    };
+    /**
+     * @description * `draft` - Brouillon
+     * * `submitted` - Demande soumise
+     * * `review_required` - Vérification par l'équipe requise
+     * * `awaiting_visit` - Visite en personne requise
+     * * `approved` - Approuvé
+     * * `renewal_needed` - Renouvellement requis
+     * * `suspended` - Suspendu
+     * * `rejected` - Refusé
+     * @enum {string}
+     */
+    WalkInDraftReadStatusEnum:
+      | "draft"
+      | "submitted"
+      | "review_required"
+      | "awaiting_visit"
+      | "approved"
+      | "renewal_needed"
+      | "suspended"
+      | "rejected";
+    WalkInSubmissionRead: {
+      /** Format: uuid */
+      id: string;
+      status: components["schemas"]["WalkInDraftReadStatusEnum"];
+      status_reason: string;
+      /** Format: date-time */
+      submitted_at: string | null;
     };
   };
   responses: never;
@@ -941,7 +954,7 @@ export interface operations {
   };
   /**
    * Find a household (intake workers and administrators)
-   * @description Search the shared staff scope and persist disclosure audits before responding.
+   * @description Record disclosure audits before returning authorized search results.
    */
   staff_households_list: {
     parameters: {
@@ -980,12 +993,14 @@ export interface operations {
           "application/json": components["schemas"]["WalkInDraftRead"];
         };
       };
+      503: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
     };
   };
-  /**
-   * Resume an existing walk-in household draft
-   * @description Return a shared walk-in draft after staff and object-scope checks.
-   */
+  /** Resume an existing walk-in household draft */
   staff_households_retrieve: {
     parameters: {
       path: {
@@ -1000,10 +1015,7 @@ export interface operations {
       };
     };
   };
-  /**
-   * Edit an existing walk-in household draft
-   * @description Edit an eligible shared draft while preserving validation and refusal errors.
-   */
+  /** Edit an existing walk-in household draft */
   staff_households_partial_update: {
     parameters: {
       path: {
@@ -1021,6 +1033,31 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["WalkInDraftRead"];
+        };
+      };
+      503: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+    };
+  };
+  /** Submit a walk-in draft and check for duplicates */
+  staff_households_submit_create: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["WalkInSubmissionRead"];
+        };
+      };
+      503: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
         };
       };
     };

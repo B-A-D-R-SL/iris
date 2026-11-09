@@ -1,5 +1,5 @@
 # AI contribution: 50% or more AI-generated
-"""Shared staff access is explicit and still denied to unauthorized callers."""
+"""Staff search refuses unauthorized callers and anonymized files."""
 
 import pytest
 from django.contrib.auth.models import AnonymousUser
@@ -20,7 +20,6 @@ pytestmark = pytest.mark.django_db
     "kind", ["beneficiary", "store_staff", "store_manager", "inactive", "anonymous"]
 )
 def test_search_query_refuses_unauthorized_actors_even_without_results(kind, query):
-    """Enforce shared staff permission before empty or matching searches run."""
     # rule: BR-HH-ACCESS-001
     if kind == "anonymous":
         actor = AnonymousUser()
