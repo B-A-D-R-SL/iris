@@ -718,6 +718,7 @@ At least half of the AI-assisted features need an example here. For each one:
   page-level horizontal overflow; status labels do not clip. Primary normal/hover/pressed
   colours passed live computed-style checks. Existing business flows/layouts were retained.
   The evidence and available-prototype comparisons are in the local SET-34 handoff report.
+- **Pull request:** [#671](https://github.com/B-A-D-R-SL/iris/pull/671).
 - **Delivery:** screenshot evidence is committed under
   `docs/03-design/verification/SET-34/`. CI, CodeRabbit, teammate review, merge and the
   post-merge team announcement remain tracked in the pull request; local checks do not
