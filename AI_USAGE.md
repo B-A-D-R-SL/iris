@@ -38,6 +38,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| FIX-10 Translation files by area (#636) | `frontend/src/shared/i18n/{en,fr}/*.json`, `frontend/src/shared/i18n/{index,resources}.ts`, `frontend/src/test/i18n.test.ts`, `docs/01-project/glossary.md`, `docs/guides/design-system.md`, `AI_USAGE.md` | 50% or more AI-generated | Not yet opened (`FIX-10-split-translations` branch) |
 | US-25 duplicate check and tests (#479, #478) | `backend/modules/households/`, `backend/iris/settings/base.py`, `docs/02-requirements/business-rules.md`, `docs/03-design/api.md`, generated API types, `AI_USAGE.md` | 50% or more AI-generated | [#660](https://github.com/B-A-D-R-SL/iris/pull/660) |
 | US-63 Household search (#553, #554; tests #552) | `backend/modules/households/`, `backend/modules/audit/{services.py,README.md,tests/test_household_views.py}`, `backend/iris/{asgi.py,settings/base.py,settings/local.py}`, `backend/{.env.example,tests/test_backend_config.py}`, `frontend/src/app/{App,RequireHouseholdSearch}.tsx`, `frontend/src/areas/staff/pages/Search*`, `frontend/src/features/households/{searchApi,useHouseholdSearch}*`, `frontend/src/test/{householdSearch.ts,render.tsx}`, routes, translations, generated API types and search documentation | 50% or more AI-generated; generated migration and API types exempt | [#662](https://github.com/B-A-D-R-SL/iris/pull/662) |
 | SET-33 Colour prototypes and design docs (#651) | `docs/03-design/mockups/` (Release 1 coloured exports under the existing names, plus `Foundations.png` and the new-screen PNGs), `docs/guides/design-system.md` (Theme tokens and status map), `AI_USAGE.md` | 50% or more AI-generated for the Theme documentation; mockup PNGs are Figma exports | [#668](https://github.com/B-A-D-R-SL/iris/pull/668) |
@@ -277,6 +278,12 @@ At least half of the AI-assisted features need an example here. For each one:
 - **What the AI produced:** files, commit or pull request
 - **How we verified it:** the automated tests or the review comment that checked it
 - **Problems found and corrections:** what was wrong or rejected, and what we changed
+
+### FIX-10 Translation files by area (#636)
+
+- **What the AI produced:** matching common, public, household, store and staff JSON files for English and French; a resource module that keeps the existing translation namespace; file-level parity, size, loading and empty-string tests; glossary and design-system updates.
+- **Preserved:** every original key and value matches the previous files. No screen calls or translation wording changed. The largest file is now 181 lines instead of 686.
+- **Verification:** all 456 frontend tests passed at 93.68% statement coverage, including 19 translation tests. ESLint, Prettier, TypeScript and the production build passed. Tests discover every area file, reject overlapping top-level prefixes, check that every file is loaded, and resolve every key in both languages.
 
 ### T-09.62.1–2 Audit tests and service (#548, #549)
 
