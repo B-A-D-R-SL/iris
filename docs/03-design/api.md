@@ -48,7 +48,7 @@ Categories were added by
 | Paging      | `?page=1&page_size=20` (max 100); response `{ "count", "next", "previous", "results" }`                                                                                         |
 | Errors      | HTTP status + `{ "code": "validation_error", "message": "...", "fields": { "postal_code": ["Enter a postal code like H2X 1Y4"] } }`; messages in the user's language            |
 | Auth        | Session cookie (django-allauth headless) + CSRF token header `X-CSRFToken`                                                                                                      |
-| Permissions | Checked on the server for every endpoint against the matrix in business-rules.md; deny by default. `backend/tests/test_endpoint_access.py` calls every endpoint anonymously and as each role (SEC-05) |
+| Permissions | Checked on the server for every endpoint; deny by default. `backend/tests/test_endpoint_access.py` (SEC-05) calls every DRF endpoint as each role, and every DRF endpoint not listed as public anonymously, and checks that DRF's permission check lets the request through or refuses it. Plain Django routes under `/api/` (health, allauth) are listed with a reason but not called. The role matrix comes with US-07 (#434) |
 | Languages   | `Accept-Language: fr` or `en`                                                                                                                                                   |
 
 ## Endpoints

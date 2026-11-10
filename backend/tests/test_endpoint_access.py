@@ -12,15 +12,17 @@ How to add an endpoint: add ``"<url name>": {roles}`` to ``ACCESS``. Add it to
 
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
 import pytest
-from django.urls import URLPattern, URLResolver, get_resolver, path
+from django.urls import URLPattern, URLResolver, get_resolver, path, re_path
 from rest_framework.test import APIClient
 from rest_framework.views import APIView
+from rest_framework.viewsets import ViewSet
 
 from modules.accounts.models import User
+from modules.accounts.tests.factories import UserFactory
 from modules.stores.tests.factories import StoreFactory
 
 BENEFICIARY = User.Role.BENEFICIARY.value
@@ -31,7 +33,8 @@ ADMIN = User.Role.ADMIN.value
 EVERY_ROLE = frozenset(User.Role.values)
 STORE_ROLES = frozenset({STORE_STAFF, STORE_MANAGER})
 
-# Roles that get past the permission check, per URL name (business-rules.md matrix).
+# Roles that get past the permission check, per URL name. Taken from each view's
+# permission classes; the role matrix itself comes with US-07 (#434).
 ACCESS: dict[str, frozenset[str]] = {
     "current-user": EVERY_ROLE,
     "invitation-accept": EVERY_ROLE,
@@ -56,8 +59,10 @@ PUBLIC: dict[str, str] = {
     "categories-list": "Public reference data shown before sign-in (SET-12).",
     "partner-application-create": "Businesses apply before they have an account "
     "(US-12); rate-limited by SEC-04.",
-    "schema": "OpenAPI schema for the generated TypeScript client (SET-15).",
-    "swagger-ui": "Documentation page for the same OpenAPI schema (SET-15).",
+    "schema": "OpenAPI description for developers (SET-15); gen:api builds it with "
+    "manage.py, not this URL. Open in every environment until FIX-04 (#630).",
+    "swagger-ui": "Documentation page for the same schema; same FIX-04 (#630) "
+    "follow-up.",
 }
 
 # Plain Django views under /api/, matched by path prefix, each with the reason.
@@ -97,13 +102,18 @@ class Endpoint:
         return "/" + "".join(parts)
 
 
+def _route_text(pattern: URLPattern | URLResolver) -> str:
+    """The route as text; a re_path's ^ and $ anchors are dropped."""
+    return str(pattern.pattern).removeprefix("^").removesuffix("$")
+
+
 def _walk(patterns: list[Any], prefix: str = "") -> Iterator[tuple[str, URLPattern]]:
     """Yield (route, pattern) for every leaf URL pattern."""
     for pattern in patterns:
         if isinstance(pattern, URLResolver):
-            yield from _walk(pattern.url_patterns, prefix + str(pattern.pattern))
+            yield from _walk(pattern.url_patterns, prefix + _route_text(pattern))
         else:
-            yield prefix + str(pattern.pattern), pattern
+            yield prefix + _route_text(pattern), pattern
 
 
 def _view_class(pattern: URLPattern) -> type | None:
@@ -112,12 +122,18 @@ def _view_class(pattern: URLPattern) -> type | None:
     return getattr(callback, "cls", None) or getattr(callback, "view_class", None)
 
 
-def _methods(view: type[APIView]) -> tuple[str, ...]:
-    """The HTTP methods the view both allows and implements."""
+def _methods(pattern: URLPattern, view: type[APIView]) -> tuple[str, ...]:
+    """The HTTP methods the route serves.
+
+    A ViewSet route maps methods to actions (get -> list, post -> create), so
+    its handlers are not named after the methods; read the route's map instead.
+    """
+    actions = getattr(pattern.callback, "actions", None)
     return tuple(
         method
         for method in view.http_method_names
-        if method not in SKIPPED_METHODS and hasattr(view, method)
+        if method not in SKIPPED_METHODS
+        and (method in actions if actions else hasattr(view, method))
     )
 
 
@@ -131,7 +147,7 @@ def _api_endpoints(patterns: list[Any] | None = None) -> list[Endpoint]:
             continue
         view = _view_class(pattern)
         drf_view = view if view and issubclass(view, APIView) else None
-        methods = _methods(drf_view) if drf_view else ()
+        methods = _methods(pattern, drf_view) if drf_view else ()
         endpoints.append(Endpoint(pattern.name or "", route, drf_view, methods))
     return endpoints
 
@@ -160,29 +176,37 @@ def _call(client: APIClient, endpoint: Endpoint, method: str) -> Any:
     return request(endpoint.url())
 
 
+PASSED = "passed"
+REFUSED = "refused"
+
+
 @pytest.fixture
-def permission_denials(monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """Record each time DRF's permission check turns a request away."""
-    denials: list[str] = []
-    original = APIView.permission_denied
+def permission_checks(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Record how DRF's permission check ended for each request.
 
-    def spy(self: APIView, request: Any, message: Any = None, code: Any = None):
-        denials.append(type(self).__name__)
-        return original(self, request, message=message, code=code)
+    Wrapping check_permissions (not permission_denied) also catches a permission
+    class that raises by itself. A 403 raised later, by a query, a service or a
+    business rule, does not count as a refusal here.
+    """
+    outcomes: list[str] = []
+    original = APIView.check_permissions
 
-    monkeypatch.setattr(APIView, "permission_denied", spy)
-    return denials
+    def spy(self: APIView, request: Any) -> None:
+        try:
+            original(self, request)
+        except Exception:
+            outcomes.append(REFUSED)
+            raise
+        outcomes.append(PASSED)
+
+    monkeypatch.setattr(APIView, "check_permissions", spy)
+    return outcomes
 
 
 def _user_with_role(role: str) -> User:
     """An active user with the role; store roles get the store they need."""
     store = StoreFactory() if role in STORE_ROLES else None
-    return User.objects.create_user(
-        email=f"{role}-{uuid4().hex}@example.test",
-        password="local-test-password",
-        role=role,
-        store=store,
-    )
+    return cast(User, UserFactory(role=role, store=store))
 
 
 def _missing_entries(endpoints: list[Endpoint]) -> list[str]:
@@ -208,18 +232,51 @@ def test_every_endpoint_has_an_access_entry() -> None:
     assert not stale, f"ACCESS lists routes that no longer exist: {stale}"
     assert set(PUBLIC) <= set(ACCESS), "Every PUBLIC entry also needs an ACCESS entry."
     assert all(ACCESS.values()), "An ACCESS entry must allow at least one role."
+    assert all(reason.strip() for reason in [*PUBLIC.values(), *NON_DRF.values()]), (
+        "Each PUBLIC and NON_DRF exception needs a written reason."
+    )
+    no_methods = sorted(e.name for e in DRF_ENDPOINTS if not e.methods)
+    assert not no_methods, (
+        f"No HTTP methods found for {no_methods}, so they would never be called."
+    )
+
+
+class NewView(APIView):
+    """Stand-in view for the discovery tests; never called."""
+
+    def get(self, request: Any) -> None:
+        """Stand-in handler."""
+
+
+class NewViewSet(ViewSet):
+    """Stand-in router-style view: its handlers are named list and create."""
+
+    def list(self, request: Any) -> None:
+        """Stand-in handler."""
+
+    def create(self, request: Any) -> None:
+        """Stand-in handler."""
 
 
 def test_a_new_unlisted_endpoint_is_reported() -> None:
-    """The check catches a route added without an ACCESS entry."""
+    """The check catches a route added without an ACCESS entry, path or re_path."""
+    patterns = [
+        path("api/new-things/", NewView.as_view(), name="new-things"),
+        re_path(r"^api/regex-things/$", NewView.as_view(), name="regex-things"),
+    ]
 
-    class NewView(APIView):
-        def get(self, request: Any) -> None:
-            """Stand-in handler; never called."""
+    assert _missing_entries(_api_endpoints(patterns)) == ["new-things", "regex-things"]
 
-    patterns = [path("api/new-things/", NewView.as_view(), name="new-things")]
 
-    assert _missing_entries(_api_endpoints(patterns)) == ["new-things"]
+def test_viewset_routes_are_called_with_their_methods() -> None:
+    """A ViewSet route is found with the methods its action map serves."""
+    view = NewViewSet.as_view({"get": "list", "post": "create"})
+    patterns = [path("api/things/", view, name="things")]
+
+    (endpoint,) = _api_endpoints(patterns)
+
+    assert endpoint.view is NewViewSet
+    assert endpoint.methods == ("get", "post")
 
 
 def test_every_plain_api_view_is_listed() -> None:
@@ -236,29 +293,35 @@ def test_every_plain_api_view_is_listed() -> None:
     )
 
 
-def test_every_reason_is_written() -> None:
-    """Each exception to deny-by-default explains itself."""
-    assert all(reason.strip() for reason in [*PUBLIC.values(), *NON_DRF.values()])
-
-
 @pytest.mark.django_db
 @pytest.mark.parametrize(("endpoint", "method"), PROTECTED_CALLS)
-def test_anonymous_requests_are_denied(endpoint: Endpoint, method: str) -> None:
-    """Without a session, every non-public endpoint answers 401 or 403."""
+def test_anonymous_requests_are_denied(
+    endpoint: Endpoint, method: str, permission_checks: list[str]
+) -> None:
+    """Without a session, the permission check refuses every non-public endpoint."""
     response = _call(APIClient(), endpoint, method)
 
+    label = f"Anonymous {method.upper()} /{endpoint.route}"
+    assert permission_checks == [REFUSED], (
+        f"{label} was not refused by the permission check ({permission_checks})."
+    )
     assert response.status_code in (401, 403), (
-        f"{method.upper()} /{endpoint.route} answered {response.status_code} "
-        "to an anonymous request."
+        f"{label} answered {response.status_code}."
     )
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(("endpoint", "method", "role"), ROLE_CALLS)
 def test_roles_match_the_access_table(
-    endpoint: Endpoint, method: str, role: str, permission_denials: list[str]
+    endpoint: Endpoint, method: str, role: str, permission_checks: list[str]
 ) -> None:
-    """Allowed roles pass the permission check; every other role gets 403."""
+    """Allowed roles pass the permission check; the check refuses every other role.
+
+    An allowed role may still get a 403 later (a business rule, such as a
+    household that is not approved yet); that is the endpoint's job, not this test's.
+    """
+    if endpoint.name not in ACCESS:
+        pytest.skip("Not in ACCESS; test_every_endpoint_has_an_access_entry fails.")
     client = APIClient()
     client.force_login(_user_with_role(role))
 
@@ -266,9 +329,13 @@ def test_roles_match_the_access_table(
 
     label = f"{method.upper()} /{endpoint.route} as {role}"
     if role in ACCESS[endpoint.name]:
-        assert not permission_denials, f"{label} was refused by the permission check."
+        assert permission_checks == [PASSED], (
+            f"{label} did not pass the permission check ({permission_checks})."
+        )
         assert response.status_code != 401, f"{label} answered 401."
     else:
-        assert response.status_code == 403, (
-            f"{label} answered {response.status_code}; ACCESS does not allow {role}."
+        assert permission_checks == [REFUSED], (
+            f"{label} was not refused by the permission check ({permission_checks}); "
+            f"ACCESS does not allow {role}."
         )
+        assert response.status_code == 403, f"{label} answered {response.status_code}."
