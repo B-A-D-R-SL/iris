@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from collections.abc import Callable
 from contextvars import ContextVar
@@ -56,6 +57,13 @@ class JsonLogFormatter(logging.Formatter):
             elif field in {"status_code", "duration_ms"} and isinstance(value, int):
                 payload[field] = value
 
+        # Only this cleanup event may identify an orphan; never serialize a SAS URL.
+        if record.name == "iris.listings" and event == "listing_photo_cleanup_failed":
+            photo_ref = getattr(record, "photo_ref", None)
+            if isinstance(photo_ref, str) and re.fullmatch(
+                r"listing-photos/[0-9a-f]{32}\.(?:jpg|png)", photo_ref
+            ):
+                payload["photo_ref"] = photo_ref
         return json.dumps(payload, separators=(",", ":"))
 
 
