@@ -22,7 +22,7 @@ def cancel_open_for_household(household_id: UUID) -> int:
     released: dict[UUID, int] = defaultdict(int)
     for reservation in reservations:
         released[reservation.listing_id] += reservation.quantity
-    for listing_id, quantity in released.items():
+    for listing_id, quantity in sorted(released.items()):
         listing_services.release_units(listing_id, quantity)
     if reservations:
         Reservation.objects.filter(pk__in=[item.pk for item in reservations]).update(

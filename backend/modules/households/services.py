@@ -40,7 +40,8 @@ MEMBER_FIELDS = frozenset(("first_name", "last_name", "date_of_birth"))
 CONSENT_TEXT_VERSION = "2026-11-v1"
 POSSIBLE_DUPLICATE = "POSSIBLE_DUPLICATE"
 SENSITIVE_REASON = re.compile(
-    r"\b(?:sin|social insurance|income|salary|immigration|refugee|passport|document text)\b"
+    r"\b(?:sin|social insurance|income|salary|immigration|refugee|passport|document text|"
+    r"nas|assurance|revenu|salaire|réfugié|refugie|passeport|texte de document)\b"
     r"|\b\d{3}[ -]?\d{3}[ -]?\d{3}\b|(?:\$|\bCAD\b)\s*\d",
     re.IGNORECASE,
 )

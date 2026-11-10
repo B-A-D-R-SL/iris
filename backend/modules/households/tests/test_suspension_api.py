@@ -3,6 +3,7 @@
 
 from datetime import datetime, timedelta
 from typing import Any, cast
+from uuid import UUID
 
 import pytest
 from django.core import mail
@@ -104,6 +105,35 @@ def test_suspending_cancels_open_reservations_and_returns_units_br_hh_suspend_00
     assert reservation.status == ReservationStatus.CANCELLED
     assert reservation.late_cancel is False
     assert listing.quantity_reserved == 0
+
+
+# rule: BR-HH-SUSPEND-002
+def test_suspension_releases_listing_units_in_id_order_br_hh_suspend_002(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Suspension locks listings in a stable order to avoid deadlocks."""
+    admin = UserFactory(role="admin")
+    household = approved()
+    high_id = UUID(int=2)
+    low_id = UUID(int=1)
+    for listing_id, pickup_code in ((high_id, "200002"), (low_id, "200001")):
+        listing = cast(Listing, ListingFactory(id=listing_id, quantity_reserved=1))
+        make_reservation(
+            listing,
+            household,
+            admin,
+            quantity=1,
+            pickup_code=pickup_code,
+            status=ReservationStatus.RESERVED,
+        )
+    released: list[UUID] = []
+    monkeypatch.setattr(
+        "modules.reservations.services.listing_services.release_units",
+        lambda listing_id, quantity: released.append(listing_id),
+    )
+
+    assert post(admin, household, "suspend").status_code == 200
+    assert released == [low_id, high_id]
 
 
 @pytest.mark.parametrize(
@@ -367,6 +397,9 @@ def test_detail_get_hides_reactivation_for_expired_file_br_hh_suspend_002() -> N
         "Income $45000",
         "Immigration status refugee",
         "Passport document text",
+        "Salaire de 45000 CAD",
+        "Numéro d'assurance sociale 123 456 789",
+        "Statut de réfugié avec passeport",
     ],
 )
 # rule: BR-HH-SUSPEND-001
