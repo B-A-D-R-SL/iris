@@ -1,14 +1,21 @@
 # AI contribution: 50% or more AI-generated
-.venv/
-.env
-.env.*
+# Keep local secrets, host interpreters and test artifacts out of backend images.
+**/db.sqlite3
+**/.idea/
+**/.vscode/
+**/.git/
+**/.env
+**/.env.*
 !.env.example
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-db.sqlite3
-.git/
-.idea/
-.vscode/
+.venv/
+venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+.coverage*
+coverage.xml
+htmlcov/
+tmp/
+temp/
+*.log

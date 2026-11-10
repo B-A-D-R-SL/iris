@@ -228,7 +228,7 @@ statuses and locking steps.
 
 US-33 adds the posting backend and US-34 its safety checks (food best-before
 date, prohibited categories, the safe-and-allowed confirmation). Photo storage
-remains pending, so only posts without a photo can be published; see the
+is implemented through the configured private Azure/Azurite adapter; see the
 [posting implementation and handoff](../guides/listing-posting.md).
 
 US-36 adds browsing. `GET /api/listings/` returns the listings an approved
@@ -238,15 +238,17 @@ cards: only `?page=` is read, and `page_size` is ignored (#506). Filters:
 be picked up today, Montreal time; BR-LIST-005). Leave out an unused filter.
 Signed out gets 401; any other role, or a household that is not approved
 (code `household_not_approved`), gets 403. Tiers do not exist yet (US-51), so
-every approved household sees every visible listing. Cards have no photo until
-photo storage exists. The view is in the reservations module, the module
+every approved household sees every visible listing. Cards include nullable
+`photo_url`: a read-only link for one private blob that expires within five
+minutes. Internal photo references are not returned. Responses containing links
+use `Cache-Control: private, no-store`. The view is in reservations, the module
 allowed to read both households and listings.
 
 | Method   | Path                                       | Who                  | Purpose                                          | Status  |
 | -------- | ------------------------------------------ | -------------------- | ------------------------------------------------ | ------- |
 | GET      | `/api/listings/?category=&store=&today=`   | Approved beneficiary | Visible listings (tier timing applied)           | Implemented (US-36); tier timing waits for US-51 |
 | GET      | `/api/listings/{id}/`                      | Approved beneficiary | Listing detail                                   | Planned |
-| GET/POST | `/api/store/listings/`                     | Store staff          | Own store's listings; post a listing             | Partial: POST implemented (photo storage pending); GET planned |
+| GET/POST | `/api/store/listings/`                     | Store staff          | Own store's listings; post a listing             | POST implemented, including private photos; GET planned |
 | GET      | `/api/store/listings/categories/`          | Store staff          | Categories the store may post in (prohibited ones left out) | Implemented |
 | PATCH    | `/api/store/listings/{id}/`                | Store staff          | Edit (quantity ≥ reserved)                       | Planned |
 | POST     | `/api/store/listings/{id}/cancel/`         | Store staff          | Cancel; reservations cancelled without strikes   | Planned |

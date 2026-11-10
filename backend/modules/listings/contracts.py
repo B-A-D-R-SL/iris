@@ -4,6 +4,8 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, Protocol
 
+from adapters.photo_types import PhotoReadLink
+from adapters.photos import DEFAULT_MAX_BYTES
 from modules.listings.domain.posting import Refusal
 
 
@@ -23,6 +25,12 @@ class ListingPhotoStore(Protocol):
     not leave a partially stored object. Tests inject a fake implementation.
     """
 
-    def put_image(self, content: bytes, *, max_dimension: int) -> str: ...
+    def put_image(
+        self, content: bytes, *, max_dimension: int, max_bytes: int = DEFAULT_MAX_BYTES
+    ) -> str: ...
 
     def delete(self, reference: str) -> None: ...
+
+    def read_link(self, reference: str) -> PhotoReadLink: ...
+
+    def read_links(self, references: list[str]) -> dict[str, PhotoReadLink]: ...

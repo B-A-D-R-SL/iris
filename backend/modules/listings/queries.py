@@ -12,6 +12,7 @@ from modules.categories import queries as category_queries
 from modules.listings.domain.browsing import end_of_local_day
 from modules.listings.domain.safety import read_settings
 from modules.listings.models import Listing, ListingStatus
+from modules.listings.photo_storage import read_urls
 from modules.rules import queries as rule_queries
 
 POSTING_CATEGORY_FIELDS = (
@@ -32,6 +33,7 @@ LISTING_CARD_FIELDS = (
     "pickup_end",
     "best_before",
     "store_id",
+    "photo_ref",
 )
 LISTING_CARD_EXPRESSIONS = {
     "units_left": F("quantity_total") - F("quantity_reserved"),
@@ -43,6 +45,11 @@ LISTING_CARD_EXPRESSIONS = {
     "store_city": F("store__city"),
     "store_postal_code": F("store__postal_code"),
 }
+
+
+def photo_read_urls(references: list[str]) -> dict[str, str]:
+    """For server-filtered cards only; never accepts a client-submitted reference."""
+    return read_urls(references)
 
 
 def categories_for_posting(*, at: datetime) -> list[dict[str, Any]] | None:

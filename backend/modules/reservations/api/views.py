@@ -6,6 +6,7 @@ households (is the household approved?) and listings (what can it see?). See
 [tool.importlinter] in pyproject.toml.
 """
 
+import logging
 from typing import Any
 
 from django.utils import timezone
@@ -19,6 +20,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
+from adapters.photo_types import PhotoStorageError
 from modules.listings import queries as listing_queries
 from modules.reservations.api.permissions import (
     NOT_APPROVED,
@@ -29,7 +31,24 @@ from modules.reservations.api.serializers import (
     BrowseErrorSerializer,
     BrowseFiltersSerializer,
     ListingCardSerializer,
+    ListingPhotoUnavailable,
 )
+
+logger = logging.getLogger("iris.listings")
+
+
+def _photo_urls(cards: list[dict[str, Any]]) -> dict[str, str]:
+    """Only the authorized, paginated cards can receive signed links."""
+    references = list(
+        dict.fromkeys(card["photo_ref"] for card in cards if card["photo_ref"])
+    )
+    try:
+        return listing_queries.photo_read_urls(references)
+    except PhotoStorageError:
+        logger.error(
+            "listing_photo_read_failed", extra={"event": "listing_photo_read_failed"}
+        )
+        raise ListingPhotoUnavailable() from None
 
 
 class ListingPagination(PageNumberPagination):
@@ -47,6 +66,7 @@ STATUS_MESSAGES = {
     status.HTTP_403_FORBIDDEN: NOT_APPROVED,
     status.HTTP_404_NOT_FOUND: _("This page of listings does not exist."),
     status.HTTP_405_METHOD_NOT_ALLOWED: _("Listings can only be read here."),
+    status.HTTP_503_SERVICE_UNAVAILABLE: _("Photos are temporarily unavailable."),
 }
 FILTER_MESSAGES = {
     "category": _("Enter a category code of 1 to 64 characters."),
@@ -93,6 +113,7 @@ def browse_exception_handler(
             401: BrowseErrorSerializer,
             403: BrowseErrorSerializer,
             404: BrowseErrorSerializer,
+            503: BrowseErrorSerializer,
         },
     )
 )
@@ -125,4 +146,10 @@ class BrowseListingsView(ListAPIView):
             pickup_today=filters.validated_data["today"],
         )
         page = self.paginate_queryset(cards)
-        return self.get_paginated_response(self.get_serializer(page, many=True).data)
+        context = {**self.get_serializer_context(), "photo_urls": _photo_urls(page)}
+        response = self.get_paginated_response(
+            self.get_serializer(page, many=True, context=context).data
+        )
+        response["Cache-Control"] = "private, no-store"
+        response["Referrer-Policy"] = "no-referrer"
+        return response

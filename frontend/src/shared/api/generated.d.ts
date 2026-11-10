@@ -266,6 +266,8 @@ export interface components {
       category: string;
       /** Format: uuid */
       id: string;
+      /** @description Cards were already scoped to the approved household by the query. */
+      photo_url: string | null;
       /** Format: date-time */
       pickup_end: string;
       /** Format: date-time */
@@ -751,6 +753,11 @@ export interface operations {
         };
       };
       404: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
+        };
+      };
+      503: {
         content: {
           "application/json": components["schemas"]["BrowseError"];
         };

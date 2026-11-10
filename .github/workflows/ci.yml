@@ -26,6 +26,10 @@ jobs:
       run:
         working-directory: backend
     services:
+      azurite:
+        image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+        ports:
+          - 10000:10000
       postgres:
         image: postgres:17
         env:
@@ -43,6 +47,10 @@ jobs:
       # CI-only values; nothing here is a real secret.
       DJANGO_SECRET_KEY: iris-ci-only-not-a-secret
       DATABASE_URL: postgresql://iris:iris_ci_password@localhost:5432/iris
+      # Public emulator key only; real credentials are never stored in the repo.
+      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;"
+      AZURE_STORAGE_ALLOW_HTTP: "True"
+      IRIS_TEST_AZURITE: "1"
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:

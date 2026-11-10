@@ -2,8 +2,17 @@
 """HTTP types for browsing listings (US-36); visibility belongs to listings."""
 
 from datetime import UTC
+from typing import Any
 
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
+from rest_framework.exceptions import APIException
+
+
+class ListingPhotoUnavailable(APIException):
+    status_code = 503
+    default_detail = _("Photos are temporarily unavailable.")
+    default_code = "photo_unavailable"
 
 
 class BrowseFiltersSerializer(serializers.Serializer):
@@ -47,6 +56,11 @@ class ListingCardSerializer(serializers.Serializer):
     units_left = serializers.IntegerField(read_only=True)
     unit = serializers.CharField(read_only=True)
     best_before = serializers.DateField(read_only=True, allow_null=True)
+    photo_url = serializers.SerializerMethodField(allow_null=True)
+
+    def get_photo_url(self, card: dict[str, Any]) -> str | None:
+        """Cards were already scoped to the approved household by the query."""
+        return self.context["photo_urls"].get(card.get("photo_ref"))
 
 
 class BrowseErrorSerializer(serializers.Serializer):
