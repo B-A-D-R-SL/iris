@@ -1,8 +1,8 @@
 # AI contribution: 50% or more AI-generated
 """Privacy-conscious JSON events and a request identifier for Iris HTTP requests.
 
-Logs deliberately do not serialize message text, URLs, query strings, headers,
-request bodies, account identifiers, or exception details.
+Auth success events include the user's UUID. Messages, credentials and other
+personal details stay out of logs.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import time
 from collections.abc import Callable
 from contextvars import ContextVar
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from django.http import HttpRequest, HttpResponseBase
 
@@ -37,6 +37,11 @@ class JsonLogFormatter(logging.Formatter):
         request_id = _request_id.get()
         if request_id:
             payload["request_id"] = request_id
+
+        if record.name == "iris.auth" and event in {"sign_in_succeeded", "signed_out"}:
+            user_id = getattr(record, "user_id", None)
+            if isinstance(user_id, UUID):
+                payload["user_id"] = str(user_id)
 
         for field in ("method", "route", "status_code", "duration_ms"):
             value = getattr(record, field, None)
