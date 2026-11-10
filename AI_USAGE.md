@@ -308,6 +308,11 @@ At least half of the AI-assisted features need an example here. For each one:
 - **How we verified it:** `test_seed_plan` checks the agreed counts, status spread, stock limits, and fictional contact details. `test_seed` runs `manage.py seed` on an empty database, checks 1 admin, 2 intake workers, B.A.D.R. plus 4 partner stores, 50 households, 30 listings, and 40 reservations, then runs it again and checks that edited rows are kept.
 - **Problems found and corrections:** household and reservation models did not exist yet, so the seed could not insert those rows. The tables follow `docs/03-design/database-schema.md`. Registration and pickup workflows are still owned by their own stories.
 
+### FIX-21 Split the mock notice page-drawing functions (#647)
+
+- **What the AI produced:** the split of `_draw_cover_page` and `_draw_calculation_page` into one helper per block of the page; the four functions that choose the text and row order (`review_message`, `important_message`, `calculation_order`, `change_explanation`); and `tests/test_layout.py`, written before the code.
+- **How we verified it:** `test_committed_output_is_up_to_date` regenerates the 50 notices and still matches the committed files byte for byte. Seven deliberate bugs were each caught: five by the new tests, and two drawing changes (row spacing and the gap above the explanation) by the committed-output test. 34 tests passed and ruff was clean; these were local runs, because CI does not run this tool's tests.
+- **Problems found and corrections:** the first plan had a test that "377.1" sorts as a number rather than as text. Every real line number has three digits, so both orders agree and that test could never fail. It was replaced by a test that a line only declared is placed in number order.
 ### SET-33 Colour prototypes and design docs (#651)
 
 - **Firas's direction:** keep the Step 4 repository file names so existing links still work, restore later-release grayscale exports, and replace the Theme section in `design-system.md` with the Foundations token table and status map. The wiki and the pull request stay with Firas.
