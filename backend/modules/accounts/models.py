@@ -48,7 +48,7 @@ class User(AbstractUser):
     preferred_language = models.CharField(
         max_length=2, choices=[("fr", "Français"), ("en", "English")], default="fr"
     )
-    role = models.CharField(
+    role = models.CharField(  # NOSONAR - User.Role is the required public API.
         max_length=20, choices=Role.choices, default=Role.BENEFICIARY
     )
     store = models.ForeignKey(
