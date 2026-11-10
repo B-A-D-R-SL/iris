@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from modules.audit import services
 from modules.audit.models import AuditEvent
+from modules.rules.services import publish
 from modules.stores.tests.factories import StoreFactory
 
 
@@ -31,6 +32,12 @@ def event_inputs(actor) -> dict[str, Any]:
         "target_id": uuid4(),
         "metadata": {},
     }
+
+
+@pytest.fixture
+def suspension_rule(actor):
+    """Publish the reason limit required by suspension audit events."""
+    return publish("household_suspension", {"reason_max_length": 500}, actor)
 
 
 def test_public_record_persists_event_in_postgresql(event_inputs):
@@ -95,7 +102,38 @@ def test_record_decision_preserves_empty_metadata(event_inputs):
     """Existing decision callers may omit outcome metadata."""
     event_inputs.update(action="decision", metadata={})
     event = services.record(**event_inputs)
+    event.refresh_from_db()
     assert event.metadata == {}
+
+
+@pytest.mark.parametrize("action", ["suspend", "reactivate"])
+def test_record_status_action_persists_reason(event_inputs, suspension_rule, action):
+    """Status audit events store the validated reason."""
+    event_inputs.update(action=action, metadata={"reason": "Safety review"})
+    event = services.record(**event_inputs)
+    event.refresh_from_db()
+    assert event.action == action
+    assert event.metadata == {"reason": "Safety review"}
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        {},
+        {"reason": ""},
+        {"reason": "Safety review", "extra": "value"},
+        {"reason": "x" * 501},
+        {"reason": "Contact jane@example.com"},
+    ],
+)
+def test_record_status_action_rejects_invalid_metadata(
+    event_inputs, suspension_rule, metadata
+):
+    """Direct audit callers cannot bypass reason validation."""
+    event_inputs.update(action="suspend", metadata=metadata)
+    with pytest.raises(ValidationError, match="metadata"):
+        services.record(**event_inputs)
+    assert not AuditEvent.objects.exists()
 
 
 @pytest.mark.parametrize("target_id", [1, "external-123"])

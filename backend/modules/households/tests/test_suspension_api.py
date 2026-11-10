@@ -6,8 +6,7 @@ from typing import Any, cast
 from uuid import UUID
 
 import pytest
-from django.core import mail
-from django.core.exceptions import ValidationError
+from django.contrib.auth.base_user import AbstractBaseUser
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -19,6 +18,7 @@ from modules.households.tests.factories import HouseholdFactory
 from modules.listings.models import Listing
 from modules.listings.tests.factories import ListingFactory
 from modules.reservations.models import MadeByType, Reservation, ReservationStatus
+from modules.rules.services import publish
 from modules.stores.tests.factories import StoreFactory
 
 pytestmark = pytest.mark.django_db
@@ -53,7 +53,7 @@ def post(actor: Any, household: Household, action: str, reason: str = "Safety re
 # rule: BR-HH-SUSPEND-001
 def test_admin_suspends_and_reactivates_with_audits_br_hh_suspend_001() -> None:
     """An administrator can perform both audited transitions."""
-    admin = UserFactory(role="admin")
+    admin = cast(AbstractBaseUser, UserFactory(role="admin"))
     household = approved()
     expiry = household.expires_at
 
@@ -157,6 +157,7 @@ def test_every_non_admin_role_is_refused_br_hh_suspend_001(
 
 
 @pytest.mark.parametrize("action", ["suspend", "reactivate"])
+# rule: BR-HH-SUSPEND-001
 def test_reason_is_required(action: str) -> None:
     """Both transitions require a non-blank reason."""
     household = approved(
@@ -167,6 +168,17 @@ def test_reason_is_required(action: str) -> None:
         )
     )
     response = post(UserFactory(role="admin"), household, action, "   ")
+    assert response.status_code == 400
+    assert "reason" in response.data["fields"]
+
+
+# rule: BR-HH-SUSPEND-004
+def test_reason_limit_uses_active_ruleset_br_hh_suspend_004() -> None:
+    """A newly published reason limit controls later status requests."""
+    admin = cast(AbstractBaseUser, UserFactory(role="admin"))
+    publish("household_suspension", {"reason_max_length": 5}, admin)
+    household = approved()
+    response = post(admin, household, "suspend", "123456")
     assert response.status_code == 400
     assert "reason" in response.data["fields"]
 
@@ -184,7 +196,8 @@ def test_reactivation_refuses_expired_file_br_hh_suspend_002() -> None:
     assert household.status == Household.Status.SUSPENDED
 
 
-def test_repeated_and_unknown_transitions_are_refused() -> None:
+# rule: BR-HH-SUSPEND-001
+def test_repeated_and_unknown_transitions_are_refused_br_hh_suspend_001() -> None:
     """Only the two defined source states may transition."""
     admin = UserFactory(role="admin")
     household = approved()
@@ -194,7 +207,8 @@ def test_repeated_and_unknown_transitions_are_refused() -> None:
 
 
 @pytest.mark.parametrize("action", ["suspend", "reactivate"])
-def test_anonymized_household_is_hidden(action: str) -> None:
+# rule: BR-HH-SUSPEND-001
+def test_anonymized_household_is_hidden_br_hh_suspend_001(action: str) -> None:
     """Neither endpoint reveals an anonymized household."""
     status = (
         Household.Status.SUSPENDED
@@ -224,38 +238,20 @@ def test_holder_is_emailed_after_commit_br_hh_suspend_003(
     status: str,
     subject: str,
     django_capture_on_commit_callbacks: Any,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A localized holder notice is sent after commit."""
+    """A localized holder notice is queued after commit."""
+    queued: list[dict[str, str]] = []
+    monkeypatch.setattr(
+        "modules.notifications.services.send_household_status_email.defer",
+        lambda **kwargs: queued.append(kwargs),
+    )
     household = approved(status=status)
     with django_capture_on_commit_callbacks(execute=True):
         assert post(UserFactory(role="admin"), household, action).status_code == 200
-    assert len(mail.outbox) == 1
-    assert mail.outbox[0].to == ["holder@example.test"]
-    assert subject in mail.outbox[0].subject
-
-
-def test_email_failure_does_not_undo_change_br_hh_suspend_003(
-    monkeypatch: pytest.MonkeyPatch,
-    django_capture_on_commit_callbacks: Any,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """A delivery failure cannot undo committed status changes."""
-    household = approved()
-
-    def fail(*args: Any, **kwargs: Any) -> int:
-        raise RuntimeError("mail unavailable")
-
-    monkeypatch.setattr("adapters.mailer.smtp.SmtpMailer.send", fail)
-    with django_capture_on_commit_callbacks(execute=True):
-        assert post(UserFactory(role="admin"), household, "suspend").status_code == 200
-    household.refresh_from_db()
-    assert household.status == Household.Status.SUSPENDED
-    record = next(
-        item
-        for item in caplog.records
-        if item.message == "household_status_email_failed"
-    )
-    assert getattr(record, "event", None) == "household_status_email_failed"
+    assert len(queued) == 1
+    assert queued[0]["email"] == "holder@example.test"
+    assert subject in queued[0]["subject"]
 
 
 def make_reservation(
@@ -332,14 +328,14 @@ def test_cancellation_failure_rolls_back_suspension_br_hh_suspend_002(
 
     def fail(household_id: Any) -> int:
         """Simulate inconsistent reserved stock."""
-        raise ValidationError({"quantity": "inconsistent reservation count"})
+        raise RuntimeError("Reserved listing units are inconsistent.")
 
     monkeypatch.setattr(
         "modules.households.services.reservation_services.cancel_open_for_household",
         fail,
     )
-    response = post(UserFactory(role="admin"), household, "suspend")
-    assert response.status_code == 400
+    with pytest.raises(RuntimeError, match="Reserved listing units are inconsistent"):
+        post(UserFactory(role="admin"), household, "suspend")
     household.refresh_from_db()
     assert household.status == Household.Status.APPROVED
     assert not AuditEvent.objects.filter(target_id=str(household.pk)).exists()
@@ -371,6 +367,7 @@ def test_detail_get_reads_online_and_walk_in_households_br_hh_suspend_001(
     assert response.status_code == 200
     assert response.data["id"] == str(household.pk)
     assert response.data["allowed_actions"] == expected_actions
+    assert response.data["reason_max_length"] == 500
     if channel == Household.Channel.ONLINE:
         assert response.data["created_by_email"] is None
 
@@ -391,6 +388,50 @@ def test_detail_get_hides_reactivation_for_expired_file_br_hh_suspend_002() -> N
 
 
 @pytest.mark.parametrize(
+    ("role", "expected"),
+    [
+        (None, 401),
+        ("beneficiary", 403),
+        ("store_staff", 403),
+        ("store_manager", 403),
+        ("intake_worker", 200),
+    ],
+)
+# rule: BR-HH-SUSPEND-001
+def test_detail_get_role_matrix_br_hh_suspend_001(
+    role: str | None, expected: int
+) -> None:
+    """Only staff can read the broadened household detail endpoint."""
+    household = approved(channel=Household.Channel.ONLINE, created_by=None)
+    client = APIClient()
+    if role:
+        store = StoreFactory() if role.startswith("store_") else None
+        client.force_authenticate(UserFactory(role=role, store=store))
+    response = client.get(
+        reverse("staff-households-detail", kwargs={"id": household.pk})
+    )
+    assert response.status_code == expected
+    if role == "intake_worker":
+        assert response.data["allowed_actions"] == []
+
+
+@pytest.mark.parametrize("status", [choice for choice, _ in Household.Status.choices])
+# rule: BR-HH-SUSPEND-001
+def test_detail_get_reads_every_non_anonymized_status_br_hh_suspend_001(
+    status: str,
+) -> None:
+    """Staff detail reads are independent of lifecycle status."""
+    household = approved(status=status)
+    client = APIClient()
+    client.force_authenticate(UserFactory(role="intake_worker"))
+    response = client.get(
+        reverse("staff-households-detail", kwargs={"id": household.pk})
+    )
+    assert response.status_code == 200
+    assert response.data["status"] == status
+
+
+@pytest.mark.parametrize(
     "reason",
     [
         "SIN 123 456 789",
@@ -400,16 +441,28 @@ def test_detail_get_hides_reactivation_for_expired_file_br_hh_suspend_002() -> N
         "Salaire de 45000 CAD",
         "Numéro d'assurance sociale 123 456 789",
         "Statut de réfugié avec passeport",
+        "Earns 45000 per year",
+        "Permanent resident",
+        "Contact jane@example.com",
+        "Named Jane Example",
     ],
 )
 # rule: BR-HH-SUSPEND-001
-def test_sensitive_reason_is_refused_before_audit_or_email(reason: str) -> None:
+# rule: BR-HH-SUSPEND-004
+def test_sensitive_reason_is_refused_before_audit_or_email_br_hh_suspend_004(
+    reason: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Sensitive reason text never reaches audit records or notifications."""
     household = approved()
+    queued: list[dict[str, str]] = []
+    monkeypatch.setattr(
+        "modules.notifications.services.send_household_status_email.defer",
+        lambda **kwargs: queued.append(kwargs),
+    )
     response = post(UserFactory(role="admin"), household, "suspend", reason)
     assert response.status_code == 400
     assert "reason" in response.data["fields"]
     household.refresh_from_db()
     assert household.status == Household.Status.APPROVED
     assert not AuditEvent.objects.filter(target_id=str(household.pk)).exists()
-    assert mail.outbox == []
+    assert queued == []

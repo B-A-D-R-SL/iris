@@ -16,6 +16,7 @@ from modules.households.limits import max_household_people
 from modules.households.messages import domain_error_message
 from modules.households.models import Household, Member
 from modules.households.policies import suspension_actions
+from modules.rules import queries as rule_queries
 
 
 class RejectUnknownFieldsMixin:
@@ -204,10 +205,14 @@ class WalkInSubmissionReadSerializer(serializers.ModelSerializer):
 
 
 class HouseholdStatusInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
-    reason = serializers.CharField(max_length=500, trim_whitespace=True)
+    """Accept a reason whose policy limits are enforced by the service."""
+
+    reason = serializers.CharField(trim_whitespace=True)
 
 
 class HouseholdStatusReadSerializer(serializers.ModelSerializer):
+    """Return the status fields changed by a suspension action."""
+
     class Meta:
         model = Household
         fields = ("id", "status", "status_reason", "expires_at")
@@ -223,10 +228,16 @@ class WalkInDraftReadSerializer(serializers.ModelSerializer):
         source="verified_by.email", read_only=True, allow_null=True
     )
     allowed_actions = serializers.SerializerMethodField()
+    reason_max_length = serializers.SerializerMethodField()
 
     def get_allowed_actions(self, household: Household) -> list[str]:
+        """Return only actions currently authorized for the requesting user."""
         request = self.context.get("request")
         return suspension_actions(household, getattr(request, "user", None))
+
+    def get_reason_max_length(self, household: Household) -> int:
+        """Expose the active server limit used by status-action forms."""
+        return rule_queries.household_suspension_reason_max_length()
 
     class Meta:
         model = Household
@@ -255,5 +266,6 @@ class WalkInDraftReadSerializer(serializers.ModelSerializer):
             "verified_by_email",
             "verified_at",
             "allowed_actions",
+            "reason_max_length",
         )
         read_only_fields = fields

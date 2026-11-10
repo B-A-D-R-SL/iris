@@ -128,6 +128,8 @@ ignore_imports = [
     "modules.** -> modules.rules.queries",
     "modules.** -> modules.notifications.services",
     "modules.** -> modules.notifications.queries",
+    "modules.audit.services -> modules.privacy.services",
+    "modules.households.services -> modules.privacy.services",
 
     # stores -> accounts
     "modules.stores.** -> modules.accounts.services",

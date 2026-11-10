@@ -19,6 +19,7 @@ class RuleValidationError(ValueError):
 
 RULE_TYPES: Final = (
     "household_size",
+    "household_suspension",
     "invitations",
     "lico_thresholds",
     "auto_approval",
@@ -46,6 +47,9 @@ def _object_schema(properties: dict[str, JSONSchema]) -> JSONSchema:
 
 RULE_SCHEMAS: Final[dict[str, JSONSchema]] = {
     "household_size": _object_schema({"max_people": {"type": "integer", "minimum": 1}}),
+    "household_suspension": _object_schema(
+        {"reason_max_length": {"type": "integer", "minimum": 1, "maximum": 2000}}
+    ),
     "invitations": _object_schema(
         {"expires_after_days": {"type": "integer", "minimum": 1}}
     ),
@@ -193,6 +197,7 @@ RULE_SCHEMAS: Final[dict[str, JSONSchema]] = {
 # Defaults follow approved decisions and user stories; LICO uses SET-08's reviewed CSV.
 DEFAULT_RULE_VALUES: Final[dict[str, dict[str, Any]]] = {
     "household_size": {"max_people": 15},
+    "household_suspension": {"reason_max_length": 500},
     "invitations": {"expires_after_days": 7},
     "auto_approval": {
         "accepted_tax_years": [2025],

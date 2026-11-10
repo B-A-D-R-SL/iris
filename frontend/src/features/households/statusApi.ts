@@ -22,6 +22,7 @@ export interface StaffHousehold {
   preferred_language: "fr" | "en";
   expires_at: string | null;
   allowed_actions: Array<"suspend" | "reactivate">;
+  reason_max_length: number;
   members: Array<{
     id: string;
     first_name: string;
@@ -42,6 +43,7 @@ export class HouseholdStatusFailed extends Error {
   }
 }
 
+/** Validate the fields required by the staff household page. */
 function isHousehold(value: unknown): value is StaffHousehold {
   if (typeof value !== "object" || value === null) return false;
   const row = value as Record<string, unknown>;
@@ -60,19 +62,27 @@ function isHousehold(value: unknown): value is StaffHousehold {
     row.preferred_language === "fr" || row.preferred_language === "en",
     nullableString(row.expires_at),
     validActions,
+    Number.isSafeInteger(row.reason_max_length) && Number(row.reason_max_length) > 0,
     Array.isArray(row.members),
   ].every(Boolean);
 }
 
+/** Accept only the shared API error envelope with an object field map. */
 function errorBody(value: unknown): value is {
   message: string;
   fields: Record<string, string[]>;
 } {
   if (typeof value !== "object" || value === null) return false;
   const body = value as Record<string, unknown>;
-  return typeof body.message === "string" && typeof body.fields === "object";
+  return (
+    typeof body.message === "string" &&
+    typeof body.fields === "object" &&
+    body.fields !== null &&
+    !Array.isArray(body.fields)
+  );
 }
 
+/** Parse JSON without logging response bodies that may contain personal data. */
 async function responseBody(response: Response): Promise<unknown> {
   try {
     return await response.json();

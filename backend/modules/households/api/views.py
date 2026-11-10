@@ -107,6 +107,7 @@ class IsIntakeWorkerOrAdmin(BasePermission):
 
 class IsAdmin(BasePermission):
     def has_permission(self, request: Request, view: Any) -> bool:
+        """Allow only active administrators to change household status."""
         return can_suspend_households(request.user)
 
 

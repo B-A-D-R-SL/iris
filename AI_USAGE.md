@@ -1,6 +1,7 @@
 <!-- AI contribution: 50% or more AI-generated -->
-<!-- Size exception: the course uses this central contribution inventory to audit
-file declarations alongside their verification history across features. -->
+<!-- Size exception: course review tooling and the rubric inspect this fixed path as
+one chronological contribution ledger; splitting it would make earlier declarations
+and their verification links invisible to that audit. -->
 # AI usage
 
 How the Iris team uses generative AI, as required by the course rubric. This file stays up to date every iteration.

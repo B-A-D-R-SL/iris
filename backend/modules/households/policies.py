@@ -58,3 +58,8 @@ def is_editable_walk_in(household: Household) -> bool:
 def can_resume_walk_in(household: Household, actor: StaffActor) -> bool:
     """Advertise the resume action only when the staff edit rule permits it."""
     return can_manage_walk_ins(actor) and is_editable_walk_in(household)
+
+
+def can_open_household(household: Household, actor: StaffActor) -> bool:
+    """Advertise the read-only household page only for visible staff files."""
+    return can_manage_walk_ins(actor) and household.anonymized_at is None

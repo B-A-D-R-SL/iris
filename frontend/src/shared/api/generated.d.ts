@@ -231,8 +231,10 @@ export interface components {
       };
       message: string;
     };
-    /** @description Expose minimal household fields and the server-authorized resume action. */
+    /** @description Expose minimal fields and server-authorized resume and open actions. */
     HouseholdSearchResult: {
+      /** @description Fail closed when serialization has no authenticated request context. */
+      can_open: boolean;
       /** @description Fail closed when serialization has no authenticated request context. */
       can_resume: boolean;
       channel: components["schemas"]["ChannelEnum"];
@@ -251,9 +253,11 @@ export interface components {
       street_number: string;
       unit: string;
     };
+    /** @description Accept a reason whose policy limits are enforced by the service. */
     HouseholdStatusInput: {
       reason: string;
     };
+    /** @description Return the status fields changed by a suspension action. */
     HouseholdStatusRead: {
       /** Format: date-time */
       expires_at: string | null;
@@ -593,6 +597,7 @@ export interface components {
       members?: components["schemas"]["MemberInput"][];
     };
     WalkInDraftRead: {
+      /** @description Return only actions currently authorized for the requesting user. */
       allowed_actions: readonly string[];
       channel: components["schemas"]["ChannelEnum"];
       city: string;
@@ -615,6 +620,8 @@ export interface components {
       phone: string;
       postal_code: string;
       preferred_language: components["schemas"]["LanguageEnum"];
+      /** @description Expose the active server limit used by status-action forms. */
+      reason_max_length: number;
       status: components["schemas"]["WalkInDraftReadStatusEnum"];
       status_reason: string;
       street_name: string;

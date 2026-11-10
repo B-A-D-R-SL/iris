@@ -1,14 +1,9 @@
 # AI contribution: 50% or more AI-generated
-"""Household status email delivery after a successful commit."""
-
-import logging
+"""Household status email queueing after a successful commit."""
 
 from django.db import transaction
 
-from adapters.mailer.base import Mailer
-from adapters.mailer.smtp import SmtpMailer
-
-logger = logging.getLogger("iris.notifications")
+from modules.notifications.tasks import send_household_status_email
 
 _MESSAGES = {
     "en": {
@@ -34,31 +29,20 @@ _MESSAGES = {
 }
 
 
-def _send(mailer: Mailer, email: str, subject: str, body: str) -> None:
-    try:
-        if mailer.send([email], subject, text=body) != 1:
-            raise RuntimeError("Email was not accepted")
-    except Exception:  # noqa: BLE001 - delivery cannot undo a committed change.
-        logger.error(
-            "household_status_email_failed",
-            extra={"event": "household_status_email_failed"},
-        )
-
-
 def queue_household_status_email(
     *,
     email: str | None,
     language: str,
     status: str,
     reason: str,
-    mailer: Mailer | None = None,
 ) -> None:
-    """Send a localized notice after commit; counter-only files have no email."""
+    """Enqueue a localized notice after commit; files without email are skipped."""
     if not email:
         return
     messages = _MESSAGES["en" if language == "en" else "fr"]
     subject, body = messages[status]
-    sender = mailer if mailer is not None else SmtpMailer()
     transaction.on_commit(
-        lambda: _send(sender, email, subject, body.format(reason=reason))
+        lambda: send_household_status_email.defer(
+            email=email, subject=subject, body=body.format(reason=reason)
+        )
     )

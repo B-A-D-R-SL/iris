@@ -32,10 +32,12 @@ type ActionModalProps = {
   error: unknown;
   pending: boolean;
   reason: string;
+  reasonMaxLength: number;
   setReason: (value: string) => void;
   submit: () => void;
 };
 
+/** Show the contact and server-provided expiry details. */
 function ContactCard({ file }: { file: StaffHousehold }) {
   const { t, i18n } = useTranslation();
   return (
@@ -60,6 +62,7 @@ function ContactCard({ file }: { file: StaffHousehold }) {
   );
 }
 
+/** Show the holder identity and lifecycle status. */
 function HouseholdHeader({ file }: { file: StaffHousehold }) {
   const { t } = useTranslation();
   const holder = file.members.find((member) => member.relation === "holder");
@@ -76,6 +79,7 @@ function HouseholdHeader({ file }: { file: StaffHousehold }) {
   );
 }
 
+/** Show the current reason and the latest successful action. */
 function StatusAlerts({ file, outcome }: { file: StaffHousehold; outcome: string | null }) {
   return (
     <>
@@ -87,6 +91,7 @@ function StatusAlerts({ file, outcome }: { file: StaffHousehold; outcome: string
   );
 }
 
+/** Render only the action authorized by the backend. */
 function ActionCard({ action, open }: { action: Action | null; open: (value: Action) => void }) {
   const { t } = useTranslation();
   if (!action) return null;
@@ -109,12 +114,14 @@ function ActionCard({ action, open }: { action: Action | null; open: (value: Act
   );
 }
 
+/** Collect a reason and show field or generic action errors. */
 function ActionModal({
   action,
   close,
   error,
   pending,
   reason,
+  reasonMaxLength,
   setReason,
   submit,
 }: ActionModalProps) {
@@ -130,7 +137,7 @@ function ActionModal({
         <Textarea
           label={t("household.manage.reason")}
           value={reason}
-          maxLength={500}
+          maxLength={reasonMaxLength}
           required
           error={fieldError}
           onChange={(event) => setReason(event.currentTarget.value)}
@@ -154,6 +161,7 @@ function ActionModal({
   );
 }
 
+/** Own clean modal state and the status mutation lifecycle. */
 function useStatusForm(id: string) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -170,13 +178,29 @@ function useStatusForm(id: string) {
       await queryClient.invalidateQueries({ queryKey: ["staff-household", id] });
     },
   });
-  return { action, mutation, outcome, reason, setAction, setOutcome, setReason };
+  const close = () => {
+    setAction(null);
+    setReason("");
+    mutation.reset();
+  };
+  const open = (value: Action) => {
+    setOutcome(null);
+    setReason("");
+    mutation.reset();
+    setAction(value);
+  };
+  const updateReason = (value: string) => {
+    mutation.reset();
+    setReason(value);
+  };
+  return { action, close, mutation, open, outcome, reason, updateReason };
 }
 
+/** Render one staff-visible household and its authorized status action. */
 export function Household() {
   const { id = "" } = useParams();
   const { t } = useTranslation();
-  const { action, mutation, outcome, reason, setAction, setOutcome, setReason } = useStatusForm(id);
+  const { action, close, mutation, open, outcome, reason, updateReason } = useStatusForm(id);
   const household = useQuery({
     queryKey: ["staff-household", id],
     queryFn: () => getStaffHousehold(id),
@@ -197,13 +221,7 @@ export function Household() {
       <StatusAlerts file={file} outcome={outcome} />
 
       <ContactCard file={file} />
-      <ActionCard
-        action={allowedAction}
-        open={(value) => {
-          setOutcome(null);
-          setAction(value);
-        }}
-      />
+      <ActionCard action={allowedAction} open={open} />
 
       <Button component={Link} to="/staff/households" variant="subtle">
         {t("household.manage.back")}
@@ -211,11 +229,12 @@ export function Household() {
 
       <ActionModal
         action={action}
-        close={() => setAction(null)}
+        close={close}
         error={mutation.error}
         pending={mutation.isPending}
         reason={reason}
-        setReason={setReason}
+        reasonMaxLength={file.reason_max_length}
+        setReason={updateReason}
         submit={() => action && mutation.mutate({ action, reason })}
       />
     </Stack>

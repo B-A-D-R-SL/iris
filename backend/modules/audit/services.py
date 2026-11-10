@@ -8,6 +8,8 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from modules.audit.models import AuditEvent
+from modules.privacy import services as privacy_services
+from modules.rules import queries as rule_queries
 
 
 def _actor_role(actor: AbstractBaseUser) -> str:
@@ -50,8 +52,10 @@ def _validate_metadata(action: str, metadata: dict[str, str]) -> None:
         reason = metadata.get("reason")
         if set(metadata) != {"reason"} or not isinstance(reason, str) or not reason:
             raise ValidationError({"metadata": "A reason is required."})
-        if len(reason) > 500:
+        if len(reason) > rule_queries.household_suspension_reason_max_length():
             raise ValidationError({"metadata": "The reason is too long."})
+        if privacy_services.household_reason_contains_sensitive_data(reason):
+            raise ValidationError({"metadata": "Sensitive reasons are not allowed."})
         return
     if metadata:
         raise ValidationError({"metadata": "This action does not accept metadata."})

@@ -195,3 +195,6 @@ msgstr "Un dossier expiré ne peut pas être réactivé."
 # US-32 household suspension (#487)
 msgid "Do not include personal or financial information."
 msgstr "N'incluez pas de renseignements personnels ou financiers."
+
+msgid "Enter at most %(limit)s characters."
+msgstr "Entrez au maximum %(limit)s caractères."
