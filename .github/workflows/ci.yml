@@ -158,7 +158,7 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked --no-build
       - name: Verify the same photo link expires at the provider deadline
-        run: uv run --locked python -m pytest -c photos.ini tests/test_blob_photos_azurite.py -m slow_expiry -q
+        run: uv run --locked --no-build python -m pytest -c photos.ini tests/test_blob_photos_azurite.py -m slow_expiry -q
 
   frontend:
     runs-on: ubuntu-latest
