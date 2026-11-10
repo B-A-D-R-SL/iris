@@ -39,12 +39,20 @@ creator, verifier or internal keys directly.
 - `POST /api/staff/households/`: create a draft and holder member
 - `GET /api/staff/households/{uuid}/`: read draft and who created it
 - `PATCH /api/staff/households/{uuid}/`: patch draft steps, including members
+- `GET /api/staff/households/{uuid}/notices/`: the current notice of each
+  member (`queries.walk_in_notices`), without storage references, so the
+  notices screen shows what was saved after a reload; unknown IDs 404.
 - `POST /api/staff/households/{uuid}/notices/` (multipart): an adult's notice of
   assessment (`file`, `tax_year`, `total_income_cents`, `name_on_notice`,
   `postal_code_on_notice`, `notice_date`, `seen_in_person`) or
   `did_not_file` with `did_not_file_reason`; returns the notice without its
   storage reference. A second entry for the same adult replaces the current
   one. See `modules/documents/README.md` for the rules and file links.
+- `POST /api/staff/households/{uuid}/approve/` (no body): calls
+  `approve_walk_in` and returns `{ id, status, status_reason, approved_at,
+  expires_at }` with 200, whether the file is approved, rejected or sent to
+  review. An incomplete file, or one that cannot be decided in its status,
+  answers 400 with the message in `fields.non_field_errors`; unknown IDs 404.
 
 Errors use `{ "code", "message", "fields" }`; nested form field paths are
 reported as dotted keys such as `address.postal_code`.
@@ -136,8 +144,9 @@ records the calculation. Income above LICO gives `rejected` with
 `INCOME_ABOVE_LICO`; an eligible file without review flags becomes `approved`.
 Validity uses calendar months in Montreal from `file_validity.approved_months`
 (seed default 12), including month-end clamping. Other outcomes have no approval
-or expiry date. A final file cannot be approved again. The review queue UI and
-approval API remain separate tasks; this service stores `review_required`.
+or expiry date. A final file cannot be approved again. The approval API is
+`POST /api/staff/households/{uuid}/approve/`; the review queue UI remains a
+separate task, and this service stores `review_required`.
 
 Outcome, eligibility, audit and invitation writes share one transaction.
 `audit.services.record` receives only the outcome, never notice or income data.

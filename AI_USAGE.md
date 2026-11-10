@@ -33,6 +33,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| US-18 Walk-in approve endpoint (#466) | `backend/modules/households/api/{approval_views,urls}.py`, `backend/modules/households/tests/test_walk_in_approve_api.py`, `backend/modules/households/README.md`, `docs/03-design/api.md`, generated API types, `AI_USAGE.md` | 50% or more AI-generated; generated API declarations exempt | Not yet opened (`tasks/T-03.18.4-notices-and-decision-screens` branch) |
+| T-03.18.4 Walk-in notices and decision summary screen (#470) | `frontend/src/areas/staff/pages/WalkIn/{Notices,Notices.test,noticeForm,noticeForm.test}.ts(x)`, `frontend/src/features/households/noticeApi.ts`, `frontend/src/areas/staff/pages/WalkIn/{DraftSaved,WalkIn}.tsx`, `frontend/src/app/App.tsx`, `frontend/src/shared/i18n/{fr,en}.json`, `docs/02-requirements/forms-and-fields.md`, `docs/04-architecture/architecture.md`, `AI_USAGE.md` | 50% or more AI-generated | Not yet opened (`tasks/T-03.18.4-notices-and-decision-screens` branch) |
 | T-09.62.1 Audit tests (#548) | `backend/modules/audit/tests/test_audit.py` | 50% or more AI-generated | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-09.62.2 Audit model and service (#549) | `backend/modules/audit/{models.py,services.py,README.md,migrations/}` | 50% or more AI-generated (migrations exempt) | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-01.01.1 Sign-in and sign-out tests (#423) | `backend/modules/accounts/tests/test_accounts.py`, `frontend/src/app/App.test.tsx`, `AI_USAGE.md` | 50% or more AI-generated | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |

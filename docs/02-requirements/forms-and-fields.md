@@ -182,6 +182,24 @@ The holder is person 1 automatically. "Ajouter une personne / Add a person" adds
 
 A summary of the three steps, each with "Modifier / Edit". Notices of assessment and approval come next (US-18).
 
+### Notices of assessment (walk-in, US-18)
+
+Staff page **Avis de cotisation / Notices of assessment** (`/staff/walk-in/{id}/notices`), opened from "Draft saved". One card per member aged 18 or older (BR-DOC-007), titled with the member's name. Each card is sent on its own (`POST /api/staff/households/{id}/notices/`); recording a new one replaces the current notice (BR-DOC-005). Notices already saved are loaded when the page opens (`GET /api/staff/households/{id}/notices/`), so a reload or a return from the file keeps them.
+
+| Field | Français | English | Type | Required | Rules |
+| --- | --- | --- | --- | --- | --- |
+| `did_not_file` | Cette personne n'a pas produit de déclaration de revenus | This person did not file a tax return | checkbox | No | Hides the notice fields; the file goes to review |
+| `did_not_file_reason` | Expliquez pourquoi | Explain why | text | If `did_not_file` | 1 to 500 characters after trimming (BR-DOC-003) |
+| `file` | Avis de cotisation de Revenu Québec | Revenu Québec notice of assessment | file | Yes, unless `did_not_file` | "Photographier l'avis / Take a photo of the notice" opens the rear camera (`capture="environment"`); or choose a JPG, PNG or PDF of 10 MB or less (BR-DOC-004) |
+| `tax_year` | Année d'imposition | Tax year | year | Yes, unless `did_not_file` | 2000 to last year (BR-DOC-002) |
+| `total_income_cents` | Revenu total (ligne 199) | Total income (line 199) | money | Yes, unless `did_not_file` | 0 to 500,000 $ |
+| `name_on_notice` | Nom sur l'avis | Name on the notice | name | Yes, unless `did_not_file` | Compared with the member at approval |
+| `postal_code_on_notice` | Code postal sur l'avis | Postal code on the notice | postal_code | Yes, unless `did_not_file` | Compared with the address at approval |
+| `notice_date` | Date de l'avis | Notice date | date | Yes, unless `did_not_file` | After December 31 of the tax year, not after today (BR-DOC-002) |
+| `seen_in_person` | Avis vu en personne | Notice seen in person | checkbox | No | Unticked sends the file to review |
+
+Below the cards, **Résumé pour la décision / Decision summary** lists each adult (to record, notice recorded, not seen in person, did not file) and says whether the file is ready for a decision or will go to review. **Approuver le dossier / Approve the file** is enabled once every adult has a notice or a reason and no saved notice is being replaced ("Remplacer cet avis / Replace this notice" disables it until the new notice is saved or cancelled, and approval disables replacing); the answer shows "Dossier approuvé jusqu'au … / File approved until …", "Dossier refusé / File rejected" or "Dossier envoyé en révision / File sent to review", with each reason in plain words.
+
 ## Categories
 
 Used by `goods_categories` (partner application) and `category` (listing). Seed file: `backend/modules/categories/data/categories.yaml`. Admins can add, rename or deactivate categories (US-35).
