@@ -123,10 +123,11 @@ ignore_imports = [
     "modules.** -> modules.rules.queries",
     "modules.** -> modules.notifications.services",
     "modules.** -> modules.notifications.queries",
+    # Accounts owns role groups used by permissions across modules.
+    "modules.** -> modules.accounts.queries",
 
     # stores -> accounts
     "modules.stores.** -> modules.accounts.services",
-    "modules.stores.** -> modules.accounts.queries",
     # stores tests create users with the accounts test factory (US-12)
     "modules.stores.tests.** -> modules.accounts.tests.factories",
     # stores -> categories: partner applications list active category codes (US-12)

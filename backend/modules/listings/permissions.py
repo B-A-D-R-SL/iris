@@ -7,7 +7,7 @@ from uuid import UUID
 from django.core.exceptions import PermissionDenied
 from django.utils.translation import gettext_lazy as _
 
-POSTING_ROLES = frozenset({"store_staff", "store_manager"})
+from modules.accounts.queries import STORE_ROLES
 
 
 def assigned_store_id(user: Any) -> UUID:
@@ -16,7 +16,7 @@ def assigned_store_id(user: Any) -> UUID:
     if (
         not getattr(user, "is_authenticated", False)
         or not getattr(user, "is_active", False)
-        or getattr(user, "role", None) not in POSTING_ROLES
+        or getattr(user, "role", None) not in STORE_ROLES
         or not isinstance(store_id, UUID)
     ):
         raise PermissionDenied(
