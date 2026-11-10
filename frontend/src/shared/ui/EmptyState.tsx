@@ -25,7 +25,7 @@ export function EmptyState({
         {title}
       </Title>
       {description && (
-        <Text size="sm" c="gray.7" maw={420}>
+        <Text size="sm" c="dimmed" maw={420}>
           {description}
         </Text>
       )}

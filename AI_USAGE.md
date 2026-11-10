@@ -688,3 +688,86 @@ At least half of the AI-assisted features need an example here. For each one:
   - While checking the fixes, we found that the `frontend` Docker container keeps the code copied at build time, so frontend checks run with `docker compose exec frontend` used stale files. The frontend checks were re-run in a container with the working folder mounted: 359 tests pass at 93% coverage (categories feature 94%). Backend after the fixes: 727 tests pass at 93% coverage.
 - **Remaining:**
   - Peer review and CI.
+
+### SET-34 Colour tokens and status badge (#652, #653, #654)
+
+- **Tool and level:** Codex (OpenAI), 50% or more AI-generated.
+- **Developer direction:** Reuven requested SET-34 from current `main`, initially
+  authorized placeholder colours, then requested integration and completion after
+  SET-33 merged. The working branch is `SET-34-apply-colour-palette-and-status-badges`.
+- **What changed:** colour tokens and Mantine aliases; bilingual status badges with
+  generated enum coverage where available, shared notice icons and scoped unknown-status
+  logging; semantic colours across built screens, including the newly merged household
+  search; accessible control boundaries, inline errors, destructive actions, selected
+  controls and primary hover/pressed states; WCAG contrast tests and review rule 11.
+- **SET-33 integration (November 9, 2026):** PR #668 merged at `fd73186` and closed #651.
+  The earlier #664 draft was not the delivery. Existing local work was backed up before
+  fast-forwarding to `origin/main`; the design guide conflict was resolved by keeping
+  SET-33's token/status tables and adding the implementation guidance. All 70 original
+  palette shades match the Foundations export's swatches exactly. Neutral status,
+  input-border, placeholder, hover and pressed values come from its component-token note.
+  The decorative border is kept separate from the accessible input border.
+- **Verification:** 529 frontend tests passed across 32 files, with 94.72% line coverage.
+  TypeScript, ESLint, Prettier, production build and the required colour-literal scans
+  passed. Contrast checks include all semantic pairs, primary button states, destructive
+  text, placeholders, both control backgrounds, and black/white/self edge cases. Badge
+  tests cover every status in both languages, hidden icons, unknown/inherited-property
+  values, logging and axe; search integration checks success/danger badges.
+- **Browser review:** 76 French/English before-and-after captures at 360 px and staff
+  also at 1024 px, using fictional responses and no backend writes. No page errors or
+  page-level horizontal overflow; status labels do not clip. Primary normal/hover/pressed
+  colours passed live computed-style checks. Existing business flows/layouts were retained.
+  The evidence and available-prototype comparisons are in the local SET-34 handoff report.
+- **Delivery:** screenshot evidence is committed under
+  `docs/03-design/verification/SET-34/`. CI, CodeRabbit, teammate review, merge and the
+  post-merge team announcement remain tracked in the pull request; local checks do not
+  substitute for those external steps.
+
+AI-assisted files for this entry:
+
+- `AI_USAGE.md`
+- `docs/03-design/verification/SET-34/README.md`
+- `docs/03-design/verification/SET-34/categories-before-after.png`
+- `docs/03-design/verification/SET-34/screenshots.zip`
+- `docs/03-design/verification/SET-34/sign-in-validation-before-after.png`
+- `docs/05-process/review-rules.md`
+- `docs/guides/design-system.md`
+- `frontend/src/app/contrast.test.ts`
+- `frontend/src/app/contrast.ts`
+- `frontend/src/app/layouts/Wordmark.tsx`
+- `frontend/src/app/layouts/layouts.module.css`
+- `frontend/src/app/theme.module.css`
+- `frontend/src/app/theme.test.tsx`
+- `frontend/src/app/theme.ts`
+- `frontend/src/app/tokens.ts`
+- `frontend/src/areas/public/pages/PartnerApply.tsx`
+- `frontend/src/areas/staff/pages/Search.module.css`
+- `frontend/src/areas/staff/pages/Search.test.tsx`
+- `frontend/src/areas/staff/pages/SearchResults.tsx`
+- `frontend/src/areas/staff/pages/WalkIn/DraftSaved.tsx`
+- `frontend/src/areas/staff/pages/WalkIn/MembersStep.tsx`
+- `frontend/src/areas/staff/pages/WalkIn/ReviewStep.tsx`
+- `frontend/src/areas/staff/pages/WalkIn/WalkIn.module.css`
+- `frontend/src/areas/staff/pages/WalkIn/WalkIn.tsx`
+- `frontend/src/areas/store/components/CategoryPicker.tsx`
+- `frontend/src/areas/store/pages/NewListing.tsx`
+- `frontend/src/features/categories/CategoriesPage.tsx`
+- `frontend/src/shared/auth/SignOutButton.tsx`
+- `frontend/src/shared/forms/FileUpload.tsx`
+- `frontend/src/shared/forms/fields.module.css`
+- `frontend/src/shared/i18n/en.json`
+- `frontend/src/shared/i18n/fr.json`
+- `frontend/src/shared/logger.test.ts`
+- `frontend/src/shared/logger.ts`
+- `frontend/src/shared/ui/EmptyState.tsx`
+- `frontend/src/shared/ui/ErrorState.tsx`
+- `frontend/src/shared/ui/LoadingState.tsx`
+- `frontend/src/shared/ui/Notice.module.css`
+- `frontend/src/shared/ui/Notice.tsx`
+- `frontend/src/shared/ui/StatusBadge.test.tsx`
+- `frontend/src/shared/ui/StatusBadge.tsx`
+- `frontend/src/shared/ui/index.ts`
+- `frontend/src/shared/ui/statusTones.ts`
+- `frontend/src/shared/ui/toneIcons.ts`
+- `frontend/src/test/i18n.test.ts`
+- `frontend/src/test/render.tsx`

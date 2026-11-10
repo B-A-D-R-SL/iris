@@ -261,7 +261,7 @@ function NewListingForm({ categories }: { categories: readonly Category[] }) {
                 {...form.getInputProps("endTime")}
               />
             </Group>
-            <Text size="sm" c="gray.7" mt={4}>
+            <Text size="sm" c="dimmed" mt={4}>
               {t("store.newListing.pickupHelp")}
             </Text>
           </div>

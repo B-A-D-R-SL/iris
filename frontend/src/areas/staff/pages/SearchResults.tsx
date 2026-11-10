@@ -1,13 +1,13 @@
 // AI contribution: 50% or more AI-generated
-import { Badge, Button, Group, Paper, Stack, Text, Title } from "@mantine/core";
+import { Button, Group, Paper, Stack, Text, Title } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 
 import {
-  householdStatusLabels,
   type HouseholdSearchPage,
   type HouseholdSearchResult,
 } from "../../../features/households/searchApi";
+import { StatusBadge } from "../../../shared/ui";
 import classes from "./Search.module.css";
 
 /** Format only the contact fields the API chose to disclose. */
@@ -50,7 +50,7 @@ function HouseholdCard({ file }: { file: HouseholdSearchResult }) {
               {file.member_number || t("household.search.noMemberNumber")}
             </Text>
           </div>
-          <Badge variant="light">{t(householdStatusLabels[file.status])}</Badge>
+          <StatusBadge record="household" status={file.status} />
         </Group>
         <HouseholdContact file={file} />
         {file.can_resume && (

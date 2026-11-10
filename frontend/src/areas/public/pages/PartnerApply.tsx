@@ -20,6 +20,7 @@ import { Link } from "react-router";
 
 import { getCategories } from "../../../features/categories/api";
 import {
+  FieldError,
   PhoneField,
   PostalCodeField,
   TextField,
@@ -310,8 +311,8 @@ export function PartnerApply() {
               {t("store.partnerForm.chooseGoods")}
             </Text>
             {form.errors.goods_categories && (
-              <Text size="sm" c="red" role="alert">
-                {form.errors.goods_categories}
+              <Text size="sm" role="alert">
+                <FieldError>{form.errors.goods_categories}</FieldError>
               </Text>
             )}
             {categories.isPending ? (

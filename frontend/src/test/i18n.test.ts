@@ -49,6 +49,7 @@ describe("SET-13 translations", () => {
 
   it("uses three-part keys with documented four-part option groups", () => {
     const segment = /^[a-z][a-zA-Z0-9]*$/;
+    const statusSegment = /^[a-z][a-z0-9_]*$/;
     const optionGroups = new Set([
       "household.registrationMembers.relations",
       "store.partnerApplication.businessTypes",
@@ -61,10 +62,13 @@ describe("SET-13 translations", () => {
     ] as const) {
       for (const key of Object.keys(entries)) {
         const parts = key.split(".");
-        const isOptionGroup = optionGroups.has(parts.slice(0, 3).join("."));
+        const isStatus = parts[0] === "shared" && parts[1] === "status";
+        const isOptionGroup = isStatus || optionGroups.has(parts.slice(0, 3).join("."));
         expect(parts.length, `${language}: ${key}`).toBe(isOptionGroup ? 4 : 3);
         expect(
-          parts.every((part) => segment.test(part)),
+          parts.every((part, index) =>
+            (isStatus && index === 3 ? statusSegment : segment).test(part),
+          ),
           `${language}: ${key}`,
         ).toBe(true);
       }

@@ -59,7 +59,7 @@ export function mockCurrentUser(user: CurrentUser | "signed-out" | "server-error
   return fetchMock;
 }
 
-/** WCAG checks with axe (NFR-03). Contrast needs a real browser, so it is checked by hand. */
+/** WCAG checks with axe (NFR-03). Token contrast is tested in app/contrast.test.ts; rendered colours still need browser review. */
 export async function expectNoAxeViolations(container: Element) {
   const results = await axe.run(container, { rules: { "color-contrast": { enabled: false } } });
   expect(results.violations.map((violation) => `${violation.id}: ${violation.help}`)).toEqual([]);

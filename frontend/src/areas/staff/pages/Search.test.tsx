@@ -49,6 +49,30 @@ function renderSearch() {
 afterEach(() => vi.useRealTimers());
 
 describe("staff household search timing and translations", () => {
+  it("uses shared success and danger badges for household results", async () => {
+    mockApi(() =>
+      Response.json(
+        searchPage({
+          count: 2,
+          results: [
+            searchFile({ status: "approved" }),
+            searchFile({ id: "00000000-0000-4000-8000-000000000064", status: "suspended" }),
+          ],
+        }),
+      ),
+    );
+    renderSearch();
+    searchInput("exemple");
+    expect((await screen.findByText("Approuvé")).closest("[data-tone]")).toHaveAttribute(
+      "data-tone",
+      "success",
+    );
+    expect(screen.getByText("Suspendu").closest("[data-tone]")).toHaveAttribute(
+      "data-tone",
+      "danger",
+    );
+  });
+
   it("waits 300 ms and sends only the latest input", async () => {
     const handler = vi.fn((url: URL) => {
       expect(url.searchParams.get("page")).toBe("1");

@@ -22,7 +22,7 @@ export function ErrorState({ title, description, onRetry, action }: ErrorStatePr
       <Title order={2} size="h3">
         {title ?? t("shared.states.errorTitle")}
       </Title>
-      <Text size="sm" c="gray.7" maw={420}>
+      <Text size="sm" c="dimmed" maw={420}>
         {description ?? t("shared.states.errorDescription")}
       </Text>
       {(onRetry || action) && (

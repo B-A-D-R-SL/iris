@@ -681,6 +681,44 @@
       "errorTitle": "Impossible d'afficher cette page",
       "errorDescription": "Vérifiez votre connexion Internet, puis réessayez.",
       "retry": "Réessayer"
+    },
+    "status": {
+      "household": {
+        "draft": "Brouillon",
+        "submitted": "Demande soumise",
+        "awaiting_visit": "Visite en personne requise",
+        "review_required": "Vérification par l'équipe requise",
+        "renewal_needed": "Renouvellement requis",
+        "approved": "Approuvé",
+        "suspended": "Suspendu",
+        "rejected": "Refusé"
+      },
+      "listing": {
+        "published": "Publiée",
+        "sold_out": "Épuisée",
+        "closed": "Terminée",
+        "cancelled": "Annulée"
+      },
+      "reservation": {
+        "reserved": "Réservée",
+        "picked_up": "Récupérée",
+        "cancelled": "Annulée",
+        "cancelled_by_store": "Annulée par le commerce",
+        "no_show": "Absence"
+      },
+      "partnerApplication": {
+        "submitted": "Demande soumise",
+        "approved": "Approuvée",
+        "rejected": "Refusée"
+      },
+      "store": {
+        "active": "Actif",
+        "deactivated": "Désactivé"
+      },
+      "category": {
+        "active": "Active",
+        "inactive": "Inactive"
+      }
     }
   }
 }

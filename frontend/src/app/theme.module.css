@@ -2,17 +2,18 @@
 /* Values from the Figma Components page (SET-11). */
 
 .input {
-  border-color: var(--mantine-color-gray-4);
+  border-color: var(--iris-input-border);
 }
 
 .input[data-error] {
   /* Error = 2 px border + icon + bold message (never colour alone). */
   border-width: 2px;
+  border-color: var(--iris-danger-strong);
 }
 
 .input[data-disabled] {
-  background-color: var(--mantine-color-gray-0);
-  color: var(--mantine-color-gray-7);
+  background-color: var(--iris-neutral-light);
+  color: var(--iris-text-muted);
 }
 
 .label {
@@ -22,14 +23,55 @@
 
 .description {
   font-size: var(--mantine-font-size-xs);
-  color: var(--mantine-color-gray-7);
+  color: var(--iris-text-muted);
 }
 
 .error {
+  color: var(--iris-danger-strong);
   font-size: var(--mantine-font-size-xs);
   font-weight: 600;
 }
 
 .alertTitle {
   font-weight: 600;
+}
+
+.input:focus-within:not([data-error]) {
+  border-color: var(--iris-primary);
+}
+
+.focus:focus-visible {
+  outline: 2px solid var(--iris-primary);
+  outline-offset: 2px;
+}
+
+.button:active:not([data-disabled]):not([data-loading]):where(
+    :not([data-variant]),
+    [data-variant="filled"]
+  ) {
+  background-color: var(--button-pressed, var(--button-bg));
+}
+
+.checkControl:not(:checked):not([data-indeterminate]):not([data-error]):not(:disabled) {
+  border-color: var(--iris-input-border);
+}
+
+.choiceLabel:not([data-disabled]) {
+  background-color: var(--iris-surface);
+  border-color: var(--iris-input-border);
+  color: var(--iris-text);
+}
+
+.choiceLabel[data-checked]:not([data-disabled]) {
+  --chip-icon-color: var(--iris-primary);
+  background-color: var(--iris-primary-light);
+  border-color: var(--iris-primary);
+}
+
+.choiceLabel:not([data-disabled]):not([data-checked]):hover {
+  background-color: var(--iris-surface-raised);
+}
+
+.segmentLabel:not([data-disabled]) {
+  color: var(--iris-text);
 }
