@@ -65,6 +65,13 @@ export interface paths {
     /** Edit an existing walk-in household draft */
     patch: operations["staff_households_partial_update"];
   };
+  "/api/staff/households/{id}/approve/": {
+    /**
+     * Decide a walk-in file: approved, rejected or sent to review
+     * @description Runs eligibility on the recorded notices. Answers 200 with the outcome; 400 when the file is incomplete or cannot be decided in its status.
+     */
+    post: operations["staff_households_approve_create"];
+  };
   "/api/staff/households/{id}/notices/": {
     /** Record an adult's notice of assessment or non-filing reason */
     post: operations["staff_households_notices_create"];
@@ -469,6 +476,17 @@ export interface components {
      * @enum {string}
      */
     UnitEnum: "item" | "bundle";
+    /** @description The outcome staff explain to the household at the counter. */
+    WalkInDecision: {
+      /** Format: date-time */
+      approved_at: string | null;
+      /** Format: date-time */
+      expires_at: string | null;
+      /** Format: uuid */
+      id: string;
+      status: string;
+      status_reason: string;
+    };
     WalkInDraftInput: {
       address?: components["schemas"]["AddressInput"];
       consent_data_processing?: boolean;
@@ -890,6 +908,24 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["WalkInDraftRead"];
+        };
+      };
+    };
+  };
+  /**
+   * Decide a walk-in file: approved, rejected or sent to review
+   * @description Runs eligibility on the recorded notices. Answers 200 with the outcome; 400 when the file is incomplete or cannot be decided in its status.
+   */
+  staff_households_approve_create: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["WalkInDecision"];
         };
       };
     };
