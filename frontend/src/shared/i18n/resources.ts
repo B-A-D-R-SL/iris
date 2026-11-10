@@ -11,11 +11,29 @@ import frPublic from "./fr/public.json";
 import frStaff from "./fr/staff.json";
 import frStore from "./fr/store.json";
 
+function translations<T extends { _meta: string }>(catalog: T): Omit<T, "_meta"> {
+  const { _meta, ...entries } = catalog;
+  void _meta;
+  return entries;
+}
+
 export const resources = {
   en: {
-    translation: { ...enCommon, ...enHousehold, ...enPublic, ...enStaff, ...enStore },
+    translation: {
+      ...translations(enCommon),
+      ...translations(enHousehold),
+      ...translations(enPublic),
+      ...translations(enStaff),
+      ...translations(enStore),
+    },
   },
   fr: {
-    translation: { ...frCommon, ...frHousehold, ...frPublic, ...frStaff, ...frStore },
+    translation: {
+      ...translations(frCommon),
+      ...translations(frHousehold),
+      ...translations(frPublic),
+      ...translations(frStaff),
+      ...translations(frStore),
+    },
   },
 };
