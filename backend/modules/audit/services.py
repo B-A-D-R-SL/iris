@@ -32,11 +32,24 @@ def _target_identifier(target_type: str, target_id: str | int | UUID) -> str:
     return identifier
 
 
-def _rule_types() -> set[str]:
-    """Return the supported rule types through the rules public interface."""
-    from modules.rules.services import supported_rule_types
-
-    return supported_rule_types()
+# Closed identifiers prevent arbitrary personal data in audit metadata. Keep in
+# sync with rules schemas; the integration tests check the two contracts.
+RULE_PUBLICATION_TYPES = frozenset(
+    {
+        "household_size",
+        "invitations",
+        "lico_thresholds",
+        "auto_approval",
+        "priority",
+        "tiers",
+        "strikes",
+        "reservations",
+        "listing_safety",
+        "listing_posting",
+        "file_validity",
+        "retention",
+    }
+)
 
 
 def _validate_metadata(
@@ -49,7 +62,7 @@ def _validate_metadata(
             and isinstance(metadata, dict)
             and set(metadata) == {"rule_type", "version"}
             and isinstance(metadata["rule_type"], str)
-            and metadata["rule_type"] in _rule_types()
+            and metadata["rule_type"] in RULE_PUBLICATION_TYPES
             and type(metadata["version"]) is int
             and metadata["version"] > 0
         )

@@ -1,16 +1,15 @@
 // AI contribution: 50% or more AI-generated
 import { Button, Group, Stack, Table, Text, TextInput } from "@mantine/core";
-import { useMemo, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { components } from "../../../shared/api/generated";
-import type { Filters } from "./Audit";
+import { emptyFilters, useAuditFormatter, type Filters } from "./auditHelpers";
 
 type Event = components["schemas"]["PaginatedAuditEventList"]["results"][number];
-const empty: Filters = { household: "", actor: "", from: "", to: "" };
 
 export function AuditFilterForm({ onSubmit }: { onSubmit: (filters: Filters) => void }) {
   const { t } = useTranslation();
-  const [draft, setDraft] = useState<Filters>(empty);
+  const [draft, setDraft] = useState<Filters>(emptyFilters);
   const [errors, setErrors] = useState<Partial<Record<keyof Filters, string>>>({});
   const update = (key: keyof Filters, value: string) =>
     setDraft((old) => ({ ...old, [key]: value }));
@@ -89,15 +88,7 @@ export function AuditResultsTable({
   locale: string;
 }) {
   const { t } = useTranslation();
-  const formatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat(locale, {
-        dateStyle: "medium",
-        timeStyle: "short",
-        timeZone: "America/Montreal",
-      }),
-    [locale],
-  );
+  const formatter = useAuditFormatter(locale);
   return (
     <Table.ScrollContainer minWidth={800}>
       <Table striped highlightOnHover withTableBorder>
@@ -119,6 +110,7 @@ export function AuditResultsTable({
                 <Table.Td>{labels[event.action] ?? event.action}</Table.Td>
                 <Table.Td>
                   {labels[event.target_type] ?? event.target_type}: {event.target_id}
+                  {event.action === "rule_published" && <RuleDetails metadata={event.metadata} />}
                 </Table.Td>
                 <Table.Td>{outcome ? (labels[outcome] ?? outcome) : "—"}</Table.Td>
               </Table.Tr>
@@ -127,6 +119,32 @@ export function AuditResultsTable({
         </Table.Tbody>
       </Table>
     </Table.ScrollContainer>
+  );
+}
+
+function RuleDetails({ metadata }: { metadata: unknown }) {
+  const { t } = useTranslation();
+  if (
+    typeof metadata !== "object" ||
+    metadata === null ||
+    !("rule_type" in metadata) ||
+    !("version" in metadata) ||
+    typeof metadata.rule_type !== "string" ||
+    typeof metadata.version !== "number" ||
+    !Number.isInteger(metadata.version) ||
+    metadata.version < 1
+  )
+    return null;
+  const ruleKey = metadata.rule_type.replace(/_([a-z])/g, (_, letter: string) =>
+    letter.toUpperCase(),
+  );
+  const key = `audit.ruleTypes.${ruleKey}`;
+  return (
+    <>
+      {" "}
+      ({t(key, { defaultValue: metadata.rule_type })},{" "}
+      {t("audit.search.ruleVersion", { version: metadata.version })})
+    </>
   );
 }
 

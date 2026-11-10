@@ -1,5 +1,9 @@
 # AI contribution: 50% or more AI-generated
+import json
+import logging
 from copy import deepcopy
+from io import StringIO
+from unittest.mock import patch
 
 import pytest
 
@@ -11,59 +15,69 @@ from modules.rules.services import publish
 
 @pytest.fixture
 def publisher():
-    return UserFactory()
+    return UserFactory(role="admin")
 
 
 @pytest.mark.django_db
 def test_publish_records_event_and_logs_identifiers(
-    publisher, caplog, django_capture_on_commit_callbacks
+    publisher, django_capture_on_commit_callbacks
 ):
-    with (
-        caplog.at_level("INFO", logger="modules.rules.services"),
-        django_capture_on_commit_callbacks(execute=True),
-    ):
-        rule = publish("priority", deepcopy(DEFAULT_RULE_VALUES["priority"]), publisher)
+    from iris.observability import JsonLogFormatter
+
+    logger = logging.getLogger("iris.rules")
+    stream = StringIO()
+    handler = logging.StreamHandler(stream)
+    handler.setFormatter(JsonLogFormatter())
+    logger.addHandler(handler)
+    try:
+        assert logger.isEnabledFor(logging.INFO)
+        with django_capture_on_commit_callbacks(execute=True):
+            rule = publish(
+                "priority", deepcopy(DEFAULT_RULE_VALUES["priority"]), publisher
+            )
+    finally:
+        logger.removeHandler(handler)
     event = AuditEvent.objects.get(action="rule_published")
     assert event.actor == publisher
+    assert event.actor_role == "admin"
     assert event.target_type == "rule_set_version"
     assert event.target_id == str(rule.pk)
     assert event.metadata == {"rule_type": "priority", "version": 1}
-    assert caplog.messages == [
-        f"rule_published rule_version_id={rule.pk} actor_id={publisher.pk}"
-    ]
+    payload = json.loads(stream.getvalue())
+    assert payload["event"] == "rule_published"
+    assert str(publisher.pk) not in stream.getvalue()
+    assert set(payload) == {"timestamp", "level", "logger", "event"}
 
 
 @pytest.mark.django_db(transaction=True)
-def test_seed_audit_events_and_logs_commit_together(caplog):
+def test_seed_audit_events_and_logs_commit_together():
     from django.core.management import call_command
     from django.db import transaction
 
     from modules.rules.domain.schemas import RULE_TYPES
     from modules.rules.models import RuleSetVersion
 
-    with caplog.at_level("INFO", logger="modules.rules.services"):
+    with patch("modules.rules.services.logger.info") as log_info:
         with transaction.atomic():
             call_command("seed_rules")
             assert AuditEvent.objects.filter(action="rule_published").count() == len(
                 RULE_TYPES
             )
-            assert not caplog.messages
+            assert log_info.call_count == 0
         rules = list(RuleSetVersion.objects.all())
         events = AuditEvent.objects.filter(action="rule_published")
         assert events.count() == len(RULE_TYPES)
         assert {event.target_id for event in events} == {str(rule.pk) for rule in rules}
-        assert len(caplog.messages) == len(RULE_TYPES)
-        for rule in rules:
-            assert (
-                caplog.messages.count(
-                    f"rule_published rule_version_id={rule.pk} actor_id={rule.created_by_id}"
-                )
-                == 1
-            )
+        assert log_info.call_count == len(RULE_TYPES)
+        assert all(
+            call.kwargs["extra"]["event"] == "rule_published"
+            for call in log_info.call_args_list
+        )
+        assert all(event.actor_role == "admin" for event in events)
 
 
 @pytest.mark.django_db(transaction=True)
-def test_seed_failure_rolls_back_events_and_discards_logs(caplog, monkeypatch):
+def test_seed_failure_rolls_back_events_and_discards_logs(monkeypatch):
     from django.core.management import call_command
 
     from modules.rules.management.commands import seed_rules
@@ -81,11 +95,18 @@ def test_seed_failure_rolls_back_events_and_discards_logs(caplog, monkeypatch):
 
     monkeypatch.setattr(seed_rules, "publish", fail_second)
     with (
-        caplog.at_level("INFO", logger="modules.rules.services"),
+        patch("modules.rules.services.logger.info") as log_info,
         pytest.raises(RuntimeError, match="publication failed"),
     ):
         call_command("seed_rules")
     assert count == 2
     assert not RuleSetVersion.objects.exists()
     assert not AuditEvent.objects.filter(action="rule_published").exists()
-    assert not caplog.messages
+    assert log_info.call_count == 0
+
+
+def test_audit_rule_type_allowlist_matches_rules_contract():
+    from modules.audit.services import RULE_PUBLICATION_TYPES
+    from modules.rules.domain.schemas import RULE_TYPES
+
+    assert RULE_PUBLICATION_TYPES == set(RULE_TYPES)

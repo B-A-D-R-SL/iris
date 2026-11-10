@@ -31,7 +31,22 @@
       "outcomeRejected": "Rejected",
       "outcomeReview": "Review required",
       "targetRuleSetVersion": "Rule version",
-      "targetHousehold": "Household"
+      "targetHousehold": "Household",
+      "ruleVersion": "version {{version}}"
+    },
+    "ruleTypes": {
+      "householdSize": "Household size",
+      "invitations": "Invitations",
+      "licoThresholds": "LICO thresholds",
+      "autoApproval": "Automatic approval",
+      "priority": "Priority",
+      "tiers": "Tiers",
+      "strikes": "Strikes",
+      "reservations": "Reservations",
+      "listingSafety": "Listing safety",
+      "listingPosting": "Listing posting",
+      "fileValidity": "File validity",
+      "retention": "Retention"
     }
   },
   "household": {

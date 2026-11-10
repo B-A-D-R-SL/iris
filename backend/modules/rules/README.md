@@ -38,4 +38,4 @@ Do not treat this scaffold as implemented business functionality.
 
 Publishing records a `rule_published` audit event with the rule type, version,
 actor, and rule-version identifier in the same transaction. After commit, it logs
-`rule_published` with the rule-version and actor identifiers.
+the static `rule_published` event without account identifiers or rule values.

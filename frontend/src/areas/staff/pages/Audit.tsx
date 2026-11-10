@@ -7,16 +7,9 @@ import { useTranslation } from "react-i18next";
 import type { components } from "../../../shared/api/generated";
 import { EmptyState, ErrorState, LoadingState } from "../../../shared/ui";
 import { AuditFilterForm, AuditPagination, AuditResultsTable } from "./AuditComponents";
+import { emptyFilters, useAuditLabels, type Filters } from "./auditHelpers";
 
 type AuditPage = components["schemas"]["PaginatedAuditEventList"];
-
-export interface Filters {
-  household: string;
-  actor: string;
-  from: string;
-  to: string;
-}
-const emptyFilters: Filters = { household: "", actor: "", from: "", to: "" };
 
 async function getAuditEvents(filters: Filters, page: number): Promise<AuditPage> {
   const params = new URLSearchParams({ page: String(page) });
@@ -49,21 +42,7 @@ export function Audit() {
     gcTime: 0,
   });
   const locale = i18n.resolvedLanguage === "en" ? "en-CA" : "fr-CA";
-  const labels: Record<string, string> = {
-    admin: t("audit.search.roleAdmin"),
-    intake_worker: t("audit.search.roleIntake"),
-    store_staff: t("audit.search.roleStoreStaff"),
-    store_manager: t("audit.search.roleStoreManager"),
-    beneficiary: t("audit.search.roleBeneficiary"),
-    view: t("audit.search.actionView"),
-    decision: t("audit.search.actionDecision"),
-    rule_published: t("audit.search.actionRulePublished"),
-    approved: t("audit.search.outcomeApproved"),
-    rejected: t("audit.search.outcomeRejected"),
-    review_required: t("audit.search.outcomeReview"),
-    household: t("audit.search.targetHousehold"),
-    rule_set_version: t("audit.search.targetRuleSetVersion"),
-  };
+  const labels = useAuditLabels();
 
   return (
     <Stack gap="md">

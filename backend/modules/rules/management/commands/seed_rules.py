@@ -64,6 +64,11 @@ class Command(BaseCommand):
             rule_type for rule_type in RULE_TYPES if rule_type not in existing_types
         ]
         if not missing_types:
+            user_model = get_user_model()
+            if user_model._default_manager.filter(
+                **{user_model.USERNAME_FIELD: SEED_USERNAME}
+            ).exists():
+                _get_seed_publisher()
             self.stdout.write(self.style.SUCCESS("Rule defaults are already seeded."))
             return
 
@@ -215,9 +220,17 @@ def _get_seed_publisher() -> AbstractBaseUser:
     user_model = get_user_model()
     username_field = user_model.USERNAME_FIELD
     publisher, created = user_model._default_manager.get_or_create(
-        **{username_field: SEED_USERNAME}  # type: ignore[arg-type]
+        defaults={"role": "admin"},
+        **{username_field: SEED_USERNAME},  # type: ignore[arg-type]
     )
     if created:
         publisher.set_unusable_password()
         publisher.save(update_fields=["password"])
+    elif publisher.has_usable_password() or getattr(publisher, "store_id", None):
+        raise CommandError("The rules seed account must be a non-login system account.")
+    elif getattr(publisher, "role", None) == "beneficiary":
+        publisher.role = "admin"  # type: ignore[attr-defined]
+        publisher.save(update_fields=["role"])
+    elif getattr(publisher, "role", None) != "admin":
+        raise CommandError("The rules seed account has an unexpected role.")
     return publisher

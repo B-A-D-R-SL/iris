@@ -78,6 +78,7 @@ def test_seed_rules_creates_every_version_once(tmp_path: Path) -> None:
         **{get_user_model().USERNAME_FIELD: SEED_USERNAME}
     )
     assert not publisher.has_usable_password()
+    assert publisher.role == "admin"
 
 
 # rule: BR-HH-001
@@ -151,3 +152,37 @@ def test_seed_rules_rejects_missing_lico_retrieval_date(tmp_path: Path) -> None:
         call_command("seed_rules", lico_file=lico_file)
 
     assert not RuleSetVersion.objects.exists()
+
+
+@pytest.mark.django_db
+def test_seed_upgrades_non_login_legacy_beneficiary():
+    user = get_user_model().objects.create_user(email=SEED_USERNAME, role="beneficiary")
+    user.set_unusable_password()
+    user.save(update_fields=["password"])
+    call_command("seed_rules", stdout=StringIO())
+    user.refresh_from_db()
+    assert user.role == "admin"
+    assert not user.has_usable_password()
+
+
+@pytest.mark.django_db
+def test_seed_refuses_to_promote_usable_account():
+    user = get_user_model().objects.create_user(
+        email=SEED_USERNAME, password="example-password", role="beneficiary"
+    )
+    with pytest.raises(CommandError, match="non-login system account"):
+        call_command("seed_rules", stdout=StringIO())
+    user.refresh_from_db()
+    assert user.role == "beneficiary"
+    assert not RuleSetVersion.objects.exists()
+
+
+@pytest.mark.django_db
+def test_seed_corrects_existing_account_even_when_rules_are_already_seeded():
+    call_command("seed_rules", stdout=StringIO())
+    user = get_user_model().objects.get(email=SEED_USERNAME)
+    user.role = "beneficiary"
+    user.save(update_fields=["role"])
+    call_command("seed_rules", stdout=StringIO())
+    user.refresh_from_db()
+    assert user.role == "admin"

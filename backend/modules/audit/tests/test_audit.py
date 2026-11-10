@@ -295,6 +295,8 @@ def test_append_only_migration_is_reversible(event_inputs):
         {},
         {"rule_type": "unknown", "version": 1},
         {"rule_type": "priority", "version": True},
+        {"rule_type": "priority", "version": "1"},
+        {"rule_type": 42, "version": 1},
         {"rule_type": "priority", "version": 0},
         {"rule_type": "priority", "version": 1, "name": "sensitive"},
     ],
@@ -306,3 +308,26 @@ def test_rule_publication_rejects_invalid_metadata(event_inputs, metadata):
     with pytest.raises(ValidationError):
         services.record(**event_inputs)
     assert not AuditEvent.objects.exists()
+
+
+def test_rule_publication_rejects_wrong_target_type(event_inputs):
+    event_inputs.update(
+        action="rule_published",
+        target_type="household",
+        metadata={"rule_type": "priority", "version": 1},
+    )
+    with pytest.raises(ValidationError, match="metadata"):
+        services.record(**event_inputs)
+    assert not AuditEvent.objects.exists()
+
+
+def test_rule_publication_records_valid_metadata(event_inputs):
+    event_inputs.update(
+        action="rule_published",
+        target_type="rule_set_version",
+        target_id=1,
+        metadata={"rule_type": "priority", "version": 1},
+    )
+    event = services.record(**event_inputs)
+    assert event.metadata == {"rule_type": "priority", "version": 1}
+    assert event.actor == event_inputs["actor"]
