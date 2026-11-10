@@ -1,0 +1,5 @@
+# AI contribution: 50% or more AI-generated
+# ZAP baseline rules for the CI scan (FIX-17, SEC-10). One alert per line, tab-separated:
+# <plugin id>	IGNORE|WARN|FAIL	(<alert name>) <why it is accepted>
+# Only accepted false positives belong here, each with its reason. The CI job fails on
+# any High-risk alert that is not ignored here (.github/scripts/zap_gate.py).
