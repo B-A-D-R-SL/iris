@@ -38,6 +38,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| FIX-11 Shared role groups and authentication events (#637) | `backend/modules/accounts/{roles,queries,models,apps,signals}.py`, account role/event tests, accounts README, permission checks in listings/eligibility/audit/households, `backend/iris/{settings/base,observability}.py`, route/logging tests, `backend/pyproject.toml`, `docs/guides/observability.md`, `AI_USAGE.md` | 50% or more AI-generated | Not yet opened (`FIX-11-roles-and-auth-logging` branch) |
 | US-25 duplicate check and tests (#479, #478) | `backend/modules/households/`, `backend/iris/settings/base.py`, `docs/02-requirements/business-rules.md`, `docs/03-design/api.md`, generated API types, `AI_USAGE.md` | 50% or more AI-generated | [#660](https://github.com/B-A-D-R-SL/iris/pull/660) |
 | US-63 Household search (#553, #554; tests #552) | `backend/modules/households/`, `backend/modules/audit/{services.py,README.md,tests/test_household_views.py}`, `backend/iris/{asgi.py,settings/base.py,settings/local.py}`, `backend/{.env.example,tests/test_backend_config.py}`, `frontend/src/app/{App,RequireHouseholdSearch}.tsx`, `frontend/src/areas/staff/pages/Search*`, `frontend/src/features/households/{searchApi,useHouseholdSearch}*`, `frontend/src/test/{householdSearch.ts,render.tsx}`, routes, translations, generated API types and search documentation | 50% or more AI-generated; generated migration and API types exempt | [#662](https://github.com/B-A-D-R-SL/iris/pull/662) |
 | SET-33 Colour prototypes and design docs (#651) | `docs/03-design/mockups/` (Release 1 coloured exports under the existing names, plus `Foundations.png` and the new-screen PNGs), `docs/guides/design-system.md` (Theme tokens and status map), `AI_USAGE.md` | 50% or more AI-generated for the Theme documentation; mockup PNGs are Figma exports | [#668](https://github.com/B-A-D-R-SL/iris/pull/668) |
@@ -277,6 +278,13 @@ At least half of the AI-assisted features need an example here. For each one:
 - **What the AI produced:** files, commit or pull request
 - **How we verified it:** the automated tests or the review comment that checked it
 - **Problems found and corrections:** what was wrong or rejected, and what we changed
+
+### FIX-11 Shared role groups and authentication events (#637)
+
+- **What the AI produced:** shared store/staff role groups and an admin check, reused by model constraints and permissions; Django session signal handlers; UUID-only success log fields; browser-only headless authentication; tests and documentation.
+- **Design:** `User.Role` aliases the enum in `accounts/roles.py` so the model can import public query groups without a circular import. Both user and invitation store constraints use the same group. Audit search remains admin-only. Household staff permissions also use the shared staff group.
+- **Logging:** Django signals cover browser and admin sessions once per sign-in/out. Only `iris.auth` success events can serialize a UUID `user_id`; failed attempts, anonymous sign-out, credentials and other personal details are excluded.
+- **Verification:** all 1,378 backend tests passed at 94.16% coverage. Ruff, mypy, all four import contracts, migration checks, all eight API-generator tests and TypeScript passed. API types were regenerated without changes; no migration was needed. Tests cover role separation, admin access, session events, log privacy, app-route 404 responses and the browser config endpoint.
 
 ### T-09.62.1–2 Audit tests and service (#548, #549)
 
