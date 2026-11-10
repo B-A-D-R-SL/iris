@@ -266,7 +266,7 @@ export interface components {
       category: string;
       /** Format: uuid */
       id: string;
-      /** @description Cards were already scoped to the approved household by the query. */
+      /** @description Read-only photo link that expires within five minutes; null when no photo is available or photo storage is unavailable. */
       photo_url: string | null;
       /** Format: date-time */
       pickup_end: string;

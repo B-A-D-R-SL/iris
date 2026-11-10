@@ -48,7 +48,13 @@ class ListingCardSerializer(serializers.Serializer):
     units_left = serializers.IntegerField(read_only=True)
     unit = serializers.CharField(read_only=True)
     best_before = serializers.DateField(read_only=True, allow_null=True)
-    photo_url = serializers.SerializerMethodField(allow_null=True)
+    photo_url = serializers.SerializerMethodField(
+        allow_null=True,
+        help_text=(
+            "Read-only photo link that expires within five minutes; null when no photo "
+            "is available or photo storage is unavailable."
+        ),
+    )
 
     def get_photo_url(self, card: dict[str, Any]) -> str | None:
         """Cards were already scoped to the approved household by the query."""

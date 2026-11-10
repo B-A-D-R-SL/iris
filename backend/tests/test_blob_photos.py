@@ -10,7 +10,13 @@ from unittest.mock import MagicMock
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
-from azure.core.exceptions import AzureError, ResourceExistsError, ResourceNotFoundError
+from azure.core.exceptions import (
+    AzureError,
+    ResourceExistsError,
+    ResourceNotFoundError,
+    ServiceRequestError,
+)
+from azure.core.pipeline.transport import HttpTransport, RequestsTransport
 from azure.storage.blob import BlobServiceClient
 from PIL import Image
 
@@ -54,6 +60,21 @@ def photo_bytes() -> bytes:
         output = BytesIO()
         image.save(output, format="PNG", exif=exif)
         return output.getvalue()
+
+
+def test_storage_connection_failure_retries_once_after_one_second(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Exercise the real SDK policy without networking or a wall-clock delay."""
+    send = MagicMock(side_effect=ServiceRequestError("synthetic connection failure"))
+    sleep = MagicMock()
+    monkeypatch.setattr(RequestsTransport, "send", send)
+    monkeypatch.setattr(HttpTransport, "sleep", sleep)
+    store = BlobPhotoStore(photo_config())
+    with pytest.raises(PhotoStorageError, match="temporarily unavailable"):
+        store.read_link(REFERENCE)
+    assert send.call_count == 2
+    sleep.assert_called_once_with(1)
 
 
 def test_upload_stores_only_processed_bytes_and_never_overwrites() -> None:

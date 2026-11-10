@@ -17,6 +17,7 @@ from azure.storage.blob import (
     BlobServiceClient,
     ContainerClient,
     ContentSettings,
+    LinearRetry,
     generate_blob_sas,
 )
 
@@ -134,7 +135,8 @@ class BlobPhotoStore:
                 self.config.account_name, self.config.account_key
             ),
             api_version=STORAGE_API_VERSION,
-            retry_total=1,
+            # Avoid the SDK's 15-21 second default backoff on request paths.
+            retry_policy=LinearRetry(backoff=1, retry_total=1, random_jitter_range=0),
             connection_timeout=3,
             read_timeout=5,
             logging_enable=False,
