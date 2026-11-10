@@ -1,4 +1,6 @@
 <!-- AI contribution: 50% or more AI-generated -->
+<!-- Size exception: the course uses this central contribution inventory to audit
+file declarations alongside their verification history across features. -->
 # AI usage
 
 How the Iris team uses generative AI, as required by the course rubric. This file stays up to date every iteration.
@@ -17,6 +19,9 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | ChatGPT (OpenAI) | Implemented the US-11 Store model, migration, admin registration, service, and test factory from Leon's approved T-02.11.2 plan. | Leon Kojakian (#441) |
 | ChatGPT (OpenAI) | Implemented the idempotent B.A.D.R. Store seed command and expanded its tests from Leon's approved T-02.11.3 plan. | Leon Kojakian (#442) |
 | ChatGPT (OpenAI) | Implemented the T-01.01.3 sign-in screen, browser session handling, sign-out controls, translations, and frontend tests under Leon's approved plan. | Leon Kojakian (#425) |
+| ChatGPT (OpenAI) | Drafted executable invitation service, API, RuleSet, and frontend tests from Leon's approved T-01.04.1 plan; Leon specified that invitations create new accounts only. | Leon Kojakian (#429) |
+| ChatGPT (OpenAI) | Implemented the Invitation model, atomic creation/acceptance services, public acceptance API, RuleSet lifetime, translations, migration, and documentation from Leon's approved T-01.04.2 plan. | Leon Kojakian (#430) |
+| ChatGPT (OpenAI) | Implemented the public invitation password page, typed API helper, French/English messages and frontend tests from Leon's approved T-01.04.3 plan; verified browser layouts and existing-session preservation. | Leon Kojakian (#431) |
 | ChatGPT (OpenAI) | Implemented and reviewed the Categories reference module (#377), Django module scaffolding, import-boundary checks, documentation, and tests for SET-14 (#405). | Owner of #377 and #405 |
 | ChatGPT (OpenAI) | The user provided architecture-aligned skeleton code and pseudocode as the foundation for US-17. ChatGPT assisted in generating approximately 50% of the remaining implementation, including walk-in registration models, normalization, services, staff API, tests, migrations, and documentation. ChatGPT also assisted with debugging Docker/PostgreSQL migrations, Ruff, mypy, import-linter, OpenAPI, and frontend API types. The user directed the implementation and performed local verification. | Owner of #463 and #464 (US-17) |
 | Claude Code (Anthropic) | Analyzed US-12 against the team pack, then implemented the PartnerApplication model, Store link, submission service, public API, Django admin, translations and tests from Ryan's approved T-02.12.2/T-02.12.1 plan. | Ryan Cheung (#444, #445) |
@@ -33,6 +38,13 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| US-25 duplicate check and tests (#479, #478) | `backend/modules/households/`, `backend/iris/settings/base.py`, `docs/02-requirements/business-rules.md`, `docs/03-design/api.md`, generated API types, `AI_USAGE.md` | 50% or more AI-generated | [#660](https://github.com/B-A-D-R-SL/iris/pull/660) |
+| US-63 Household search (#553, #554; tests #552) | `backend/modules/households/`, `backend/modules/audit/{services.py,README.md,tests/test_household_views.py}`, `backend/iris/{asgi.py,settings/base.py,settings/local.py}`, `backend/{.env.example,tests/test_backend_config.py}`, `frontend/src/app/{App,RequireHouseholdSearch}.tsx`, `frontend/src/areas/staff/pages/Search*`, `frontend/src/features/households/{searchApi,useHouseholdSearch}*`, `frontend/src/test/{householdSearch.ts,render.tsx}`, routes, translations, generated API types and search documentation | 50% or more AI-generated; generated migration and API types exempt | [#662](https://github.com/B-A-D-R-SL/iris/pull/662) |
+| SET-33 Colour prototypes and design docs (#651) | `docs/03-design/mockups/` (Release 1 coloured exports under the existing names, plus `Foundations.png` and the new-screen PNGs), `docs/guides/design-system.md` (Theme tokens and status map), `AI_USAGE.md` | 50% or more AI-generated for the Theme documentation; mockup PNGs are Figma exports | [#668](https://github.com/B-A-D-R-SL/iris/pull/668) |
+| FIX-15 Seed command boundary and household expiry (#641) | `backend/iris/management/commands/seed.py`, `backend/modules/households/domain/expiry.py`, `backend/modules/households/models.py`, `backend/modules/households/tests/test_expiry.py`, `backend/tests/test_seed.py`, `backend/pyproject.toml`, `docs/04-architecture/architecture.md`, `AI_USAGE.md` | 50% or more AI-generated | [#663](https://github.com/B-A-D-R-SL/iris/pull/663) |
+| T-01.04.3 Invitation password page (#431) | `frontend/src/areas/public/pages/AcceptInvitation{,.test}.tsx`, `frontend/src/features/accounts/invitations{,.test}.ts`, `frontend/src/app/App.tsx`, `frontend/src/shared/i18n/{fr,en}.json`, `frontend/src/shared/logger.ts`, `.coderabbit.yaml`, `backend/modules/accounts/README.md`, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
+| T-01.04.2 Invitation model, services and acceptance API (#430) | `backend/modules/accounts/{models.py,services.py,api/,locale/fr/LC_MESSAGES/,README.md,migrations/0005_invitation.py}`, `backend/modules/accounts/tests/{conftest,test_invitations,test_invitation_logging,test_invitation_errors}.py`, `backend/modules/rules/{domain/schemas.py,tests/test_invitation_rules.py}`, `docs/02-requirements/business-rules.md`, `docs/03-design/{api,database-schema,domain-model}.md`, `docs/04-architecture/architecture.md`, `frontend/src/shared/api/generated.d.ts`, `AI_USAGE.md` | 50% or more AI-generated for source changes; Django migration, compiled catalog and generated API declarations exempt | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
+| T-01.04.1 Invitation acceptance tests (#429) | `backend/modules/accounts/tests/{factories,conftest,test_invitations,test_api}.py`, `backend/modules/rules/tests/test_invitation_rules.py`, `frontend/src/areas/public/pages/AcceptInvitation.test.tsx`, test-only import exceptions in `backend/pyproject.toml`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657); implementation supplied by #430 and #431 |
 | T-09.62.1 Audit tests (#548) | `backend/modules/audit/tests/test_audit.py` | 50% or more AI-generated | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-09.62.2 Audit model and service (#549) | `backend/modules/audit/{models.py,services.py,README.md,migrations/}` | 50% or more AI-generated (migrations exempt) | [#619](https://github.com/B-A-D-R-SL/iris/pull/619) |
 | T-01.01.1 Sign-in and sign-out tests (#423) | `backend/modules/accounts/tests/test_accounts.py`, `frontend/src/app/App.test.tsx`, `AI_USAGE.md` | 50% or more AI-generated | [#610](https://github.com/B-A-D-R-SL/iris/pull/610) |
@@ -74,6 +86,179 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | T-05.35.2 Category admin API and screen (#503) and T-05.35.1 tests (#502) | `backend/modules/listings/tests/test_category_admin.py`, `backend/modules/categories/` (`domain/rules.py`, `queries.py`, `services.py`, `api/serializers.py`, `api/staff_views.py`, `api/staff_urls.py`, `tests/test_staff_api.py`, French catalog, README), `backend/iris/urls.py`, `backend/pyproject.toml` (test-only import exceptions), `frontend/src/features/categories/` (`adminApi.ts`, `categoryForm.ts`, `CategoryDialog.tsx`, `CategoriesPage.tsx` and tests), translations, regenerated API types, `docs/02-requirements/forms-and-fields.md`, `docs/03-design/{api,database-schema}.md`, `AI_USAGE.md` | 50% or more AI-generated (generated API declarations and compiled catalog exempt) | Not yet opened (`user_story/US-35` branch) |
 
 ## Examples, verification and corrections
+
+### US-25 Duplicate checking and tests (#479, #478)
+
+- **AI help:** ChatGPT helped build the search, submission service, locks, staff API, translations, migration, tests, and docs.
+- **Approved policy:** suspended files count as possible duplicates; files whose `expires_at` is in the past do not. Active intake workers and admins share non-anonymized walk-in files, including another worker's and unassigned files. `created_by` records provenance. Approval stays in US-18.
+- **Initial checks:** 803 backend tests passed, with 93.21% coverage. The 120 household tests reached 93.49%, including six tests with two database connections. Domain coverage exceeds 90%. Lint, types, module rules, migration checks, schema generation, eight API-generator tests, and TypeScript checks passed.
+- **Fixes:** migration 0004 updates old search keys. Rollback keeps those keys; names and addresses stay unchanged. The API keeps its existing status type name. The development database was not migrated.
+- **PR review:** ChatGPT helped split the concurrency test, record submission actors, log outcomes after commit, and add the 15-person boundary test. Draft, submission and serializer checks share the household-size RuleSet; its approved seed default is 15 including the holder, with tests at a configured limit of 3 and for missing configuration (BR-HH-001). A public lock-and-check context keeps the caller's write in the transaction. French status labels follow the glossary.
+- **Review checks:** 825 backend tests passed at 93.34% coverage; 142 household tests passed at 94.13%. All six concurrency cases, lint, formatting, typing, module boundaries, migration checks, API generation, eight generator tests, and TypeScript checks passed.
+- **RuleSet update:** the full backend suite passed 840 tests at 93.38% coverage. Household and rule tests cover configured limits, missing configuration and idempotent seeding. Existing databases need `python manage.py seed_rules`; existing versions are kept.
+- **Policy checks:** 303 household and RuleSet tests passed, including expiry boundaries, suspended candidates and staff permissions. Ruff lint and formatting, type checks for the changed views, queries and services, and diff checks passed.
+- **Main integration:** ChatGPT resolved the search, invitation and settings conflicts while keeping the approved household rules. Search excludes anonymized files before counts, pages and audits; resume flags follow the walk-in edit rule. A merge migration joins the search and duplicate-check branches. API types were regenerated.
+- **Merge checks:** 1,240 backend tests and 443 frontend tests passed. Ruff, backend/frontend type checks, frontend lint, module boundaries, migration checks, API types and diff checks passed.
+- **CI load test:** ChatGPT found that the benchmark server's 10-connection queue could overflow under the 64-worker driver. A Linux regression failed with the original queue. The test server now queues 128 connections; the 100 requests/second and 500 ms p95 targets stay unchanged. Failed assertions include the complete timing report.
+- **Load-test checks:** 1,241 backend tests passed with 93.95% coverage. All 16 load-server/client checks passed in a two-CPU Linux container. Ruff, targeted type checks and diff checks passed.
+- **Final review fixes:** duplicate advisory locks use a positive, configurable wait limit and restore the caller's timeout after acquisition. A timeout rolls back before returning a generic 503. Missing or invalid size rules use the same translated response and a privacy-safe log event. Tests now use real deactivated sessions and verify transaction boundaries without Django's test wrapper. Staff access tests are grouped in `test_api.py`; repeated duplicate cases were removed.
+- **Final checks:** 1,268 backend tests passed with 93.94% coverage, including 490 household, RuleSet and configuration tests. Ruff, backend/frontend type checks, module boundaries, migration checks, API drift checks, eight generator tests and diff checks passed.
+- **Access-test follow-up:** ChatGPT split the API, query and service tests by operation, keeping all 64 staff-access cases. All 85 access tests and 1,268 backend tests passed; coverage stayed at 93.94%. Ruff, complexity checks, mypy and diff checks passed. The PR description and verified issue checkboxes were updated.
+- **Search-load follow-up:** after CI exceeded the 500 ms p95 target, ChatGPT inspected query plans and removed a redundant household ID subquery that caused a second table scan. A regression failed on the old query and passed on the direct predicate. All 85 focused search tests passed. The two-CPU Linux HTTP tests passed at the unchanged 100 requests/second and 500 ms limits (56.71 ms p95); Ruff, mypy, module boundaries and diff checks passed.
+- **Shared-access restoration:** following [MassPaol's confirmation with Mark](https://github.com/B-A-D-R-SL/iris/pull/660#issuecomment-6730240599), ChatGPT restored shared staff access in queries, resume permissions, tests and docs. Cross-worker submissions preserve the original creator and record the submitting actor. Anonymized files, inactive accounts and nonstaff roles remain refused. All 1,266 backend tests passed at 93.97% coverage; Ruff, mypy, module boundaries, migration checks, API drift and diff checks passed.
+
+### US-63 Household search and tests (#552, #553, #554)
+
+- **What the AI produced:** under Mark's direction, the staff search API,
+  normalized search columns and indexes, migration, audit integration and
+  French/English search screen with pagination and a typing delay. Search covers
+  partial or accented member names, email, phone, address and member number.
+  ChatGPT also helped write tests, generated API types and documentation.
+- **Owner's decisions:** Mark requested the backend before the frontend and
+  required the existing Docker setup to be preserved. For safety, he reviewed
+  the database connection, backup and migration.
+- **Verification:** Mark reviewed the implementation, saved-draft flow, local
+  database, search fields and household/member links. Automated checks cover role
+  permissions, shared staff access, anonymized-file refusal, read-only queries,
+  API/database integration, accents, pagination, migration reversal, audit failure
+  handling, response validation and search authorization in the frontend. Lint,
+  formatting, type checks, module boundaries and migration checks are part of the
+  verification workflow. Current test and coverage results belong in CI output;
+  this record does not retain numerical performance or coverage snapshots for US-63.
+- **Problems found and corrections:** normalized search columns and trigram
+  indexes address broad searches, WSGI startup validates routes before accepting
+  requests, and healthy database connection reuse avoids repeated connection
+  setup. The ASGI entry point identifies its server interface before Django loads
+  settings; settings disable persistence without rewriting the configured lifetime.
+  Test diagnostics use structured logging; the subprocess JSON protocol remains
+  separate. Existing PostgreSQL extensions are reused in their installed schemas.
+  Search access is decided by the API, including the frontend screen's access
+  probe. Mark confirmed shared staff access and accepted the central AI inventory's
+  size. Staging and phone/4G checks remain deployment verification. Repeatable
+  commands and thresholds are in the [verification guide](docs/guides/household-search.md).
+
+
+### T-01.04.3 Invitation password page (#431)
+
+- **What the AI produced:** under Leon's approved plan, the public
+  `/invitation/:token` password-and-confirmation page, generated-type API
+  helper, French/English messages, additional page/helper tests and updated
+  API/module documentation. Confirmation stays in the browser; the backend
+  remains responsible for token validation and the full password policy.
+- **Owner's decisions:** successful anonymous acceptance opens `/sign-in`.
+  An existing session is preserved, with completion guidance to use the
+  existing sign-out control before signing into the new account. Issuing
+  screens, email delivery and approval workflows remain in their own stories.
+- **Initial implementation verification:** all **395 frontend tests across 28 files** passed,
+  including 15 page cases and 21 API-helper cases. Added executable frontend
+  lines have **100% coverage** (87/87); overall frontend line coverage is
+  **94.37%**. The full run used two workers and a 15-second per-test timeout
+  after existing listing cases exceeded the default five seconds; no tests
+  were skipped or assertions changed to accommodate this. Frontend type
+  checking, ESLint, Prettier and the production build passed.
+  Disposable Chromium checks passed in French and English at
+  360px and 1024px, including expiry/retry, CSRF bootstrap, live translation,
+  navigation to sign-in and signed-in completion. Browser API responses were
+  mocked; these checks did not write database data or replace #430's backend
+  API-to-database tests.
+- **Problems found and corrections:** focused tests exposed missing explicit
+  `aria-invalid` on password controls for backend field errors and an ambiguous
+  test status query. Both were corrected. Backend field text is hidden after
+  a language switch until the visitor submits again; entered passwords remain.
+- **PR #657 focus correction:** under Leon's direction, replaced error-object
+  focus dependencies with a counter that advances only on failed submissions.
+  Editing, blur validation and language changes keep the visitor's focus;
+  repeated local or API failures still focus the summary. The temporary
+  reproduction failed before the fix and passed afterward. All **38 invitation
+  tests** passed (17 page cases and 21 API-helper cases), including two new
+  focus regressions and a language-switch focus assertion. ESLint, Prettier,
+  TypeScript and the production build passed for this correction.
+- **PR #657 pre-merge corrections:** under Leon's approved scope, renamed the
+  role/API tests to `test_api.py` and updated the import-boundary exception;
+  added event-only backend logs after commit and frontend failure events;
+  documented size exceptions for the shared references and test-registration
+  callbacks. `.coderabbit.yaml` excepts only the file length of the two complete
+  locale catalogs, without changing function or complexity limits. The accounts
+  README documents the new commit-time events. Intentional translated password
+  validation feedback remains available to users.
+- **Review-fix verification:** 132 existing accounts/invitation-rule cases and
+  all four new logging tests passed. The new tests inspect raw event records,
+  verify deferred emission and rollback suppression, and reject recipient or
+  secret data in logs. All 45 focused frontend tests passed with one worker and
+  a 15-second test timeout, including real logger-output privacy assertions,
+  the invitation page and translation parity. Ruff, mypy, module boundaries,
+  ESLint, Prettier, TypeScript, production build, YAML parsing and individual
+  function/test size checks passed. The four new logging cases were rerun with
+  `iris.settings.test` after correcting their per-phase log-capture fixture.
+
+- **PR #657 remaining error/size checks:** restored the ledger's adjacent size
+  justification and extracted persisted-account assertions while retaining the
+  API-to-database-to-sign-in path. Django password codes and safe parameters now
+  survive service wrapping; approved invitation/password translations replace
+  arbitrary exception text. Unknown codes and field names receive generic
+  feedback. The French catalog was compiled from the updated `.po`. Unexpected
+  page failures log only a fixed event, and handled API errors are not logged
+  twice. The accounts README documents this behavior.
+- **Final targeted verification:** all 129 invitation API, service, logging,
+  error-mapping and RuleSet cases passed with `iris.settings.test`, including
+  37 new mapping/privacy cases. All 47 focused frontend cases passed (19 page,
+  21 helper, one logger and six translation cases), including two new page-error
+  regressions. Ruff, mypy, module boundaries, ESLint, Prettier, TypeScript,
+  production build and translation-catalog checks passed. Individual changed
+  functions/tests satisfy 50 lines; the main integration test and its account
+  helper have assertion-inclusive complexity scores of nine and eight.
+
+### T-01.04.2 Invitation model, services and acceptance API (#430)
+
+- **What the AI produced:** under Leon's approved plan, the Invitation model
+  and incremental migration, secure token creation, atomic acceptance, the
+  public API and translated errors, the invitation RuleSet schema/default,
+  regenerated API types and documentation aligned with new accounts only.
+- **Owner's decisions:** an existing active or inactive account is never
+  overwritten. Tokens encode 32 random bytes and only their SHA-256 hash is
+  stored. The saved expiry comes from `invitations.expires_after_days`, whose
+  initial value is seven days. Acceptance does not sign in or switch sessions.
+  Issuing screens, email delivery and other stories' approval workflows remain
+  separate; the public password page is #431.
+- **Verification:** all 88 invitation backend cases passed, including the
+  #429 tests and additional malformed-configuration, database-constraint,
+  rollback and competing-invitation cases. Ruff, mypy, module-boundary checks,
+  Django system/migration checks, OpenAPI validation, API declaration drift
+  checking and the frontend TypeScript/production build passed.
+  The full backend suite passed **816 tests** with **92.96% overall coverage**.
+  Added executable lines in changed production files have **97.42% coverage**
+  (151/155); the modified RuleSet domain module has **100% coverage**.
+  The local invitation migration applied cleanly. The idempotent rule seed
+  added invitation version 1 and a previously missing `listing_posting`
+  version 1 without rewriting existing versions.
+- **Problems found and corrections:** the local backend image does not contain
+  GNU `msgfmt`; the existing host Babel compiler produced the tracked French
+  catalog without introducing a runtime dependency. Email uniqueness races
+  are translated only for the known email constraints, and the tests verify
+  that unrelated database failures roll back and propagate.
+
+### T-01.04.1 Invitation acceptance tests (#429)
+
+- **What the AI produced:** under Leon's approved plan, executable service,
+  API-to-database, RuleSet and public-page tests, generated invitation inputs,
+  deterministic clock fixtures and narrowly scoped test import exceptions.
+- **Owner's decisions:** invitations create new accounts only; existing active
+  and inactive accounts must never be overwritten. The initial invitation
+  lifetime is seven days, configured as `invitations.expires_after_days` in
+  RuleSet. Invitation issuing screens, email delivery, partner approval and
+  household approval remain with their respective stories.
+- **Verification at the tests-first commit:** all 74 backend cases collected
+  without importing absent invitation symbols at module load. They failed
+  because the Invitation model, acceptance endpoint and invitation RuleSet did
+  not exist yet; all 11 frontend cases failed because the route/page did not
+  exist. The existing 75 accounts/rules backend tests and 29 sign-in and
+  translation frontend tests pass. Mypy, frontend type checking, Ruff, ESLint,
+  formatting and module-boundary checks pass for the test changes.
+- **Follow-up verification:** #430 supplied the backend implementation and
+  passed 88 invitation cases. #431 supplied the public page and passed its
+  original 11 cases plus four added page cases and 21 API-helper cases.
+  No test is skipped or replaced with a fake implementation. Story PR checks
+  and teammate review remain required before closing the task.
 
 ### T-09.62.3 Audit search API and screen (#550)
 
@@ -122,6 +307,30 @@ At least half of the AI-assisted features need an example here. For each one:
 - **What the AI produced:** the `seed` command, the fixed fictional plan (seed 18), household and reservation tables taken from the published schema, and `docs/04-data/seed-data.md`.
 - **How we verified it:** `test_seed_plan` checks the agreed counts, status spread, stock limits, and fictional contact details. `test_seed` runs `manage.py seed` on an empty database, checks 1 admin, 2 intake workers, B.A.D.R. plus 4 partner stores, 50 households, 30 listings, and 40 reservations, then runs it again and checks that edited rows are kept.
 - **Problems found and corrections:** household and reservation models did not exist yet, so the seed could not insert those rows. The tables follow `docs/03-design/database-schema.md`. Registration and pickup workflows are still owned by their own stories.
+
+### FIX-21 Split the mock notice page-drawing functions (#647)
+
+- **What the AI produced:** the split of `_draw_cover_page` and `_draw_calculation_page` into one helper per block of the page; the four functions that choose the text and row order (`review_message`, `important_message`, `calculation_order`, `change_explanation`); and `tests/test_layout.py`, written before the code.
+- **How we verified it:** `test_committed_output_is_up_to_date` regenerates the 50 notices and still matches the committed files byte for byte. Seven deliberate bugs were each caught: five by the new tests, and two drawing changes (row spacing and the gap above the explanation) by the committed-output test. 34 tests passed and ruff was clean; these were local runs, because CI does not run this tool's tests.
+- **Problems found and corrections:** the first plan had a test that "377.1" sorts as a number rather than as text. Every real line number has three digits, so both orders agree and that test could never fail. It was replaced by a test that a line only declared is placed in number order.
+### SET-33 Colour prototypes and design docs (#651)
+
+- **Firas's direction:** keep the Step 4 repository file names so existing links still work, restore later-release grayscale exports, and replace the Theme section in `design-system.md` with the Foundations token table and status map. The wiki and the pull request stay with Firas.
+- **What the AI produced:** the renames and restores under `docs/03-design/mockups/`, and the Theme section (token table, status colour map, colour rules, Foundations link).
+- **How we verified it:** the mockups folder matches the Step 4 file list; later-release PNGs match `HEAD`; the Theme hex values and Mantine shade names match the Foundations export.
+- **Problems found and corrections:** the first exports used Figma page names (`W4 · …`, `S2 · …`). Step 4 needs the old names (`Staff Review-partnership-application.png`, `Store - Confirm a pickup.png`, …), so the coloured files were copied onto those names and the Figma-named copies were removed.
+
+### FIX-15 Seed command boundary and household expiry (#641)
+
+- **Firas's direction:** keep the seed's direct writes as a documented exception rather than routing fictional rows through services that cannot create those states, and move the expiry rule into the households domain so US-18 can reuse it. Edits that would collide with open pull requests were left out (the households README).
+- **What the AI produced:** the exception note at the top of `seed.py`; the import-linter contract "Only the seed command imports module models"; `households/domain/expiry.py` (calendar months, approved expiry, expiry per status); `test_expiry.py`; the seed changes; and the matching `test_seed.py`, `architecture.md` and model edits.
+- **How we verified it:** 881 backend tests passed with 93% coverage; ruff, mypy, lint-imports (4 contracts kept) and `makemigrations --check` were clean. `manage.py seed` on a local database still gave 50 households, 30 listings and 40 reservations. Trial merges against the open pull requests found no new conflicts in code.
+- **Problems found and corrections:**
+  - CodeRabbit flagged a minimum-month module constant in `domain/` and a stale pull request link here; both were removed or updated.
+  - MassPaol's review found that approved demo files lasted 12 months and 30 days, because the months were counted from the seed date instead of the backdated approval. `test_seed.py` built its expected value the same way, so it passed anyway. The seed now counts from the approval date, and the test fails on the old behaviour.
+  - Months were counted on the UTC calendar: 30 January 22:00 in Montreal gave 27 February instead of 28 February. The seed now passes Montreal local time, and a test covers that case.
+  - The seed caught every `ValueError` as a bad month count; the domain now raises `InvalidApprovedMonths` and only that is caught. Tests were added for a missing `file_validity` rule and a broken month count.
+  - The contract covered `iris` only; it now covers `adapters` too. The three status names were duplicated in the domain and the model; `Household.Status` now builds them from the domain constants.
 
 ### T-01.01.1 Sign-in and sign-out tests (#423)
 

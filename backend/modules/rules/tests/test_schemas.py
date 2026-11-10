@@ -1,3 +1,4 @@
+# AI contribution: Below 50% AI-generated
 from copy import deepcopy
 
 import pytest
@@ -99,3 +100,12 @@ def test_unknown_rule_type_is_refused() -> None:
 def test_every_supported_rule_type_has_exactly_one_schema() -> None:
     assert set(RULE_SCHEMAS) == set(RULE_TYPES)
     assert set(DEFAULT_RULE_VALUES) == set(RULE_TYPES) - {"lico_thresholds"}
+
+
+# rule: BR-HH-001
+@pytest.mark.parametrize(
+    "values", [{}, {"max_people": 0}, {"max_people": True}, {"max_people": 1.5}]
+)
+def test_household_size_requires_a_positive_integer(values) -> None:
+    with pytest.raises(RuleValidationError):
+        validate_rule_values("household_size", values)

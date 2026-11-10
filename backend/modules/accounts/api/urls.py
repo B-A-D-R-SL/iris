@@ -3,6 +3,13 @@
 
 from django.urls import path
 
-from modules.accounts.api.views import current_user
+from modules.accounts.api.views import AcceptInvitationView, current_user
 
-urlpatterns = [path("me/", current_user, name="current-user")]
+urlpatterns = [
+    path("me/", current_user, name="current-user"),
+    path(
+        "invitations/accept/",
+        AcceptInvitationView.as_view(),
+        name="invitation-accept",
+    ),
+]

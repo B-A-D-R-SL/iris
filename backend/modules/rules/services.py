@@ -1,4 +1,3 @@
-# AI contribution: 50% or more AI-generated
 """Write operations for versioned business-rule settings."""
 
 import logging

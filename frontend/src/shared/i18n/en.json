@@ -25,10 +25,12 @@
       "roleStoreManager": "Store manager",
       "roleBeneficiary": "Household",
       "actionView": "View",
+      "actionRulePublished": "Rule published",
       "actionDecision": "Decision",
       "outcomeApproved": "Approved",
       "outcomeRejected": "Rejected",
       "outcomeReview": "Review required",
+      "targetRuleSetVersion": "Rule version",
       "targetHousehold": "Household"
     }
   },
@@ -128,6 +130,34 @@
       "taxYear": "Tax year",
       "lowIncomeCutoff": "Low income cut-off (LICO)",
       "title": "Eligibility"
+    },
+    "search": {
+      "label": "Find a household",
+      "description": "Name, email, phone, member number or address.",
+      "clear": "Clear search",
+      "start": "Start typing to find a household",
+      "empty": "No households found",
+      "emptyDescription": "Check your search or try another detail.",
+      "email": "Email",
+      "phone": "Phone",
+      "address": "Address",
+      "unit": "unit {{unit}}",
+      "notProvided": "Not provided",
+      "unnamed": "Name not provided",
+      "noMemberNumber": "Member number not assigned",
+      "resume": "Resume registration",
+      "newRegistration": "New registration",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {{page}}",
+      "pagination": "Result pages",
+      "results": "Search results",
+      "staffOnly": "Information restricted to authorized staff.",
+      "denied": "Access denied",
+      "deniedDescription": "Sign in again with an authorized staff account.",
+      "signIn": "Sign in again",
+      "countOne": "{{count}} household found",
+      "countOther": "{{count}} households found"
     }
   },
   "category": {
@@ -262,6 +292,22 @@
       "locked": "Too many attempts. Try again in 15 minutes.",
       "unavailable": "Sign in is unavailable. Please try again.",
       "useAnotherAccount": "Use a different account"
+    },
+    "invitation": {
+      "title": "Set your password",
+      "submit": "Set my password",
+      "passwordHelp": "Use at least 10 characters. Avoid common passwords and words similar to your name or email address.",
+      "passwordTooShort": "Use at least 10 characters.",
+      "passwordMismatch": "Enter the same password in both fields.",
+      "expired": "This invitation link has expired.",
+      "used": "This invitation link has already been used.",
+      "invalid": "This invitation link is invalid.",
+      "emailRegistered": "An account already uses this email address.",
+      "unavailable": "Invitation acceptance is unavailable. Please try again.",
+      "checkPassword": "Check the password and its confirmation.",
+      "success": "The new account is ready.",
+      "signedInGuidance": "You are still signed in to your current account. Use Sign out in the header before signing in to the new account.",
+      "newLinkHelp": "Ask the person who invited you for a new link."
     },
     "signup": {
       "email": "Email address",

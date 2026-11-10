@@ -12,6 +12,7 @@ from rest_framework import serializers
 
 from modules.households.domain.address import normalize_postal_code
 from modules.households.domain.person import valid_name, validate_birth_date
+from modules.households.limits import max_household_people
 from modules.households.messages import domain_error_message
 from modules.households.models import Household, Member
 
@@ -136,8 +137,7 @@ class MemberInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
 
 @extend_schema_field(MemberInputSerializer(many=True))
 class CompleteMembersField(serializers.Field):
-    """The member list replaces every other member, so each item must be complete,
-    even in a PATCH (a nested serializer would inherit the PATCH's partial mode)."""
+    """Require complete replacements; nested serializers inherit PATCH partial mode."""
 
     def to_internal_value(self, data: Any) -> list[dict[str, Any]]:
         if not isinstance(data, list):
@@ -162,9 +162,12 @@ class WalkInDraftInputSerializer(RejectUnknownFieldsMixin, serializers.Serialize
     consent_data_processing = serializers.BooleanField(required=False)
 
     def validate_members(self, members):
-        if len(members) > 14:
+        """The holder already occupies one place in the household."""
+        limit = max_household_people()
+        if len(members) > limit - 1:
             raise serializers.ValidationError(
-                _("Add at most 14 people besides the holder.")
+                _("Add at most %(limit)s people besides the holder.")
+                % {"limit": limit - 1}
             )
         return members
 
@@ -173,10 +176,29 @@ class WalkInDraftInputSerializer(RejectUnknownFieldsMixin, serializers.Serialize
         return address
 
 
+class HouseholdErrorSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    message = serializers.CharField()
+    fields = serializers.DictField(
+        child=serializers.ListField(child=serializers.CharField())
+    )
+
+
 class MemberReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Member
         fields = ("id", "first_name", "last_name", "date_of_birth", "relation")
+        read_only_fields = fields
+
+
+class WalkInSubmissionInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
+    """Submit saved data; no input fields are allowed."""
+
+
+class WalkInSubmissionReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Household
+        fields = ("id", "status", "status_reason", "submitted_at")
         read_only_fields = fields
 
 

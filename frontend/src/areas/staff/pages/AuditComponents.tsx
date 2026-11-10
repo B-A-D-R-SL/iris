@@ -1,6 +1,5 @@
-// AI contribution: 50% or more AI-generated
 import { Button, Group, Stack, Table, Text, TextInput } from "@mantine/core";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { components } from "../../../shared/api/generated";
 import type { Filters } from "./Audit";
@@ -89,6 +88,15 @@ export function AuditResultsTable({
   locale: string;
 }) {
   const { t } = useTranslation();
+  const formatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: "America/Montreal",
+      }),
+    [locale],
+  );
   return (
     <Table.ScrollContainer minWidth={800}>
       <Table striped highlightOnHover withTableBorder>
@@ -104,13 +112,7 @@ export function AuditResultsTable({
             const outcome = getOutcome(event.metadata);
             return (
               <Table.Tr key={event.id}>
-                <Table.Td>
-                  {new Intl.DateTimeFormat(locale, {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                    timeZone: "America/Montreal",
-                  }).format(new Date(event.created_at))}
-                </Table.Td>
+                <Table.Td>{formatter.format(new Date(event.created_at))}</Table.Td>
                 <Table.Td>{event.actor}</Table.Td>
                 <Table.Td>{labels[event.actor_role] ?? event.actor_role}</Table.Td>
                 <Table.Td>{labels[event.action] ?? event.action}</Table.Td>

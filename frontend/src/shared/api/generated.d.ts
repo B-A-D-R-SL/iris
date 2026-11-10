@@ -15,6 +15,20 @@ export interface paths {
      */
     get: operations["health_retrieve"];
   };
+  "/api/invitations/accept/": {
+    /**
+     * Accept an invitation and create a new account
+     * @description Public token-authorized action. Creates a new account without signing in or replacing an existing browser session.
+     */
+    post: operations["invitations_accept"];
+  };
+  "/api/listings/": {
+    /**
+     * Browse the listings the signed-in household can see
+     * @description The listings the signed-in household can see, 20 a page.
+     */
+    get: operations["listings_list"];
+  };
   "/api/me/": {
     get: operations["me_retrieve"];
   };
@@ -49,7 +63,15 @@ export interface paths {
     patch: operations["staff_categories_update"];
   };
   "/api/staff/households/": {
-    /** Create a resumable walk-in household draft */
+    /**
+     * Find a household (intake workers and administrators)
+     * @description Record disclosure audits before returning authorized search results.
+     */
+    get: operations["staff_households_list"];
+    /**
+     * Create a resumable walk-in household draft
+     * @description Create a resumable draft and return validated field errors on refusal.
+     */
     post: operations["staff_households_create"];
   };
   "/api/staff/households/{id}/": {
@@ -57,6 +79,10 @@ export interface paths {
     get: operations["staff_households_retrieve"];
     /** Edit an existing walk-in household draft */
     patch: operations["staff_households_partial_update"];
+  };
+  "/api/staff/households/{id}/submit/": {
+    /** Submit a walk-in draft and check for duplicates */
+    post: operations["staff_households_submit_create"];
   };
   "/api/store/listings/": {
     /** Post a listing for the signed-in user's active store */
@@ -75,6 +101,11 @@ export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
+    /** @description Accept only the secret token and a password, never account assignments. */
+    AcceptInvitation: {
+      password: string;
+      token: string;
+    };
     /**
      * @description * `view` - View
      * * `decision` - Decision
@@ -102,6 +133,14 @@ export interface components {
       metadata: unknown;
       target_id: string;
       target_type: string;
+    };
+    /** @description The API's error shape: { code, message, fields }. */
+    BrowseError: {
+      code: string;
+      fields: {
+        [key: string]: string[];
+      };
+      message: string;
     };
     /**
      * @description * `grocery` - Épicerie
@@ -176,12 +215,78 @@ export interface components {
       /** @default fr */
       preferred_language?: components["schemas"]["LanguageEnum"];
     };
+    HouseholdError: {
+      code: string;
+      fields: {
+        [key: string]: string[];
+      };
+      message: string;
+    };
+    /** @description Expose minimal household fields and the server-authorized resume action. */
+    HouseholdSearchResult: {
+      /** @description Fail closed when serialization has no authenticated request context. */
+      can_resume: boolean;
+      channel: components["schemas"]["ChannelEnum"];
+      city: string;
+      /** Format: email */
+      email: string | null;
+      first_name: string | null;
+      /** Format: uuid */
+      id: string;
+      last_name: string | null;
+      member_number: string | null;
+      phone: string;
+      postal_code: string;
+      status: components["schemas"]["WalkInDraftReadStatusEnum"];
+      street_name: string;
+      street_number: string;
+      unit: string;
+    };
+    /** @description Confirm completion without returning credentials or account information. */
+    InvitationAccepted: {
+      accepted: boolean;
+    };
+    /** @description Document the shared error envelope used by invitation acceptance. */
+    InvitationError: {
+      code: string;
+      fields: {
+        [key: string]: string[];
+      };
+      message: string;
+    };
     /**
      * @description * `fr` - Français
      * * `en` - English
      * @enum {string}
      */
     LanguageEnum: "fr" | "en";
+    /** @description One card in the browse list, from ``listings.queries.browse_listings``. */
+    ListingCard: {
+      /** Format: date */
+      best_before: string | null;
+      category: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      pickup_end: string;
+      /** Format: date-time */
+      pickup_start: string;
+      store: components["schemas"]["ListingStore"];
+      title: string;
+      unit: string;
+      units_left: number;
+    };
+    /** @description The offering store; a listing's location is always its store's address. */
+    ListingStore: {
+      city: string;
+      /** Format: uuid */
+      id: string;
+      name: string;
+      postal_code: string;
+      street_name: string;
+      street_number: string;
+      unit: string | null;
+    };
     MemberInput: {
       /** Format: date */
       date_of_birth: string;
@@ -277,6 +382,36 @@ export interface components {
        */
       previous?: string | null;
       results: components["schemas"]["AuditEvent"][];
+    };
+    PaginatedHouseholdSearchResultList: {
+      /** @example 123 */
+      count: number;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=4
+       */
+      next?: string | null;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=2
+       */
+      previous?: string | null;
+      results: components["schemas"]["HouseholdSearchResult"][];
+    };
+    PaginatedListingCardList: {
+      /** @example 123 */
+      count: number;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=4
+       */
+      next?: string | null;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=2
+       */
+      previous?: string | null;
+      results: components["schemas"]["ListingCard"][];
     };
     /** @description Submitted partner form; field rules from forms-and-fields.md. */
     PartnerApplication: {
@@ -470,10 +605,10 @@ export interface components {
     /**
      * @description * `draft` - Brouillon
      * * `submitted` - Demande soumise
-     * * `review_required` - Review required
-     * * `awaiting_visit` - Awaiting visit
+     * * `review_required` - Vérification par l'équipe requise
+     * * `awaiting_visit` - Visite en personne requise
      * * `approved` - Approuvé
-     * * `renewal_needed` - Renewal needed
+     * * `renewal_needed` - Renouvellement requis
      * * `suspended` - Suspendu
      * * `rejected` - Refusé
      * @enum {string}
@@ -487,6 +622,14 @@ export interface components {
       | "renewal_needed"
       | "suspended"
       | "rejected";
+    WalkInSubmissionRead: {
+      /** Format: uuid */
+      id: string;
+      status: components["schemas"]["WalkInDraftReadStatusEnum"];
+      status_reason: string;
+      /** Format: date-time */
+      submitted_at: string | null;
+    };
   };
   responses: never;
   parameters: never;
@@ -526,6 +669,91 @@ export interface operations {
             /** @enum {string} */
             status: "ok";
           };
+        };
+      };
+    };
+  };
+  /**
+   * Accept an invitation and create a new account
+   * @description Public token-authorized action. Creates a new account without signing in or replacing an existing browser session.
+   */
+  invitations_accept: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AcceptInvitation"];
+        "application/x-www-form-urlencoded": components["schemas"]["AcceptInvitation"];
+        "multipart/form-data": components["schemas"]["AcceptInvitation"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["InvitationAccepted"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["InvitationError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["InvitationError"];
+        };
+      };
+      405: {
+        content: {
+          "application/json": components["schemas"]["InvitationError"];
+        };
+      };
+      503: {
+        content: {
+          "application/json": components["schemas"]["InvitationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Browse the listings the signed-in household can see
+   * @description The listings the signed-in household can see, 20 a page.
+   */
+  listings_list: {
+    parameters: {
+      query?: {
+        /** @description A category code, as listed by GET /api/categories/. */
+        category?: string;
+        /** @description Un numéro de page de l'ensemble des résultats. */
+        page?: number;
+        /** @description A store ID. */
+        store?: string;
+        /** @description Only listings that can still be picked up today, Montreal time. */
+        today?: boolean;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PaginatedListingCardList"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
+        };
+      };
+      401: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
         };
       };
     };
@@ -725,7 +953,33 @@ export interface operations {
       };
     };
   };
-  /** Create a resumable walk-in household draft */
+  /**
+   * Find a household (intake workers and administrators)
+   * @description Record disclosure audits before returning authorized search results.
+   */
+  staff_households_list: {
+    parameters: {
+      query?: {
+        /** @description Un numéro de page de l'ensemble des résultats. */
+        page?: number;
+        /** @description Nombre de résultats à retourner par page. */
+        page_size?: number;
+        /** @description Partial name, email, phone, member number or address. Blank returns no files. */
+        q?: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PaginatedHouseholdSearchResultList"];
+        };
+      };
+    };
+  };
+  /**
+   * Create a resumable walk-in household draft
+   * @description Create a resumable draft and return validated field errors on refusal.
+   */
   staff_households_create: {
     requestBody?: {
       content: {
@@ -738,6 +992,11 @@ export interface operations {
       201: {
         content: {
           "application/json": components["schemas"]["WalkInDraftRead"];
+        };
+      };
+      503: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
         };
       };
     };
@@ -775,6 +1034,31 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["WalkInDraftRead"];
+        };
+      };
+      503: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+    };
+  };
+  /** Submit a walk-in draft and check for duplicates */
+  staff_households_submit_create: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["WalkInSubmissionRead"];
+        };
+      };
+      503: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
         };
       };
     };

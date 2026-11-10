@@ -57,10 +57,12 @@ export function Audit() {
     beneficiary: t("audit.search.roleBeneficiary"),
     view: t("audit.search.actionView"),
     decision: t("audit.search.actionDecision"),
+    rule_published: t("audit.search.actionRulePublished"),
     approved: t("audit.search.outcomeApproved"),
     rejected: t("audit.search.outcomeRejected"),
     review_required: t("audit.search.outcomeReview"),
     household: t("audit.search.targetHousehold"),
+    rule_set_version: t("audit.search.targetRuleSetVersion"),
   };
 
   return (

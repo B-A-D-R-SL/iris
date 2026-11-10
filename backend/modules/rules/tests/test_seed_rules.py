@@ -9,9 +9,10 @@ from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
-from modules.rules.domain.schemas import RULE_TYPES
+from modules.rules.domain.schemas import DEFAULT_RULE_VALUES, RULE_TYPES
 from modules.rules.management.commands.seed_rules import SEED_USERNAME
 from modules.rules.models import RuleSetVersion
+from modules.rules.services import publish
 
 
 def write_lico_csv(path: Path, data_rows: list[str] | None = None) -> None:
@@ -32,7 +33,6 @@ def write_lico_csv(path: Path, data_rows: list[str] | None = None) -> None:
 
 @pytest.mark.django_db
 def test_seed_rules_loads_reviewed_2024_lico_values_in_cents() -> None:
-    """Preserve all seven official 2024 amounts and their source metadata."""
     call_command("seed_rules", stdout=StringIO())
 
     lico = RuleSetVersion.objects.get(rule_type="lico_thresholds")
@@ -55,7 +55,6 @@ def test_seed_rules_loads_reviewed_2024_lico_values_in_cents() -> None:
 
 @pytest.mark.django_db
 def test_seed_rules_creates_every_version_once(tmp_path: Path) -> None:
-    """Rerunning the seed leaves version-one rules and their publisher intact."""
     lico_file = tmp_path / "lico_2024.csv"
     write_lico_csv(lico_file)
     output = StringIO()
@@ -81,11 +80,30 @@ def test_seed_rules_creates_every_version_once(tmp_path: Path) -> None:
     assert not publisher.has_usable_password()
 
 
+# rule: BR-HH-001
+@pytest.mark.django_db
+def test_seed_adds_household_size_without_replacing_existing_rules() -> None:
+    publisher = get_user_model().objects.create_user(email="rules-test@example.test")
+    existing = publish("priority", DEFAULT_RULE_VALUES["priority"], publisher)
+
+    call_command("seed_rules", stdout=StringIO())
+
+    existing.refresh_from_db()
+    assert existing.values == DEFAULT_RULE_VALUES["priority"]
+    assert RuleSetVersion.objects.filter(rule_type="priority").count() == 1
+    configured = publish("household_size", {"max_people": 3}, publisher)
+    call_command("seed_rules", stdout=StringIO())
+    versions = RuleSetVersion.objects.filter(rule_type="household_size").order_by(
+        "version"
+    )
+    assert [rule.values for rule in versions] == [{"max_people": 15}, {"max_people": 3}]
+    assert versions.last() == configured
+
+
 @pytest.mark.django_db
 def test_seed_rules_fails_before_partial_seed_when_lico_is_missing(
     tmp_path: Path,
 ) -> None:
-    """A missing LICO file aborts the entire seed transaction."""
     missing_file = tmp_path / "lico_2024.csv"
 
     with pytest.raises(CommandError, match="does not exist"):
@@ -96,7 +114,6 @@ def test_seed_rules_fails_before_partial_seed_when_lico_is_missing(
 
 @pytest.mark.django_db
 def test_seed_rules_rejects_incomplete_lico_data(tmp_path: Path) -> None:
-    """Reject a CSV that omits any required family size before publishing."""
     lico_file = tmp_path / "lico_2024.csv"
     write_lico_csv(lico_file, ["1,1000000"])
 
@@ -108,7 +125,6 @@ def test_seed_rules_rejects_incomplete_lico_data(tmp_path: Path) -> None:
 
 @pytest.mark.django_db
 def test_seed_rules_rejects_duplicate_lico_family_size(tmp_path: Path) -> None:
-    """Reject repeated family-size rows before creating rule versions."""
     lico_file = tmp_path / "lico_2024.csv"
     rows = [f"{size},{size * 1_000_000}" for size in range(1, 8)]
     write_lico_csv(lico_file, [*rows, "7,7000000"])
@@ -121,7 +137,7 @@ def test_seed_rules_rejects_duplicate_lico_family_size(tmp_path: Path) -> None:
 
 @pytest.mark.django_db
 def test_seed_rules_rejects_missing_lico_retrieval_date(tmp_path: Path) -> None:
-    """Require a retrieval date so each published threshold has provenance."""
+    """Each published threshold needs a source retrieval date."""
     lico_file = tmp_path / "lico_2024.csv"
     write_lico_csv(lico_file)
     lines = lico_file.read_text(encoding="utf-8").splitlines()

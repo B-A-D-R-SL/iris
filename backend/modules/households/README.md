@@ -1,5 +1,5 @@
 <!-- AI contribution: 50% or more AI-generated -->
-# Households module — implementation for T-03.17.2 and T-03.17.3
+# Households module — walk-in drafts and US-25 duplicate checking
 
 **Owner pair:** Registration
 
@@ -12,7 +12,20 @@ account. The record also preserves staff verification and creation timestamps.
 
 - `services.create_walk_in(data, staff_user) -> Household`
 - `services.update_draft(household_id, data, staff_user) -> Household`
-- `queries.walk_in_for_staff(household_id) -> Household | None`
+- `services.submit_walk_in(household_id, staff_user) -> Household`
+- `services.locked_duplicate_check(household_id, staff_user)`: context for a
+  checked draft and an evaluated duplicate flag; save inside the context.
+- `queries.walk_ins_for_staff(staff_user) -> QuerySet[Household]`
+- `queries.walk_in_for_staff(household_id, staff_user) -> Household | None`
+- `queries.find_possible_duplicates(household) -> QuerySet[Household]`
+- `queries.approved_household_id(user_id, at=...) -> UUID | None`: the
+  household the user holds, if it is `approved` and not expired at `at`
+  (expiry is checked even before the nightly job runs). Browsing (US-36) uses
+  it and reserving (US-41) can too; only the ID leaves the module.
+- `queries.search(q) -> QuerySet[Household]`: partial, accent-insensitive staff search;
+  reads only and excludes anonymized files. Blank input returns no files.
+- `queries.search_for_staff(q, actor) -> QuerySet[Household]`: the API entry point;
+  validates shared staff permission before pagination.
 - `domain/address.py`: `normalize_address`, `normalize_postal_code`
 - `domain/person.py`: `normalize_person`, age/name validation
 
@@ -24,8 +37,13 @@ creator, verifier or internal keys directly.
 ## API routes
 
 - `POST /api/staff/households/`: create a draft and holder member
+- `GET /api/staff/households/?q=...&page=1&page_size=20`: search household/member
+  names, household email/phone, member number and address. Pages are capped at
+  100 results. Names describe the holder even when another member matched.
 - `GET /api/staff/households/{uuid}/`: read draft and who created it
 - `PATCH /api/staff/households/{uuid}/`: patch draft steps, including members
+- `POST /api/staff/households/{uuid}/submit/`: submit saved registration data,
+  returning `{id, status, status_reason, submitted_at}`; request body is `{}`.
 
 Errors use `{ "code", "message", "fields" }`; nested form field paths are
 reported as dotted keys such as `address.postal_code`.
@@ -34,8 +52,72 @@ specific error types, and `messages.py` gives each one its translated text.
 
 All require a session for an active `intake_worker` or `admin`. Other signed-in
 roles are rejected with HTTP 403. The API contains no ID document information.
+Intake workers and admins share non-anonymized walk-in files, including another
+worker's and unassigned files. `created_by` records provenance, not ownership.
+An anonymized, online or unknown file returns 404 through the walk-in endpoints;
+signed-out or deactivated sessions return 401.
 
-### Example request
+## Duplicate checking (US-25, #479 and #478)
+
+Submission needs a complete address, one holder, an identity check, and consent.
+The household limit comes from `household_size.max_people`; the seed default is
+15 people, including the holder. Income notices and approval belong to US-18.
+
+A clean file becomes `submitted`. A matching address (including unit) or person
+(first name, last name and birth date) sends it to `review_required` with reason
+`POSSIBLE_DUPLICATE`. Both files stay saved. Submitting the same file again
+returns an error and leaves its status unchanged.
+
+The search uses the existing `address_key` and `person_key` indexes. It skips
+empty keys, the file itself, and files whose personal data was removed.
+
+Duplicate candidates are `submitted`, `review_required`,
+`awaiting_visit`, `approved`, `renewal_needed`, and `suspended`. Draft and rejected
+files do not count. Files whose `expires_at` is in the past are excluded,
+including suspended files. A missing or future expiry does not exclude a file.
+
+`locked_duplicate_check()` locks the draft, address and people before evaluating
+the match. Save the result inside its `with` block. PostgreSQL holds these locks
+until the outer transaction commits or rolls back. The query alone is a preview.
+Future approval code must use the same lock-and-check operation.
+`HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS` sets a positive advisory-lock wait limit
+(default 5000 milliseconds). Successful acquisition restores the caller's
+previous timeout. A timeout rolls back the submission and returns 503 with code
+`household_unavailable` and a generic retry message. Other database errors are
+not converted to this response.
+
+Draft, submission and serializer checks read `household_size.max_people` through
+`limits.py`. The seed default is 15 people total, including the holder.
+This is the approved rule `BR-HH-001`.
+Missing or invalid configuration is refused, not replaced with a runtime default.
+Create, edit and submit return the same generic 503 response without exposing
+configuration details. A privacy-safe event identifies the cause in server logs.
+For existing databases, run `python manage.py seed_rules` after deployment.
+It adds missing rule types without replacing existing versions. No data migration
+is needed for this setting; normal schema migrations still apply.
+
+Each submission records a `submitted` household event with its actor, actor role
+and time, in the same transaction. Operational logs use `household_submitted` or
+`household_duplicate_review` only after commit, with no personal data or IDs.
+
+Migration `0004_normalize_duplicate_keys` updates old search keys and clears keys
+for missing or removed personal data. Names and addresses stay unchanged.
+Rollback keeps the updated keys because older schemas also accept them.
+The migration has only been run on test databases.
+
+Tests cover matches, permissions, French/English errors, the API and database,
+and two submissions at once. They check that the second submission waits, then
+sees the first file only if its transaction commits.
+
+## Search pagination
+
+Numeric search pages fetch the exact total and results in one query using a
+PostgreSQL window count. This avoids executing the same match twice, and keeps
+the count and results in one database snapshot. The response envelope, ordering,
+20-result default and 100-result cap are unchanged. Invalid/overflowing page
+numbers return 404; DRF's optional `page=last` shortcut remains supported.
+
+## Example draft request
 
 ```json
 {
@@ -82,15 +164,46 @@ details creates it, and incomplete details return a `holder` field error.
 
 ## Audit integration / US-62 dependency
 
-`HouseholdDraftEvent` currently captures a **minimal internal audit trail** of
-create/update actions, actor ID, role at the moment of action, and timestamp,
-without personal-data payloads. It is an interim solution because `audit` is a
-SET-14 scaffold on `main` (as observed 2026-10-31). **Coordinate with the US-62
-owner before merging**: when the central `audit.services.record()` supports
-household creation/edit events, replace the local event implementation with it,
-and decide whether to migrate existing local event history. Do not send action
-names unsupported by the current US-62 branch, which only handles view/decision.
+`HouseholdDraftEvent` stores create, update and submission actions with the actor,
+role and time. It has no personal-data payload. Events are saved in the same
+transaction as the household change. The central audit service currently accepts
+view and decision actions, so registration actions remain in the household history.
 
 The walk-in screens (T-03.17.4) are in `frontend/src/areas/staff/pages/WalkIn/`.
-Approval, income notices, status transitions and the set-password email belong
-to US-18 and US-57; none of them are implemented here.
+Approval, income notices, approval/rejection transitions and the set-password
+email belong to US-18 and US-57; they are not implemented here. US-25 adds only
+submission and duplicate-review routing.
+
+## Staff search (US-63, #553 and #554)
+
+Intake workers and admins see all non-anonymized files, including another
+worker's and unassigned files. Anonymized records are excluded before counts,
+pagination and audits; resume actions use the same staff edit rule as drafts.
+
+Migration `0004_staff_search_indexes` enables `pg_trgm` and `unaccent`, adds
+stored PostgreSQL generated keys and GIN trigram indexes, and backfills existing
+rows. PostgreSQL maintains the keys for normal saves, updates and bulk writes.
+Existing extensions retain their installed schemas; new extensions use `public`.
+The wrapper pins the installed unaccent function and dictionary. Dictionary
+changes require a migration that recomputes the stored keys. Reversing removes
+the derived keys/indexes and module function, preserves source records, and
+leaves shared extensions installed.
+
+Migration `0006_merge_duplicate_and_search` joins the search and duplicate-check
+migration branches without changing data.
+
+Search never searches the DOB-containing `person_key`. Its explicit response
+contains only holder names, contact/address fields, member number, channel and
+status. The collection's existing POST registration operation is preserved.
+Responses use `Cache-Control: private, no-store`; search text is excluded from
+logs. Each disclosed household ID is recorded through
+`audit.services.record_household_views` in one atomic batch, with empty metadata.
+Audit failure prevents the response from exposing results. HEAD creates no events.
+
+The screen replaces the staff placeholder at `/staff/households`. It supports
+French/English, a 300 ms debounce, cancelled superseded requests, paginated
+results and links to resume existing walk-in drafts. US-64 owns the later full
+household page; this change does not create that page or approval workflows.
+
+See [search verification](../../../docs/guides/household-search.md) for database
+isolation, repeatable benchmarks and the remaining staging/device checks.

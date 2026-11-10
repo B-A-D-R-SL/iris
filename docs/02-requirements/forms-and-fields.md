@@ -146,6 +146,8 @@ Error messages:
 
 Staff page **Inscription en personne / Walk-in registration** (`/staff/walk-in`, resumed at `/staff/walk-in/{id}`), for intake workers and admins. An intake worker registers a household that comes to the office in person (US-17, #461). Wireframes: Staff page, flow W3 (layout only; the fields are the ones below).
 
+Active intake workers and admins share non-anonymized walk-in files, including files created by another worker and unassigned files. `created_by` records who started the file; it does not restrict access.
+
 Four steps: **Personne responsable / Account holder**, **Adresse / Address**, **Membres du foyer / Household members**, **Vérification / Review**. "Continuer / Continue" checks the step and saves the draft; "Enregistrer le brouillon / Save draft" saves it and shows what is still missing. The file stores who created it and when.
 
 ### Step 1: account holder
@@ -169,7 +171,7 @@ The [address fields](#address-fields), with these differences: the unit label is
 
 ### Step 3: household members
 
-The holder is person 1 automatically. "Ajouter une personne / Add a person" adds a row; at most 15 people, holder included.
+The holder is person 1 automatically. "Ajouter une personne / Add a person" adds a row. The household limit comes from `household_size.max_people`; the seed default is 15 people, including the holder.
 
 | Field | Français | English | Type | Required | Rules |
 | --- | --- | --- | --- | --- | --- |
@@ -215,5 +217,3 @@ Used by `goods_categories` (partner application) and `category` (listing). Seed 
 | `clothing` | Vêtements | Clothing | No |
 | `school_supplies` | Fournitures scolaires | School supplies | No |
 | `other` | Autre | Other | No |
-
-

@@ -126,6 +126,7 @@ def _load_lico_values(path: Path) -> dict[str, Any]:
 
 
 def _read_lico_csv(path: Path) -> tuple[dict[str, str], dict[int, int]]:
+    """Read source metadata and parse the threshold rows."""
     metadata: dict[str, str] = {}
     try:
         with path.open(newline="", encoding="utf-8-sig") as data_file:
@@ -148,6 +149,7 @@ def _read_lico_csv(path: Path) -> tuple[dict[str, str], dict[int, int]]:
 
 
 def _parse_lico_rows(lines: list[str], comment_line_count: int) -> dict[int, int]:
+    """Validate CSV columns and reject repeated family sizes."""
     reader = csv.DictReader(lines)
     if reader.fieldnames != ["family_size", "threshold_cents"]:
         raise CommandError("LICO CSV headers must be family_size,threshold_cents.")
@@ -167,6 +169,7 @@ def _parse_lico_rows(lines: list[str], comment_line_count: int) -> dict[int, int
 
 
 def _validate_lico_metadata(metadata: dict[str, str]) -> str:
+    """Require the reviewed source and a canonical retrieval date."""
     if metadata.get("source_url") != LICO_SOURCE_URL:
         raise CommandError(f"LICO CSV source_url must be {LICO_SOURCE_URL}.")
     retrieved_on = metadata.get("retrieved_on", "")
@@ -181,6 +184,7 @@ def _validate_lico_metadata(metadata: dict[str, str]) -> str:
 
 
 def _validate_lico_sizes(thresholds: dict[int, int]) -> None:
+    """Require one threshold for each supported family size."""
     if set(thresholds) != EXPECTED_LICO_SIZES:
         missing = sorted(EXPECTED_LICO_SIZES - set(thresholds))
         unexpected = sorted(set(thresholds) - EXPECTED_LICO_SIZES)
