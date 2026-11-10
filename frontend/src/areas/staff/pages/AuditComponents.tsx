@@ -1,3 +1,4 @@
+// AI contribution: 50% or more AI-generated
 import { Button, Group, Stack, Table, Text, TextInput } from "@mantine/core";
 import { useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
