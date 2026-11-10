@@ -96,3 +96,9 @@ msgstr "j N Y"
 
 msgid "Listing safety rules need configuration."
 msgstr "Les règles de sécurité des offres doivent être configurées."
+
+msgid "Posting is temporarily unavailable."
+msgstr "La publication est temporairement indisponible."
+
+msgid "Choose a readable still JPEG or PNG image within the allowed dimensions."
+msgstr "Choisissez une image fixe JPEG ou PNG lisible qui respecte les dimensions autorisées."

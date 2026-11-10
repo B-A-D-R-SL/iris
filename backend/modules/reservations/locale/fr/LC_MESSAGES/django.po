@@ -33,3 +33,6 @@ msgstr "Entrez un identifiant de commerce valide."
 
 msgid "Enter true or false."
 msgstr "Entrez true ou false."
+
+msgid "Photos are temporarily unavailable."
+msgstr "Les photos sont temporairement indisponibles."

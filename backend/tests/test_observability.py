@@ -6,6 +6,7 @@ import logging
 from io import StringIO
 from uuid import UUID
 
+import pytest
 from django.http import HttpRequest, HttpResponse
 from django.test import Client
 from django.urls import get_resolver
@@ -60,6 +61,61 @@ def test_formatter_discards_arbitrary_message_and_exceptions() -> None:
     encoded = JsonLogFormatter().format(record)
     assert json.loads(encoded)["event"] == "safe_failure"
     assert "private@example.org" not in encoded
+
+
+@pytest.mark.parametrize(
+    ("logger_name", "event", "reference", "included"),
+    [
+        (
+            "iris.listings",
+            "listing_photo_cleanup_failed",
+            "listing-photos/" + "a" * 32 + ".jpg",
+            True,
+        ),
+        (
+            "iris.listings",
+            "listing_photo_cleanup_failed",
+            "listing-photos/" + "b" * 32 + ".png",
+            True,
+        ),
+        (
+            "iris.http",
+            "listing_photo_cleanup_failed",
+            "listing-photos/" + "a" * 32 + ".jpg",
+            False,
+        ),
+        (
+            "iris.listings",
+            "listing_photo_read_failed",
+            "listing-photos/" + "a" * 32 + ".jpg",
+            False,
+        ),
+        (
+            "iris.listings",
+            "listing_photo_cleanup_failed",
+            "https://storage.example.test/photo?sig=secret",
+            False,
+        ),
+        ("iris.listings", "listing_photo_cleanup_failed", "../private", False),
+        ("iris.listings", "listing_photo_cleanup_failed", None, False),
+    ],
+)
+def test_formatter_limits_orphan_references_to_valid_cleanup_events(
+    logger_name: str, event: str, reference: str | None, included: bool
+) -> None:
+    """Only opaque server photo names reach cleanup logs; URLs and other events do not."""
+    record = logging.LogRecord(
+        logger_name, logging.ERROR, __file__, 1, "private text", (), None
+    )
+    record.event = event
+    record.photo_ref = reference
+    encoded = JsonLogFormatter().format(record)
+    payload = json.loads(encoded)
+    assert ("photo_ref" in payload) is included
+    if included:
+        assert payload["photo_ref"] == reference
+    assert "secret" not in encoded
+    assert "private text" not in encoded
 
 
 def test_headless_auth_routes_are_mounted_under_api_auth() -> None:
