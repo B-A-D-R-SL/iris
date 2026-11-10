@@ -38,7 +38,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
-| FIX-23 Frontend development dependency security (#614) | `frontend/package.json`, `frontend/scripts/test-api-generation.mjs`, `AI_USAGE.md`; `frontend/pnpm-lock.yaml` | 50% or more AI-generated; lockfile exempt | Not yet opened (`FIX-23-update-frontend-dev-dependencies` branch) |
+| FIX-23 Frontend development dependency security (#614) | `frontend/package.json`, `frontend/scripts/test-api-generation.mjs`, `sonar-project.properties`, `AI_USAGE.md`; `frontend/pnpm-lock.yaml` | 50% or more AI-generated; lockfile exempt | [#680](https://github.com/B-A-D-R-SL/iris/pull/680) |
 | US-25 duplicate check and tests (#479, #478) | `backend/modules/households/`, `backend/iris/settings/base.py`, `docs/02-requirements/business-rules.md`, `docs/03-design/api.md`, generated API types, `AI_USAGE.md` | 50% or more AI-generated | [#660](https://github.com/B-A-D-R-SL/iris/pull/660) |
 | US-63 Household search (#553, #554; tests #552) | `backend/modules/households/`, `backend/modules/audit/{services.py,README.md,tests/test_household_views.py}`, `backend/iris/{asgi.py,settings/base.py,settings/local.py}`, `backend/{.env.example,tests/test_backend_config.py}`, `frontend/src/app/{App,RequireHouseholdSearch}.tsx`, `frontend/src/areas/staff/pages/Search*`, `frontend/src/features/households/{searchApi,useHouseholdSearch}*`, `frontend/src/test/{householdSearch.ts,render.tsx}`, routes, translations, generated API types and search documentation | 50% or more AI-generated; generated migration and API types exempt | [#662](https://github.com/B-A-D-R-SL/iris/pull/662) |
 | SET-33 Colour prototypes and design docs (#651) | `docs/03-design/mockups/` (Release 1 coloured exports under the existing names, plus `Foundations.png` and the new-screen PNGs), `docs/guides/design-system.md` (Theme tokens and status map), `AI_USAGE.md` | 50% or more AI-generated for the Theme documentation; mockup PNGs are Figma exports | [#668](https://github.com/B-A-D-R-SL/iris/pull/668) |
@@ -281,7 +281,7 @@ At least half of the AI-assisted features need an example here. For each one:
 
 ### FIX-23 Frontend development dependency security (#614)
 
-- **What the AI produced:** scoped pnpm overrides for jsdom's Undici 8.12.4 and openapi-typescript's Undici 6.29.1, the regenerated lockfile, and an HTTP redirect regression test that uses Undici without Node's built-in fetch.
+- **What the AI produced:** scoped pnpm overrides for jsdom's Undici 8.12.4 and openapi-typescript's Undici 6.29.1, the regenerated lockfile, an HTTP redirect regression test that uses Undici without Node's built-in fetch, and Sonar test classification for that standalone runner.
 - **Why:** keep openapi-typescript 6.7.6 and TypeScript 6 compatible. Undici 6.29.1 removes the old busboy dependency. Undici 8.12.4 also covers the November 5 security fixes published after this issue.
 - **Verification:** frozen install, dependency tree, ESLint, Prettier, TypeScript, build, unchanged generated API types, all 9 generator tests, and all 443 frontend tests passed (93.68% statement coverage). The coverage run used four workers after three tests timed out with the default 30 workers.
 - **Audit:** no Undici or busboy findings remain. The full development audit still reports two existing findings: Zod 4.6.5 (high, GHSA-mrhx-c7xc-m3w5) and minimatch 10.2.6 (moderate, GHSA-g3hv-75wg-m249). GitHub alerts must be checked again after merging into main.
