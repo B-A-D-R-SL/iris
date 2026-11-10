@@ -1,7 +1,8 @@
 // AI contribution: 50% or more AI-generated
 // Run with node:test, separately from Vitest.
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
 import {
   appendFile,
   chmod,
@@ -14,6 +15,7 @@ import {
   unlink,
   writeFile,
 } from "node:fs/promises";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { delimiter, join, relative } from "node:path";
 import { text } from "node:stream/consumers";
@@ -81,6 +83,67 @@ test("generator does not use executable PATH lookup", async (t) => {
   const result = runGenerator(directory, false, { env: { ...process.env, PATH: "" } });
   assert.equal(result.status, 0, result.stderr);
   assert.match(await readFile(join(directory, "generated.d.ts"), "utf8"), /health_retrieve/);
+});
+
+test("remote schema references follow redirects without global fetch", async (t) => {
+  const requests = [];
+  const server = createServer((request, response) => {
+    requests.push(request.url);
+    if (request.url === "/notice.json") {
+      response.writeHead(302, { Location: "/models/notice.json" });
+      response.end();
+      return;
+    }
+    response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(
+      JSON.stringify({
+        type: "object",
+        required: ["label"],
+        properties: { label: { type: "string", description: "Catégorie → français" } },
+      }),
+    );
+  });
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+
+  const directory = await temporaryDirectory(t);
+  const child = spawn(
+    process.execPath,
+    [
+      "--import",
+      "data:text/javascript,delete globalThis.fetch",
+      script,
+      "--temporary-output",
+      "--schema-stdin",
+    ],
+    { cwd: directory, signal: AbortSignal.timeout(10_000) },
+  );
+  child.stdin.end(
+    JSON.stringify({
+      openapi: "3.0.3",
+      info: { title: "Fixture", version: "1" },
+      paths: {},
+      components: {
+        schemas: {
+          Notice: { $ref: `http://127.0.0.1:${server.address().port}/notice.json` },
+        },
+      },
+    }),
+  );
+  const [[code], , errors] = await Promise.all([
+    once(child, "exit"),
+    text(child.stdout),
+    text(child.stderr),
+  ]);
+  assert.equal(code, 0, errors);
+  assert.deepEqual(requests, ["/notice.json", "/models/notice.json"]);
+  const generated = await readFile(join(directory, "generated.d.ts"), "utf8");
+  assert.match(generated, /Catégorie → français/);
+  assert.match(generated, /label: string/);
 });
 
 test("CLI output paths and traversal are rejected", async (t) => {
