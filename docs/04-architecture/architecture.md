@@ -398,7 +398,9 @@ sequenceDiagram
         H->>H: Record HouseholdDraftEvent "updated"
     end
 
-    IW->>IW: Open /staff/walk-in/{id}/notices: one card per adult (18 or older)
+    IW->>H: Open /staff/walk-in/{id}/notices: GET /api/staff/households/{id}/notices/
+    H->>D: current_notices(members)
+    H-->>IW: Saved notices; one card per adult (18 or older), saved ones shown as recorded
 
     loop Each adult
         IW->>IW: Photograph the notice (camera) or choose a file, type tax year and line-199 income, or tick "did not file" with a reason

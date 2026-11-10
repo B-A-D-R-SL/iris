@@ -1,5 +1,5 @@
 # AI contribution: 50% or more AI-generated
-"""Staff-only endpoint recording an adult's notice of assessment on a walk-in draft."""
+"""Staff-only endpoints listing and recording the adults' notices of assessment on a walk-in."""
 
 from typing import Any
 from uuid import UUID
@@ -14,7 +14,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from modules.documents.services import NoticeServiceUnavailable
-from modules.households import services
+from modules.households import queries, services
 from modules.households.api.notice_serializers import (
     WalkInNoticeInputSerializer,
     WalkInNoticeReadSerializer,
@@ -31,6 +31,17 @@ class WalkInNoticeView(WalkInErrorHandlingMixin, GenericAPIView):
     serializer_class = WalkInNoticeInputSerializer
     permission_classes = (IsIntakeWorkerOrAdmin,)
     parser_classes = (MultiPartParser, FormParser)
+
+    @extend_schema(
+        responses={200: WalkInNoticeReadSerializer(many=True)},
+        tags=["staff households"],
+        summary="List the current notice of each member of a walk-in file",
+    )
+    def get(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
+        notices = queries.walk_in_notices(id)
+        if notices is None:
+            raise Http404
+        return Response(WalkInNoticeReadSerializer(notices, many=True).data)
 
     @extend_schema(
         request={"multipart/form-data": WalkInNoticeInputSerializer},

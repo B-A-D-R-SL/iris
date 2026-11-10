@@ -6,7 +6,8 @@
  * with a reason. The summary below shows what each adult has.
  *
  * "Approve the file" asks the server for the decision (approve_walk_in, #469):
- * eligibility decides between approved, rejected and review.
+ * eligibility decides between approved, rejected and review. Saved notices are
+ * loaded on open, and approval waits while a saved notice is being replaced.
  */
 import {
   Badge,
@@ -21,7 +22,7 @@ import {
   Title,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { IconCamera, IconCircleCheck } from "@tabler/icons-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -29,6 +30,8 @@ import { Link, useParams } from "react-router";
 
 import {
   approveWalkIn,
+  listNotices,
+  noticesQueryKey,
   recordNotice,
   type RecordedNotice,
   type WalkInDecision,
@@ -85,24 +88,51 @@ export function Notices() {
     queryFn: () => getWalkIn(id, language),
     staleTime: Infinity,
   });
+  // Notices already saved, so a reload or a return from the file keeps them.
+  const saved = useQuery({
+    queryKey: noticesQueryKey(id),
+    queryFn: () => listNotices(id, language),
+  });
 
-  if (query.isPending) return <LoadingState />;
+  if (query.isPending || saved.isPending) return <LoadingState />;
   if (query.isError) {
     if (query.error instanceof WalkInFailed && query.error.status === 404) {
       return <Notice type="error" title={t("staff.walkIn.notFound")} />;
     }
     return <ErrorState onRetry={() => void query.refetch()} />;
   }
-  return <NoticesPage draft={query.data} />;
+  if (saved.isError) return <ErrorState onRetry={() => void saved.refetch()} />;
+  return <NoticesPage draft={query.data} saved={saved.data} />;
 }
 
-function NoticesPage({ draft }: { draft: WalkInDraft }) {
+const approveMutationKey = (householdId: string) => ["walk-in", householdId, "approve"] as const;
+
+function NoticesPage({ draft, saved }: { draft: WalkInDraft; saved: RecordedNotice[] }) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [today] = useState(montrealToday);
   const adultMembers = adults(draft.members, today);
-  // Recorded during this visit; the draft read does not return notices yet.
-  const [notices, setNotices] = useState<Record<string, RecordedNotice>>({});
+  const notices: Record<string, RecordedNotice> = Object.fromEntries(
+    saved.map((notice) => [notice.member, notice]),
+  );
+  // Adults whose saved notice is being replaced: approval waits until each is saved or cancelled.
+  const [replacing, setReplacing] = useState<ReadonlySet<string>>(new Set());
+  const deciding = useIsMutating({ mutationKey: approveMutationKey(draft.id) }) > 0;
   const holder = draft.members.find((member) => member.relation === "holder");
+
+  const setMemberReplacing = (memberId: string, on: boolean) =>
+    setReplacing((current) => {
+      const next = new Set(current);
+      if (on) next.add(memberId);
+      else next.delete(memberId);
+      return next;
+    });
+
+  const keepNotice = (notice: RecordedNotice) =>
+    queryClient.setQueryData<RecordedNotice[]>(noticesQueryKey(draft.id), (list = []) => [
+      ...list.filter((entry) => entry.member !== notice.member),
+      notice,
+    ]);
 
   return (
     <Stack gap="lg">
@@ -126,13 +156,17 @@ function NoticesPage({ draft }: { draft: WalkInDraft }) {
           member={member}
           today={today}
           recorded={notices[member.id]}
-          onRecorded={(notice) => setNotices((all) => ({ ...all, [member.id]: notice }))}
+          editing={!notices[member.id] || replacing.has(member.id)}
+          locked={deciding || draft.status !== "draft"}
+          onEditingChange={(on) => setMemberReplacing(member.id, on)}
+          onRecorded={keepNotice}
         />
       ))}
 
       <DecisionSummary
         householdId={draft.id}
         canDecide={draft.status === "draft"}
+        replacing={replacing.size > 0}
         adultMembers={adultMembers}
         notices={notices}
       />
@@ -151,15 +185,28 @@ interface NoticeCardProps {
   member: Member;
   today: string;
   recorded: RecordedNotice | undefined;
+  /** The form is open: no notice yet, or the saved one is being replaced. */
+  editing: boolean;
+  /** Approval is running or done: the notice can no longer change. */
+  locked: boolean;
+  onEditingChange: (editing: boolean) => void;
   onRecorded: (notice: RecordedNotice) => void;
 }
 
 /** One adult: the notice values, or "did not file" with a reason. */
-function NoticeCard({ householdId, member, today, recorded, onRecorded }: NoticeCardProps) {
+function NoticeCard({
+  householdId,
+  member,
+  today,
+  recorded,
+  editing,
+  locked,
+  onEditingChange,
+  onRecorded,
+}: NoticeCardProps) {
   const { t } = useTranslation();
   const language = useLanguage();
   const form = useForm<NoticeValues>({ initialValues: EMPTY_NOTICE });
-  const [editing, setEditing] = useState(true);
   const [problem, setProblem] = useState<string | null>(null);
   const titleId = `notice-${member.id}`;
 
@@ -168,7 +215,7 @@ function NoticeCard({ householdId, member, today, recorded, onRecorded }: Notice
       recordNotice(householdId, toNoticeInput(member.id, values), language),
     onSuccess: (notice) => {
       onRecorded(notice);
-      setEditing(false);
+      onEditingChange(false);
     },
     onError: (error) => {
       if (error instanceof WalkInFailed && error.status === 400) {
@@ -192,7 +239,13 @@ function NoticeCard({ householdId, member, today, recorded, onRecorded }: Notice
 
   const replace = () => {
     form.reset();
-    setEditing(true);
+    setProblem(null);
+    onEditingChange(true);
+  };
+
+  const cancel = () => {
+    setProblem(null);
+    onEditingChange(false);
   };
 
   const lastYear = Number(today.slice(0, 4)) - 1;
@@ -216,7 +269,7 @@ function NoticeCard({ householdId, member, today, recorded, onRecorded }: Notice
         <Stack gap="sm">
           <RecordedSummary notice={recorded} />
           <Group>
-            <Button variant="subtle" onClick={replace}>
+            <Button variant="subtle" onClick={replace} disabled={locked}>
               {t("staff.walkInNotices.replace")}
             </Button>
           </Group>
@@ -302,11 +355,11 @@ function NoticeCard({ householdId, member, today, recorded, onRecorded }: Notice
           )}
 
           <Group>
-            <Button loading={mutation.isPending} onClick={save}>
+            <Button loading={mutation.isPending} onClick={save} disabled={locked}>
               {t("staff.walkInNotices.save")}
             </Button>
             {recorded && (
-              <Button variant="subtle" onClick={() => setEditing(false)}>
+              <Button variant="subtle" onClick={cancel} disabled={mutation.isPending}>
                 {t("staff.walkInNotices.cancel")}
               </Button>
             )}
@@ -373,20 +426,30 @@ function RecordedSummary({ notice }: { notice: RecordedNotice }) {
 interface DecisionSummaryProps {
   householdId: string;
   canDecide: boolean;
+  /** A saved notice is being replaced: the old values must not reach the decision. */
+  replacing: boolean;
   adultMembers: Member[];
   notices: Record<string, RecordedNotice>;
 }
 
 /** Each adult's state, the approve button, then the decision. */
-function DecisionSummary({ householdId, canDecide, adultMembers, notices }: DecisionSummaryProps) {
+function DecisionSummary({
+  householdId,
+  canDecide,
+  replacing,
+  adultMembers,
+  notices,
+}: DecisionSummaryProps) {
   const { t } = useTranslation();
   const language = useLanguage();
   const queryClient = useQueryClient();
-  const ready = readyForDecision(adultMembers, notices);
+  const complete = readyForDecision(adultMembers, notices);
+  const ready = complete && !replacing;
   const review = ready && needsReview(adultMembers.map((member) => notices[member.id]));
   const [problem, setProblem] = useState<string | null>(null);
 
   const mutation = useMutation({
+    mutationKey: approveMutationKey(householdId),
     mutationFn: () => approveWalkIn(householdId, language),
     onSuccess: () => {
       setProblem(null);
@@ -419,7 +482,8 @@ function DecisionSummary({ householdId, canDecide, adultMembers, notices }: Deci
           </List.Item>
         ))}
       </List>
-      {!ready && <Text c="gray.7">{t("staff.walkInNotices.notReady")}</Text>}
+      {!complete && <Text c="gray.7">{t("staff.walkInNotices.notReady")}</Text>}
+      {complete && replacing && <Text c="gray.7">{t("staff.walkInNotices.finishReplacing")}</Text>}
       {ready && !review && (
         <Group gap="xs">
           <IconCircleCheck size={20} aria-hidden />

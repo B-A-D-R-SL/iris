@@ -52,6 +52,25 @@ function errorBody(value: unknown): { message: string; fields: Record<string, st
   return { message, fields: typeof fields === "object" && fields ? (fields as never) : {} };
 }
 
+export const noticesQueryKey = (householdId: string) =>
+  ["walk-in", householdId, "notices"] as const;
+
+/** The current notice of each member, so staff can resume a file after a reload. */
+export async function listNotices(
+  householdId: string,
+  language: "fr" | "en",
+): Promise<RecordedNotice[]> {
+  const response = await fetch(`/api/staff/households/${householdId}/notices/`, {
+    method: "GET",
+    headers: { Accept: "application/json", "Accept-Language": language },
+    credentials: "same-origin",
+  });
+  if (response.ok) return (await response.json()) as RecordedNotice[];
+
+  const body = errorBody(await response.json().catch(() => null));
+  throw new WalkInFailed(response.status, body?.message ?? "", body?.fields ?? {});
+}
+
 /** Records one adult's notice; refused requests throw WalkInFailed (400 has field messages). */
 export async function recordNotice(
   householdId: string,

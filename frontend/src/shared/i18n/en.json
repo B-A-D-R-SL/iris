@@ -533,6 +533,7 @@
       "dateAfterYear": "The notice date comes after December 31, {{year}}.",
       "summaryTitle": "Decision summary",
       "notReady": "Every adult needs a notice or a reason for not filing before a decision.",
+      "finishReplacing": "Save or cancel the notice being replaced before the decision.",
       "ready": "Every adult has a notice seen in person. The file is ready for a decision.",
       "review": "A reason for not filing or a notice not seen in person sends the file to review.",
       "stateMissing": "To record",

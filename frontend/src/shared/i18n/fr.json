@@ -533,6 +533,7 @@
       "dateAfterYear": "La date de l'avis est après le 31 décembre {{year}}.",
       "summaryTitle": "Résumé pour la décision",
       "notReady": "Chaque adulte doit avoir un avis ou un motif de non-production avant la décision.",
+      "finishReplacing": "Enregistrez ou annulez l'avis en cours de remplacement avant la décision.",
       "ready": "Chaque adulte a un avis vu en personne. Le dossier est prêt pour la décision.",
       "review": "Un motif de non-production ou un avis non vu en personne envoie le dossier en révision.",
       "stateMissing": "À enregistrer",

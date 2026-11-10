@@ -96,10 +96,11 @@ async function recordDidNotFile() {
   await waitFor(() => expect(within(summary()).getByText("N'a pas produit")).toBeVisible());
 }
 
-/** Fakes /api/me/, the draft read, the notice and the approve endpoints. */
+/** Fakes /api/me/, the draft read, the notice list and record, and the approve endpoints. */
 function mockApi(
   record: () => Response = () => Response.json(recorded(), { status: 201 }),
   approve: () => Response = () => Response.json(decision()),
+  saved: RecordedNotice[] = [],
 ) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input instanceof Request ? input.url : String(input);
@@ -108,6 +109,7 @@ function mockApi(
     if (url.endsWith(`/api/staff/households/${ID}/`) && method === "GET") {
       return Response.json(draft());
     }
+    if (url.endsWith(NOTICES_URL) && method === "GET") return Response.json(saved);
     if (url.endsWith(NOTICES_URL) && method === "POST") return record();
     if (url.endsWith(APPROVE_URL) && method === "POST") return approve();
     return new Response(null, { status: 404 });
@@ -117,7 +119,9 @@ function mockApi(
 }
 
 function sentForm(fetchMock: ReturnType<typeof mockApi>): FormData {
-  const call = fetchMock.mock.calls.find(([input]) => String(input).endsWith(NOTICES_URL));
+  const call = fetchMock.mock.calls.find(
+    ([input, init]) => String(input).endsWith(NOTICES_URL) && init?.method === "POST",
+  );
   if (!call) throw new Error("No notice was sent");
   return call[1]?.body as FormData;
 }
@@ -168,7 +172,11 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Enregistrer l'avis" }));
 
     expect(await screen.findAllByText("Remplissez ce champ.")).not.toHaveLength(0);
-    expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith(NOTICES_URL))).toBe(false);
+    expect(
+      fetchMock.mock.calls.some(
+        ([input, init]) => String(input).endsWith(NOTICES_URL) && init?.method === "POST",
+      ),
+    ).toBe(false);
   });
 
   it("records a photographed notice with the typed values", async () => {
@@ -343,5 +351,29 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     expect(await screen.findByText("Aucune décision n'a été prise")).toBeVisible();
     expect(screen.getByText("Complétez l'adresse et le téléphone du foyer.")).toBeVisible();
     expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeVisible();
+  });
+
+  it("shows the notices saved earlier, so a reloaded file can still be approved", async () => {
+    mockApi(undefined, undefined, [recorded()]);
+    await openPage();
+
+    expect(within(summary()).getByText("Avis enregistré")).toBeVisible();
+    expect(within(card("Nadia Démo")).getByText(/2025/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Remplacer cet avis" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeEnabled();
+  });
+
+  it("disables approval while a saved notice is being replaced", async () => {
+    mockApi(undefined, undefined, [recorded()]);
+    await openPage();
+
+    await userEvent.click(screen.getByRole("button", { name: "Remplacer cet avis" }));
+
+    expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeDisabled();
+    expect(screen.getByText(/en cours de remplacement/)).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Annuler" }));
+
+    expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeEnabled();
   });
 });

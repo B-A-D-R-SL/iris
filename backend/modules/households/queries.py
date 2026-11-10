@@ -105,3 +105,15 @@ def walk_in_for_staff(household_id: UUID) -> Household | None:
         .filter(pk=household_id, channel=Household.Channel.WALK_IN)
         .first()
     )
+
+
+def walk_in_notices(household_id: UUID) -> list[document_queries.IncomeNotice] | None:
+    """Current notice of each member of a walk-in file; None when the file is unknown.
+
+    Staff resuming the notices screen see what was already recorded (US-18).
+    """
+    household = walk_in_for_staff(household_id)
+    if household is None:
+        return None
+    notices = document_queries.current_notices(m.pk for m in household.members.all())
+    return sorted(notices.values(), key=lambda notice: notice.created_at)

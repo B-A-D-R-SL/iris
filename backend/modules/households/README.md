@@ -39,6 +39,9 @@ creator, verifier or internal keys directly.
 - `POST /api/staff/households/`: create a draft and holder member
 - `GET /api/staff/households/{uuid}/`: read draft and who created it
 - `PATCH /api/staff/households/{uuid}/`: patch draft steps, including members
+- `GET /api/staff/households/{uuid}/notices/`: the current notice of each
+  member (`queries.walk_in_notices`), without storage references, so the
+  notices screen shows what was saved after a reload; unknown IDs 404.
 - `POST /api/staff/households/{uuid}/notices/` (multipart): an adult's notice of
   assessment (`file`, `tax_year`, `total_income_cents`, `name_on_notice`,
   `postal_code_on_notice`, `notice_date`, `seen_in_person`) or

@@ -73,6 +73,8 @@ export interface paths {
     post: operations["staff_households_approve_create"];
   };
   "/api/staff/households/{id}/notices/": {
+    /** List the current notice of each member of a walk-in file */
+    get: operations["staff_households_notices_list"];
     /** Record an adult's notice of assessment or non-filing reason */
     post: operations["staff_households_notices_create"];
   };
@@ -926,6 +928,21 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["WalkInDecision"];
+        };
+      };
+    };
+  };
+  /** List the current notice of each member of a walk-in file */
+  staff_households_notices_list: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["WalkInNoticeRead"][];
         };
       };
     };
