@@ -368,7 +368,10 @@ Release 1.
 US-17 built the first part (draft creation and step-by-step saving,
 React screens at `/staff/walk-in`). Its creation and edit events are
 recorded locally in `HouseholdDraftEvent` until the central audit log
-(US-62) supports them. The notices and approval part is US-18.
+(US-62) supports them. The notices and approval part is US-18: the notices
+screen (`/staff/walk-in/{id}/notices`, T-03.18.4) shows one card per adult and a
+decision summary whose "Approve the file" button calls
+`POST /api/staff/households/{id}/approve/`, which runs `approve_walk_in` (#469).
 
 
 ```mermaid
@@ -395,15 +398,19 @@ sequenceDiagram
         H->>H: Record HouseholdDraftEvent "updated"
     end
 
+    IW->>IW: Open /staff/walk-in/{id}/notices: one card per adult (18 or older)
+
     loop Each adult
-        IW->>H: record_walk_in_notice(id, member, notice values or non-filing reason, file)
+        IW->>IW: Photograph the notice (camera) or choose a file, type tax year and line-199 income, or tick "did not file" with a reason
+        IW->>H: POST /api/staff/households/{id}/notices/ (multipart) → record_walk_in_notice(id, member, values or reason, file)
         H->>H: Lock the draft, check the member is an adult of this household
         H->>H: Record HouseholdDraftEvent "updated"
         H->>D: record_staff_notice(member, values, file)
         D->>D: Check the notice rules, store the file privately (file_store), supersede the current notice
+        H-->>IW: 201 recorded notice; the decision summary marks the adult
     end
 
-    IW->>H: approve_walk_in()
+    IW->>H: "Approve the file": POST /api/staff/households/{id}/approve/ → approve_walk_in()
     H->>H: Check completeness, verification and duplicate flags
 
     rect rgb(24, 42, 62)
@@ -437,7 +444,7 @@ sequenceDiagram
         H-->>N: Queue setup email after commit
     end
 
-    H-->>IW: Return saved outcome and permitted explanation
+    H-->>IW: 200 {status, status_reason, approved_at, expires_at}; the screen explains each reason
 
     opt Invitation email queued
         N-->>HC: Deliver setup link independently

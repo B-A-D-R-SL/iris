@@ -11,6 +11,7 @@ import { SignIn } from "../areas/public/pages/SignIn";
 import { AcceptInvitation } from "../areas/public/pages/AcceptInvitation";
 import { PartnerApply } from "../areas/public/pages/PartnerApply";
 import { Audit } from "../areas/staff/pages/Audit";
+import { Notices } from "../areas/staff/pages/WalkIn/Notices";
 import { WalkIn } from "../areas/staff/pages/WalkIn/WalkIn";
 import { NewListing } from "../areas/store/pages/NewListing";
 import { MobileAreaLayout } from "./layouts/MobileAreaLayout";
@@ -100,6 +101,7 @@ export default function App() {
           />
           <Route path="staff/walk-in" element={<WalkIn />} />
           <Route path="staff/walk-in/:id" element={<WalkIn />} />
+          <Route path="staff/walk-in/:id/notices" element={<Notices />} />
           <Route element={<RequireRole roles={["admin"]} />}>
             <Route
               path="staff/review"

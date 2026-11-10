@@ -1,0 +1,509 @@
+// AI contribution: 50% or more AI-generated
+/**
+ * Walk-in notices and decision summary (US-18, T-03.18.4).
+ * One card per adult: photograph the notice with the device camera (or choose
+ * a file), type the tax year and line-199 income, or record "did not file"
+ * with a reason. The summary below shows what each adult has.
+ *
+ * "Approve the file" asks the server for the decision (approve_walk_in, #469):
+ * eligibility decides between approved, rejected and review.
+ */
+import {
+  Badge,
+  Button,
+  Checkbox,
+  FileButton,
+  Group,
+  List,
+  SimpleGrid,
+  Stack,
+  Text,
+  Title,
+} from "@mantine/core";
+import { useForm } from "@mantine/form";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { IconCamera, IconCircleCheck } from "@tabler/icons-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Link, useParams } from "react-router";
+
+import {
+  approveWalkIn,
+  recordNotice,
+  type RecordedNotice,
+  type WalkInDecision,
+} from "../../../../features/households/noticeApi";
+import {
+  WalkInFailed,
+  getWalkIn,
+  walkInQueryKey,
+  type WalkInDraft,
+} from "../../../../features/households/walkInApi";
+import {
+  DateField,
+  FileUpload,
+  IntegerField,
+  MoneyField,
+  PostalCodeField,
+  TextField,
+  formatMoney,
+} from "../../../../shared/forms";
+import { ErrorState, LoadingState, Notice } from "../../../../shared/ui";
+import classes from "./WalkIn.module.css";
+import {
+  EMPTY_NOTICE,
+  FIRST_TAX_YEAR,
+  MAX_REASON,
+  NOTICE_MAX_MB,
+  NOTICE_TYPES,
+  adultState,
+  adults,
+  fullName,
+  montrealToday,
+  needsReview,
+  noticeErrors,
+  noticeServerErrors,
+  readyForDecision,
+  toNoticeInput,
+  type AdultState,
+  type Member,
+  type NoticeValues,
+} from "./noticeForm";
+
+const useLanguage = () => {
+  const { i18n } = useTranslation();
+  return i18n.resolvedLanguage === "en" ? "en" : "fr";
+};
+
+/** /staff/walk-in/:id/notices */
+export function Notices() {
+  const { id = "" } = useParams();
+  const { t } = useTranslation();
+  const language = useLanguage();
+  const query = useQuery({
+    queryKey: walkInQueryKey(id),
+    queryFn: () => getWalkIn(id, language),
+    staleTime: Infinity,
+  });
+
+  if (query.isPending) return <LoadingState />;
+  if (query.isError) {
+    if (query.error instanceof WalkInFailed && query.error.status === 404) {
+      return <Notice type="error" title={t("staff.walkIn.notFound")} />;
+    }
+    return <ErrorState onRetry={() => void query.refetch()} />;
+  }
+  return <NoticesPage draft={query.data} />;
+}
+
+function NoticesPage({ draft }: { draft: WalkInDraft }) {
+  const { t } = useTranslation();
+  const [today] = useState(montrealToday);
+  const adultMembers = adults(draft.members, today);
+  // Recorded during this visit; the draft read does not return notices yet.
+  const [notices, setNotices] = useState<Record<string, RecordedNotice>>({});
+  const holder = draft.members.find((member) => member.relation === "holder");
+
+  return (
+    <Stack gap="lg">
+      <div>
+        <Text className={classes.eyebrow}>{t("staff.walkIn.eyebrow")}</Text>
+        <Title order={1}>{t("staff.walkInNotices.title")}</Title>
+        <Text c="gray.7">
+          {t("staff.walkInNotices.description", { name: holder ? fullName(holder) : "" })}
+        </Text>
+      </div>
+
+      {draft.status !== "draft" && <Notice type="info" title={t("staff.walkInNotices.notDraft")} />}
+      {adultMembers.length === 0 && (
+        <Notice type="error" title={t("staff.walkInNotices.noAdults")} />
+      )}
+
+      {adultMembers.map((member) => (
+        <NoticeCard
+          key={member.id}
+          householdId={draft.id}
+          member={member}
+          today={today}
+          recorded={notices[member.id]}
+          onRecorded={(notice) => setNotices((all) => ({ ...all, [member.id]: notice }))}
+        />
+      ))}
+
+      <DecisionSummary
+        householdId={draft.id}
+        canDecide={draft.status === "draft"}
+        adultMembers={adultMembers}
+        notices={notices}
+      />
+
+      <Group gap="sm">
+        <Button variant="outline" component={Link} to={`/staff/walk-in/${draft.id}`}>
+          {t("staff.walkInNotices.backToFile")}
+        </Button>
+      </Group>
+    </Stack>
+  );
+}
+
+interface NoticeCardProps {
+  householdId: string;
+  member: Member;
+  today: string;
+  recorded: RecordedNotice | undefined;
+  onRecorded: (notice: RecordedNotice) => void;
+}
+
+/** One adult: the notice values, or "did not file" with a reason. */
+function NoticeCard({ householdId, member, today, recorded, onRecorded }: NoticeCardProps) {
+  const { t } = useTranslation();
+  const language = useLanguage();
+  const form = useForm<NoticeValues>({ initialValues: EMPTY_NOTICE });
+  const [editing, setEditing] = useState(true);
+  const [problem, setProblem] = useState<string | null>(null);
+  const titleId = `notice-${member.id}`;
+
+  const mutation = useMutation({
+    mutationFn: (values: NoticeValues) =>
+      recordNotice(householdId, toNoticeInput(member.id, values), language),
+    onSuccess: (notice) => {
+      onRecorded(notice);
+      setEditing(false);
+    },
+    onError: (error) => {
+      if (error instanceof WalkInFailed && error.status === 400) {
+        const { errors, other } = noticeServerErrors(error.fields);
+        form.setErrors(errors);
+        setProblem(other.length > 0 ? other.join(" ") : null);
+      } else if (error instanceof WalkInFailed) {
+        setProblem(error.message || t("staff.walkIn.saveError"));
+      } else {
+        setProblem(t("staff.walkIn.networkError"));
+      }
+    },
+  });
+
+  const save = () => {
+    setProblem(null);
+    const errors = noticeErrors(form.values, today);
+    form.setErrors(errors);
+    if (Object.keys(errors).length === 0) mutation.mutate(form.values);
+  };
+
+  const replace = () => {
+    form.reset();
+    setEditing(true);
+  };
+
+  const lastYear = Number(today.slice(0, 4)) - 1;
+
+  return (
+    <section className={classes.card} aria-labelledby={titleId}>
+      <Group justify="space-between" mb="md">
+        <Title order={2} id={titleId} className={classes.memberTitle}>
+          {fullName(member)}
+        </Title>
+        {recorded && <StateBadge state={adultState(recorded)} />}
+      </Group>
+
+      {problem && (
+        <Notice type="error" title={t("staff.walkIn.notSaved")}>
+          {problem}
+        </Notice>
+      )}
+
+      {!editing && recorded ? (
+        <Stack gap="sm">
+          <RecordedSummary notice={recorded} />
+          <Group>
+            <Button variant="subtle" onClick={replace}>
+              {t("staff.walkInNotices.replace")}
+            </Button>
+          </Group>
+        </Stack>
+      ) : (
+        <Stack gap="md">
+          <Checkbox
+            {...form.getInputProps("didNotFile", { type: "checkbox" })}
+            size="md"
+            label={t("staff.walkInNotices.didNotFile")}
+            description={t("staff.walkInNotices.didNotFileHelp")}
+          />
+
+          {form.values.didNotFile ? (
+            <TextField
+              {...form.getInputProps("reason")}
+              label={t("staff.walkInNotices.reason")}
+              multiline
+              maxLength={MAX_REASON}
+            />
+          ) : (
+            <>
+              <Stack gap="xs">
+                <FileButton
+                  onChange={(file) => form.setFieldValue("file", file)}
+                  accept="image/*"
+                  capture="environment"
+                >
+                  {(buttonProps) => (
+                    <Button
+                      {...buttonProps}
+                      variant="outline"
+                      leftSection={<IconCamera size={18} aria-hidden />}
+                      style={{ alignSelf: "flex-start" }}
+                    >
+                      {t("staff.walkInNotices.takePhoto")}
+                    </Button>
+                  )}
+                </FileButton>
+                <FileUpload
+                  {...form.getInputProps("file")}
+                  label={t("staff.walkInNotices.file")}
+                  accept={NOTICE_TYPES}
+                  maxMb={NOTICE_MAX_MB}
+                  buttonLabel={t("staff.walkInNotices.chooseFile")}
+                />
+              </Stack>
+
+              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                <IntegerField
+                  {...form.getInputProps("taxYear")}
+                  label={t("staff.walkInNotices.taxYear")}
+                  min={FIRST_TAX_YEAR}
+                  max={lastYear}
+                />
+                <MoneyField
+                  {...form.getInputProps("totalIncomeCents")}
+                  label={t("staff.walkInNotices.totalIncome")}
+                />
+                <TextField
+                  {...form.getInputProps("nameOnNotice")}
+                  label={t("staff.walkInNotices.nameOnNotice")}
+                  autoComplete="off"
+                />
+                <PostalCodeField
+                  {...form.getInputProps("postalCodeOnNotice")}
+                  label={t("staff.walkInNotices.postalCodeOnNotice")}
+                />
+                <DateField
+                  {...form.getInputProps("noticeDate")}
+                  label={t("staff.walkInNotices.noticeDate")}
+                  maxDate={today}
+                />
+              </SimpleGrid>
+
+              <Checkbox
+                {...form.getInputProps("seenInPerson", { type: "checkbox" })}
+                size="md"
+                label={t("staff.walkIn.noticeSeenInPerson")}
+                description={t("staff.walkInNotices.seenHelp")}
+              />
+            </>
+          )}
+
+          <Group>
+            <Button loading={mutation.isPending} onClick={save}>
+              {t("staff.walkInNotices.save")}
+            </Button>
+            {recorded && (
+              <Button variant="subtle" onClick={() => setEditing(false)}>
+                {t("staff.walkInNotices.cancel")}
+              </Button>
+            )}
+          </Group>
+        </Stack>
+      )}
+    </section>
+  );
+}
+
+const STATE_LABELS: Record<AdultState, string> = {
+  missing: "staff.walkInNotices.stateMissing",
+  filed: "staff.walkInNotices.stateFiled",
+  notSeen: "staff.walkInNotices.stateNotSeen",
+  didNotFile: "staff.walkInNotices.stateDidNotFile",
+};
+
+const STATE_COLORS: Record<AdultState, string> = {
+  missing: "gray",
+  filed: "green",
+  notSeen: "yellow",
+  didNotFile: "yellow",
+};
+
+function StateBadge({ state }: { state: AdultState }) {
+  const { t } = useTranslation();
+  return (
+    <Badge color={STATE_COLORS[state]} variant="light">
+      {t(STATE_LABELS[state])}
+    </Badge>
+  );
+}
+
+/** What was recorded, so staff can check it before the decision. */
+function RecordedSummary({ notice }: { notice: RecordedNotice }) {
+  const { t, i18n } = useTranslation();
+  if (notice.did_not_file_reason) {
+    return (
+      <Text size="sm">
+        {t("staff.walkInNotices.reason")}: {notice.did_not_file_reason}
+      </Text>
+    );
+  }
+  const language = i18n.resolvedLanguage === "en" ? "en" : "fr";
+  return (
+    <List size="sm" spacing={4}>
+      <List.Item>
+        {t("staff.walkInNotices.taxYear")}: {notice.tax_year}
+      </List.Item>
+      <List.Item>
+        {t("staff.walkInNotices.totalIncome")}:{" "}
+        {formatMoney(notice.total_income_cents ?? 0, language)}
+      </List.Item>
+      <List.Item>
+        {t("staff.walkInNotices.nameOnNotice")}: {notice.name_on_notice}
+      </List.Item>
+      <List.Item>
+        {t("staff.walkInNotices.noticeDate")}: {notice.notice_date}
+      </List.Item>
+    </List>
+  );
+}
+
+interface DecisionSummaryProps {
+  householdId: string;
+  canDecide: boolean;
+  adultMembers: Member[];
+  notices: Record<string, RecordedNotice>;
+}
+
+/** Each adult's state, the approve button, then the decision. */
+function DecisionSummary({ householdId, canDecide, adultMembers, notices }: DecisionSummaryProps) {
+  const { t } = useTranslation();
+  const language = useLanguage();
+  const queryClient = useQueryClient();
+  const ready = readyForDecision(adultMembers, notices);
+  const review = ready && needsReview(adultMembers.map((member) => notices[member.id]));
+  const [problem, setProblem] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () => approveWalkIn(householdId, language),
+    onSuccess: () => {
+      setProblem(null);
+      // The file is no longer a draft: reload it so the page says so.
+      void queryClient.invalidateQueries({ queryKey: walkInQueryKey(householdId) });
+    },
+    onError: (error) => {
+      if (error instanceof WalkInFailed) {
+        const messages = Object.values(error.fields).flat();
+        setProblem(messages.length > 0 ? messages.join(" ") : error.message);
+      } else {
+        setProblem(t("staff.walkIn.networkError"));
+      }
+    },
+  });
+  const decision = mutation.data;
+
+  return (
+    <section className={classes.card} aria-labelledby="decision-summary">
+      <Title order={2} id="decision-summary" className={classes.memberTitle} mb="sm">
+        {t("staff.walkInNotices.summaryTitle")}
+      </Title>
+      <List spacing="xs" mb="md">
+        {adultMembers.map((member) => (
+          <List.Item key={member.id}>
+            <Group gap="xs">
+              <Text size="sm">{fullName(member)}</Text>
+              <StateBadge state={adultState(notices[member.id])} />
+            </Group>
+          </List.Item>
+        ))}
+      </List>
+      {!ready && <Text c="gray.7">{t("staff.walkInNotices.notReady")}</Text>}
+      {ready && !review && (
+        <Group gap="xs">
+          <IconCircleCheck size={20} aria-hidden />
+          <Text>{t("staff.walkInNotices.ready")}</Text>
+        </Group>
+      )}
+      {review && <Notice type="warning" title={t("staff.walkInNotices.review")} />}
+
+      {problem && (
+        <Notice type="error" title={t("staff.walkInNotices.notDecided")}>
+          {problem}
+        </Notice>
+      )}
+      {decision ? (
+        <DecisionOutcome decision={decision} />
+      ) : (
+        canDecide && (
+          <Stack gap={4} mt="md" align="flex-start">
+            <Button
+              onClick={() => mutation.mutate()}
+              loading={mutation.isPending}
+              disabled={!ready}
+            >
+              {t("staff.walkInNotices.approve")}
+            </Button>
+            <Text size="sm" c="gray.7">
+              {t("staff.walkInNotices.approveHelp")}
+            </Text>
+          </Stack>
+        )
+      )}
+    </section>
+  );
+}
+
+const REASON_KEYS: Record<string, string> = {
+  INCOME_ABOVE_LICO: "staff.walkInNotices.reasonIncomeAboveLico",
+  NAME_MISMATCH: "staff.walkInNotices.reasonNameMismatch",
+  ADDRESS_MISMATCH: "staff.walkInNotices.reasonAddressMismatch",
+  NOTICE_NOT_SEEN: "staff.walkInNotices.reasonNoticeNotSeen",
+  DID_NOT_FILE: "staff.walkInNotices.reasonDidNotFile",
+  TAX_YEAR_NOT_ACCEPTED: "staff.walkInNotices.reasonTaxYear",
+  IDENTITY_NOT_VERIFIED: "staff.walkInNotices.reasonIdentity",
+  INCOME_NOT_CONFIRMED: "staff.walkInNotices.reasonIncomeNotConfirmed",
+  REVIEW_REQUIRED: "staff.walkInNotices.reasonReview",
+};
+
+/** Reason codes ("NAME_MISMATCH, NOTICE_NOT_SEEN") as translation keys; unknown codes stay as codes. */
+function reasonKeys(statusReason: string): string[] {
+  return statusReason
+    .split(",")
+    .map((code) => code.trim())
+    .filter(Boolean)
+    .map((code) => REASON_KEYS[code] ?? code);
+}
+
+/** Approved until a date, rejected with its reason, or sent to review with its reasons. */
+function DecisionOutcome({ decision }: { decision: WalkInDecision }) {
+  const { t } = useTranslation();
+  const language = useLanguage();
+  if (decision.status === "approved") {
+    const until = decision.expires_at
+      ? new Intl.DateTimeFormat(language === "en" ? "en-CA" : "fr-CA", {
+          dateStyle: "long",
+          timeZone: "America/Montreal",
+        }).format(new Date(decision.expires_at))
+      : "";
+    return (
+      <Notice type="success" title={t("staff.walkInNotices.approved", { date: until })}>
+        {t("staff.walkInNotices.approvedHelp")}
+      </Notice>
+    );
+  }
+  const rejected = decision.status === "rejected";
+  return (
+    <Notice
+      type={rejected ? "error" : "warning"}
+      title={t(rejected ? "staff.walkInNotices.rejected" : "staff.walkInNotices.sentToReview")}
+    >
+      <List size="sm">
+        {reasonKeys(decision.status_reason).map((key) => (
+          <List.Item key={key}>{t(key)}</List.Item>
+        ))}
+      </List>
+    </Notice>
+  );
+}

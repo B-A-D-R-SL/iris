@@ -10,10 +10,12 @@ import { stillToComplete, type WalkInFormValues } from "./walkInForm";
 interface DraftSavedProps {
   values: WalkInFormValues;
   onResume: () => void;
+  /** The saved draft; its notices are recorded on their own page (US-18). */
+  householdId?: string;
 }
 
 /** Figma W3.2a "Draft saved": what is still missing and how to resume. */
-export function DraftSaved({ values, onResume }: DraftSavedProps) {
+export function DraftSaved({ values, onResume, householdId }: DraftSavedProps) {
   const { t } = useTranslation();
   const name = `${values.firstName} ${values.lastName}`.trim();
   return (
@@ -35,6 +37,11 @@ export function DraftSaved({ values, onResume }: DraftSavedProps) {
       </section>
       <Group gap="sm">
         <Button onClick={onResume}>{t("staff.walkIn.resume")}</Button>
+        {householdId && (
+          <Button variant="outline" component={Link} to={`/staff/walk-in/${householdId}/notices`}>
+            {t("staff.walkInNotices.open")}
+          </Button>
+        )}
         <Button variant="outline" component={Link} to="/staff/households">
           {t("staff.walkIn.backToHouseholds")}
         </Button>
