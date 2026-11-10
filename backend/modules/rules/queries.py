@@ -1,3 +1,4 @@
+# AI contribution: 50% or more AI-generated
 """Read-only access to versioned business-rule settings."""
 
 from datetime import datetime
