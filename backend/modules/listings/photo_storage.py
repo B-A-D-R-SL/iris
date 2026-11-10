@@ -45,7 +45,7 @@ def load_store() -> ListingPhotoStore:
         raise PhotoStorageError("Listing photo storage is not available yet.")
     try:
         return cast(ListingPhotoStore, import_string(backend)())
-    except (ImportError, AttributeError, ValueError, PhotoStorageError):
+    except (ImportError, AttributeError, ValueError, TypeError, PhotoStorageError):
         raise PhotoStorageError("Photo storage is temporarily unavailable.") from None
 
 

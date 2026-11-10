@@ -157,6 +157,18 @@ jobs:
           cache-dependency-glob: backend/uv.lock
       - name: Install dependencies
         run: uv sync --locked --no-build
+      - name: Wait for Azurite readiness
+        timeout-minutes: 2
+        run: |
+          # Any HTTP response (including Azurite's unauthenticated 400) proves it is listening.
+          for attempt in {1..30}; do
+            if curl --silent --output /dev/null --connect-timeout 1 --max-time 1 http://127.0.0.1:10000/; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Azurite did not become ready within the retry window."
+          exit 1
       - name: Verify the same photo link expires at the provider deadline
         run: uv run --locked --no-build python -m pytest -c photos.ini tests/test_blob_photos_azurite.py -m slow_expiry -q
 

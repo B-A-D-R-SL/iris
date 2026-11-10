@@ -190,7 +190,7 @@ class BlobPhotoStore:
                     # Never delete an existing object on a name collision.
                     raise
                 except AzureError:
-                    self._cleanup(blob.delete_blob)
+                    self._cleanup(blob.delete_blob, reference=reference)
                     raise
         except AzureError:
             raise PhotoStorageError(
@@ -200,7 +200,7 @@ class BlobPhotoStore:
         return reference
 
     @staticmethod
-    def _cleanup(delete: Callable[..., object]) -> None:
+    def _cleanup(delete: Callable[..., object], *, reference: str) -> None:
         """Attempt compensating deletion without masking the original upload failure."""
         try:
             delete(delete_snapshots="include")
@@ -213,7 +213,7 @@ class BlobPhotoStore:
         except AzureError:
             logger.error(
                 "listing_photo_cleanup_failed",
-                extra={"event": "listing_photo_cleanup_failed"},
+                extra={"event": "listing_photo_cleanup_failed", "photo_ref": reference},
             )
         else:
             logger.info(

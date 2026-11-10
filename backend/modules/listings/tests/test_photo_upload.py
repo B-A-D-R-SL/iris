@@ -5,13 +5,16 @@ import json
 from io import BytesIO
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
+from azure.core.exceptions import AzureError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from PIL import Image
 from rest_framework.test import APIClient
 
+from adapters.blob_photos import BlobPhotoConfig, BlobPhotoStore
 from adapters.photo_types import PhotoStorageError
 from iris.observability import JsonLogFormatter
 from modules.listings import services
@@ -140,6 +143,56 @@ def test_database_failure_cleans_the_processed_photo(
         )
     assert not Listing.objects.exists()
     assert memory_store.photos == {}
+
+
+def test_invalid_photo_factory_signature_returns_generic_posting_error(
+    posting_case: SimpleNamespace, settings: Any
+) -> None:
+    """Pointing configuration at the adapter class cannot leak a constructor error."""
+    settings.LISTING_PHOTO_STORE_BACKEND = "adapters.blob_photos.BlobPhotoStore"
+    client = APIClient(HTTP_ACCEPT_LANGUAGE="en")
+    client.force_authenticate(user=posting_case.user)
+    response = client.post(
+        reverse("store-listing-create"),
+        payload(posting_case, upload()),
+        format="multipart",
+    )
+    assert response.status_code == 503
+    assert response.json()["message"] == "Posting is temporarily unavailable."
+    assert not Listing.objects.exists()
+
+
+def test_upload_and_cleanup_failure_logs_the_orphan_in_json(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A reference survives JSON formatting even when upload never returns it."""
+    config = BlobPhotoConfig(
+        container="iris-unit-tests",
+        account_name="unitaccount",
+        account_key="c3ludGhldGljLWtleQ==",
+        account_url="https://unitaccount.blob.core.windows.net",
+    )
+    client = MagicMock()
+    client.__enter__.return_value = client
+    container = client.get_container_client.return_value
+    container.get_container_access_policy.return_value = {"public_access": None}
+    blob = container.get_blob_client.return_value
+    blob.upload_blob.side_effect = AzureError("sensitive upload details")
+    blob.delete_blob.side_effect = AzureError("sensitive cleanup details")
+    storage = BlobPhotoStore(config, client_factory=lambda *args, **kwargs: client)
+    content = upload().read()
+    with pytest.raises(PhotoStorageError):
+        storage.put_image(content, max_dimension=1280)
+    reference = container.get_blob_client.call_args.args[0]
+    records = [
+        record
+        for record in caplog.records
+        if getattr(record, "event", None) == "listing_photo_cleanup_failed"
+    ]
+    assert len(records) == 1
+    encoded = JsonLogFormatter().format(records[0])
+    assert json.loads(encoded)["photo_ref"] == reference
+    assert "sensitive" not in encoded
 
 
 def test_failed_rollback_cleanup_identifies_the_orphan_without_masking_database_error(

@@ -453,7 +453,9 @@ def test_only_current_page_photos_are_signed_in_one_batch(
     store.read_links.assert_called_once_with(references[20:])
 
 
-@pytest.mark.parametrize("backend", ["", "missing.module.factory"])
+@pytest.mark.parametrize(
+    "backend", ["", "missing.module.factory", "adapters.blob_photos.BlobPhotoStore"]
+)
 def test_storage_configuration_failure_keeps_listings_available_without_photos(
     approved: APIClient, settings: Any, backend: str
 ) -> None:

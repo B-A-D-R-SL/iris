@@ -180,6 +180,10 @@ def test_failed_cleanup_logs_only_a_safe_event(
     assert [getattr(record, "event", None) for record in caplog.records] == [
         "listing_photo_cleanup_failed"
     ]
+    reference = client.get_container_client.return_value.get_blob_client.call_args.args[
+        0
+    ]
+    assert getattr(caplog.records[0], "photo_ref", None) == reference
     assert "private" not in caplog.text
 
 
