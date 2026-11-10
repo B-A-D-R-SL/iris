@@ -1,6 +1,7 @@
 # AI contribution: 50% or more AI-generated
 """FIX-02: actual upload boundary, processing, storage failures and rollback."""
 
+import json
 from io import BytesIO
 from types import SimpleNamespace
 from typing import Any
@@ -12,6 +13,7 @@ from PIL import Image
 from rest_framework.test import APIClient
 
 from adapters.photo_types import PhotoStorageError
+from iris.observability import JsonLogFormatter
 from modules.listings import services
 from modules.listings.models import Listing
 from modules.listings.tests.fake_photo_store import MemoryPhotoStore
@@ -138,3 +140,39 @@ def test_database_failure_cleans_the_processed_photo(
         )
     assert not Listing.objects.exists()
     assert memory_store.photos == {}
+
+
+def test_failed_rollback_cleanup_identifies_the_orphan_without_masking_database_error(
+    posting_case: SimpleNamespace,
+    memory_store: MemoryPhotoStore,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Operators get only the opaque orphan reference; the original error survives."""
+
+    def fail_save(*args: Any, **kwargs: Any) -> None:
+        raise RuntimeError("simulated database failure")
+
+    def fail_delete(reference: str) -> None:
+        raise PhotoStorageError("sensitive provider details")
+
+    monkeypatch.setattr(Listing, "save", fail_save)
+    monkeypatch.setattr(memory_store, "delete", fail_delete)
+    photo = upload()
+    with pytest.raises(RuntimeError, match="simulated database failure"):
+        services.post_listing(
+            posting_case.store.pk, posting_case.user, posting_case.data, photo=photo
+        )
+    assert not Listing.objects.exists()
+    assert len(memory_store.photos) == 1
+    records = [
+        record
+        for record in caplog.records
+        if getattr(record, "event", None) == "listing_photo_cleanup_failed"
+    ]
+    assert len(records) == 1
+    assert getattr(records[0], "photo_ref", None) == next(iter(memory_store.photos))
+    encoded = JsonLogFormatter().format(records[0])
+    assert json.loads(encoded)["photo_ref"] == next(iter(memory_store.photos))
+    assert "sensitive provider details" not in encoded
+    assert "sensitive provider details" not in caplog.text

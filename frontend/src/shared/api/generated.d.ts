@@ -757,11 +757,6 @@ export interface operations {
           "application/json": components["schemas"]["BrowseError"];
         };
       };
-      503: {
-        content: {
-          "application/json": components["schemas"]["BrowseError"];
-        };
-      };
     };
   };
   me_retrieve: {

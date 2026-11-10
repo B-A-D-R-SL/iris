@@ -33,6 +33,7 @@ LOCAL_HOSTS = frozenset({"azurite", "localhost", "127.0.0.1", "::1"})
 
 
 def _endpoint(value: str, allow_http: bool) -> str:
+    """Reject credential-bearing URLs and HTTP outside explicit local development."""
     parsed = urlsplit(value)
     local_http = allow_http and parsed.hostname in LOCAL_HOSTS
     if (
@@ -49,6 +50,8 @@ def _endpoint(value: str, allow_http: bool) -> str:
 
 @dataclass(frozen=True)
 class BlobPhotoConfig:
+    """Validated account and endpoint settings with credentials hidden from repr."""
+
     container: str
     account_name: str
     account_key: str = field(repr=False)
@@ -58,6 +61,7 @@ class BlobPhotoConfig:
     max_pixels: int = DEFAULT_MAX_PIXELS
 
     def __post_init__(self) -> None:
+        """Reject invalid names, keys, limits and endpoints before contacting storage."""
         if not re.fullmatch(r"[a-z0-9]{3,24}", self.account_name):
             raise PhotoStorageError("Photo storage account is not configured.")
         if not re.fullmatch(
@@ -85,6 +89,7 @@ def config_from_connection_string(
     allow_http: bool = False,
     max_pixels: int = DEFAULT_MAX_PIXELS,
 ) -> BlobPhotoConfig:
+    """Parse an account-key connection string without exposing its contents on failure."""
     try:
         entries = (item.split("=", 1) for item in connection_string.split(";") if item)
         parts = {key: value for key, value in entries}
@@ -109,16 +114,20 @@ def config_from_connection_string(
 
 
 class BlobPhotoStore:
+    """Process uploads and manage private blobs through short-lived SDK clients."""
+
     def __init__(
         self,
         config: BlobPhotoConfig,
         *,
         client_factory: Callable[..., BlobServiceClient] = BlobServiceClient,
     ) -> None:
+        """Accept validated configuration and an injectable SDK factory for tests."""
         self.config = config
         self._client_factory = client_factory
 
     def _client(self) -> BlobServiceClient:
+        """Build a key-authenticated client with bounded retries and timeouts."""
         return self._client_factory(
             self.config.account_url,
             credential=AzureNamedKeyCredential(
@@ -134,12 +143,16 @@ class BlobPhotoStore:
     def _container(
         self, service: BlobServiceClient, *, create: bool = False
     ) -> ContainerClient:
+        """Optionally create the container, then verify even existing ones are private."""
         container = service.get_container_client(self.config.container)
         if create:
             try:
                 container.create_container(public_access=None)
             except ResourceExistsError:
-                pass  # Existing containers must still pass the private-access check.
+                logger.info(
+                    "listing_photo_container_reused",
+                    extra={"event": "listing_photo_container_reused"},
+                )
         if container.get_container_access_policy().get("public_access") is not None:
             raise PhotoStorageError("Photo storage container must be private.")
         return container
@@ -151,6 +164,7 @@ class BlobPhotoStore:
         max_dimension: int,
         max_bytes: int = DEFAULT_MAX_BYTES,
     ) -> str:
+        """Upload cleaned image bytes under a new reference; clean up uncertain writes."""
         photo = process_photo(
             content,
             max_dimension=max_dimension,
@@ -187,22 +201,34 @@ class BlobPhotoStore:
 
     @staticmethod
     def _cleanup(delete: Callable[..., object]) -> None:
+        """Attempt compensating deletion without masking the original upload failure."""
         try:
             delete(delete_snapshots="include")
         except ResourceNotFoundError:
+            logger.info(
+                "listing_photo_cleanup_not_found",
+                extra={"event": "listing_photo_cleanup_not_found"},
+            )
             return
         except AzureError:
             logger.error(
                 "listing_photo_cleanup_failed",
                 extra={"event": "listing_photo_cleanup_failed"},
             )
+        else:
+            logger.info(
+                "listing_photo_cleanup_completed",
+                extra={"event": "listing_photo_cleanup_completed"},
+            )
 
     @staticmethod
     def _reference(reference: str) -> None:
+        """Accept only server-generated listing photo references, never arbitrary paths."""
         if not REFERENCE.fullmatch(reference):
             raise PhotoStorageError("Invalid photo reference.")
 
     def delete(self, reference: str) -> None:
+        """Delete a photo idempotently and return a generic error for storage failures."""
         self._reference(reference)
         try:
             with self._client() as service:
@@ -210,6 +236,10 @@ class BlobPhotoStore:
                     delete_snapshots="include",
                 )
         except ResourceNotFoundError:
+            logger.info(
+                "listing_photo_delete_not_found",
+                extra={"event": "listing_photo_delete_not_found"},
+            )
             return
         except AzureError:
             raise PhotoStorageError(
@@ -218,6 +248,7 @@ class BlobPhotoStore:
         logger.info("listing_photo_deleted", extra={"event": "listing_photo_deleted"})
 
     def read_link(self, reference: str, *, at: datetime | None = None) -> PhotoReadLink:
+        """Issue one scoped read link after checking the container's privacy."""
         return self.read_links([reference], at=at)[reference]
 
     def read_links(
@@ -249,6 +280,7 @@ class BlobPhotoStore:
     def _sign_link(
         self, reference: str, endpoint: str, expires: datetime
     ) -> PhotoReadLink:
+        """Sign one validated blob reference with read-only access and a fixed expiry."""
         token = generate_blob_sas(
             account_name=self.config.account_name,
             container_name=self.config.container,

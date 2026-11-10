@@ -2,6 +2,7 @@
 """Private storage contract against an in-memory SDK stand-in; no network."""
 
 import base64
+import logging
 from datetime import UTC, datetime, timedelta
 from functools import partial
 from io import BytesIO
@@ -91,13 +92,19 @@ def test_public_containers_are_refused_before_upload_or_link_creation(
     container.get_blob_client.return_value.upload_blob.assert_not_called()
 
 
-def test_existing_private_container_is_reused() -> None:
+def test_existing_private_container_is_reused(caplog: pytest.LogCaptureFixture) -> None:
+    """Container reuse still checks privacy and logs no provider exception text."""
+    caplog.set_level(logging.INFO, logger="iris.listings")
     store, client = fake_sdk()
     client.get_container_client.return_value.create_container.side_effect = (
-        ResourceExistsError()
+        ResourceExistsError("sensitive provider details")
     )
     store.put_image(photo_bytes(), max_dimension=1280)
     client.get_container_client.return_value.get_container_access_policy.assert_called_once()
+    assert "listing_photo_container_reused" in [
+        getattr(record, "event", None) for record in caplog.records
+    ]
+    assert "sensitive provider details" not in caplog.text
 
 
 def test_invalid_photo_never_contacts_storage() -> None:
@@ -107,7 +114,11 @@ def test_invalid_photo_never_contacts_storage() -> None:
     client.get_container_client.assert_not_called()
 
 
-def test_upload_failure_cleans_its_object_and_hides_provider_details() -> None:
+def test_upload_failure_cleans_its_object_and_hides_provider_details(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An uncertain write is removed and its cleanup event contains no provider data."""
+    caplog.set_level(logging.INFO, logger="iris.listings")
     store, client = fake_sdk()
     blob = client.get_container_client.return_value.get_blob_client.return_value
     blob.upload_blob.side_effect = AzureError("sensitive provider error")
@@ -116,6 +127,34 @@ def test_upload_failure_cleans_its_object_and_hides_provider_details() -> None:
         store.put_image(content, max_dimension=1280)
     assert "sensitive" not in str(caught.value)
     blob.delete_blob.assert_called_once_with(delete_snapshots="include")
+    assert [getattr(record, "event", None) for record in caplog.records] == [
+        "listing_photo_cleanup_completed"
+    ]
+    assert "sensitive provider error" not in caplog.text
+
+
+@pytest.mark.parametrize("operation", ["cleanup", "delete"])
+def test_missing_blob_is_harmless_and_logs_only_a_safe_event(
+    operation: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A missing blob stays idempotent while every handled failure has a safe event."""
+    caplog.set_level(logging.INFO, logger="iris.listings")
+    store, client = fake_sdk()
+    blob = client.get_blob_client.return_value
+    blob.delete_blob.side_effect = ResourceNotFoundError(
+        "sensitive missing blob details"
+    )
+    if operation == "cleanup":
+        blob.upload_blob.side_effect = AzureError("sensitive upload details")
+        content = photo_bytes()
+        with pytest.raises(PhotoStorageError):
+            store.put_image(content, max_dimension=1280)
+    else:
+        store.delete(REFERENCE)
+    assert [getattr(record, "event", None) for record in caplog.records] == [
+        f"listing_photo_{operation}_not_found"
+    ]
+    assert "sensitive" not in caplog.text
 
 
 def test_name_collision_never_deletes_an_existing_object() -> None:

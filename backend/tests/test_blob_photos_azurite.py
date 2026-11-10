@@ -122,6 +122,7 @@ def test_expired_tampered_and_other_blob_links_are_refused(
             assert refused.value.status_code == 403
 
 
+@pytest.mark.slow_expiry
 def test_same_five_minute_link_stops_working_after_its_deadline(
     live_store: BlobPhotoStore,
 ) -> None:

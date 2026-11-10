@@ -19,12 +19,15 @@ class PhotoValidationError(ValueError):
     """A stable reason code; callers translate it without exposing decoder errors."""
 
     def __init__(self, code: str) -> None:
+        """Keep a stable reason code instead of returning decoder exception details."""
         self.code = code
         super().__init__(code)
 
 
 @dataclass(frozen=True)
 class ProcessedPhoto:
+    """Fresh encoded image bytes and the dimensions and type of that output."""
+
     content: bytes
     content_type: str
     width: int
@@ -32,6 +35,7 @@ class ProcessedPhoto:
 
 
 def _check_image(image: Image.Image, max_pixels: int) -> str:
+    """Reject unsupported, oversized or animated inputs before decoding pixels."""
     if image.format not in CONTENT_TYPES:
         raise PhotoValidationError("unsupported_format")
     if image.width * image.height > max_pixels:
@@ -66,6 +70,7 @@ def _normalize(image: Image.Image) -> Image.Image:
 
 
 def _encode(image: Image.Image, image_format: str) -> ProcessedPhoto:
+    """Encode a fresh pixel-only image so input metadata cannot reach storage."""
     # Conversion/copy alone may retain info/EXIF. Transfer only pixels to a fresh
     # image so EXIF, GPS, XMP, comments and PNG text cannot be copied to storage.
     with Image.new(image.mode, image.size) as clean:
@@ -79,6 +84,7 @@ def _encode(image: Image.Image, image_format: str) -> ProcessedPhoto:
 
 
 def _process(content: bytes, max_dimension: int, max_pixels: int) -> ProcessedPhoto:
+    """Verify, reopen, orient and resize an image without upscaling it."""
     with Image.open(BytesIO(content), formats=list(CONTENT_TYPES)) as candidate:
         image_format = _check_image(candidate, max_pixels)
         candidate.verify()

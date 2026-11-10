@@ -454,37 +454,41 @@ def test_only_current_page_photos_are_signed_in_one_batch(
 
 
 @pytest.mark.parametrize("backend", ["", "missing.module.factory"])
-def test_storage_configuration_failure_returns_generic_browse_error(
+def test_storage_configuration_failure_keeps_listings_available_without_photos(
     approved: APIClient, settings: Any, backend: str
 ) -> None:
     _listing(photo_ref="listing-photos/" + "a" * 32 + ".png")
     settings.LISTING_PHOTO_STORE_BACKEND = backend
     response = approved.get(URL)
-    assert response.status_code == 503
-    assert response.json()["message"] == "Photos are temporarily unavailable."
+    assert response.status_code == 200
+    assert response.json()["count"] == 1
+    assert response.json()["results"][0]["photo_url"] is None
 
 
 @pytest.mark.parametrize(
-    ("language", "message"),
-    [
-        ("en", "Photos are temporarily unavailable."),
-        ("fr", "Les photos sont temporairement indisponibles."),
-    ],
+    "language",
+    ["en", "fr"],
 )
-def test_photo_link_failure_is_generic_and_does_not_leak_reference(
+def test_photo_link_failure_keeps_listing_details_and_does_not_leak_reference(
     approved: APIClient,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     language: str,
-    message: str,
 ) -> None:
+    """An optional photo outage must not hide authorized listing details."""
     reference = "listing-photos/" + "a" * 32 + ".png"
-    _listing(photo_ref=reference)
+    listing = _listing(photo_ref=reference)
     store = Mock()
     store.read_links.side_effect = PhotoStorageError("private storage credentials")
     monkeypatch.setattr(photo_storage, "configured_store", lambda: store)
     response = approved.get(URL, HTTP_ACCEPT_LANGUAGE=language)
-    assert response.status_code == 503
-    assert response.json()["message"] == message
+    assert response.status_code == 200
+    card = response.json()["results"][0]
+    assert card["id"] == str(listing.pk)
+    assert card["title"] == listing.title
+    assert card["photo_url"] is None
     assert reference not in str(response.json())
     assert "private storage credentials" not in caplog.text
+    assert "listing_photo_read_failed" in [
+        getattr(record, "event", None) for record in caplog.records
+    ]

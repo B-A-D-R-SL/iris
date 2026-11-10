@@ -2,6 +2,7 @@
 """Generate synthetic before/after examples using the actual photo processor."""
 
 import argparse
+import re
 from io import BytesIO
 from pathlib import Path
 
@@ -9,8 +10,27 @@ from PIL import Image, ImageDraw, ImageFont, PngImagePlugin
 
 from adapters.photos import PhotoValidationError, process_photo
 
+OUTPUT_ROOT = Path(__file__).resolve().parents[1] / "tmp"
+
+
+def _output_directory(name: str) -> Path:
+    """Create one new child of backend/tmp; reject paths and redirected roots."""
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", name) is None:
+        raise ValueError(
+            "Output directory must be a simple name, without path separators."
+        )
+    if OUTPUT_ROOT.is_symlink() or OUTPUT_ROOT.is_junction():
+        raise ValueError(
+            "The demo output root must not be a symbolic link or junction."
+        )
+    OUTPUT_ROOT.mkdir(exist_ok=True)
+    folder = OUTPUT_ROOT / name
+    folder.mkdir(exist_ok=False)
+    return folder
+
 
 def _pattern(size: tuple[int, int], *, transparent: bool = False) -> Image.Image:
+    """Draw synthetic orientation and proportion markers for visual comparison."""
     image = Image.new("RGBA" if transparent else "RGB", size, "white")
     draw = ImageDraw.Draw(image)
     width, height = size
@@ -45,6 +65,7 @@ def _sample(
     rotated: bool = False,
     transparent: bool = False,
 ) -> bytes:
+    """Encode a synthetic fixture with known metadata and optional EXIF rotation."""
     exif = Image.Exif()
     exif[271] = "IRIS SYNTHETIC CAMERA"
     exif[34853] = {1: "N", 2: (45, 0, 0), 3: "W", 4: (73, 0, 0)}
@@ -65,6 +86,7 @@ def _sample(
 
 
 def _describe(content: bytes) -> str:
+    """Report decoded dimensions and metadata presence for before/after checks."""
     with Image.open(BytesIO(content)) as image:
         image.load()
         exif = image.getexif()
@@ -78,6 +100,7 @@ def _describe(content: bytes) -> str:
 
 
 def _write_sample(folder: Path, name: str, content: bytes) -> list[str]:
+    """Write a fixture pair and an untagged raw-pixel preview for orientation cases."""
     sample = Path(name)
     (folder / f"{sample.stem}-original{sample.suffix}").write_bytes(content)
     result = process_photo(content, max_dimension=1280)
@@ -97,9 +120,9 @@ def _write_sample(folder: Path, name: str, content: bytes) -> list[str]:
     ]
 
 
-def run_demo(folder: Path) -> Path:
-    """Write only synthetic images to a new directory; refuse existing paths."""
-    folder.mkdir(parents=True, exist_ok=False)
+def run_demo(folder_name: str) -> Path:
+    """Write synthetic examples into a new named directory beneath backend/tmp."""
+    folder = _output_directory(folder_name)
     cases = [
         ("landscape.jpg", (4000, 3000), "JPEG", {}),
         ("portrait.png", (3000, 4000), "PNG", {}),
@@ -134,18 +157,20 @@ def run_demo(folder: Path) -> Path:
 
 
 def main() -> None:
+    """Run the explicit demo command, refusing to overwrite an existing directory."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--output-dir",
-        type=Path,
         required=True,
-        help="New directory for synthetic examples; must not exist",
+        help="New directory name under backend/tmp, such as photo-demo; no paths",
     )
     args = parser.parse_args()
     try:
         report = run_demo(args.output_dir)
     except FileExistsError:
         parser.error("Output directory already exists. Choose a new directory.")
+    except ValueError as exc:
+        parser.error(str(exc))
     print(f"Synthetic before/after images and report: {report.resolve()}")
 
 

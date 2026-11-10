@@ -237,7 +237,7 @@ def _cleanup_photo(reference: str | None, storage: ListingPhotoStore | None) -> 
     except Exception:  # noqa: BLE001 - cleanup must preserve the original posting error.
         logger.error(
             "listing_photo_cleanup_failed",
-            extra={"event": "listing_photo_cleanup_failed"},
+            extra={"event": "listing_photo_cleanup_failed", "photo_ref": reference},
         )
 
 

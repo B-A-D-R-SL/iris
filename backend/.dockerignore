@@ -1,21 +1,17 @@
 # AI contribution: 50% or more AI-generated
-# Keep local secrets, host interpreters and test artifacts out of backend images.
-**/db.sqlite3
-**/.idea/
-**/.vscode/
-**/.git/
+# Exclude nested secrets and test caches used by the local photo/Azurite checks.
+.venv/
 **/.env
 **/.env.*
 !.env.example
-.venv/
-venv/
 **/__pycache__/
+*.py[cod]
 **/.pytest_cache/
 **/.mypy_cache/
 **/.ruff_cache/
-.coverage*
-coverage.xml
-htmlcov/
+# Generated photo-demo images are confined to backend/tmp.
 tmp/
-temp/
-*.log
+db.sqlite3
+.git/
+.idea/
+.vscode/

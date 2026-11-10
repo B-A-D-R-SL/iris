@@ -4,15 +4,7 @@
 from datetime import UTC
 from typing import Any
 
-from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
-from rest_framework.exceptions import APIException
-
-
-class ListingPhotoUnavailable(APIException):
-    status_code = 503
-    default_detail = _("Photos are temporarily unavailable.")
-    default_code = "photo_unavailable"
 
 
 class BrowseFiltersSerializer(serializers.Serializer):

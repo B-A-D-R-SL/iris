@@ -31,7 +31,6 @@ from modules.reservations.api.serializers import (
     BrowseErrorSerializer,
     BrowseFiltersSerializer,
     ListingCardSerializer,
-    ListingPhotoUnavailable,
 )
 
 logger = logging.getLogger("iris.listings")
@@ -48,7 +47,7 @@ def _photo_urls(cards: list[dict[str, Any]]) -> dict[str, str]:
         logger.error(
             "listing_photo_read_failed", extra={"event": "listing_photo_read_failed"}
         )
-        raise ListingPhotoUnavailable() from None
+        return {}
 
 
 class ListingPagination(PageNumberPagination):
@@ -66,7 +65,6 @@ STATUS_MESSAGES = {
     status.HTTP_403_FORBIDDEN: NOT_APPROVED,
     status.HTTP_404_NOT_FOUND: _("This page of listings does not exist."),
     status.HTTP_405_METHOD_NOT_ALLOWED: _("Listings can only be read here."),
-    status.HTTP_503_SERVICE_UNAVAILABLE: _("Photos are temporarily unavailable."),
 }
 FILTER_MESSAGES = {
     "category": _("Enter a category code of 1 to 64 characters."),
@@ -113,7 +111,6 @@ def browse_exception_handler(
             401: BrowseErrorSerializer,
             403: BrowseErrorSerializer,
             404: BrowseErrorSerializer,
-            503: BrowseErrorSerializer,
         },
     )
 )

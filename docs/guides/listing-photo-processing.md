@@ -57,15 +57,17 @@ From the repository root, using PowerShell and the same `uv` tool as CI:
 cd backend
 uv sync --locked --no-build
 uv run --locked python -m pytest -c photos.ini -q
-uv run --locked python -m tools.photo_demo --output-dir ../tmp/photo-demo
+uv run --locked python -m tools.photo_demo --output-dir photo-demo
 ```
 
-The standalone `photos.ini` disables Django initialization for these two test
+The standalone `photos.ini` disables Django initialization for these three test
 files. No secret key, database credentials or running PostgreSQL are needed.
-The normal CI suite still discovers both files using `pyproject.toml`.
+The normal CI suite still discovers all three files using `pyproject.toml`.
 
-The demo refuses to overwrite an existing directory. For another run, choose a
-new name, such as `../tmp/photo-demo-2`. Only synthetic data is generated; the
+The demo accepts a simple directory name and writes only under `backend/tmp/`.
+Absolute paths, traversal, separators and redirected output roots are rejected.
+It refuses to overwrite an existing directory. For another run, choose a
+new name, such as `photo-demo-2`. Only synthetic data is generated; the
 fake GPS coordinates and camera name are not taken from anyone's photographs.
 Generated files stay under the git-ignored `tmp/` directory. The demo is invoked
 explicitly by a developer and never runs on application startup.
@@ -76,7 +78,7 @@ then run these commands from the repository root:
 ```powershell
 docker compose build backend
 docker compose run --rm --no-deps backend python -m pytest -c photos.ini -q
-docker compose run --rm --no-deps backend python -m tools.photo_demo --output-dir /app/tmp/photo-demo
+docker compose run --rm --no-deps backend python -m tools.photo_demo --output-dir photo-demo
 ```
 
 The bind mount exposes the Docker demo under `backend/tmp/photo-demo` on the
@@ -84,7 +86,7 @@ host. Choose another output directory if that folder already exists.
 
 ## Visually check the output
 
-Open `tmp/photo-demo` in Windows Explorer (or `backend/tmp/photo-demo` for Docker).
+Open `backend/tmp/photo-demo` in Windows Explorer for either local or Docker runs.
 Open each original/processed pair in Photos. View at comparable zoom levels:
 an image viewer can make different resolutions appear the same size.
 

@@ -57,6 +57,7 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "iris.settings.test"
 testpaths = ["tests", "modules"]
+markers = ["slow_expiry: real five-minute provider expiry acceptance test"]
 
 [tool.coverage.run]
 source = ["."]

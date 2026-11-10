@@ -241,7 +241,10 @@ Signed out gets 401; any other role, or a household that is not approved
 every approved household sees every visible listing. Cards include nullable
 `photo_url`: a read-only link for one private blob that expires within five
 minutes. Internal photo references are not returned. Responses containing links
-use `Cache-Control: private, no-store`. The view is in reservations, the module
+use `Cache-Control: private, no-store`. If storage configuration or signing
+fails, the authorized listing details remain available with `photo_url: null`;
+the backend logs a safe event and never substitutes a public URL.
+The view is in reservations, the module
 allowed to read both households and listings.
 
 | Method   | Path                                       | Who                  | Purpose                                          | Status  |

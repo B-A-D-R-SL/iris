@@ -16,6 +16,7 @@ from modules.listings.contracts import ListingPhotoStore
 
 
 def configured_store() -> BlobPhotoStore:
+    """Build the Azure adapter from Django settings without opening a connection."""
     options = {
         "container": settings.AZURE_STORAGE_CONTAINER_NAME,
         "public_endpoint": settings.AZURE_STORAGE_PUBLIC_BLOB_ENDPOINT,

@@ -8,13 +8,16 @@ the active RuleSet byte and dimension limits, then `BlobPhotoStore.put_image`
 validates/processes the JPEG/PNG and uploads only the cleaned bytes. PostgreSQL
 stores an opaque `listing-photos/<uuid>.jpg` or `.png` reference, never a signed
 URL. A database failure triggers deletion; an uncertain upload triggers cleanup.
-Cleanup failures are logged as safe events without provider text, keys or URLs.
+Cleanup failures are logged with the opaque blob reference so operators can
+identify an orphan; provider text, keys and signed URLs are never logged.
 
 `GET /api/listings/` adds nullable `photo_url` to each card. The signed-in user's
 household must be approved; the normal visibility query runs before link
 generation. Only the current page's cards receive links. Storage is loaded once
 and container privacy is checked once per page containing photos; pages without
 photos do not contact storage. Privacy checks are not cached across requests.
+If signing fails, listings remain available with `photo_url: null` and a safe
+failure event is logged. No unsigned or public URL is substituted.
 Internal references are not
 serialized. Responses use `Cache-Control: private, no-store` and
 `Referrer-Policy: no-referrer`. No new endpoint or frontend screen is introduced.
@@ -36,8 +39,9 @@ photos, while rendering browse-card images is a separate frontend change.
   Previously downloaded files cannot be recalled by expiry.
 - HTTPS is required outside explicit local Azurite/loopback development. An
   HTTPS link remains HTTPS-only even when local HTTP support is enabled.
-- Configuration/credential failures become generic translated errors. Invalid
-  images return 400; unavailable storage or photo access returns 503.
+- Invalid images return 400; unavailable upload storage returns a generic
+  translated 503. Browse requests remain available without photo links when
+  storage configuration or signing fails.
 
 The SDK uses Storage API `2023-11-03`, supported by Azure and the pinned Azurite
 emulator, rather than relying on an SDK default newer than the emulator. Server
@@ -95,7 +99,15 @@ link, waits for the actual provider deadline, then verifies the same URL is
 refused. Advancing Python's clock cannot advance Azurite. The other tests check
 unsigned access, write/delete attempts with a read link, altered expiry,
 cross-blob reuse, public-container refusal, real metadata removal and rollback.
-CI runs against Azurite as well as PostgreSQL.
+The main backend CI job runs against Azurite as well as PostgreSQL, excluding
+the `slow_expiry` marker. A separate photo-expiry job runs that real five-minute
+test in parallel, so the wait does not consume the backend job's time budget.
+
+Run only the slow check locally from the repository root:
+
+```powershell
+docker compose exec -T backend env IRIS_TEST_AZURITE=1 python -m pytest -c photos.ini tests/test_blob_photos_azurite.py -m slow_expiry -q
+```
 
 Tests create uniquely named dedicated `iris-photo-tests-*` / `iris-post-tests-*`
 containers and remove them in fixture teardown. They use synthetic images and
