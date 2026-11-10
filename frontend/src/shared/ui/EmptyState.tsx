@@ -12,6 +12,7 @@ export interface EmptyStateProps {
   action?: ReactNode;
 }
 
+/** Present an empty result with optional explanation and next action. */
 export function EmptyState({
   title,
   description,

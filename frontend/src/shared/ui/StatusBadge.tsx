@@ -13,6 +13,7 @@ export interface StatusBadgeProps {
   status: string;
 }
 
+/** Render translated status meaning, with neutral fallback and scoped warning for unknown values. */
 export function StatusBadge({ record, status }: StatusBadgeProps) {
   const { t } = useTranslation();
   const map: Readonly<Record<string, StatusTone>> = statusTones[record];

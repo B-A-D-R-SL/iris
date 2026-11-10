@@ -61,6 +61,7 @@ const withMessage =
   (value) =>
     rule(value) ? validationMessage(key) : null;
 
+/** Collect the partner application and present translated validation or submission results. */
 export function PartnerApply() {
   const { t, i18n } = useTranslation();
   const language = i18n.resolvedLanguage === "en" ? "en" : "fr";

@@ -25,6 +25,7 @@ import { CategoryDialog } from "./CategoryDialog";
 type Dialog = { mode: "add" } | { mode: "edit"; category: StaffCategory } | null;
 type Outcome = { type: "success" | "error"; message: string } | null;
 
+/** Present category data, mutations and their existing edit/deactivation dialogs. */
 export function CategoriesPage() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();

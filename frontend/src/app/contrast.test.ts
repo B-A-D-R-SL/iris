@@ -35,7 +35,9 @@ describe("WCAG 2.1 contrast (NFR-03)", () => {
     ["primary", "primaryLight"],
     ["neutralStrong", "neutralLight"],
     ["successStrong", "successLight"],
+    ["successStrong", "surface"],
     ["warningStrong", "warningLight"],
+    ["warningStrong", "surface"],
     ["dangerStrong", "dangerLight"],
     ["infoStrong", "infoLight"],
   ] as const;

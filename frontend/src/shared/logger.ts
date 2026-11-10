@@ -19,6 +19,7 @@ interface StatusContext {
 
 type Level = "INFO" | "WARNING" | "ERROR";
 
+/** Serialize the allowed event/context fields and route the entry to its severity channel. */
 function emit(level: Level, event: FrontendEvent, context?: StatusContext): void {
   const entry = JSON.stringify({
     timestamp: new Date().toISOString(),

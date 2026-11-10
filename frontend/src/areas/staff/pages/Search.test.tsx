@@ -48,7 +48,7 @@ function renderSearch() {
 
 afterEach(() => vi.useRealTimers());
 
-describe("staff household search timing and translations", () => {
+describe("shared status badges in household search", () => {
   it("uses shared success and danger badges for household results", async () => {
     mockApi(() =>
       Response.json(
@@ -72,7 +72,9 @@ describe("staff household search timing and translations", () => {
       "danger",
     );
   });
+});
 
+describe("staff household search timing and translations", () => {
   it("waits 300 ms and sends only the latest input", async () => {
     const handler = vi.fn((url: URL) => {
       expect(url.searchParams.get("page")).toBe("1");

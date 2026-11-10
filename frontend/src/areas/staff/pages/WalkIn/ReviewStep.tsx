@@ -18,6 +18,7 @@ type SummaryProps = {
   children: ReactNode;
 };
 
+/** Summarize each registration section and provide its existing edit action. */
 export function ReviewStep({ values, onEdit }: ReviewStepProps) {
   const { t } = useTranslation();
 

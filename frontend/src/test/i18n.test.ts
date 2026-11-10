@@ -31,7 +31,7 @@ function flatten(tree: TranslationTree, prefix = ""): Record<string, string> {
 const english = flatten(en);
 const french = flatten(fr);
 
-describe("SET-13 translations", () => {
+describe("SET-13 translation catalogs", () => {
   it("has exactly the same keys in French and English", () => {
     expect(Object.keys(french).sort()).toEqual(Object.keys(english).sort());
   });
@@ -46,7 +46,9 @@ describe("SET-13 translations", () => {
       }
     }
   });
+});
 
+describe("SET-13 translation keys", () => {
   it("uses three-part keys with documented four-part option groups", () => {
     const segment = /^[a-z][a-zA-Z0-9]*$/;
     const statusSegment = /^[a-z][a-z0-9_]*$/;
@@ -74,7 +76,9 @@ describe("SET-13 translations", () => {
       }
     }
   });
+});
 
+describe("SET-13 glossary and shell labels", () => {
   it("keeps the welcome title and names the other language on the switch (SET-16)", () => {
     expect(english["public.welcome.title"]).toBe("Welcome to Iris");
     expect(french["public.welcome.title"]).toBe("Bienvenue sur Iris");
@@ -92,7 +96,9 @@ describe("SET-13 translations", () => {
     expect(english["household.status.reviewRequired"]).toBe("Staff review required");
     expect(french["household.status.reviewRequired"]).toBe("Vérification par l'équipe requise");
   });
+});
 
+describe("SET-13 i18next resolution", () => {
   it("resolves nested keys through i18next in both languages", async () => {
     const i18n = createInstance();
     await i18n.init({

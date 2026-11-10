@@ -53,6 +53,9 @@ page (SET-33; [repository export](../03-design/mockups/Foundations.png)). Screen
 | `danger` strong / light | Errors, error borders, destructive buttons / badge and alert background | `#BD250B` / `#FFECE7` | `irisRed.8` / `irisRed.0` |
 | `info` strong / light | Info text and icons / badge and alert background | `#0070B2` / `#E5F9FF` | `irisBlue.9` / `irisBlue.0` |
 
+Neutral strong/light tokens are specified in the component-token table under
+[Colour in code](#colour-in-code-set-34).
+
 **Status colours** (strong shade for icon, text and border; light shade for badge and alert background):
 
 | Record | Status and tone |

@@ -21,6 +21,7 @@ type MembersStepProps = {
 
 const nameFields = ["firstName", "lastName"] as const;
 
+/** Edit household members using the shared form state and field-error presentation. */
 export function MembersStep({ form }: MembersStepProps) {
   const { t } = useTranslation();
 

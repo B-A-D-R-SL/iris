@@ -35,15 +35,21 @@ const toneTokens = {
   neutral: ["neutral-strong", "neutral-light"],
 } as const;
 
+/** Narrow semantic aliases while preserving Mantine's handling of explicit shade names. */
+function isToneColor(color: string): color is keyof typeof toneTokens {
+  return Object.hasOwn(toneTokens, color);
+}
+
 export const theme = createTheme({
   colors: palettes,
   primaryColor: "iris",
   primaryShade,
+  /** Resolve semantic foreground/background pairs for filled, light and outline variants. */
   variantColorResolver: (input) => {
     const color = input.color ?? input.theme.primaryColor;
     const fallback = defaultVariantColorsResolver({ ...input, color });
-    if (!Object.hasOwn(toneTokens, color)) return fallback;
-    const [strong, light] = toneTokens[color as keyof typeof toneTokens];
+    if (!isToneColor(color)) return fallback;
+    const [strong, light] = toneTokens[color];
     if (input.variant === "filled")
       return {
         ...fallback,
@@ -92,6 +98,7 @@ export const theme = createTheme({
     Button: Button.extend({
       defaultProps: { size: "md" },
       classNames: { root: classes.button },
+      /** Retain compact sizes and add the published primary pressed state. */
       vars: (_theme, props) => ({
         root: {
           ...((props.size ?? "md") === "md"
@@ -110,6 +117,7 @@ export const theme = createTheme({
     Input: Input.extend({
       defaultProps: { size: "md" },
       classNames: { input: classes.input },
+      /** Apply touch-friendly dimensions only to the standard input size. */
       vars: (_theme, props) =>
         (props.size ?? "md") === "md"
           ? { wrapper: { "--input-height": rem(44), "--input-fz": rem(16) } }

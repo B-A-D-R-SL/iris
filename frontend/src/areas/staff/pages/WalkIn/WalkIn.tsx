@@ -75,6 +75,7 @@ function WalkInLoader({ id }: { id: string | undefined }) {
   return <WalkInForm draft={query.data} />;
 }
 
+/** Drive the saved/new draft through the registration steps and server submission outcome. */
 function WalkInForm({ draft }: { draft: WalkInDraft | null }) {
   const { t } = useTranslation();
   const language = useLanguage();

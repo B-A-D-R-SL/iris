@@ -63,6 +63,7 @@ export function NewListing() {
 
 type Outcome = { type: "published"; title: string } | { type: "refused"; message: string } | null;
 
+/** Collect posting fields and display translated server refusals or the published outcome. */
 function NewListingForm({ categories }: { categories: readonly Category[] }) {
   const { t, i18n } = useTranslation();
   const foodCodes = new Set(categories.filter((c) => c.is_food).map((c) => c.code));
