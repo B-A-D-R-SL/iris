@@ -46,6 +46,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-iris}:${POSTGRES_PASSWORD:-iris_local_dev_password}@db:5432/${POSTGRES_DB:-iris}
       DJANGO_DEV_ADMIN_EMAIL: ${DJANGO_DEV_ADMIN_EMAIL:-admin@iris.local}
       DJANGO_DEV_ADMIN_PASSWORD: ${DJANGO_DEV_ADMIN_PASSWORD:-iris_local_admin_password}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5174}
       EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
       EMAIL_HOST: mailpit
       EMAIL_PORT: "1025"
