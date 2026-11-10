@@ -370,3 +370,18 @@ msgstr ""
 "Une demande est déjà en cours. Une demande faite avec %(email)s attend déjà "
 "une réponse de B.A.D.R. Vous n’avez rien d’autre à faire : nous vous "
 "écrirons par courriel."
+
+msgid "Choose submitted, approved or rejected."
+msgstr "Choisissez soumise, approuvée ou refusée."
+
+msgid "Enter a reason of at most 500 characters."
+msgstr "Indiquez un motif d’au plus 500 caractères."
+
+msgid "Only admins can review partner applications."
+msgstr "Seuls les administrateurs peuvent examiner les demandes de partenariat."
+
+msgid "This application has already been approved or rejected."
+msgstr "Cette demande a déjà été approuvée ou refusée."
+
+msgid "This partner application does not exist."
+msgstr "Cette demande de partenariat n’existe pas."

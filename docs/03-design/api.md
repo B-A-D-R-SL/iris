@@ -115,12 +115,32 @@ linking belong to US-05, US-06, US-13 and US-18.
 | Method    | Path                                            | Who           | Purpose                                       | Status  |
 | --------- | ----------------------------------------------- | ------------- | --------------------------------------------- | ------- |
 | POST      | `/api/partner-applications/`                    | Anyone        | Submit a partner application                  | Implemented (US-12) |
-| GET       | `/api/staff/partner-applications/?status=`      | Admin         | List applications                             | Planned |
-| POST      | `/api/staff/partner-applications/{id}/approve/` | Admin         | Approve: store + manager invitation           | Planned |
-| POST      | `/api/staff/partner-applications/{id}/reject/`  | Admin         | Reject with `reason`                          | Planned |
+| GET       | `/api/staff/partner-applications/?status=`      | Admin         | List applications                             | Implemented (US-13) |
+| POST      | `/api/staff/partner-applications/{id}/approve/` | Admin         | Approve: store + manager invitation           | Implemented (US-13) |
+| POST      | `/api/staff/partner-applications/{id}/reject/`  | Admin         | Reject with `reason`                          | Implemented (US-13) |
 | GET/PATCH | `/api/staff/stores/`, `/api/staff/stores/{id}/` | Admin         | List and edit stores                          | Planned |
 | POST      | `/api/staff/stores/{id}/deactivate/`            | Admin         | Deactivate; cancels open listings             | Planned |
 | GET/PATCH | `/api/store/profile/`                           | Store manager | Own store's phone, email, hours, instructions | Planned |
+
+#### Staff review of partner applications (US-13)
+
+Admin only: an active account with the `admin` role. Anonymous requests get 401;
+every other role, and inactive admins, get 403. Errors use the
+`{ "code", "message", "fields" }` envelope.
+
+| Request | Success | Errors |
+| --- | --- | --- |
+| `GET /api/staff/partner-applications/?status=submitted&page=1&page_size=20` | 200 page of applications, oldest first; without `status`, every status | 400 `validation_error` for an unknown `status` |
+| `POST /api/staff/partner-applications/{id}/approve/` (no body) | 200 application with `status: "approved"`; store, store-manager invitation and audit event saved in one transaction, invitation emailed after commit | 404 unknown ID; 409 `application_already_decided` |
+| `POST /api/staff/partner-applications/{id}/reject/` `{ "reason": "..." }` | 200 application with `status: "rejected"` and the trimmed `decision_reason`; audit event saved, reason emailed after commit | 400 `validation_error` on `reason` (missing, blank or over 500 characters); 404; 409 `application_already_decided` |
+
+Each application returns `id`, `status`, the business fields (`business_name`,
+`business_type`, `neq`, `website`, address fields), the contact fields
+(`contact_first_name`, `contact_last_name`, `contact_role`, `contact_email`,
+`contact_phone`), `goods_categories`, `expected_frequency`, `opening_hours`,
+`message`, `language`, `decision_reason`, `decided_at` and `created_at` (UTC).
+The decisions are made by `services.approve_application` and
+`services.reject_application`; see the [stores module](../../backend/modules/stores/README.md).
 
 #### `POST /api/partner-applications/` (US-12)
 
