@@ -18,6 +18,7 @@ from modules.stores.models import (
     NEQ_PATTERN,
     POSTAL_CODE_PATTERN,
     STREET_NUMBER_PATTERN,
+    ApplicationStatus,
     BusinessType,
     DonationFrequency,
     PartnerApplication,
@@ -205,4 +206,62 @@ class PartnerApplicationErrorSerializer(serializers.Serializer):
     message = serializers.CharField()
     fields = serializers.DictField(
         child=serializers.ListField(child=serializers.CharField())
+    )
+
+
+class StaffPartnerApplicationSerializer(serializers.ModelSerializer):
+    """An application as the admin reviews it (US-13)."""
+
+    # API convention: datetimes in UTC (docs/03-design/api.md).
+    created_at = serializers.DateTimeField(default_timezone=UTC)
+    decided_at = serializers.DateTimeField(default_timezone=UTC, allow_null=True)
+
+    class Meta:
+        model = PartnerApplication
+        fields = (
+            "id",
+            "status",
+            "business_name",
+            "business_type",
+            "neq",
+            "website",
+            "street_number",
+            "street_name",
+            "unit",
+            "city",
+            "postal_code",
+            "contact_first_name",
+            "contact_last_name",
+            "contact_role",
+            "contact_email",
+            "contact_phone",
+            "goods_categories",
+            "expected_frequency",
+            "opening_hours",
+            "message",
+            "language",
+            "decision_reason",
+            "decided_at",
+            "created_at",
+        )
+        read_only_fields = fields
+
+
+class StaffApplicationFilterSerializer(serializers.Serializer):
+    """Query string of the review list; status is optional."""
+
+    status = serializers.ChoiceField(
+        choices=ApplicationStatus.choices,
+        required=False,
+        error_messages={"invalid_choice": _("Choose submitted, approved or rejected.")},
+    )
+
+
+class RejectApplicationSerializer(serializers.Serializer):
+    """Rejection body; the service checks the length and blank reasons."""
+
+    reason = serializers.CharField(
+        allow_blank=True,
+        trim_whitespace=False,
+        error_messages={"required": _("Enter a reason of at most 500 characters.")},
     )

@@ -2,7 +2,7 @@
 # Stores module
 
 **Owner pair:** Fairness & partners
-**Status:** Store (US-11) and partner applications (US-12) implemented; decision service (US-13) implemented; staff API and screens planned
+**Status:** Store (US-11) and partner applications (US-12) implemented; decision service and staff review API (US-13) implemented; review screens planned
 
 ## Responsibility
 
@@ -30,6 +30,8 @@ lead to them, within the Iris modular monolith.
 
 ## Public functions
 
+- `queries.partner_applications(status=None)`: applications oldest first, optionally one status.
+- `queries.partner_application(application_id)`: one application or `None`.
 - `services.save_store(store)`
 - `services.ensure_badr_store()`
 - `services.submit_application(values, *, language, mailer=None)`: saves a
@@ -45,6 +47,9 @@ lead to them, within the Iris modular monolith.
 
 - `POST /api/partner-applications/`: public, 5 requests per hour per IP. Contract
   in [api.md](../../../docs/03-design/api.md#post-apipartner-applications-us-12).
+- `GET /api/staff/partner-applications/?status=`, `POST .../{id}/approve/` and
+  `POST .../{id}/reject/`: admin only (`api/staff_views.py`). Contract in
+  [api.md](../../../docs/03-design/api.md#staff-review-of-partner-applications-us-13).
 
 ## Dependencies
 

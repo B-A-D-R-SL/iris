@@ -65,6 +65,27 @@ export interface paths {
     /** Edit an existing walk-in household draft */
     patch: operations["staff_households_partial_update"];
   };
+  "/api/staff/partner-applications/": {
+    /**
+     * List partner applications (admin only)
+     * @description Oldest first. Filter with `status`; without it, all statuses.
+     */
+    get: operations["staff_partner_applications_list"];
+  };
+  "/api/staff/partner-applications/{id}/approve/": {
+    /**
+     * Approve a partner application (admin only)
+     * @description Creates the store and a store-manager invitation in one transaction, records the decision in the audit log, then emails the invitation.
+     */
+    post: operations["staff_partner_applications_approve"];
+  };
+  "/api/staff/partner-applications/{id}/reject/": {
+    /**
+     * Reject a partner application (admin only)
+     * @description Requires a reason of at most 500 characters. Records the decision in the audit log, then emails the reason to the applicant.
+     */
+    post: operations["staff_partner_applications_reject"];
+  };
   "/api/store/listings/": {
     /** Post a listing for the signed-in user's active store */
     post: operations["store_listings_create"];
@@ -301,6 +322,21 @@ export interface components {
       previous?: string | null;
       results: components["schemas"]["AuditEvent"][];
     };
+    PaginatedStaffPartnerApplicationList: {
+      /** @example 123 */
+      count: number;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=4
+       */
+      next?: string | null;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=2
+       */
+      previous?: string | null;
+      results: components["schemas"]["StaffPartnerApplication"][];
+    };
     /** @description Submitted partner form; field rules from forms-and-fields.md. */
     PartnerApplication: {
       business_name: string;
@@ -407,6 +443,10 @@ export interface components {
      * @enum {string}
      */
     ProvinceEnum: "QC";
+    /** @description Rejection body; the service checks the length and blank reasons. */
+    RejectApplication: {
+      reason: string;
+    };
     /**
      * @description * `beneficiary` - Beneficiary
      * * `store_staff` - Store Staff
@@ -432,6 +472,72 @@ export interface components {
       name_en: string;
       name_fr: string;
     };
+    /** @description An application as the admin reviews it (US-13). */
+    StaffPartnerApplication: {
+      /** Nom de l’entreprise */
+      business_name: string;
+      /** Type d’entreprise */
+      business_type: components["schemas"]["BusinessTypeEnum"];
+      /** Ville */
+      city: string;
+      /**
+       * Courriel
+       * Format: email
+       */
+      contact_email: string;
+      /** Prénom */
+      contact_first_name: string;
+      /** Nom de famille */
+      contact_last_name: string;
+      /** Téléphone */
+      contact_phone: string;
+      /** Fonction */
+      contact_role: string | null;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      decided_at: string | null;
+      /** Motif de la décision */
+      decision_reason: string | null;
+      /** Fréquence prévue des dons */
+      expected_frequency: components["schemas"]["ExpectedFrequencyEnum"];
+      /** Types de produits offerts */
+      goods_categories: readonly string[];
+      /** Format: uuid */
+      id: string;
+      /** Langue */
+      language: components["schemas"]["LanguageEnum"];
+      message: string | null;
+      /** Numéro d’entreprise du Québec (NEQ) */
+      neq: string | null;
+      /** Heures d’ouverture */
+      opening_hours: string;
+      /** Code postal */
+      postal_code: string;
+      /**
+       * Statut
+       * @default submitted
+       */
+      status: components["schemas"]["StaffPartnerApplicationStatusEnum"];
+      /** Rue */
+      street_name: string;
+      /** Numéro civique */
+      street_number: string;
+      /** App. */
+      unit: string | null;
+      /**
+       * Site Web
+       * Format: uri
+       */
+      website: string | null;
+    };
+    /**
+     * @description * `submitted` - Soumise
+     * * `approved` - Approuvée
+     * * `rejected` - Refusée
+     * @enum {string}
+     */
+    StaffPartnerApplicationStatusEnum: "submitted" | "approved" | "rejected";
     StoreAddress: {
       city: string;
       postal_code: string;
@@ -838,6 +944,132 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["WalkInDraftRead"];
+        };
+      };
+    };
+  };
+  /**
+   * List partner applications (admin only)
+   * @description Oldest first. Filter with `status`; without it, all statuses.
+   */
+  staff_partner_applications_list: {
+    parameters: {
+      query?: {
+        /** @description Un numéro de page de l'ensemble des résultats. */
+        page?: number;
+        /** @description Nombre de résultats à retourner par page. */
+        page_size?: number;
+        /** @description Only applications with this status */
+        status?: "approved" | "rejected" | "submitted";
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PaginatedStaffPartnerApplicationList"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      409: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Approve a partner application (admin only)
+   * @description Creates the store and a store-manager invitation in one transaction, records the decision in the audit log, then emails the invitation.
+   */
+  staff_partner_applications_approve: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["StaffPartnerApplication"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      409: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Reject a partner application (admin only)
+   * @description Requires a reason of at most 500 characters. Records the decision in the audit log, then emails the reason to the applicant.
+   */
+  staff_partner_applications_reject: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RejectApplication"];
+        "application/x-www-form-urlencoded": components["schemas"]["RejectApplication"];
+        "multipart/form-data": components["schemas"]["RejectApplication"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["StaffPartnerApplication"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      409: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
         };
       };
     };

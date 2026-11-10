@@ -28,6 +28,11 @@ urlpatterns = [
     path("api/store/", include("modules.listings.api.urls")),
     # Public partner application form (US-12)
     path("api/partner-applications/", include("modules.stores.api.urls")),
+    # Admin review of partner applications (US-13)
+    path(
+        "api/staff/partner-applications/",
+        include("modules.stores.api.staff_urls"),
+    ),
     # API documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
