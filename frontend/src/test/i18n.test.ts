@@ -2,17 +2,11 @@
 import { describe, expect, it } from "vitest";
 import { createInstance } from "i18next";
 
-import en from "../shared/i18n/en.json";
-import fr from "../shared/i18n/fr.json";
+import { resources } from "../shared/i18n/resources";
 
 type TranslationTree = { [key: string]: string | TranslationTree };
 
-/**
- * Flattens nested translations into dot-separated keys mapped to their values.
- * @param tree Translation entries to flatten.
- * @param prefix Parent key path prepended to each entry, if provided.
- * @returns A map of translation key paths to translated strings.
- */
+/** Compare complete keys without depending on how entries are grouped. */
 function flatten(tree: TranslationTree, prefix = ""): Record<string, string> {
   const result: Record<string, string> = {};
 
@@ -28,10 +22,56 @@ function flatten(tree: TranslationTree, prefix = ""): Record<string, string> {
   return result;
 }
 
-const english = flatten(en);
-const french = flatten(fr);
+const english = flatten(resources.en.translation);
+const french = flatten(resources.fr.translation);
+const files = import.meta.glob<string>("../shared/i18n/{en,fr}/*.json", {
+  eager: true,
+  query: "?raw",
+  import: "default",
+});
+const catalogs = Object.entries(files).map(([path, source]) => ({
+  path,
+  source,
+  language: path.includes("/en/") ? "en" : "fr",
+  entries: JSON.parse(source) as TranslationTree,
+}));
 
 describe("SET-13 translations", () => {
+  it("has matching area files in French and English", () => {
+    const englishFiles = catalogs.filter(({ language }) => language === "en");
+    const frenchFiles = catalogs.filter(({ language }) => language === "fr");
+    expect(englishFiles.length).toBeGreaterThan(0);
+    expect(englishFiles.map(({ path }) => path.replace("/en/", "/fr/")).sort()).toEqual(
+      frenchFiles.map(({ path }) => path).sort(),
+    );
+  });
+
+  it.each(catalogs)(
+    "keeps $path below 500 lines with matching nonempty keys",
+    ({ path, source, language, entries }) => {
+      expect(source.trimEnd().split("\n").length, path).toBeLessThan(500);
+      const otherPath = path.replace(`/${language}/`, language === "en" ? "/fr/" : "/en/");
+      const other = catalogs.find((catalog) => catalog.path === otherPath);
+      expect(other, otherPath).toBeDefined();
+      const values = flatten(entries);
+      expect(Object.keys(values).sort()).toEqual(Object.keys(flatten(other!.entries)).sort());
+      for (const [key, value] of Object.entries(values)) {
+        expect(value.trim(), `${path}: ${key}`).not.toBe("");
+      }
+    },
+  );
+
+  it.each(["en", "fr"] as const)(
+    "loads every %s file without overwriting another area",
+    (language) => {
+      const languageFiles = catalogs.filter((catalog) => catalog.language === language);
+      const roots = languageFiles.flatMap(({ entries }) => Object.keys(entries));
+      expect(new Set(roots).size).toBe(roots.length);
+      const expected = Object.assign({}, ...languageFiles.map(({ entries }) => entries));
+      expect(resources[language].translation).toEqual(expected);
+    },
+  );
+
   it("has exactly the same keys in French and English", () => {
     expect(Object.keys(french).sort()).toEqual(Object.keys(english).sort());
   });
@@ -92,7 +132,7 @@ describe("SET-13 translations", () => {
   it("resolves nested keys through i18next in both languages", async () => {
     const i18n = createInstance();
     await i18n.init({
-      resources: { en: { translation: en }, fr: { translation: fr } },
+      resources,
       lng: "fr",
       fallbackLng: "fr",
       initAsync: false,
@@ -103,5 +143,10 @@ describe("SET-13 translations", () => {
     expect(i18n.getFixedT("fr")("auth.login.title")).toBe("Connexion");
     expect(i18n.getFixedT("en")("app.householdNav.listings")).toBe("Listings");
     expect(i18n.getFixedT("fr")("app.householdNav.listings")).toBe("Offres");
+    for (const language of ["en", "fr"] as const) {
+      for (const [key, value] of Object.entries(flatten(resources[language].translation))) {
+        expect(i18n.getFixedT(language)(key), `${language}: ${key}`).toBe(value);
+      }
+    }
   });
 });
