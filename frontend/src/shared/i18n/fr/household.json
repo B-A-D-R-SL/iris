@@ -1,0 +1,181 @@
+{
+  "household": {
+    "status": {
+      "draft": "Brouillon",
+      "submitted": "Demande soumise",
+      "reviewRequired": "Vérification par l'équipe requise",
+      "awaitingVisit": "Visite en personne requise",
+      "approved": "Approuvé",
+      "renewalNeeded": "Renouvellement requis",
+      "suspended": "Suspendu",
+      "rejected": "Refusé"
+    },
+    "common": {
+      "walkInRegistration": "Inscription en personne",
+      "onlineApplication": "Demande en ligne",
+      "adultMember": "Membre adulte",
+      "dependant": "Personne à charge",
+      "renewal": "Renouvellement",
+      "expiryDate": "Date d'expiration",
+      "consent": "Consentement",
+      "taxReturn": "Déclaration de revenus",
+      "identityVerification": "Vérification de l'identité",
+      "household": "Foyer",
+      "accountHolder": "Personne responsable",
+      "member": "Membre du foyer",
+      "alternate": "Personne remplaçante",
+      "file": "Dossier"
+    },
+    "needs": {
+      "myNeeds": "Mes besoins",
+      "match": "Correspondance",
+      "category": "Catégorie",
+      "detail": "Précision",
+      "isActive": "Actif",
+      "need": "Besoin"
+    },
+    "registrationHolder": {
+      "firstName": "Prénom",
+      "lastName": "Nom de famille",
+      "dateOfBirth": "Date de naissance",
+      "email": "Courriel",
+      "phone": "Téléphone",
+      "preferredLanguage": "Langue de communication"
+    },
+    "registrationAddress": {
+      "streetNumber": "Numéro civique",
+      "streetName": "Rue",
+      "unit": "Appartement",
+      "city": "Ville",
+      "province": "Province",
+      "postalCode": "Code postal"
+    },
+    "registrationMembers": {
+      "firstName": "Prénom",
+      "lastName": "Nom de famille",
+      "dateOfBirth": "Date de naissance",
+      "relation": "Lien avec la personne responsable",
+      "relations": {
+        "spousePartner": "Conjoint·e",
+        "child": "Enfant",
+        "parent": "Parent",
+        "sibling": "Frère ou sœur",
+        "grandparent": "Grand-parent",
+        "grandchild": "Petit-enfant",
+        "otherRelative": "Autre membre de la famille",
+        "other": "Autre"
+      }
+    },
+    "registrationConsent": {
+      "consentDataProcessing": "J'accepte que B.A.D.R. utilise ces renseignements pour vérifier mon admissibilité",
+      "consentAiReading": "J'accepte qu'un logiciel lise mes avis de cotisation pour remplir les champs",
+      "consentDigestEmails": "Je veux recevoir un courriel quotidien des nouvelles offres"
+    },
+    "registrationNotices": {
+      "file": "Avis de cotisation de Revenu Québec",
+      "didNotFile": "Cette personne n'a pas produit de déclaration de revenus",
+      "didNotFileReason": "Expliquez pourquoi",
+      "taxYear": "Année d'imposition",
+      "totalIncome": "Revenu total (ligne 199)",
+      "noticeFirstName": "Nom sur l'avis",
+      "noticePostalCode": "Code postal sur l'avis",
+      "noticeDate": "Date de l'avis"
+    },
+    "alternate": {
+      "alternateName": "Nom de la personne remplaçante",
+      "alternatePhone": "Téléphone de la personne remplaçante",
+      "alternateEmail": "Courriel de la personne remplaçante"
+    },
+    "registration": {
+      "firstName": "Prénom"
+    },
+    "eligibility": {
+      "noticeOfAssessment": "Avis de cotisation",
+      "totalIncome": "Revenu total (ligne 199)",
+      "taxYear": "Année d'imposition",
+      "lowIncomeCutoff": "Seuil de faible revenu (SFR)",
+      "title": "Admissibilité"
+    },
+    "search": {
+      "label": "Rechercher un foyer",
+      "description": "Nom, courriel, téléphone, numéro de membre ou adresse.",
+      "clear": "Effacer la recherche",
+      "start": "Commencez à saisir pour rechercher un foyer",
+      "empty": "Aucun foyer trouvé",
+      "emptyDescription": "Vérifiez votre recherche ou essayez un autre renseignement.",
+      "email": "Courriel",
+      "phone": "Téléphone",
+      "address": "Adresse",
+      "unit": "app. {{unit}}",
+      "notProvided": "Non renseigné",
+      "unnamed": "Nom non renseigné",
+      "noMemberNumber": "Numéro de membre non attribué",
+      "resume": "Reprendre l’inscription",
+      "newRegistration": "Nouvelle inscription",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "page": "Page {{page}}",
+      "pagination": "Pages des résultats",
+      "results": "Résultats de recherche",
+      "staffOnly": "Renseignements réservés au personnel autorisé.",
+      "denied": "Accès refusé",
+      "deniedDescription": "Reconnectez-vous avec un compte de personnel autorisé.",
+      "signIn": "Se reconnecter",
+      "countOne": "{{count}} foyer trouvé",
+      "countOther": "{{count}} foyers trouvés"
+    }
+  },
+  "reservation": {
+    "status": {
+      "reserved": "Réservée",
+      "pickedUp": "Récupérée",
+      "cancelled": "Annulée",
+      "cancelledByStore": "Annulée par le commerce",
+      "noShow": "Absence"
+    },
+    "common": {
+      "confirmPickup": "Confirmer la cueillette",
+      "qrCode": "Code QR",
+      "pickupHistory": "Historique des cueillettes"
+    },
+    "confirmation": {
+      "pickupCode": "Code de cueillette",
+      "title": "Réservation",
+      "pickupWindow": "Plage de cueillette"
+    }
+  },
+  "privacy": {
+    "common": {
+      "privacyPolicy": "Politique de confidentialité",
+      "downloadData": "Télécharger mes données",
+      "requestCorrection": "Demander une correction",
+      "humanReview": "Examen par une personne",
+      "closeAccount": "Fermer mon compte"
+    }
+  },
+  "assistant": {
+    "resources": {
+      "communityResourceAssistant": "Assistant de ressources communautaires",
+      "approvedSource": "Source approuvée"
+    }
+  },
+  "furniture": {
+    "offer": {
+      "furnitureOffer": "Offre de meuble",
+      "donor": "Donateur",
+      "title": "Titre",
+      "furnitureType": "Type de meuble",
+      "description": "Description",
+      "dimensions": "Dimensions (L × P × H, cm)",
+      "condition": "État",
+      "photos": "Photos",
+      "pickupArea": "Secteur (3 premiers caractères du code postal)",
+      "donorName": "Vos coordonnées",
+      "conditionOptions": {
+        "new": "Neuf",
+        "good": "Bon état",
+        "fair": "Acceptable"
+      }
+    }
+  }
+}

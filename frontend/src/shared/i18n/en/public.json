@@ -1,0 +1,62 @@
+{
+  "auth": {
+    "common": {
+      "signIn": "Sign in",
+      "signOut": "Sign out",
+      "createAccount": "Create an account",
+      "forgotPassword": "Forgot your password?",
+      "verificationCode": "Verification code",
+      "invitation": "Invitation"
+    },
+    "login": {
+      "email": "Email address",
+      "password": "Password",
+      "code": "Verification code",
+      "title": "Sign in",
+      "verify": "Verify code",
+      "codeHelp": "Enter the 6-digit code from your authenticator app.",
+      "signOutError": "Could not sign out. Please try again.",
+      "required": "Enter your email address and password.",
+      "invalidEmail": "Enter a valid email address.",
+      "invalidCode": "Enter a valid 6-digit verification code.",
+      "invalidCredentials": "The email address or password is incorrect.",
+      "locked": "Too many attempts. Try again in 15 minutes.",
+      "unavailable": "Sign in is unavailable. Please try again.",
+      "useAnotherAccount": "Use a different account"
+    },
+    "invitation": {
+      "title": "Set your password",
+      "submit": "Set my password",
+      "passwordHelp": "Use at least 10 characters. Avoid common passwords and words similar to your name or email address.",
+      "passwordTooShort": "Use at least 10 characters.",
+      "passwordMismatch": "Enter the same password in both fields.",
+      "expired": "This invitation link has expired.",
+      "used": "This invitation link has already been used.",
+      "invalid": "This invitation link is invalid.",
+      "emailRegistered": "An account already uses this email address.",
+      "unavailable": "Invitation acceptance is unavailable. Please try again.",
+      "checkPassword": "Check the password and its confirmation.",
+      "success": "The new account is ready.",
+      "signedInGuidance": "You are still signed in to your current account. Use Sign out in the header before signing in to the new account.",
+      "newLinkHelp": "Ask the person who invited you for a new link."
+    },
+    "signup": {
+      "email": "Email address",
+      "password": "Password",
+      "passwordConfirm": "Confirm password",
+      "preferredLanguage": "Language",
+      "acceptTerms": "I accept the terms of use and the privacy policy"
+    }
+  },
+  "public": {
+    "welcome": {
+      "title": "Welcome to Iris",
+      "intro": "Iris lets low-income households reserve, for free, surplus goods offered by B.A.D.R. and its partner stores, then pick them up with a code.",
+      "householdTitle": "For households",
+      "householdText": "B.A.D.R. checks your income with your notice of assessment. Once your file is approved, you reserve listings near you.",
+      "apply": "Register my household",
+      "partnerTitle": "For businesses",
+      "partnerText": "Give your surplus instead of throwing it away. B.A.D.R. reviews every partner application."
+    }
+  }
+}

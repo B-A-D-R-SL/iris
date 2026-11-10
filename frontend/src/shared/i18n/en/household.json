@@ -1,0 +1,181 @@
+{
+  "household": {
+    "status": {
+      "draft": "Draft",
+      "submitted": "Submitted",
+      "reviewRequired": "Staff review required",
+      "awaitingVisit": "In-person visit required",
+      "approved": "Approved",
+      "renewalNeeded": "Renewal required",
+      "suspended": "Suspended",
+      "rejected": "Rejected"
+    },
+    "common": {
+      "walkInRegistration": "Walk-in registration",
+      "onlineApplication": "Online application",
+      "adultMember": "Adult household member",
+      "dependant": "Dependant",
+      "renewal": "Renewal",
+      "expiryDate": "Expiry date",
+      "consent": "Consent",
+      "taxReturn": "Tax return",
+      "identityVerification": "Identity verification",
+      "household": "Household",
+      "accountHolder": "Account holder",
+      "member": "Household member",
+      "alternate": "Alternate",
+      "file": "File"
+    },
+    "needs": {
+      "myNeeds": "My needs",
+      "match": "Match",
+      "category": "Category",
+      "detail": "Detail",
+      "isActive": "Active",
+      "need": "Need"
+    },
+    "registrationHolder": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "dateOfBirth": "Date of birth",
+      "email": "Email address",
+      "phone": "Phone number",
+      "preferredLanguage": "Preferred language"
+    },
+    "registrationAddress": {
+      "streetNumber": "Street number",
+      "streetName": "Street name",
+      "unit": "Apartment / unit",
+      "city": "City",
+      "province": "Province",
+      "postalCode": "Postal code"
+    },
+    "registrationMembers": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "dateOfBirth": "Date of birth",
+      "relation": "Relation to the account holder",
+      "relations": {
+        "spousePartner": "Spouse or partner",
+        "child": "Child",
+        "parent": "Parent",
+        "sibling": "Sibling",
+        "grandparent": "Grandparent",
+        "grandchild": "Grandchild",
+        "otherRelative": "Other relative",
+        "other": "Other"
+      }
+    },
+    "registrationConsent": {
+      "consentDataProcessing": "I agree that B.A.D.R. uses this information to check my eligibility",
+      "consentAiReading": "I agree that software reads my notices of assessment to fill in the fields",
+      "consentDigestEmails": "I want a daily email of new listings"
+    },
+    "registrationNotices": {
+      "file": "Revenu Québec notice of assessment",
+      "didNotFile": "This person did not file a tax return",
+      "didNotFileReason": "Explain why",
+      "taxYear": "Tax year",
+      "totalIncome": "Total income (line 199)",
+      "noticeFirstName": "Name on the notice",
+      "noticePostalCode": "Postal code on the notice",
+      "noticeDate": "Notice date"
+    },
+    "alternate": {
+      "alternateName": "Alternate's name",
+      "alternatePhone": "Alternate's phone",
+      "alternateEmail": "Alternate's email"
+    },
+    "registration": {
+      "firstName": "First name"
+    },
+    "eligibility": {
+      "noticeOfAssessment": "Notice of assessment",
+      "totalIncome": "Total income (line 199)",
+      "taxYear": "Tax year",
+      "lowIncomeCutoff": "Low income cut-off (LICO)",
+      "title": "Eligibility"
+    },
+    "search": {
+      "label": "Find a household",
+      "description": "Name, email, phone, member number or address.",
+      "clear": "Clear search",
+      "start": "Start typing to find a household",
+      "empty": "No households found",
+      "emptyDescription": "Check your search or try another detail.",
+      "email": "Email",
+      "phone": "Phone",
+      "address": "Address",
+      "unit": "unit {{unit}}",
+      "notProvided": "Not provided",
+      "unnamed": "Name not provided",
+      "noMemberNumber": "Member number not assigned",
+      "resume": "Resume registration",
+      "newRegistration": "New registration",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {{page}}",
+      "pagination": "Result pages",
+      "results": "Search results",
+      "staffOnly": "Information restricted to authorized staff.",
+      "denied": "Access denied",
+      "deniedDescription": "Sign in again with an authorized staff account.",
+      "signIn": "Sign in again",
+      "countOne": "{{count}} household found",
+      "countOther": "{{count}} households found"
+    }
+  },
+  "reservation": {
+    "status": {
+      "reserved": "Reserved",
+      "pickedUp": "Picked up",
+      "cancelled": "Cancelled",
+      "cancelledByStore": "Cancelled by store",
+      "noShow": "No-show"
+    },
+    "common": {
+      "confirmPickup": "Confirm pickup",
+      "qrCode": "QR code",
+      "pickupHistory": "Pickup history"
+    },
+    "confirmation": {
+      "pickupCode": "Pickup code",
+      "title": "Reservation",
+      "pickupWindow": "Pickup window"
+    }
+  },
+  "privacy": {
+    "common": {
+      "privacyPolicy": "Privacy policy",
+      "downloadData": "Download my data",
+      "requestCorrection": "Request a correction",
+      "humanReview": "Human review",
+      "closeAccount": "Close my account"
+    }
+  },
+  "assistant": {
+    "resources": {
+      "communityResourceAssistant": "Community resource assistant",
+      "approvedSource": "Approved source"
+    }
+  },
+  "furniture": {
+    "offer": {
+      "furnitureOffer": "Furniture offer",
+      "donor": "Donor",
+      "title": "Title",
+      "furnitureType": "Furniture type",
+      "description": "Description",
+      "dimensions": "Dimensions (W × D × H, cm)",
+      "condition": "Condition",
+      "photos": "Photos",
+      "pickupArea": "Area (first 3 characters of postal code)",
+      "donorName": "Your contact details",
+      "conditionOptions": {
+        "new": "New",
+        "good": "Good",
+        "fair": "Fair"
+      }
+    }
+  }
+}
