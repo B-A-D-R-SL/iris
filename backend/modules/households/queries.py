@@ -2,6 +2,7 @@
 """Read household files, search staff records and preview duplicates."""
 
 import re
+from collections.abc import Iterable
 from datetime import datetime
 from uuid import UUID
 
@@ -74,6 +75,13 @@ def pickup_names(household_id: UUID) -> dict[str, str | None] | None:
         else None,
         "alternate": short_full_name(household["alternate_name"]),
     }
+
+
+def any_visible_for_pickup(household_ids: Iterable[UUID]) -> bool:
+    """True when at least one household is still on file for pickup (BR-RES-003)."""
+    return Household.objects.filter(
+        pk__in=household_ids, anonymized_at__isnull=True
+    ).exists()
 
 
 def household_for_staff(

@@ -11,6 +11,7 @@ import pytest
 from django.test import Client
 from django.urls import reverse
 from django.utils import translation
+from django.utils.dateparse import parse_datetime
 from rest_framework.test import APIClient
 
 from modules.accounts.models import User
@@ -53,6 +54,8 @@ def test_us44_lookup_returns_the_pickup_summary(
 
     assert response.status_code == 200
     body = response.json()
+    assert parse_datetime(body.pop("pickup_start")) == pickup_case.listing.pickup_start
+    assert parse_datetime(body.pop("pickup_end")) == pickup_case.listing.pickup_end
     assert body == {
         "id": str(reservation.pk),
         "status": "reserved",
@@ -62,11 +65,8 @@ def test_us44_lookup_returns_the_pickup_summary(
         "unit": "item",
         "quantity": 2,
         "pickup_code": reservation.pickup_code,
-        "pickup_start": body["pickup_start"],
-        "pickup_end": body["pickup_end"],
         "picked_up_at": None,
     }
-    assert body["pickup_start"].endswith("Z")
 
 
 def test_us44_confirm_marks_picked_up(

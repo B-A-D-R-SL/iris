@@ -141,6 +141,27 @@ def test_us44_live_reservation_wins_over_a_finished_one_with_the_same_code(
     assert found.id == live.pk
 
 
+def test_us44_finished_local_does_not_hide_live_elsewhere(
+    pickup_case: SimpleNamespace, make_reservation: MakeReservation
+) -> None:
+    # rule: BR-RES-001; BR-RES-004
+    finished = make_reservation(
+        status=ReservationStatus.PICKED_UP,
+        picked_up_at=pickup_case.now - timedelta(days=1),
+    )
+    make_reservation(
+        listing=pickup_case.other_listing,
+        household=pickup_household(),
+        pickup_code=finished.pickup_code,
+    )
+    refused = refusal(
+        lambda: queries.lookup_pickup(
+            pickup_case.staff, finished.pickup_code, now=pickup_case.now
+        )
+    )
+    assert refused.code == pickup.WRONG_STORE
+
+
 @pytest.mark.parametrize(
     ("status", "code"),
     [
@@ -222,6 +243,24 @@ def test_us44_anonymized_household_is_treated_as_unknown(
     refused = refusal(
         lambda: queries.lookup_pickup(
             pickup_case.staff, reservation.pickup_code, now=pickup_case.now
+        )
+    )
+    assert refused.code == pickup.UNKNOWN_CODE
+
+
+def test_us44_anonymized_other_store_live_is_unknown(
+    pickup_case: SimpleNamespace, make_reservation: MakeReservation
+) -> None:
+    # rule: BR-RES-003
+    household = pickup_household()
+    household.anonymized_at = pickup_case.now
+    household.save(update_fields=["anonymized_at"])
+    elsewhere = make_reservation(
+        listing=pickup_case.other_listing, household=household
+    )
+    refused = refusal(
+        lambda: queries.lookup_pickup(
+            pickup_case.staff, elsewhere.pickup_code, now=pickup_case.now
         )
     )
     assert refused.code == pickup.UNKNOWN_CODE

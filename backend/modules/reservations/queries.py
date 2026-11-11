@@ -61,6 +61,12 @@ def lookup_pickup(staff: Any, code: str, *, now: datetime) -> Pickup:
         for row in listings.filter(id__in={match.listing_id for match in matches})
     }
     reservation = _single_match(matches, rows)
+    # A finished local row must not hide a live claim at another store (BR-RES-004).
+    if (
+        reservation.status != ReservationStatus.RESERVED
+        and _missing_code_reason(code, listings) == pickup.WRONG_STORE
+    ):
+        raise PickupRefused(pickup.WRONG_STORE)
     return confirmable_pickup(reservation, rows[reservation.listing_id], now=now)
 
 
@@ -101,13 +107,16 @@ def _missing_code_reason(code: str, listings: QuerySet[Any, dict[str, Any]]) -> 
     """A live reservation at another store says so; anything else is unknown.
 
     The answer names no store and no household, so staff only redirect the person.
+    Anonymized households stay unknown (BR-RES-003).
     """
-    elsewhere = (
-        Reservation.objects.filter(pickup_code=code, status=ReservationStatus.RESERVED)
-        .exclude(listing_id__in=listings.values("id"))
-        .exists()
-    )
-    return pickup.WRONG_STORE if elsewhere else pickup.UNKNOWN_CODE
+    elsewhere = Reservation.objects.filter(
+        pickup_code=code, status=ReservationStatus.RESERVED
+    ).exclude(listing_id__in=listings.values("id"))
+    if household_queries.any_visible_for_pickup(
+        elsewhere.values_list("household_id", flat=True)
+    ):
+        return pickup.WRONG_STORE
+    return pickup.UNKNOWN_CODE
 
 
 def _single_match(

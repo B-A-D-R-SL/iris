@@ -21,6 +21,9 @@ account. The record also preserves staff verification and creation timestamps.
 - `queries.walk_in_for_staff(household_id, staff_user) -> Household | None`
 - `queries.pickup_names(household_id)`: holder and alternate as first name and
   last initial for store pickups, or None once anonymized (US-44)
+- `queries.any_visible_for_pickup(household_ids)`: whether any of the IDs is
+  still on file for pickup (not anonymized); used when a code matches another
+  store (US-44, BR-RES-003)
 - `queries.household_for_staff(household_id, staff_user) -> Household | None`
 - `queries.find_possible_duplicates(household) -> QuerySet[Household]`
 - `queries.approved_household_id(user_id, at=...) -> UUID | None`: the

@@ -61,10 +61,8 @@ Do not import another module's models or internal domain code.
 
 ## Future implementation
 
-TODO: Module owner defines business operations, model ownership,
-API endpoints, tests, and applicable audit events.
-
-Do not treat this scaffold as implemented business functionality.
+Reserving a listing (US-41) is still open. Pickup lookup and confirmation
+(US-44) and browse (US-36) are implemented above.
 
 ## Audit events
 
