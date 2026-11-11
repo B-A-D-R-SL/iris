@@ -37,6 +37,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| FIX-11 Shared role groups and authentication events (#637) | `backend/modules/accounts/{roles,queries,models,apps,signals}.py`, account role/event tests, accounts README, permission checks in listings/eligibility/audit/households, `backend/iris/{settings/base,observability}.py`, route/logging tests, `backend/pyproject.toml`, `docs/guides/observability.md`, `AI_USAGE.md` | 50% or more AI-generated | [#681](https://github.com/B-A-D-R-SL/iris/pull/681) |
 | FIX-04 Production settings and entry points (#630) | `backend/iris/{settings/base.py,settings/production.py,wsgi.py,asgi.py,api.py,throttling.py}`, `backend/tests/{__init__,security_helpers,test_backend_config,test_production_settings,test_api,test_api_errors,test_endpoint_access}.py`, `backend/modules/accounts/tests/test_accounts.py`, `backend/modules/households/tests/{search_load_client,test_search_load,test_search_load_client}.py`, `backend/{.env.example,pyproject.toml}`, `frontend/src/shared/auth/api.test.ts`, `README.md`, `docs/03-design/api.md`, `docs/04-architecture/architecture.md`, `docs/guides/{production-settings,auth-routing,household-search}.md`, `AI_USAGE.md` | 50% or more AI-generated | [#683](https://github.com/B-A-D-R-SL/iris/pull/683) |
 | FIX-23 Frontend development dependency security (#614) | `frontend/package.json`, `frontend/scripts/test-api-generation.mjs`, `sonar-project.properties`, `AI_USAGE.md`; `frontend/pnpm-lock.yaml` | 50% or more AI-generated; lockfile exempt | [#680](https://github.com/B-A-D-R-SL/iris/pull/680) |
 | FIX-10 Translation files by area (#636) | `frontend/src/shared/i18n/{en,fr}/*.json`, `frontend/src/shared/i18n/{index,resources}.ts`, `frontend/src/test/i18n.test.ts`, `docs/01-project/glossary.md`, `docs/guides/design-system.md`, `AI_USAGE.md` | 50% or more AI-generated | [#679](https://github.com/B-A-D-R-SL/iris/pull/679) |
@@ -126,6 +127,13 @@ The headings remain here so existing feature anchors continue to resolve.
 
 [Verification and corrections](docs/05-process/ai-usage-verification-1.md#t-09623-audit-search-api-and-screen-550).
 
+### FIX-11 Shared role groups and authentication events (#637)
+
+- **What the AI produced:** shared store/staff role groups and an admin check, reused by model constraints and permissions; Django session signal handlers; UUID-only success log fields; browser-only headless authentication; tests and documentation.
+- **Design:** `User.Role` aliases the enum in `accounts/roles.py` so the model can import public query groups without a circular import. Both user and invitation store constraints use the same group. Audit search remains admin-only. Household staff permissions also use the shared staff group.
+- **Logging:** Django signals cover browser and admin sessions once per sign-in/out. Only `iris.auth` success events can serialize a UUID `user_id`; failed attempts, anonymous sign-out, credentials and other personal details are excluded.
+- **Verification:** all 1,378 backend tests passed at 94.16% coverage. Ruff, mypy, all four import contracts, migration checks, all eight API-generator tests and TypeScript passed. API types were regenerated without changes; no migration was needed. Tests cover role separation, admin access, session events, log privacy, app-route 404 responses and the browser config endpoint.
+
 ### FIX-04 Production settings and entry points (#630)
 
 - **What the AI produced:** under Leon Kojakian's approved plan, production secret/mailer validation, HTTPS/HSTS and proxy configuration, production defaults for WSGI/ASGI, an active-admin documentation permission, production anonymous/account request limits and translated 429 envelopes, regression tests, environment guidance and architecture/API updates.
@@ -142,6 +150,7 @@ The headings remain here so existing feature anchors continue to resolve.
 - **Test-suite size review:** split `frontend/src/shared/auth/api.test.ts` into three top-level suites of 29, 43 and 31 lines, keeping all six test bodies, mocks and assertions unchanged. All six tests passed in Docker; the changed file also passed ESLint and Prettier. This regrouping needs CI after commit/push.
 
 - **Localization documentation review:** corrected the API implementation status to reflect the configured `LocaleMiddleware`, supported French/English request-language selection and translated DRF throttling messages. Verified against base settings, the shared exception handler and the existing French/English request regression; this documentation-only change does not claim translation coverage for every endpoint.
+
 ### FIX-23 Frontend development dependency security (#614)
 
 - **What the AI produced:** scoped pnpm overrides for jsdom's Undici 8.12.4 and openapi-typescript's Undici 6.29.1, the regenerated lockfile, an HTTP redirect regression test that uses Undici without Node's built-in fetch, and Sonar test classification for that standalone runner.

@@ -63,6 +63,46 @@ def test_formatter_discards_arbitrary_message_and_exceptions() -> None:
     assert "private@example.org" not in encoded
 
 
+@pytest.mark.parametrize("event", ["sign_in_succeeded", "signed_out"])
+def test_auth_success_logs_only_uuid_as_account_detail(event):
+    """Successful authentication logs expose only the account UUID."""
+    user_id = UUID("00000000-0000-4000-8000-000000000011")
+    record = logging.makeLogRecord(
+        {
+            "name": "iris.auth",
+            "levelname": "INFO",
+            "event": event,
+            "user_id": user_id,
+            "email": "private@example.test",
+            "password": "private-password",
+            "msg": "private@example.test",
+        }
+    )
+    payload = json.loads(JsonLogFormatter().format(record))
+    assert payload == {
+        "timestamp": payload["timestamp"],
+        "level": "INFO",
+        "logger": "iris.auth",
+        "event": event,
+        "user_id": str(user_id),
+    }
+
+
+@pytest.mark.parametrize(
+    ("logger", "event", "user_id"),
+    [
+        ("iris.auth", "sign_in_failed", UUID(int=11)),
+        ("iris.auth", "sign_in_rate_limited", UUID(int=11)),
+        ("iris.http", "sign_in_succeeded", UUID(int=11)),
+        ("iris.auth", "signed_out", "private@example.test"),
+    ],
+)
+def test_other_events_cannot_expose_account_details(logger, event, user_id):
+    """Other log events cannot expose account identifiers."""
+    record = logging.makeLogRecord({"name": logger, "event": event, "user_id": user_id})
+    assert "user_id" not in json.loads(JsonLogFormatter().format(record))
+
+
 @pytest.mark.parametrize(
     ("logger_name", "event", "reference", "included"),
     [
