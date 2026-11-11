@@ -61,10 +61,11 @@ PUBLIC: dict[str, str] = {
     "categories-list": "Public reference data shown before sign-in (SET-12).",
     "partner-application-create": "Businesses apply before they have an account "
     "(US-12); rate-limited by SEC-04.",
-    "schema": "OpenAPI description for developers (SET-15); gen:api builds it with "
-    "manage.py, not this URL. Open in every environment until FIX-04 (#630).",
-    "swagger-ui": "Documentation page for the same schema; same FIX-04 (#630) "
-    "follow-up.",
+    "schema": "OpenAPI description for local developers (SET-15); production "
+    "restricts it to active Iris admins (FIX-04). Production access is tested "
+    "separately in test_api.py; gen:api builds it with manage.py.",
+    "swagger-ui": "Local documentation for the same schema. Production access "
+    "is restricted and tested separately with FIX-04.",
 }
 
 # Plain Django views under /api/, matched by path prefix, each with the reason.

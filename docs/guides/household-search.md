@@ -167,6 +167,11 @@ reset, empty/error/refused states, both languages, API-driven access, keyboard c
 and axe accessibility checks. Search responses bypass HTTP caching; React Query
 discards unused results and the existing auth provider clears them at sign-out.
 
+Both the HTTP server and the load driver run without inherited coverage hooks.
+Functional tests measure application coverage separately; tracing either benchmark
+process would consume CPU and distort its capacity measurements. The driver's
+environment regression keeps application settings while removing coverage hooks.
+
 The load-driver regression tests check that 32 requests can be in flight, client
 queue and request timings are measured separately, and connections are closed
 when the cold request fails. These are tests of the driver; the real HTTP test still exercises session
@@ -178,6 +183,14 @@ checks the PostgreSQL backend PID in a test-only response header. It fails when
 test checks that the ASGI entry point disables WSGI connection persistence.
 
 ## Remaining environment checks
+
+The two-CPU VM used to run Docker is a development environment. A saturated local
+VM can fail the 100 requests/second capacity test even when functional checks and
+CI pass. That result is a local capacity measurement, not evidence by itself of
+a functional defect. Capacity acceptance is assessed in CI and staging; the
+benchmark's request rate, dataset, latency targets and CI execution are unchanged.
+A complete local test run containing a failed capacity test must still be
+reported as failed, rather than treated as a green suite.
 
 Run the repeatable checks above and use their current output and CI artifacts.
 The performance tests attach numeric reports to structured log records and to

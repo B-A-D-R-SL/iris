@@ -14,7 +14,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.handlers.wsgi import WSGIHandler
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "iris.settings.local")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "iris.settings.production")
 
 
 def _checked_application() -> WSGIHandler:
