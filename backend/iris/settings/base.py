@@ -316,6 +316,8 @@ LOGGING = {
     },
     "loggers": {
         "iris": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        # Pickup success events use the root's privacy-filtered console handler.
+        "modules.reservations.services": {"level": "INFO"},
         "django.request": {
             "handlers": ["console"],
             "level": "WARNING",

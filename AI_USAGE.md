@@ -37,6 +37,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| T-06.44.2 Confirm pickup service and API, with T-06.44.1 tests (#522, #521) | `backend/modules/reservations/{queries.py,services.py,permissions.py,domain/pickup.py,README.md}`, `backend/modules/reservations/api/{pickup_serializers,pickup_views,store_permissions,store_urls}.py`, `backend/modules/reservations/locale/fr/LC_MESSAGES/django.po`, `backend/modules/reservations/tests/{conftest,test_pickup_domain,test_pickup_service,test_pickup_api}.py`, `backend/modules/households/{queries.py,domain/names.py,tests/test_pickup_names.py,README.md}`, `backend/modules/listings/{queries.py,README.md}`, `backend/iris/{urls.py,settings/base.py}`, `backend/pyproject.toml`, `docs/02-requirements/business-rules.md`, `docs/03-design/api.md`, `frontend/src/shared/api/generated.d.ts`, `AI_USAGE.md` | 50% or more AI-generated (compiled catalog `django.mo` and generated API declarations exempt) | Not yet opened (`US-44-confirm-pickup` branch) |
 | FIX-11 Shared role groups and authentication events (#637) | `backend/modules/accounts/{roles,queries,models,apps,signals}.py`, account role/event tests, accounts README, permission checks in listings/eligibility/audit/households, `backend/iris/{settings/base,observability}.py`, route/logging tests, `backend/pyproject.toml`, `docs/guides/observability.md`, `AI_USAGE.md` | 50% or more AI-generated | [#681](https://github.com/B-A-D-R-SL/iris/pull/681) |
 | FIX-04 Production settings and entry points (#630) | `backend/iris/{settings/base.py,settings/production.py,wsgi.py,asgi.py,api.py,throttling.py}`, `backend/tests/{__init__,security_helpers,test_backend_config,test_production_settings,test_api,test_api_errors,test_endpoint_access}.py`, `backend/modules/accounts/tests/test_accounts.py`, `backend/modules/households/tests/{search_load_client,test_search_load,test_search_load_client}.py`, `backend/{.env.example,pyproject.toml}`, `frontend/src/shared/auth/api.test.ts`, `README.md`, `docs/03-design/api.md`, `docs/04-architecture/architecture.md`, `docs/guides/{production-settings,auth-routing,household-search}.md`, `AI_USAGE.md` | 50% or more AI-generated | [#683](https://github.com/B-A-D-R-SL/iris/pull/683) |
 | FIX-23 Frontend development dependency security (#614) | `frontend/package.json`, `frontend/scripts/test-api-generation.mjs`, `sonar-project.properties`, `AI_USAGE.md`; `frontend/pnpm-lock.yaml` | 50% or more AI-generated; lockfile exempt | [#680](https://github.com/B-A-D-R-SL/iris/pull/680) |
@@ -179,6 +180,25 @@ The headings remain here so existing feature anchors continue to resolve.
 ### SET-18 Seed data generator (#409)
 
 [Verification and corrections](docs/05-process/ai-usage-verification-1.md#set-18-seed-data-generator-409).
+
+### T-06.44.2 Confirm pickup service and API, with T-06.44.1 tests (#522, #521)
+
+- **Firas's direction:** implement #522 with its #521 tests in one pull request, following US-44's acceptance criteria, the "Confirm a pickup" wireframe, the architecture's pickup sequence and the review rules, and stay clear of the open pull requests (#659, #661, #662). The scan screen (#523) and late confirmation of a no-show (US-45) are later work.
+- **What the AI produced:** `lookup_pickup` and `confirm_pickup`, scoped to the staff member's store, with a row lock so a pickup is recorded once; the two `/api/store/pickups/` endpoints with the shared error shape and fixed French/English messages; `pickup_listings` in listings and `pickup_names` (first name and last initial) in households; BR-RES-001 to BR-RES-005; tests for every role and every refusal, including six simultaneous confirmations; the API documentation and generated types.
+- **How we verified it:** 963 backend tests passed with 93.6% coverage; ruff, mypy, lint-imports (4 contracts kept) and `makemigrations --check` were clean. The OpenAPI schema validated with `--fail-on-warn`. Trial merges against the open pull requests found only documentation, translation-catalog and append-only conflicts.
+- **Problems found and corrections:**
+  - Pickup codes are unique per listing, not per store, so one code can match two live reservations at the same store. The lookup refuses that case instead of picking one (BR-RES-004), as the architecture's sequence proposes.
+  - Seeded codes such as `000001` use characters the wireframe's alphabet leaves out, so the lookup checks only the length and letters/digits, not that alphabet.
+  - The docs leave stock on pickup open. Lowering `quantity_reserved` would offer handed-over units again, so confirming leaves stock unchanged (BR-RES-005, marked **Default**). The seed counts only `reserved` rows in `quantity_reserved`; that difference is left for the reservations owner.
+  - `AuditEvent` has no pickup action, so no audit row is written; the reservation keeps who and when, and a `pickup_confirmed` log line has no names or codes.
+  - The container has no gettext tools, so `django.mo` was compiled with a standard-library script and checked by a test that every refusal message has a French translation.
+
+### US-44 local review follow-up (#522)
+
+- **Tool:** OpenAI Codex.
+- **Scope:** `backend/modules/reservations/services.py`, `backend/iris/settings/base.py`, `backend/modules/reservations/tests/test_pickup_service.py`, and this entry.
+- **Contribution:** 50% or more AI-generated. Moved the confirmation clock read after acquiring the reservation lock, enabled the pickup success logger, and added regression coverage for a lock wait crossing the deadline and for the timestamp saved after a wait. The logging test now uses the project's configured log level.
+- **Verification:** The three regression cases failed against the original implementation before the fixes were applied. Changes are local and uncommitted; no pull request or push was made.
 
 ### FIX-21 Split the mock notice page-drawing functions (#647)
 

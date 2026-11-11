@@ -72,6 +72,17 @@ def categories_for_posting(*, at: datetime) -> list[dict[str, Any]] | None:
     ]
 
 
+def pickup_listings(store_id: UUID) -> QuerySet[Listing, Any]:
+    """The store's listings as plain values, for pickup lookup and confirmation (US-44).
+
+    Reservations filters its own rows with ``.values("id")`` of this result as a
+    subquery, so a pickup never reads another store's listings.
+    """
+    return Listing.objects.filter(store_id=store_id).values(
+        "id", "title", "unit", "pickup_start", "pickup_end"
+    )
+
+
 def visible_listings(household_id: UUID | None, now: datetime) -> QuerySet[Listing]:
     """The listings a household can see at ``now``; the only place this is decided.
 
