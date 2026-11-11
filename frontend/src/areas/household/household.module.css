@@ -1,0 +1,84 @@
+/* AI contribution: 50% or more AI-generated */
+/*
+ * The colours of the H1 "Find and reserve" mockups (Figma, Household page), on
+ * the browse and detail screens only: the rest of the app keeps SET-16's
+ * grayscale theme. Mantine reads these variables on each component, so buttons,
+ * secondary text and borders follow them inside .palette and nowhere else.
+ */
+.palette {
+  --h1-text: #013751;
+  --h1-muted: #455968;
+  --h1-primary: #237a2c;
+  --h1-primary-hover: #1c6223;
+  --h1-primary-subtle: #def3e0;
+  --h1-sand: #eee6e0;
+  --h1-sand-strong: #968a81;
+
+  --mantine-color-text: var(--h1-text);
+  --mantine-color-gray-7: var(--h1-muted);
+  --mantine-color-gray-filled: var(--h1-primary);
+  --mantine-color-gray-filled-hover: var(--h1-primary-hover);
+  --mantine-color-gray-outline: var(--h1-primary);
+  --mantine-color-gray-outline-hover: var(--h1-primary-subtle);
+  --mantine-color-default-border: var(--h1-sand);
+  color: var(--h1-text);
+}
+
+/* Photos: beige placeholder with the image icon, as in the mockups. */
+.photo {
+  display: block;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: var(--mantine-radius-md);
+  background-color: var(--h1-sand);
+}
+
+.photo[data-size="thumb"] {
+  width: 76px;
+  height: 76px;
+}
+
+.photo[data-size="large"] {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+}
+
+/* On the detail screen the whole photo shows, never cropped or zoomed; any space
+   left in the 16:9 frame stays beige, like the placeholder. */
+img.photo[data-size="large"] {
+  object-fit: contain;
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--h1-text);
+}
+
+/* Bottom sheets for the category and store filters (SET-11 "Category picker"). */
+.sheet {
+  max-height: 85dvh;
+  border-top-left-radius: var(--mantine-radius-lg);
+  border-top-right-radius: var(--mantine-radius-lg);
+}
+
+.option {
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.optionBody {
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+}
+
+.optionLabel {
+  flex: 1;
+}
+
+.optionLabel label {
+  display: block;
+  padding-block: 12px;
+  font-size: var(--mantine-font-size-md);
+}

@@ -132,6 +132,42 @@
       "failed": "Le statut n’a pas pu être modifié. Réessayez.",
       "suspendSuccess": "Le dossier du foyer a été suspendu.",
       "reactivateSuccess": "Le dossier du foyer a été réactivé."
+    },
+    "browse": {
+      "filters": "Filtres",
+      "today": "Aujourd'hui",
+      "tomorrow": "Demain",
+      "category": "Catégorie",
+      "store": "Commerce",
+      "allCategories": "Toutes les catégories",
+      "allStores": "Tous les commerces",
+      "foodCategories": "Aliments",
+      "otherCategories": "Autres produits",
+      "noStores": "Les commerces des offres affichées apparaissent ici.",
+      "closeFilter": "Fermer",
+      "countOne": "1 offre · par heure de cueillette",
+      "countMany": "{{count}} offres · par heure de cueillette",
+      "unitLeft": "1 restant",
+      "unitsLeft": "{{count}} restants",
+      "bundleLeft": "1 lot restant",
+      "bundlesLeft": "{{count}} lots restants",
+      "bestBefore": "Meilleur avant {{date}}",
+      "loadMore": "Afficher plus d'offres",
+      "emptyTitle": "Aucune offre pour le moment",
+      "emptyDescription": "De nouvelles offres arrivent chaque jour.",
+      "noMatchTitle": "Aucune offre pour ces filtres",
+      "noMatchDescription": "Essayez un autre jour ou une autre catégorie. De nouvelles offres arrivent chaque jour.",
+      "clearFilters": "Effacer les filtres",
+      "notApprovedTitle": "Les offres seront visibles quand votre dossier sera approuvé",
+      "notApprovedDescription": "L'équipe de B.A.D.R. doit d'abord approuver votre dossier. Son état est sur la page d'accueil.",
+      "fileStatus": "Voir l'état de mon dossier"
+    },
+    "listingDetail": {
+      "bestBefore": "Meilleur avant le {{date}}",
+      "unit": "local {{unit}}",
+      "goneTitle": "Cette offre n'est plus disponible",
+      "goneDescription": "Elle a peut-être été réservée au complet ou sa cueillette est terminée.",
+      "backToListings": "Voir les offres"
     }
   },
   "reservation": {
