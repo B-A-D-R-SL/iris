@@ -216,14 +216,14 @@ US-13 staff screens exist.
 | POST       | `/api/households/me/application/submit/`                | Beneficiary          | Submit                                            | Planned |
 | PATCH      | `/api/households/me/alternate/`                         | Beneficiary          | Alternate for pickups                             | Planned |
 | POST       | `/api/households/me/renewal/`                           | Beneficiary          | Start a renewal                                   | Planned |
-| GET        | `/api/staff/households/?q=`                             | Intake worker, admin | Partial, accent-insensitive search; authorized non-anonymized files, pagination, audits and server-derived `can_resume` | Implemented (US-63) |
+| GET        | `/api/staff/households/?q=`                             | Intake worker, admin | Partial, accent-insensitive search; authorized non-anonymized files, pagination, audits and server-derived `can_resume` and `can_open` | Implemented (US-63, US-32) |
 | POST/PATCH | `/api/staff/households/`, `/api/staff/households/{id}/` | Intake worker, admin | Walk-in create and edit (drafts only)             | Implemented (US-17) |
 | POST       | `/api/staff/households/{id}/submit/`                    | Intake worker, admin | Submit saved walk-in registration; possible duplicates go to review | Implemented (US-25; proposed endpoint for review) |
 | POST       | `/api/staff/households/{id}/notices/`                   | Intake worker, admin | Walk-in notice (scan + typed values)              | Planned |
 | POST       | `/api/staff/households/{id}/approve/`                   | Intake worker, admin | Approve a walk-in (eligibility runs)              | Planned |
-| GET        | `/api/staff/households/{id}/`                           | Intake worker, admin | Household page (fields per role)                  | Partly: walk-in draft read for resuming (US-17) |
+| GET        | `/api/staff/households/{id}/`                           | Intake worker, admin | Read any non-anonymized online or walk-in file in any status, including status reason, expiry, member number and server-derived actions | Implemented (US-17, US-32) |
 | GET        | `/api/staff/notices/{id}/file/`                         | Intake worker, admin | Signed URL valid 5 minutes (audited)              | Planned |
-| POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`                                     | Planned |
+| POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`; preserves expiry                    | Implemented (US-32) |
 | GET/POST   | `/api/staff/households/{id}/notes/`                     | Intake worker, admin | Staff notes                                       | Planned |
 
 Active intake workers and admins may read, edit and submit shared,

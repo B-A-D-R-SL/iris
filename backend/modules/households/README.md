@@ -12,6 +12,8 @@ account. The record also preserves staff verification and creation timestamps.
 
 - `services.create_walk_in(data, staff_user) -> Household`
 - `services.update_draft(household_id, data, staff_user) -> Household`
+- `services.change_suspension(household_id, reason, actor, reactivate=...) -> Household`:
+  administrators suspend approved files or reactivate unexpired suspended files
 - `services.submit_walk_in(household_id, staff_user) -> Household`
 - `services.locked_duplicate_check(household_id, staff_user)`: context for a
   checked draft and an evaluated duplicate flag; save inside the context.
@@ -207,3 +209,12 @@ household page; this change does not create that page or approval workflows.
 
 See [search verification](../../../docs/guides/household-search.md) for database
 isolation, repeatable benchmarks and the remaining staging/device checks.
+
+## Suspension (US-32)
+
+The suspend and reactivate endpoints require an administrator and a reason. They
+preserve `expires_at`; an expired suspended file cannot be reactivated. Suspension
+cancels every reserved reservation without a late-cancellation strike and returns
+the units to its listing in the same transaction. Both actions are audited with
+the reason. A localized holder email is queued after commit; counter-only files
+without email still change status.

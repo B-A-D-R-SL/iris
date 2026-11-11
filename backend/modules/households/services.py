@@ -16,11 +16,20 @@ from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from modules.audit import services as audit_services
 from modules.households.exceptions import DuplicateLockTimeout
 from modules.households.limits import max_household_people
 from modules.households.models import Household, HouseholdDraftEvent, Member
-from modules.households.policies import can_manage_walk_ins, is_editable_walk_in
+from modules.households.policies import (
+    can_manage_walk_ins,
+    can_suspend_households,
+    is_editable_walk_in,
+)
 from modules.households.queries import find_possible_duplicates, walk_ins_for_staff
+from modules.notifications import services as notification_services
+from modules.privacy import services as privacy_services
+from modules.reservations import services as reservation_services
+from modules.rules import queries as rule_queries
 
 logger = logging.getLogger("iris.households")
 
@@ -30,6 +39,87 @@ ADDRESS_FIELDS = frozenset(
 MEMBER_FIELDS = frozenset(("first_name", "last_name", "date_of_birth"))
 CONSENT_TEXT_VERSION = "2026-11-v1"
 POSSIBLE_DUPLICATE = "POSSIBLE_DUPLICATE"
+
+
+def _status_reason(reason: str) -> str:
+    """Normalize a reason and enforce the active privacy and length rules."""
+    value = " ".join(reason.split())
+    if not value:
+        raise ValidationError({"reason": _("Enter a reason.")})
+    limit = rule_queries.household_suspension_reason_max_length()
+    if len(value) > limit:
+        raise ValidationError(
+            {"reason": _("Enter at most %(limit)s characters.") % {"limit": limit}}
+        )
+    if privacy_services.household_reason_contains_sensitive_data(value):
+        raise ValidationError(
+            {"reason": _("Do not include personal or financial information.")}
+        )
+    return value
+
+
+def _locked_status_household(household_id: UUID, reactivate: bool) -> Household:
+    """Lock a visible file and validate the requested source state."""
+    household = (
+        Household.objects.select_for_update()
+        .filter(pk=household_id, anonymized_at__isnull=True)
+        .first()
+    )
+    if household is None:
+        raise Household.DoesNotExist
+    expected = Household.Status.SUSPENDED if reactivate else Household.Status.APPROVED
+    if household.status != expected:
+        message = (
+            _("Only suspended household files can be reactivated.")
+            if reactivate
+            else _("Only approved household files can be suspended.")
+        )
+        raise ValidationError({"status": message})
+    if reactivate and (
+        household.expires_at is None or household.expires_at <= timezone.now()
+    ):
+        raise ValidationError({"status": _("An expired file cannot be reactivated.")})
+    return household
+
+
+def _save_status(household: Household, reason: str, reactivate: bool) -> str:
+    """Persist the new status and return its audit action."""
+    action = "reactivate" if reactivate else "suspend"
+    household.status = (
+        Household.Status.APPROVED if reactivate else Household.Status.SUSPENDED
+    )
+    household.status_reason = "" if reactivate else reason
+    household.full_clean()
+    household.save(update_fields=("status", "status_reason", "updated_at"))
+    return action
+
+
+@transaction.atomic
+def change_suspension(
+    household_id: UUID,
+    reason: str,
+    actor: AbstractBaseUser,
+    *,
+    reactivate: bool,
+) -> Household:
+    """Suspend an approved file or reactivate a suspended file while valid."""
+    if not can_suspend_households(actor):
+        raise PermissionDenied(_("Only active administrators can change suspension."))
+    clean_reason = _status_reason(reason)
+    household = _locked_status_household(household_id, reactivate)
+    action = _save_status(household, clean_reason, reactivate)
+    if not reactivate:
+        reservation_services.cancel_open_for_household(household.pk)
+    audit_services.record(
+        actor, action, "household", household.pk, {"reason": clean_reason}
+    )
+    notification_services.queue_household_status_email(
+        email=household.email,
+        language=household.preferred_language,
+        status=household.status,
+        reason=clean_reason,
+    )
+    return household
 
 
 def _require_staff(user: AbstractBaseUser) -> None:
