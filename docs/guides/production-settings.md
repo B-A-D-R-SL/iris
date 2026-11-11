@@ -26,15 +26,18 @@ real credentials in the repository or command examples.
 | `DJANGO_SECRET_KEY` | Generated secret, at least 50 characters; `django-insecure` and `iris-insecure` prefixes are refused |
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated hostnames for this deployment |
 | `DATABASE_URL` | PostgreSQL connection string for this environment |
-| `EMAIL_BACKEND` | Real delivery backend; console and in-memory backends are refused |
+| `EMAIL_BACKEND` | Real delivery backend; console, dummy, file-based and in-memory backends are refused |
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` | Delivery-provider configuration when using Django's SMTP backend |
 | `DRF_ANON_THROTTLE_RATE` | Anonymous client limit; default `60/min` |
 | `DRF_USER_THROTTLE_RATE` | Authenticated account limit; default `300/min` |
 | `DRF_NUM_PROXIES` | Verified number of trusted reverse proxies; default `0` ignores forwarded client IPs |
 
 Throttle rates must use a positive request count and a second/minute/hour/day
-period, for example `60/min`. Zero, negative or malformed rates and negative
-proxy counts are refused during production startup.
+period, for example `60/min`. Accepted period names are `s`, `sec`, `secs`,
+`second`, `seconds`; `m`, `min`, `mins`, `minute`, `minutes`; `h`, `hr`, `hrs`,
+`hour`, `hours`; and `d`, `day`, `days`. Zero, negative or malformed rates,
+unsupported periods such as `month`, and negative proxy counts are refused
+during production startup.
 
 Django 6.1 uses `MAILERS`; Iris builds its default mailer from the `EMAIL_*`
 environment variables. Production validates that effective configuration.

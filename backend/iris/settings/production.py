@@ -36,11 +36,13 @@ if REST_FRAMEWORK["NUM_PROXIES"] < 0:
 
 if MAILERS["default"]["BACKEND"] in {
     "django.core.mail.backends.console.EmailBackend",
+    "django.core.mail.backends.dummy.EmailBackend",
+    "django.core.mail.backends.filebased.EmailBackend",
     "django.core.mail.backends.locmem.EmailBackend",
 }:
     raise ImproperlyConfigured(
-        "EMAIL_BACKEND must deliver email in production; console and in-memory "
-        "backends are forbidden."
+        "EMAIL_BACKEND must deliver email in production; console, dummy, file-based "
+        "and in-memory backends are forbidden."
     )
 
 SESSION_COOKIE_SECURE = True
@@ -59,7 +61,10 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 def _throttle_rate(name: str, default: str) -> str:
     """Reject disabled or malformed deployment limits before serving requests."""
     rate: str = env(name, default=default)
-    if not re.fullmatch(r"[1-9][0-9]*/[smhd][a-z]*", rate):
+    if not re.fullmatch(
+        r"[1-9][0-9]*/(?:s|secs?|seconds?|m|mins?|minutes?|h|hrs?|hours?|d|days?)",
+        rate,
+    ):
         raise ImproperlyConfigured(
             f"{name} must be a positive request count per second, minute, hour or day."
         )

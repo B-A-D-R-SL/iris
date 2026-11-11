@@ -71,8 +71,8 @@ def test_production_accepts_the_50_character_secret_key_boundary() -> None:
     assert result.stdout.strip() == "configured"
 
 
-@pytest.mark.parametrize("backend", ["console", "locmem"])
-def test_production_refuses_console_and_in_memory_mailers(backend: str) -> None:
+@pytest.mark.parametrize("backend", ["console", "dummy", "filebased", "locmem"])
+def test_production_refuses_non_delivery_mailers(backend: str) -> None:
     result = _run(
         ["-c", "import iris.settings.production"],
         EMAIL_BACKEND=f"django.core.mail.backends.{backend}.EmailBackend",
@@ -228,7 +228,9 @@ def test_production_security_policy_and_base_settings_are_independent() -> None:
 
 
 @pytest.mark.parametrize("name", ["DRF_ANON_THROTTLE_RATE", "DRF_USER_THROTTLE_RATE"])
-@pytest.mark.parametrize("rate", ["0/min", "-1/min", "five/min", "5/week", "5/", ""])
+@pytest.mark.parametrize(
+    "rate", ["0/min", "-1/min", "five/min", "5/week", "5/month", "5/hello", "5/", ""]
+)
 def test_production_refuses_disabled_or_malformed_throttle_rates(
     name: str, rate: str
 ) -> None:
@@ -237,6 +239,50 @@ def test_production_refuses_disabled_or_malformed_throttle_rates(
     assert result.returncode != 0
     assert "ImproperlyConfigured" in result.stderr
     assert f"{name} must be a positive request count" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("period", "duration"),
+    [
+        ("s", 1),
+        ("sec", 1),
+        ("secs", 1),
+        ("second", 1),
+        ("seconds", 1),
+        ("m", 60),
+        ("min", 60),
+        ("mins", 60),
+        ("minute", 60),
+        ("minutes", 60),
+        ("h", 3600),
+        ("hr", 3600),
+        ("hrs", 3600),
+        ("hour", 3600),
+        ("hours", 3600),
+        ("d", 86400),
+        ("day", 86400),
+        ("days", 86400),
+    ],
+)
+def test_production_throttle_periods_have_the_expected_duration(
+    period: str, duration: int
+) -> None:
+    """Deployment aliases retain their intended meaning in DRF's real throttle."""
+    result = _run(
+        [
+            "-c",
+            (
+                "import django, json; django.setup(); "
+                "from rest_framework.throttling import AnonRateThrottle; "
+                "throttle = AnonRateThrottle(); "
+                "print(json.dumps([throttle.num_requests, throttle.duration]))"
+            ),
+        ],
+        DRF_ANON_THROTTLE_RATE=f"5/{period}",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == [5, duration]
 
 
 @pytest.mark.parametrize("proxy_count", ["-1", "-2"])

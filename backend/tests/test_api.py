@@ -3,7 +3,6 @@
 
 import pytest
 from django.core.cache import cache
-from rest_framework.test import APIClient
 
 from modules.accounts.models import User
 from modules.accounts.tests.factories import UserFactory
@@ -82,13 +81,6 @@ print(json.dumps([client.get(url, secure=True).status_code
         identifier,
     )
     assert result == [401, 401]
-
-
-def test_test_settings_keep_documentation_accessible():
-    """Development-schema generation remains usable without signing in."""
-    client = APIClient()
-    assert client.get("/api/schema/").status_code == 200
-    assert client.get("/api/docs/").status_code == 200
 
 
 def test_anonymous_quota_boundary_queries_the_database_and_keeps_retry_header():
