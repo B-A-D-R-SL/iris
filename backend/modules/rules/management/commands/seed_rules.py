@@ -64,11 +64,7 @@ class Command(BaseCommand):
             rule_type for rule_type in RULE_TYPES if rule_type not in existing_types
         ]
         if not missing_types:
-            user_model = get_user_model()
-            if user_model._default_manager.filter(
-                **{user_model.USERNAME_FIELD: SEED_USERNAME}
-            ).exists():
-                _get_seed_publisher()
+            _repair_existing_seed_publisher()
             self.stdout.write(self.style.SUCCESS("Rule defaults are already seeded."))
             return
 
@@ -213,6 +209,15 @@ def _parse_lico_row(row: dict[str, str], line_number: int) -> tuple[int, int]:
             f"LICO CSV line {line_number} threshold_cents must be positive."
         )
     return family_size, threshold_cents
+
+
+def _repair_existing_seed_publisher() -> None:
+    """Repair an existing system account when all rule types are already seeded."""
+    user_model = get_user_model()
+    if user_model._default_manager.filter(
+        **{user_model.USERNAME_FIELD: SEED_USERNAME}
+    ).exists():
+        _get_seed_publisher()
 
 
 def _get_seed_publisher() -> AbstractBaseUser:
