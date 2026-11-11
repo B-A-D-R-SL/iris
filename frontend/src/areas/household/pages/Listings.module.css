@@ -78,7 +78,10 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  max-width: 100%;
   font-size: var(--mantine-font-size-sm);
+  /* A long store name without spaces wraps inside the card, like .cardTitle. */
+  overflow-wrap: anywhere;
 }
 
 .line[data-muted] {
