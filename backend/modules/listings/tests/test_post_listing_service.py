@@ -142,11 +142,12 @@ def test_us33_refuses_invalid_data_before_calling_safety(
 ) -> None:
     case = posting_case
     checker = Mock(return_value=[])
+    data = replace(case.data, quantity=0, safe_and_allowed=False)
     with pytest.raises(ValidationError) as caught:
         services.post_listing(
             case.store.pk,
             case.user,
-            replace(case.data, quantity=0, safe_and_allowed=False),
+            data,
             safety_check=checker,
         )
     assert set(caught.value.message_dict) == {"quantity", "safe_and_allowed"}
@@ -167,10 +168,9 @@ def test_us33_uses_latest_effective_rule_versions(
         case.user,
         effective_from=case.now + timedelta(days=1),
     )
+    checker = Mock(return_value=[])
     with pytest.raises(ValidationError) as caught:
-        services.post_listing(
-            case.store.pk, case.user, case.data, safety_check=Mock(return_value=[])
-        )
+        services.post_listing(case.store.pk, case.user, case.data, safety_check=checker)
     assert "quantity" in caught.value.message_dict
     assert not Listing.objects.exists()
 
@@ -259,12 +259,13 @@ def test_us33_preserves_safety_refusals(
 
 def test_us33_rejects_unknown_safety_contract(posting_case: SimpleNamespace) -> None:
     case = posting_case
+    checker = Mock(return_value=["not the agreed contract"])
     with pytest.raises(services.PostingUnavailable):
         services.post_listing(
             case.store.pk,
             case.user,
             case.data,
-            safety_check=Mock(return_value=["not the agreed contract"]),
+            safety_check=checker,
         )
     assert not Listing.objects.exists()
 
@@ -274,15 +275,16 @@ def test_us33_storage_is_used_only_after_validation(
 ) -> None:
     case = posting_case
     store = Mock()
+    data = replace(case.data, safe_and_allowed=False)
+    photo = SimpleUploadedFile("photo.png", PNG_CONTENT, content_type="image/png")
+    checker = Mock(return_value=[])
     with pytest.raises(ValidationError):
         services.post_listing(
             case.store.pk,
             case.user,
-            replace(case.data, safe_and_allowed=False),
-            photo=SimpleUploadedFile(
-                "photo.png", PNG_CONTENT, content_type="image/png"
-            ),
-            safety_check=Mock(return_value=[]),
+            data,
+            photo=photo,
+            safety_check=checker,
             file_store=store,
         )
     store.put_image.assert_not_called()
@@ -306,7 +308,9 @@ def test_us33_passes_photo_bounds_to_the_storage_adapter(
         safety_check=Mock(return_value=[]),
         file_store=store,
     )
-    store.put_image.assert_called_once_with(content, max_dimension=1280)
+    store.put_image.assert_called_once_with(
+        content, max_dimension=1280, max_bytes=5 * 1024 * 1024
+    )
     store.delete.assert_not_called()
     assert listing.photo_ref == "photos/test-reference"
 
@@ -316,13 +320,15 @@ def test_us33_refuses_unsupported_photo_types(
     posting_case: SimpleNamespace, content_type: str
 ) -> None:
     case = posting_case
+    photo = SimpleUploadedFile("bad.txt", b"bad", content_type=content_type)
+    checker = Mock(return_value=[])
     with pytest.raises(ValidationError) as caught:
         services.post_listing(
             case.store.pk,
             case.user,
             case.data,
-            photo=SimpleUploadedFile("bad.txt", b"bad", content_type=content_type),
-            safety_check=Mock(return_value=[]),
+            photo=photo,
+            safety_check=checker,
         )
     assert "photo" in caught.value.message_dict
     assert not Listing.objects.exists()
@@ -345,13 +351,15 @@ def test_us33_refuses_photo_bytes_that_do_not_match_the_declared_type(
 ) -> None:
     case = posting_case
     store = Mock()
+    photo = SimpleUploadedFile("photo", content, content_type=content_type)
+    checker = Mock(return_value=[])
     with pytest.raises(ValidationError) as caught:
         services.post_listing(
             case.store.pk,
             case.user,
             case.data,
-            photo=SimpleUploadedFile("photo", content, content_type=content_type),
-            safety_check=Mock(return_value=[]),
+            photo=photo,
+            safety_check=checker,
             file_store=store,
         )
     assert "photo" in caught.value.message_dict
@@ -367,15 +375,15 @@ def test_us33_refuses_oversized_photos(posting_case: SimpleNamespace) -> None:
         case.user,
         effective_from=case.now,
     )
+    photo = SimpleUploadedFile("photo.png", PNG_CONTENT, content_type="image/png")
+    checker = Mock(return_value=[])
     with pytest.raises(ValidationError) as caught:
         services.post_listing(
             case.store.pk,
             case.user,
             case.data,
-            photo=SimpleUploadedFile(
-                "photo.png", PNG_CONTENT, content_type="image/png"
-            ),
-            safety_check=Mock(return_value=[]),
+            photo=photo,
+            safety_check=checker,
         )
     assert "photo" in caught.value.message_dict
     assert not Listing.objects.exists()
@@ -383,17 +391,19 @@ def test_us33_refuses_oversized_photos(posting_case: SimpleNamespace) -> None:
 
 def test_us33_missing_photo_storage_does_not_publish(
     posting_case: SimpleNamespace,
+    settings: Any,
 ) -> None:
+    settings.LISTING_PHOTO_STORE_BACKEND = ""
     case = posting_case
+    photo = SimpleUploadedFile("photo.png", PNG_CONTENT, content_type="image/png")
+    checker = Mock(return_value=[])
     with pytest.raises(services.PostingUnavailable, match="photo storage"):
         services.post_listing(
             case.store.pk,
             case.user,
             case.data,
-            photo=SimpleUploadedFile(
-                "photo.png", PNG_CONTENT, content_type="image/png"
-            ),
-            safety_check=Mock(return_value=[]),
+            photo=photo,
+            safety_check=checker,
         )
     assert not Listing.objects.exists()
 
@@ -409,15 +419,15 @@ def test_us33_removes_uploaded_photo_if_database_save_fails(
         raise RuntimeError("database failure")
 
     monkeypatch.setattr(Listing, "save", failed_save)
+    photo = SimpleUploadedFile("photo.png", PNG_CONTENT, content_type="image/png")
+    checker = Mock(return_value=[])
     with pytest.raises(RuntimeError, match="database failure"):
         services.post_listing(
             case.store.pk,
             case.user,
             case.data,
-            photo=SimpleUploadedFile(
-                "photo.png", PNG_CONTENT, content_type="image/png"
-            ),
-            safety_check=Mock(return_value=[]),
+            photo=photo,
+            safety_check=checker,
             file_store=store,
         )
     store.delete.assert_called_once_with("photos/rollback")

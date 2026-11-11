@@ -299,9 +299,10 @@ above do not claim that every repository-wide audit or hosted CI check passed.
    Databases already using Django's default user need a reviewed migration
    strategy before switching user models.
 2. **US-34 safety:** done; see [section 10](#10-us-34-safety-checks).
-3. **Photo storage:** a class configured by `LISTING_PHOTO_STORE_BACKEND` that
-   implements `put_image(content, max_dimension=...)` and `delete(reference)`.
-   It must verify/process images and store them privately.
+3. **Photo storage:** connected by FIX-02 through `LISTING_PHOTO_STORE_BACKEND`.
+   The adapter processes images, uploads privately, deletes failed posts' photos
+   and creates five-minute read links for authorized browse results. See the
+   [storage guide](listing-photo-storage.md) for local configuration and tests.
 4. **Rule versions:** seed/publish the required rules when the integrations
    are ready. The existing `seed_rules` command supports the posting defaults;
    tests publish their own temporary versions.

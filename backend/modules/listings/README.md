@@ -3,6 +3,10 @@
 **Owner pair:** Goods
 **Status:** Posting (US-33), safety checks (US-34) and browsing queries (US-36) implemented
 
+Photo uploads use the configured private Azure/Azurite adapter (FIX-02), with
+Pillow processing, compensating cleanup and five-minute read links on authorized
+browse cards. See [configuration and verification](../../../docs/guides/listing-photo-storage.md).
+
 ## Responsibility
 
 Own the listings feature boundary within the Iris modular monolith.
