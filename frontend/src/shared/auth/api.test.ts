@@ -9,7 +9,7 @@ beforeEach(() => {
   document.cookie = "csrftoken=; Max-Age=0";
 });
 
-describe("allauth browser session", () => {
+describe("allauth password sign-in", () => {
   it("gets a CSRF cookie before sign-in and sends it with the password", async () => {
     const fetchMock = vi.fn(async (url: string, options?: RequestInit) => {
       if (url === `${authBase}/session`) {
@@ -37,7 +37,9 @@ describe("allauth browser session", () => {
       `${authBase}/login`,
     ]);
   });
+});
 
+describe("allauth sign-in errors and challenges", () => {
   it("uses one generic error for invalid or unknown credentials", async () => {
     document.cookie = "csrftoken=ready; path=/";
     vi.stubGlobal(
@@ -79,7 +81,9 @@ describe("allauth browser session", () => {
       "mfa_required",
     );
   });
+});
 
+describe("allauth code verification and sign-out", () => {
   it("sends the six digit code to allauth and handles an invalid code", async () => {
     document.cookie = "csrftoken=ready; path=/";
     const fetchMock = vi
