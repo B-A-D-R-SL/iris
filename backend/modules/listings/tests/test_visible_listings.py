@@ -213,6 +213,7 @@ class TestBrowseCards:
                 "pickup_end": NOW + timedelta(hours=3),
                 "best_before": listing.best_before,
                 "store_id": store.pk,
+                "photo_ref": None,
                 "units_left": 7,
                 "category_code": listing.category.code,
                 "store_name": store.name,
