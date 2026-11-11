@@ -101,6 +101,15 @@ PostgreSQL uses port `55433` on the host to avoid conflicts with existing local 
 
 **PostgreSQL is required.** Django does not fall back to SQLite. For manual execution, set `DATABASE_URL` to a PostgreSQL connection string.
 
+### Production settings
+
+WSGI and ASGI default to `iris.settings.production`, which rejects unsafe secret
+keys and console/in-memory email delivery, enables HTTPS protections, restricts
+API documentation to active Iris admins, and rate-limits DRF requests.
+`manage.py` and Docker Compose continue to select local settings for development.
+See [production configuration and checks](docs/guides/production-settings.md)
+for environment variables, trusted proxy requirements and the HSTS preload decision.
+
 ## Development and Testing
 
 ### Commit hooks

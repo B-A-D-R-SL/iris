@@ -128,6 +128,7 @@ REST_FRAMEWORK = {
         "modules.accounts.authentication.SessionAuthentication"
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "iris.api.exception_handler",
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],

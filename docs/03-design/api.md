@@ -22,6 +22,10 @@ Status refers to the current working tree, not a deployed release:
   checkout. The listed role and purpose describe intended behavior.
 
 The infrastructure endpoints `/api/schema/` and `/api/docs/` are implemented.
+In production, both require an authenticated, active Iris `admin` role; the
+application role is checked independently of Django's `is_staff` flag. They stay
+public with local/test settings for developer tooling. Schema generation through
+`manage.py spectacular` remains available without an HTTP session.
 The schema describes health and implemented DRF endpoints, including `/api/me/`,
 categories and invitation acceptance; it does not describe allauth operations
 or the planned business APIs.
@@ -35,6 +39,23 @@ consumers have not been rewritten to use them.
 
 Categories were added by
 [reference module #377](https://github.com/B-A-D-R-SL/iris/issues/377).
+
+### Production request limits (FIX-04 / SEC-04)
+
+Production applies DRF anonymous and authenticated request limits, initially
+**60/minute per anonymous client IP** and **300/minute per authenticated account**.
+Operators configure these with `DRF_ANON_THROTTLE_RATE` and
+`DRF_USER_THROTTLE_RATE`. The partner application endpoint retains its existing
+**5/hour/IP** limit shared by anonymous and signed-in callers. Allauth keeps its
+separate sign-in protection; the plain Django health probe is not DRF-throttled.
+
+An exceeded limit returns HTTP 429 with
+`{"code": "throttled", "message": "…", "fields": {}}` and `Retry-After`.
+Messages follow the request language. DRF's cache-based limits are best effort
+under concurrency. Trust forwarded client addresses only after setting the
+verified `DRF_NUM_PROXIES`; changing connection ports does not create an allowance.
+See [production settings](../guides/production-settings.md) for proxy and cache
+requirements. Endpoint-specific authentication and permission checks still run.
 
 ## Conventions
 

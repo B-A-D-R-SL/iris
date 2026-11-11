@@ -76,6 +76,22 @@ model, sequence/state diagrams and migration plan consistent.
 
 Applied database changes use new reviewed migrations.
 
+### Production configuration boundary (FIX-04)
+
+The WSGI/ASGI entry points default to production settings, including when those
+settings are used for staging. Local Compose and management commands explicitly
+retain the development configuration. Production validates the secret and mailer,
+requires HTTPS with HSTS, and trusts the configured HTTPS header only behind a
+proxy that strips and replaces client-supplied headers. API docs require an active
+Iris admin role. General DRF limits are operational environment settings;
+partner applications and allauth retain their separate request policies.
+
+The [production settings guide](../guides/production-settings.md) documents the
+configuration, the deliberate HSTS preload exception and the strict deploy check.
+These controls do not establish a running Azure deployment. SET-17 owns the real
+staging resources and proxy verification; FIX-17 owns the dedicated CI security
+gates. The Release 1 deployment scope below remains staging.
+
 ## Module ownership
 
 | Module | Business models | Responsibility |
