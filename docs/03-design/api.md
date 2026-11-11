@@ -388,9 +388,12 @@ Integer cents and `*_cents` naming align with the existing
 [review rules](../05-process/review-rules.md) and field design. Money-bearing
 business endpoints remain planned, so their serialization is not yet verified.
 
-The backend does not configure Django's `LocaleMiddleware`; automatic
-`Accept-Language` negotiation and localized API error responses are not
-established by the current configuration.
+The backend configures Django's `LocaleMiddleware` for French and English.
+A supported `django_language` cookie takes precedence over `Accept-Language`,
+with French as the fallback. DRF throttling messages use the selected language;
+`test_throttled_responses_are_translated` in `backend/tests/test_api.py` verifies
+French and English request headers. This does not establish translation coverage
+for every endpoint or change the error-format limitations described above.
 
 ### UUID identifiers
 

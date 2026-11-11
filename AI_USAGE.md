@@ -322,6 +322,8 @@ At least half of the AI-assisted features need an example here. For each one:
 
 - **Test-suite size review:** split `frontend/src/shared/auth/api.test.ts` into three top-level suites of 29, 43 and 31 lines, keeping all six test bodies, mocks and assertions unchanged. All six tests passed in Docker; the changed file also passed ESLint and Prettier. This regrouping needs CI after commit/push.
 
+- **Localization documentation review:** corrected the API implementation status to reflect the configured `LocaleMiddleware`, supported French/English request-language selection and translated DRF throttling messages. Verified against base settings, the shared exception handler and the existing French/English request regression; this documentation-only change does not claim translation coverage for every endpoint.
+
 ### FIX-10 Translation files by area (#636)
 
 - **What the AI produced:** matching common, public, household, store and staff JSON files for English and French; a resource module that keeps the existing translation namespace; file-level parity, size, loading and empty-string tests; glossary and design-system updates.
