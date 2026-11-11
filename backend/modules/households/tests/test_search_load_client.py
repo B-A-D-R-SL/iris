@@ -1,11 +1,46 @@
 # AI contribution: 50% or more AI-generated
 """The HTTP load driver must measure queues and support concurrent requests."""
 
+import subprocess
+import sys
 from threading import Event, Lock
 
 import pytest
 
 from modules.households.tests import search_load_client as driver
+
+
+def test_benchmark_children_do_not_inherit_coverage_instrumentation(monkeypatch):
+    """Both child processes must retain app settings without tracing hooks."""
+    monkeypatch.setenv("COVERAGE_PROCESS_CONFIG", "test-configuration")
+    monkeypatch.setenv("COVERAGE_FILE", "/tmp/unused-test-coverage")
+    monkeypatch.setenv("COV_CORE_SOURCE", "test-source")
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "iris.settings.test")
+
+    environment = driver.uninstrumented_environment()
+
+    assert environment["DJANGO_SETTINGS_MODULE"] == "iris.settings.test"
+    assert "COVERAGE_PROCESS_CONFIG" not in environment
+    assert "COVERAGE_FILE" not in environment
+    assert "COV_CORE_SOURCE" not in environment
+    assert driver.os.environ["COVERAGE_PROCESS_CONFIG"] == "test-configuration"
+
+
+def test_benchmark_child_starts_without_active_coverage():
+    """Exercise real coverage startup hooks when this test runs under coverage."""
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import coverage; print(coverage.Coverage.current() is None)",
+        ],
+        env=driver.uninstrumented_environment(),
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=10,
+    )
+    assert result.stdout.strip() == "True"
 
 
 @pytest.mark.parametrize(

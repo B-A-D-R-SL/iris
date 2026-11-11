@@ -64,9 +64,10 @@ def test_entrypoint_connection_policy(
     env.pop("IRIS_SERVER_INTERFACE", None)
     env.update(
         DJANGO_SETTINGS_MODULE=settings_module,
-        DJANGO_SECRET_KEY="connection-policy-subprocess-test-key",
+        DJANGO_SECRET_KEY="connection-policy-subprocess-test-key-0123456789-ABCDEF",
         DJANGO_ALLOWED_HOSTS="localhost",
         DATABASE_CONN_MAX_AGE=configured_max_age,
+        EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
     )
     result = subprocess.run(
         [
