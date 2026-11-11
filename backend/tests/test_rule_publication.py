@@ -19,7 +19,7 @@ def publisher():
 
 
 @pytest.mark.django_db
-def test_publish_records_event_and_logs_identifiers(
+def test_publish_records_event_and_logs_without_identifiers(
     publisher, django_capture_on_commit_callbacks
 ):
     from iris.observability import JsonLogFormatter
@@ -47,6 +47,35 @@ def test_publish_records_event_and_logs_identifiers(
     assert payload["event"] == "rule_published"
     assert str(publisher.pk) not in stream.getvalue()
     assert set(payload) == {"timestamp", "level", "logger", "event"}
+
+
+@pytest.mark.django_db(transaction=True)
+def test_publication_stays_committed_when_logging_fails(publisher):
+    """A failed publication log preserves success and allows later commit callbacks."""
+    from django.db import transaction
+
+    from modules.rules.models import RuleSetVersion
+
+    completed_callbacks = []
+    with patch(
+        "modules.rules.services.logger.info", side_effect=RuntimeError("logging failed")
+    ) as log_info:
+        with transaction.atomic():
+            rule = publish(
+                "priority", deepcopy(DEFAULT_RULE_VALUES["priority"]), publisher
+            )
+            transaction.on_commit(lambda: completed_callbacks.append(rule.pk))
+            assert log_info.call_count == 0
+        assert log_info.call_count == 1
+
+    rule.refresh_from_db()
+    assert rule.version == 1
+    assert RuleSetVersion.objects.count() == 1
+    event = AuditEvent.objects.get(action="rule_published")
+    assert event.actor_id == publisher.pk
+    assert event.target_id == str(rule.pk)
+    assert event.metadata == {"rule_type": "priority", "version": 1}
+    assert completed_callbacks == [rule.pk]
 
 
 @pytest.mark.django_db(transaction=True)

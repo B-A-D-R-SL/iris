@@ -13,6 +13,7 @@ from django.contrib.auth.models import AbstractBaseUser
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from modules.rules.domain.schemas import DEFAULT_RULE_VALUES, RULE_TYPES
 from modules.rules.models import RuleSetVersion
@@ -232,10 +233,12 @@ def _get_seed_publisher() -> AbstractBaseUser:
         publisher.set_unusable_password()
         publisher.save(update_fields=["password"])
     elif publisher.has_usable_password() or getattr(publisher, "store_id", None):
-        raise CommandError("The rules seed account must be a non-login system account.")
+        raise CommandError(
+            _("The rules seed account must be a non-login system account.")
+        )
     elif getattr(publisher, "role", None) == "beneficiary":
         publisher.role = "admin"  # type: ignore[attr-defined]
         publisher.save(update_fields=["role"])
     elif getattr(publisher, "role", None) != "admin":
-        raise CommandError("The rules seed account has an unexpected role.")
+        raise CommandError(_("The rules seed account has an unexpected role."))
     return publisher

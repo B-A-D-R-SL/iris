@@ -50,7 +50,8 @@ def publish(
             {"rule_type": rule.rule_type, "version": rule.version},
         )
         transaction.on_commit(
-            lambda: logger.info("rule_published", extra={"event": "rule_published"})
+            lambda: logger.info("rule_published", extra={"event": "rule_published"}),
+            robust=True,
         )
         return rule
 

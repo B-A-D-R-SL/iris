@@ -8,6 +8,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.utils.translation import override
 
 from modules.rules.domain.schemas import DEFAULT_RULE_VALUES, RULE_TYPES
 from modules.rules.management.commands.seed_rules import SEED_USERNAME
@@ -166,14 +167,49 @@ def test_seed_upgrades_non_login_legacy_beneficiary():
 
 
 @pytest.mark.django_db
-def test_seed_refuses_to_promote_usable_account():
+@pytest.mark.parametrize(
+    ("language", "message"),
+    [
+        ("en", "The rules seed account must be a non-login system account."),
+        (
+            "fr",
+            "Le compte de chargement des règles doit être un compte système sans connexion.",
+        ),
+    ],
+)
+def test_seed_refuses_to_promote_usable_account(language, message):
+    """The seed command refuses login accounts in either supported language."""
     user = get_user_model().objects.create_user(
         email=SEED_USERNAME, password="example-password", role="beneficiary"
     )
-    with pytest.raises(CommandError, match="non-login system account"):
+    with override(language), pytest.raises(CommandError) as error:
         call_command("seed_rules", stdout=StringIO())
+    assert str(error.value) == message
     user.refresh_from_db()
     assert user.role == "beneficiary"
+    assert not RuleSetVersion.objects.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("language", "message"),
+    [
+        ("en", "The rules seed account has an unexpected role."),
+        ("fr", "Le compte de chargement des règles possède un rôle inattendu."),
+    ],
+)
+def test_seed_rejects_unexpected_publisher_role(language, message):
+    """The seed command preserves an unexpected role and reports a localized error."""
+    user = get_user_model().objects.create_user(
+        email=SEED_USERNAME, role="intake_worker"
+    )
+    user.set_unusable_password()
+    user.save(update_fields=["password"])
+    with override(language), pytest.raises(CommandError) as error:
+        call_command("seed_rules", stdout=StringIO())
+    assert str(error.value) == message
+    user.refresh_from_db()
+    assert user.role == "intake_worker"
     assert not RuleSetVersion.objects.exists()
 
 
