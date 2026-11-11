@@ -38,7 +38,7 @@ def test_role_permissions(role, store, staff, admin):
         AnonymousUser(),
         SimpleNamespace(role="admin", is_authenticated=False, is_active=True),
         SimpleNamespace(role="admin", is_authenticated=True, is_active=False),
-        SimpleNamespace(is_staff=True, is_superuser=True),
+        SimpleNamespace(is_authenticated=True, is_active=True),
     ],
 )
 def test_admin_check_denies_inactive_anonymous_or_missing_role(user):

@@ -19,6 +19,62 @@ from uuid import UUID, uuid4
 from django.http import HttpRequest, HttpResponseBase
 
 _request_id: ContextVar[str | None] = ContextVar("iris_request_id", default=None)
+_AUTH_USER_EVENTS = frozenset({"sign_in_succeeded", "signed_out"})
+_HTTP_METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"})
+_PHOTO_REFERENCE = re.compile(r"listing-photos/[0-9a-f]{32}\.(?:jpg|png)")
+
+
+def _event_name(record: logging.LogRecord) -> str:
+    """Return a safe event name."""
+    event = getattr(record, "event", "application_event")
+    if isinstance(event, str) and event.replace("_", "").isalnum():
+        return event
+    return "application_event"
+
+
+def _add_auth_user(
+    payload: dict[str, str | int], record: logging.LogRecord, event: str
+) -> None:
+    """Add the account UUID only for successful authentication events."""
+    user_id = getattr(record, "user_id", None)
+    if (
+        record.name == "iris.auth"
+        and event in _AUTH_USER_EVENTS
+        and isinstance(user_id, UUID)
+    ):
+        payload["user_id"] = str(user_id)
+
+
+def _add_request_fields(
+    payload: dict[str, str | int], record: logging.LogRecord
+) -> None:
+    """Add allowlisted HTTP request fields."""
+    method = getattr(record, "method", None)
+    if isinstance(method, str) and method in _HTTP_METHODS:
+        payload["method"] = method
+
+    route = getattr(record, "route", None)
+    if isinstance(route, str):
+        payload["route"] = route
+
+    for field in ("status_code", "duration_ms"):
+        value = getattr(record, field, None)
+        if isinstance(value, int):
+            payload[field] = value
+
+
+def _add_photo_reference(
+    payload: dict[str, str | int], record: logging.LogRecord, event: str
+) -> None:
+    """Add an opaque orphan-photo reference only for cleanup failures."""
+    photo_ref = getattr(record, "photo_ref", None)
+    if (
+        record.name == "iris.listings"
+        and event == "listing_photo_cleanup_failed"
+        and isinstance(photo_ref, str)
+        and _PHOTO_REFERENCE.fullmatch(photo_ref)
+    ):
+        payload["photo_ref"] = photo_ref
 
 
 class JsonLogFormatter(logging.Formatter):
@@ -26,10 +82,7 @@ class JsonLogFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         """Return one privacy-filtered JSON event."""
-        event = getattr(record, "event", "application_event")
-        if not isinstance(event, str) or not event.replace("_", "").isalnum():
-            event = "application_event"
-
+        event = _event_name(record)
         payload: dict[str, str | int] = {
             "timestamp": datetime.now(UTC).isoformat(timespec="milliseconds"),
             "level": record.levelname,
@@ -40,36 +93,9 @@ class JsonLogFormatter(logging.Formatter):
         if request_id:
             payload["request_id"] = request_id
 
-        if record.name == "iris.auth" and event in {"sign_in_succeeded", "signed_out"}:
-            user_id = getattr(record, "user_id", None)
-            if isinstance(user_id, UUID):
-                payload["user_id"] = str(user_id)
-
-        for field in ("method", "route", "status_code", "duration_ms"):
-            value = getattr(record, field, None)
-            if field == "method" and value in {
-                "GET",
-                "POST",
-                "PUT",
-                "PATCH",
-                "DELETE",
-                "HEAD",
-                "OPTIONS",
-            }:
-                payload[field] = value
-            elif field == "route" and isinstance(value, str):
-                # Route is the matched *pattern*, never the requested path or query.
-                payload[field] = value
-            elif field in {"status_code", "duration_ms"} and isinstance(value, int):
-                payload[field] = value
-
-        # Only this cleanup event may identify an orphan; never serialize a SAS URL.
-        if record.name == "iris.listings" and event == "listing_photo_cleanup_failed":
-            photo_ref = getattr(record, "photo_ref", None)
-            if isinstance(photo_ref, str) and re.fullmatch(
-                r"listing-photos/[0-9a-f]{32}\.(?:jpg|png)", photo_ref
-            ):
-                payload["photo_ref"] = photo_ref
+        _add_auth_user(payload, record, event)
+        _add_request_fields(payload, record)
+        _add_photo_reference(payload, record, event)
         return json.dumps(payload, separators=(",", ":"))
 
 
