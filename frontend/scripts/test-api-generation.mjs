@@ -48,6 +48,64 @@ async function temporaryDirectory(t, prefix = "iris-api-generation-") {
   return directory;
 }
 
+async function startRedirectingSchemaServer(t, requests) {
+  const server = createServer((request, response) => {
+    requests.push(request.url);
+    if (request.url === "/notice.json") {
+      response.writeHead(302, { Location: "/models/notice.json" });
+      response.end();
+      return;
+    }
+    response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(
+      JSON.stringify({
+        type: "object",
+        required: ["label"],
+        properties: { label: { type: "string", description: "Catégorie → français" } },
+      }),
+    );
+  });
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  return server;
+}
+
+function schemaWithRemoteNotice(port) {
+  return {
+    openapi: "3.0.3",
+    info: { title: "Fixture", version: "1" },
+    paths: {},
+    components: {
+      schemas: { Notice: { $ref: `http://127.0.0.1:${port}/notice.json` } },
+    },
+  };
+}
+
+async function runWithoutGlobalFetch(directory, schema) {
+  const child = spawn(
+    process.execPath,
+    [
+      "--import",
+      "data:text/javascript,delete globalThis.fetch",
+      script,
+      "--temporary-output",
+      "--schema-stdin",
+    ],
+    { cwd: directory, signal: AbortSignal.timeout(10_000) },
+  );
+  child.stdin.end(JSON.stringify(schema));
+  const [[code], , errors] = await Promise.all([
+    once(child, "exit"),
+    text(child.stdout),
+    text(child.stderr),
+  ]);
+  return { code, errors };
+}
+
 test("generation is deterministic and drift checks do not rewrite output", async (t) => {
   const directory = await temporaryDirectory(t);
   const output = join(directory, "generated.d.ts");
@@ -87,58 +145,10 @@ test("generator does not use executable PATH lookup", async (t) => {
 
 test("remote schema references follow redirects without global fetch", async (t) => {
   const requests = [];
-  const server = createServer((request, response) => {
-    requests.push(request.url);
-    if (request.url === "/notice.json") {
-      response.writeHead(302, { Location: "/models/notice.json" });
-      response.end();
-      return;
-    }
-    response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-    response.end(
-      JSON.stringify({
-        type: "object",
-        required: ["label"],
-        properties: { label: { type: "string", description: "Catégorie → français" } },
-      }),
-    );
-  });
-  t.after(() => {
-    server.closeAllConnections();
-    server.close();
-  });
-  server.listen(0, "127.0.0.1");
-  await once(server, "listening");
-
+  const server = await startRedirectingSchemaServer(t, requests);
   const directory = await temporaryDirectory(t);
-  const child = spawn(
-    process.execPath,
-    [
-      "--import",
-      "data:text/javascript,delete globalThis.fetch",
-      script,
-      "--temporary-output",
-      "--schema-stdin",
-    ],
-    { cwd: directory, signal: AbortSignal.timeout(10_000) },
-  );
-  child.stdin.end(
-    JSON.stringify({
-      openapi: "3.0.3",
-      info: { title: "Fixture", version: "1" },
-      paths: {},
-      components: {
-        schemas: {
-          Notice: { $ref: `http://127.0.0.1:${server.address().port}/notice.json` },
-        },
-      },
-    }),
-  );
-  const [[code], , errors] = await Promise.all([
-    once(child, "exit"),
-    text(child.stdout),
-    text(child.stderr),
-  ]);
+  const schema = schemaWithRemoteNotice(server.address().port);
+  const { code, errors } = await runWithoutGlobalFetch(directory, schema);
   assert.equal(code, 0, errors);
   assert.deepEqual(requests, ["/notice.json", "/models/notice.json"]);
   const generated = await readFile(join(directory, "generated.d.ts"), "utf8");
