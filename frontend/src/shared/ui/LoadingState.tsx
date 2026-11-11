@@ -9,7 +9,7 @@ export function LoadingState({ label }: { label?: string }) {
     <Center py="xl" role="status" aria-live="polite">
       <Stack align="center" gap="sm">
         <Loader aria-hidden />
-        <Text size="sm" c="gray.7">
+        <Text size="sm" c="dimmed">
           {label ?? t("shared.states.loading")}
         </Text>
       </Stack>

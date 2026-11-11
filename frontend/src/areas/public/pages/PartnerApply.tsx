@@ -20,6 +20,7 @@ import { Link } from "react-router";
 
 import { getCategories } from "../../../features/categories/api";
 import {
+  FieldError,
   PhoneField,
   PostalCodeField,
   TextField,
@@ -60,6 +61,7 @@ const withMessage =
   (value) =>
     rule(value) ? validationMessage(key) : null;
 
+/** Collect the partner application and present translated validation or submission results. */
 export function PartnerApply() {
   const { t, i18n } = useTranslation();
   const language = i18n.resolvedLanguage === "en" ? "en" : "fr";
@@ -310,8 +312,8 @@ export function PartnerApply() {
               {t("store.partnerForm.chooseGoods")}
             </Text>
             {form.errors.goods_categories && (
-              <Text size="sm" c="red" role="alert">
-                {form.errors.goods_categories}
+              <Text size="sm" role="alert">
+                <FieldError>{form.errors.goods_categories}</FieldError>
               </Text>
             )}
             {categories.isPending ? (

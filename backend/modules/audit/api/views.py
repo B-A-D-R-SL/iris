@@ -1,3 +1,4 @@
+# AI contribution: 50% or more AI-generated
 """Admin-only audit event search."""
 
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
@@ -5,14 +6,15 @@ from rest_framework import generics
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import BasePermission
 
+from modules.accounts.queries import is_admin
 from modules.audit.api.serializers import AuditEventSerializer, AuditSearchSerializer
 from modules.audit.queries import search_events
 
 
 class IsAuditAdmin(BasePermission):
     def has_permission(self, request, view):
-        user = request.user
-        return bool(user.is_authenticated and user.is_active and user.role == "admin")
+        """Allow only active authenticated administrators."""
+        return is_admin(request.user)
 
 
 class AuditPagination(PageNumberPagination):
@@ -42,6 +44,7 @@ class AuditSearchView(generics.ListAPIView):
     http_method_names = ("get", "head", "options")
 
     def get_queryset(self):
+        """Validate filters and return matching audit events."""
         params = self.request.query_params
         data = {
             internal: params[external]

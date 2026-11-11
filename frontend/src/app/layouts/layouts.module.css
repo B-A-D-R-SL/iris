@@ -64,14 +64,14 @@
   justify-content: center;
   gap: 4px;
   min-width: 0;
-  color: var(--mantine-color-gray-7);
+  color: var(--iris-text-muted);
   font-size: var(--mantine-font-size-xs);
   line-height: 16px;
   text-decoration: none;
 }
 
 .tab:focus-visible {
-  outline: 2px solid var(--mantine-color-gray-9);
+  outline: 2px solid var(--iris-primary);
   outline-offset: -2px;
 }
 
@@ -85,12 +85,12 @@
 }
 
 .tab[data-active] {
-  color: var(--mantine-color-text);
+  color: var(--iris-text);
   font-weight: 600;
 }
 
 .tab[data-active] .pill {
-  background-color: var(--mantine-color-gray-2);
+  background-color: var(--iris-primary-light);
 }
 
 .tabLabel {
@@ -139,12 +139,12 @@
   flex-direction: column;
   gap: 4px;
   padding: 20px 12px;
-  background-color: var(--mantine-color-gray-0);
+  background-color: var(--iris-surface-raised);
 }
 
 .sideNavHeading {
   margin-bottom: 4px;
-  color: var(--mantine-color-gray-7);
+  color: var(--iris-text-muted);
   font-size: var(--mantine-font-size-xs);
   font-weight: 600;
   line-height: 16px;
@@ -154,19 +154,19 @@
 .sideNavLink {
   min-height: 44px;
   border-radius: var(--mantine-radius-md);
-  color: var(--mantine-color-gray-7);
+  color: var(--iris-text-muted);
 }
 
 .sideNavLink[data-active],
 .sideNavLink[data-active]:hover {
-  background-color: var(--mantine-color-gray-2);
-  color: var(--mantine-color-text);
+  background-color: var(--iris-primary-light);
+  color: var(--iris-text);
   font-weight: 600;
 }
 
 .sideNavFooter {
   margin-top: auto;
-  color: var(--mantine-color-gray-7);
+  color: var(--iris-text-muted);
   font-size: var(--mantine-font-size-xs);
   line-height: 16px;
 }
@@ -179,4 +179,18 @@
   .staffContent {
     padding: 24px;
   }
+}
+
+.sideNavLink:focus-visible {
+  outline: 2px solid var(--iris-primary);
+  outline-offset: 2px;
+}
+
+.tab[data-active] svg,
+.sideNavLink[data-active] svg {
+  color: var(--iris-primary);
+}
+
+.sideNavLink:not([data-active]):hover {
+  background-color: var(--iris-neutral-light);
 }

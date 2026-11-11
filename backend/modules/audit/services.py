@@ -34,10 +34,52 @@ def _target_identifier(target_type: str, target_id: str | int | UUID) -> str:
     return identifier
 
 
-def _validate_metadata(action: str, metadata: dict[str, str]) -> None:
+# Closed identifiers prevent arbitrary personal data in audit metadata. Keep in
+# sync with rules schemas; the integration tests check the two contracts.
+RULE_PUBLICATION_TYPES = frozenset(
+    {
+        "household_size",
+        "household_suspension",
+        "invitations",
+        "lico_thresholds",
+        "auto_approval",
+        "priority",
+        "tiers",
+        "strikes",
+        "reservations",
+        "listing_safety",
+        "listing_posting",
+        "file_validity",
+        "retention",
+    }
+)
+
+
+def _validate_rule_publication(
+    target_type: str, metadata: dict[str, str | int]
+) -> None:
+    """Require a supported rule type and a positive publication version."""
+    valid = (
+        target_type == "rule_set_version"
+        and set(metadata) == {"rule_type", "version"}
+        and isinstance(metadata["rule_type"], str)
+        and metadata["rule_type"] in RULE_PUBLICATION_TYPES
+        and type(metadata["version"]) is int
+        and metadata["version"] > 0
+    )
+    if not valid:
+        raise ValidationError({"metadata": "Unsupported audit metadata."})
+
+
+def _validate_metadata(
+    action: str, target_type: str, metadata: dict[str, str | int]
+) -> None:
     """Accept only the fields defined for each audit action."""
     if not isinstance(metadata, dict):
         raise ValidationError({"metadata": "Audit metadata must be an object."})
+    if action == AuditEvent.Action.RULE_PUBLISHED:
+        _validate_rule_publication(target_type, metadata)
+        return
     if action == AuditEvent.Action.DECISION:
         if not metadata:
             return
@@ -67,11 +109,11 @@ def record(
     action: str,
     target_type: str,
     target_id: str | int | UUID,
-    metadata: dict[str, str],
+    metadata: dict[str, str | int],
 ) -> AuditEvent:
-    """Record a validated event with outcome-only metadata in the caller's transaction."""
+    """Record a validated event in the caller's transaction."""
     role = _actor_role(actor)
-    _validate_metadata(action, metadata)
+    _validate_metadata(action, target_type, metadata)
     event = AuditEvent(
         actor_id=actor.pk,
         actor_role=role,
