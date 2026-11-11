@@ -2,6 +2,7 @@
 """Read household files, search staff records and preview duplicates."""
 
 import re
+from collections.abc import Iterable
 from datetime import datetime
 from uuid import UUID
 
@@ -11,6 +12,7 @@ from django.db.models import OuterRef, Q, QuerySet, Subquery, Value
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from modules.households.domain.names import short_full_name, short_name
 from modules.households.models import Household, Member
 from modules.households.policies import StaffActor, can_manage_walk_ins
 from modules.households.search_expressions import SearchKey
@@ -44,6 +46,42 @@ def walk_in_for_staff(
         .filter(pk=household_id)
         .first()
     )
+
+
+def pickup_names(household_id: UUID) -> dict[str, str | None] | None:
+    """The names store staff may see at a pickup (US-44, BR-RES-003).
+
+    Only the holder's and the alternate's first name and last initial leave
+    this module. A name that is not on file is None. An anonymized or missing
+    household gives None.
+    """
+    household = (
+        Household.objects.filter(pk=household_id, anonymized_at__isnull=True)
+        .values("alternate_name")
+        .first()
+    )
+    if household is None:
+        return None
+    holder = (
+        Member.objects.filter(
+            household_id=household_id, relation=Member.Relation.HOLDER
+        )
+        .values("first_name", "last_name")
+        .first()
+    )
+    return {
+        "holder": short_name(holder["first_name"], holder["last_name"])
+        if holder
+        else None,
+        "alternate": short_full_name(household["alternate_name"]),
+    }
+
+
+def any_visible_for_pickup(household_ids: Iterable[UUID]) -> bool:
+    """True when at least one household is still on file for pickup (BR-RES-003)."""
+    return Household.objects.filter(
+        pk__in=household_ids, anonymized_at__isnull=True
+    ).exists()
 
 
 def household_for_staff(

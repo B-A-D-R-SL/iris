@@ -49,6 +49,8 @@ ACCESS: dict[str, frozenset[str]] = {
     "staff-category-detail": frozenset({ADMIN}),
     "store-listing-create": STORE_ROLES,
     "store-listing-categories": STORE_ROLES,
+    "store-pickup-lookup": STORE_ROLES,
+    "store-pickup-confirm": STORE_ROLES,
     "listings-browse": frozenset({BENEFICIARY}),
     "partner-application-create": EVERY_ROLE,
     "schema": EVERY_ROLE,

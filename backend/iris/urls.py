@@ -20,6 +20,8 @@ urlpatterns = [
     path("api/staff/audit/", include("modules.audit.api.urls")),
     # Category management for admins (US-35)
     path("api/staff/categories/", include("modules.categories.api.staff_urls")),
+    # Store pickup lookup and confirmation (US-44)
+    path("api/store/pickups/", include("modules.reservations.api.store_urls")),
     # Django admin
     path("admin/", admin.site.urls),
     # Authentication: allauth's own versioned app/browser subpaths live here.
