@@ -4,7 +4,7 @@
   display: inline-flex;
   align-items: flex-start;
   gap: 6px;
-  color: var(--mantine-color-error);
+  color: var(--iris-danger-strong);
   font-weight: 600;
 }
 
@@ -24,9 +24,9 @@
 }
 
 .readOnly {
-  background-color: var(--mantine-color-gray-0);
-  border-color: var(--mantine-color-default-border);
-  color: var(--mantine-color-gray-7);
+  background-color: var(--iris-surface-raised);
+  border-color: var(--iris-input-border);
+  color: var(--iris-text-muted);
 }
 
 .dropZone {
@@ -38,19 +38,19 @@
   width: 100%;
   min-height: 112px;
   padding: 16px;
-  border: 1px dashed var(--mantine-color-gray-4);
+  border: 1px dashed var(--iris-input-border);
   border-radius: var(--mantine-radius-sm);
-  background-color: var(--mantine-color-gray-0);
+  background-color: var(--iris-surface-raised);
   text-align: center;
 }
 
 .dropZone:focus-visible {
-  outline: 2px solid var(--mantine-color-gray-9);
+  outline: 2px solid var(--iris-primary);
   outline-offset: 2px;
 }
 
 .dropZone[data-error] {
-  border: 2px solid var(--mantine-color-error);
+  border: 2px solid var(--iris-danger-strong);
 }
 
 .fileRow {

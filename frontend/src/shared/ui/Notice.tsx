@@ -1,24 +1,11 @@
 // AI contribution: 50% or more AI-generated
 import { Alert } from "@mantine/core";
-import {
-  IconAlertCircle,
-  IconAlertTriangle,
-  IconCircleCheck,
-  IconInfoCircle,
-  type TablerIcon,
-} from "@tabler/icons-react";
 import type { ReactNode } from "react";
 
 import classes from "./Notice.module.css";
+import { toneIcons } from "./toneIcons";
 
 export type NoticeType = "info" | "success" | "warning" | "error";
-
-const ICONS: Record<NoticeType, TablerIcon> = {
-  info: IconInfoCircle,
-  success: IconCircleCheck,
-  warning: IconAlertTriangle,
-  error: IconAlertCircle,
-};
 
 export interface NoticeProps {
   type?: NoticeType;
@@ -31,7 +18,7 @@ export interface NoticeProps {
  * errors get a 2 px border. Errors are announced at once (role="alert").
  */
 export function Notice({ type = "info", title, children }: NoticeProps) {
-  const Icon = ICONS[type];
+  const Icon = toneIcons[type === "error" ? "danger" : type];
   return (
     <Alert
       icon={<Icon size={20} stroke={2} aria-hidden />}

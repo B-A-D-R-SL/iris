@@ -1,11 +1,40 @@
 // AI contribution: 50% or more AI-generated
-import { Button, TextInput } from "@mantine/core";
+import { Button, TextInput, DEFAULT_THEME, mergeMantineTheme } from "@mantine/core";
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { renderWithProviders } from "../test/render";
+import { theme, cssVariablesResolver } from "./theme";
+import { palettes, tokens } from "./tokens";
 
 describe("Iris theme (Figma Components page)", () => {
+  it("uses iris for filled buttons and the danger token for errors", () => {
+    renderWithProviders(<Button variant="filled">Publish</Button>);
+    expect(screen.getByRole("button")).toHaveAttribute("data-variant", "filled");
+    expect(screen.getByRole("button").getAttribute("style")).toContain("--iris-primary");
+    const resolved = mergeMantineTheme(DEFAULT_THEME, theme);
+    expect(resolved.primaryColor).toBe("iris");
+    expect(resolved.colors.iris).toEqual(palettes.iris);
+    const variables = cssVariablesResolver(resolved);
+    expect(variables.light["--mantine-color-error"]).toBe("var(--iris-danger-strong)");
+    expect(variables.variables["--iris-danger-strong"]).toBe(tokens.dangerStrong);
+    expect(variables.light["--mantine-color-dimmed"]).toBe("var(--iris-text-muted)");
+    expect(variables.light["--mantine-color-placeholder"]).toBe("var(--iris-text-placeholder)");
+  });
+
+  it.each([
+    ["danger", "filled", "background", "var(--iris-danger-strong)"],
+    ["warning", "light", "background", "var(--iris-warning-light)"],
+    ["info", "light", "color", "var(--iris-info-strong)"],
+    ["neutral", "light", "color", "var(--iris-neutral-strong)"],
+    ["iris", "filled", "hover", "var(--iris-primary-hover)"],
+    ["iris", "outline", "border", "1px solid var(--iris-primary)"],
+  ])("resolves %s %s %s from semantic tokens", (color, variant, property, value) => {
+    const resolved = mergeMantineTheme(DEFAULT_THEME, theme);
+    const colors = resolved.variantColorResolver({ theme: resolved, color, variant });
+    expect(colors[property as keyof typeof colors]).toBe(value);
+  });
+
   it("makes default buttons 48 px tall with 16 px text", () => {
     renderWithProviders(<Button>Publier</Button>);
     const style = screen.getByRole("button", { name: "Publier" }).getAttribute("style") ?? "";
@@ -25,5 +54,37 @@ describe("Iris theme (Figma Components page)", () => {
     expect(wrapper).toHaveAttribute("data-size", "md");
     expect(wrapper?.getAttribute("style")).toContain("--input-height: calc(2.75rem");
     expect(wrapper?.getAttribute("style")).toContain("--input-fz: calc(1rem");
+  });
+});
+
+describe("Iris interaction feedback", () => {
+  const resolved = mergeMantineTheme(DEFAULT_THEME, theme);
+
+  it.each(["iris", "success", "warning", "danger", "info", "neutral"])(
+    "gives %s filled and light controls distinct hover states",
+    (color) => {
+      const filled = resolved.variantColorResolver({ theme: resolved, color, variant: "filled" });
+      const light = resolved.variantColorResolver({ theme: resolved, color, variant: "light" });
+      const variables = cssVariablesResolver(resolved).variables;
+      const tokenValue = (value: string) => variables[value.slice(4, -1) as `--${string}`];
+      expect(filled.hover).not.toBe(filled.background);
+      expect(tokenValue(filled.hover)).not.toBe(tokenValue(filled.background));
+      expect(light.hover).not.toBe(light.background);
+      expect(tokenValue(light.hover)).not.toBe(tokenValue(light.background));
+      expect(light.hoverColor).toBe(filled.hover);
+    },
+  );
+
+  it("gives default buttons and ActionIcons a distinct hover background", () => {
+    const colors = resolved.variantColorResolver({
+      theme: resolved,
+      color: "iris",
+      variant: "default",
+    });
+    const variables = cssVariablesResolver(resolved);
+    expect(colors.background).toBe("var(--mantine-color-default)");
+    expect(colors.hover).toBe("var(--mantine-color-default-hover)");
+    expect(variables.light["--mantine-color-default-hover"]).toBe("var(--iris-default-hover)");
+    expect(tokens.defaultHover).not.toBe(tokens.surfaceRaised);
   });
 });

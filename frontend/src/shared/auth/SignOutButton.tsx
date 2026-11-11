@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 
+import { FieldError } from "../forms/FieldError";
 import { logger } from "../logger";
 import { useAuth } from "./authContext";
 
@@ -53,8 +54,8 @@ export function SignOutButton({ menu = false }: { menu?: boolean }) {
         </ActionIcon>
       )}
       {failed && (
-        <Text role="alert" size="xs" c="red">
-          {t("auth.login.signOutError")}
+        <Text role="alert" size="xs">
+          <FieldError>{t("auth.login.signOutError")}</FieldError>
         </Text>
       )}
     </>
