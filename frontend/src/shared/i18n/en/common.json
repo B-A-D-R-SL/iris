@@ -1,0 +1,155 @@
+{
+  "_meta": "AI contribution: 50% or more AI-generated",
+  "app": {
+    "brand": {
+      "byBadr": "by B.A.D.R.",
+      "home": "Iris, home"
+    },
+    "language": {
+      "switchTo": "Français"
+    },
+    "appBar": {
+      "back": "Back",
+      "account": "My account"
+    },
+    "mainNav": {
+      "label": "Main navigation"
+    },
+    "householdNav": {
+      "home": "Home",
+      "listings": "Listings",
+      "reservations": "Reservations",
+      "profile": "Profile"
+    },
+    "storeNav": {
+      "today": "Today",
+      "confirm": "Confirm",
+      "post": "Post",
+      "myListings": "My listings"
+    },
+    "staffBar": {
+      "workspace": "Staff workspace · B.A.D.R.",
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu"
+    },
+    "staffNav": {
+      "workspace": "Your workspace",
+      "households": "Households",
+      "reviews": "Reviews",
+      "walkIn": "Walk-in registration",
+      "partners": "Partners",
+      "stores": "Stores",
+      "categories": "Categories",
+      "auditLog": "Audit log",
+      "accessNotice": "Authorized staff access only"
+    },
+    "placeholder": {
+      "title": "Coming soon",
+      "description": "This screen is being built."
+    },
+    "notFound": {
+      "title": "Page not found",
+      "description": "This address does not match any Iris page.",
+      "backHome": "Back to home"
+    },
+    "crash": {
+      "title": "Something went wrong",
+      "description": "Reload the page. If the problem continues, try again later.",
+      "reload": "Reload the page"
+    }
+  },
+  "category": {
+    "list": {
+      "description": "Active categories available for donated goods.",
+      "name": "Name",
+      "code": "Code",
+      "type": "Type",
+      "defaultValue": "Default value",
+      "food": "Food",
+      "nonFood": "Non-food",
+      "empty": "No categories available",
+      "emptyDescription": "There are currently no active categories."
+    },
+    "admin": {
+      "description": "Manage the categories of donated goods. A deactivated category is no longer offered to stores; existing listings keep it.",
+      "emptyDescription": "Add a first category to start classifying donated goods.",
+      "add": "Add a category",
+      "addTitle": "Add a category",
+      "editTitle": "Edit the category",
+      "edit": "Edit",
+      "editName": "Edit {{name}}",
+      "deactivate": "Deactivate",
+      "deactivateName": "Deactivate {{name}}",
+      "reactivate": "Reactivate",
+      "reactivateName": "Reactivate {{name}}",
+      "status": "Status",
+      "actions": "Actions",
+      "active": "Active",
+      "inactive": "Inactive",
+      "codeHelp": "Lowercase letters, numbers and _, starting with a letter. It cannot be changed later.",
+      "codeLocked": "The code cannot be changed.",
+      "codeError": "Use lowercase letters, numbers and _, starting with a letter.",
+      "valueError": "Enter an amount of 0 or more.",
+      "nameFr": "Name in French",
+      "nameEn": "Name in English",
+      "isFood": "Food category",
+      "isFoodHelp": "Food listings need a best-before date.",
+      "defaultValueHelp": "Used when a store gives no estimated value.",
+      "save": "Save",
+      "cancel": "Cancel",
+      "saved": "{{name}} has been saved.",
+      "deactivated": "{{name}} has been deactivated. Stores can no longer use it.",
+      "reactivated": "{{name}} is active again.",
+      "done": "Done",
+      "notSaved": "The change was not saved",
+      "saveError": "The server refused the change. Try again.",
+      "networkError": "The server could not be reached. Check the connection, then try again.",
+      "confirmTitle": "Deactivate {{name}}?",
+      "confirmBody": "Stores will no longer be able to use this category. Existing listings keep it, and you can reactivate it at any time."
+    }
+  },
+  "shared": {
+    "form": {
+      "optional": "(optional)",
+      "requiredNotice": "All fields are required unless marked “optional”.",
+      "errorCountOne": "Field to correct: {{count}}.",
+      "errorCountOther": "Fields to correct: {{count}}."
+    },
+    "validation": {
+      "required": "Fill in this field.",
+      "email": "Enter a valid email address.",
+      "textLength": "Enter {{min}} to {{max}} characters.",
+      "textMax": "Enter at most {{max}} characters.",
+      "postalCode": "Enter a Canadian postal code, for example H2X 1Y4.",
+      "phone": "Enter a 10-digit number, for example (514) 555-0123.",
+      "moneyRange": "Enter an amount from {{min, currency(currency: CAD; currencyDisplay: narrowSymbol)}} to {{max, currency(currency: CAD; currencyDisplay: narrowSymbol)}}.",
+      "integer": "Enter a whole number.",
+      "date": "Enter a date as YYYY-MM-DD.",
+      "dateMin": "Choose {{date}} or later.",
+      "dateMax": "Choose {{date}} or earlier.",
+      "fileType": "Choose a {{types}} file.",
+      "fileSize": "Choose a file of {{max}} MB or less."
+    },
+    "dateField": {
+      "placeholder": "YYYY-MM-DD",
+      "clear": "Clear date"
+    },
+    "fileUpload": {
+      "choose": "Choose a file",
+      "limits": "{{types}}, {{max}} MB maximum",
+      "size": "{{size, number(maximumFractionDigits: 1)}} MB",
+      "change": "Change",
+      "remove": "Remove"
+    },
+    "integerField": {
+      "decrease": "Decrease ({{label}})",
+      "increase": "Increase ({{label}})"
+    },
+    "states": {
+      "loading": "Loading…",
+      "errorTitle": "This page could not be shown",
+      "errorDescription": "Check your Internet connection, then try again.",
+      "retry": "Try again"
+    }
+  }
+}

@@ -40,6 +40,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
 | FIX-23 Frontend development dependency security (#614) | `frontend/package.json`, `frontend/scripts/test-api-generation.mjs`, `sonar-project.properties`, `AI_USAGE.md`; `frontend/pnpm-lock.yaml` | 50% or more AI-generated; lockfile exempt | [#680](https://github.com/B-A-D-R-SL/iris/pull/680) |
+| FIX-10 Translation files by area (#636) | `frontend/src/shared/i18n/{en,fr}/*.json`, `frontend/src/shared/i18n/{index,resources}.ts`, `frontend/src/test/i18n.test.ts`, `docs/01-project/glossary.md`, `docs/guides/design-system.md`, `AI_USAGE.md` | 50% or more AI-generated | [#679](https://github.com/B-A-D-R-SL/iris/pull/679) |
 | FIX-07 Deny-by-default endpoint access test (#633) | `backend/tests/test_endpoint_access.py`, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | [#673](https://github.com/B-A-D-R-SL/iris/pull/673) |
 | FIX-02 Private listing-photo processing and storage (#628) | `backend/adapters/{photos.py,blob_photos.py,photo_types.py}`, `backend/modules/listings/{contracts.py,photo_storage.py,services.py,queries.py,tests/,locale/,README.md}`, `backend/modules/reservations/{api/serializers.py,api/views.py,tests/test_api.py,locale/}`, `backend/{tools/,tests/test_photos.py,tests/test_photo_demo.py,tests/test_blob_photos.py,tests/test_blob_photos_azurite.py,photos.ini,iris/settings/base.py,pyproject.toml,.dockerignore,.env.example}`, `.env.example`, `docker-compose.yml`, `.github/workflows/ci.yml`, `docs/guides/listing-photo-*.md`, `docs/guides/listing-posting.md`, `docs/03-design/api.md`, generated API types and `AI_USAGE.md` | 50% or more AI-generated; generated lock file, compiled catalogs and API declarations exempt | Not yet opened (`FIX-02-listing-photo-processing` branch) |
 | US-25 duplicate check and tests (#479, #478) | `backend/modules/households/`, `backend/iris/settings/base.py`, `docs/02-requirements/business-rules.md`, `docs/03-design/api.md`, generated API types, `AI_USAGE.md` | 50% or more AI-generated | [#660](https://github.com/B-A-D-R-SL/iris/pull/660) |
@@ -311,6 +312,12 @@ At least half of the AI-assisted features need an example here. For each one:
 - **Why:** keep openapi-typescript 6.7.6 and TypeScript 6 compatible. Undici 6.29.1 removes the old busboy dependency. Undici 8.12.4 also covers the November 5 security fixes published after this issue.
 - **Verification:** frozen install, dependency tree, ESLint, Prettier, TypeScript, build, unchanged generated API types, all 9 generator tests, and all 443 frontend tests passed (93.68% statement coverage). The coverage run used four workers after three tests timed out with the default 30 workers.
 - **Audit:** no Undici or busboy findings remain. The full development audit still reports two existing findings: Zod 4.6.5 (high, GHSA-mrhx-c7xc-m3w5) and minimatch 10.2.6 (moderate, GHSA-g3hv-75wg-m249). GitHub alerts must be checked again after merging into main.
+
+### FIX-10 Translation files by area (#636)
+
+- **What the AI produced:** matching common, public, household, store and staff JSON files for English and French; a resource module that keeps the existing translation namespace; file-level parity, size, loading and empty-string tests; glossary and design-system updates.
+- **Preserved:** every original key and value matches the files on `main`. No screen calls or translation wording changed. The largest file is now 182 lines instead of 686.
+- **Verification:** all 458 frontend tests passed at 93.69% statement coverage, including 21 translation tests. ESLint, Prettier, TypeScript and the production build passed. Tests discover every area file, reject overlapping top-level prefixes, check that every file is loaded, and resolve every key in both languages. They also check French fallback when English entries are missing and key fallback when neither language has an entry.
 
 ### T-09.62.1–2 Audit tests and service (#548, #549)
 
