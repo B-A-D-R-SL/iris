@@ -131,11 +131,12 @@ export interface components {
     /**
      * @description * `view` - View
      * * `decision` - Decision
+     * * `rule_published` - Rule Published
      * * `suspend` - Suspend
      * * `reactivate` - Reactivate
      * @enum {string}
      */
-    ActionEnum: "view" | "decision" | "suspend" | "reactivate";
+    ActionEnum: "view" | "decision" | "rule_published" | "suspend" | "reactivate";
     AddressInput: {
       city: string;
       postal_code: string;

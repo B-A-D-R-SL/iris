@@ -128,13 +128,14 @@ REST_FRAMEWORK = {
         "modules.accounts.authentication.SessionAuthentication"
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "iris.api.exception_handler",
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
     # Public forms are rate-limited (SEC-04); views opt in with a throttle scope.
     "DEFAULT_THROTTLE_RATES": {"partner_applications": "5/hour"},
     # Trust X-Forwarded-For only from known proxies; with 0 a client cannot spoof
-    # its address. Set to the proxy count behind a reverse proxy (App Service: 1).
+    # its address. Set to the verified proxy count behind a reverse proxy.
     "NUM_PROXIES": env.int("DRF_NUM_PROXIES", default=0),
 }
 
