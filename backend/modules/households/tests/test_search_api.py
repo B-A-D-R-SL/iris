@@ -49,6 +49,7 @@ def test_staff_searches_through_session_authentication(client, file, role):
         "status",
         "channel",
         "can_resume",
+        "can_open",
         "email",
         "phone",
         "street_number",
@@ -242,6 +243,7 @@ def test_resume_action_matches_the_server_edit_rule(
     result = client.get(URL, {"q": "elodie"}).json()["results"][0]
     expected = channel == "walk_in" and status == "draft"
     assert result["can_resume"] is expected
+    assert result["can_open"] is True
     response = client.patch(
         reverse("staff-households-detail", kwargs={"id": file.pk}),
         {"address": {"unit": "5"}},
@@ -258,6 +260,7 @@ def test_resume_action_is_refused_without_request_context(file):
     )
 
     assert HouseholdSearchResultSerializer(file).data["can_resume"] is False
+    assert HouseholdSearchResultSerializer(file).data["can_open"] is False
 
 
 def test_resume_flags_do_not_add_a_database_query_per_result(client):
@@ -283,6 +286,7 @@ def test_resume_flags_do_not_add_a_database_query_per_result(client):
     assert len(first.json()["results"]) == 1
     assert len(page.json()["results"]) == 20
     assert all(row["can_resume"] for row in page.json()["results"])
+    assert all(row["can_open"] for row in page.json()["results"])
     assert len(twenty) == len(one)
     household_reads = [
         entry

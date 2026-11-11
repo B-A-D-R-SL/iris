@@ -114,6 +114,8 @@
       "roleBeneficiary": "Household",
       "actionView": "View",
       "actionDecision": "Decision",
+      "actionSuspend": "Suspend",
+      "actionReactivate": "Reactivate",
       "outcomeApproved": "Approved",
       "outcomeRejected": "Rejected",
       "outcomeReview": "Review required",
