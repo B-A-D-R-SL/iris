@@ -14,6 +14,7 @@ import { Audit } from "../areas/staff/pages/Audit";
 import { Search } from "../areas/staff/pages/Search";
 import { Household } from "../areas/staff/pages/Household";
 import { WalkIn } from "../areas/staff/pages/WalkIn/WalkIn";
+import { Confirm } from "../areas/store/pages/Confirm";
 import { NewListing } from "../areas/store/pages/NewListing";
 import { ListingDetail } from "../areas/household/pages/ListingDetail";
 import { Listings } from "../areas/household/pages/Listings";
@@ -77,10 +78,7 @@ export default function App() {
             path="store"
             element={<PlaceholderScreen titleKey="app.storeNav.today" appBar />}
           />
-          <Route
-            path="store/confirm"
-            element={<PlaceholderScreen titleKey="reservation.common.confirmPickup" appBar />}
-          />
+          <Route path="store/confirm" element={<Confirm />} />
           <Route path="store/listings/new" element={<NewListing />} />
           <Route
             path="store/listings"
