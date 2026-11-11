@@ -1,13 +1,16 @@
 # AI contribution: 50% or more AI-generated
+# Exclude nested secrets and test caches used by the local photo/Azurite checks.
 .venv/
-.env
-.env.*
+**/.env
+**/.env.*
 !.env.example
-__pycache__/
+**/__pycache__/
 *.py[cod]
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+# Generated photo-demo images are confined to backend/tmp.
+tmp/
 db.sqlite3
 .git/
 .idea/

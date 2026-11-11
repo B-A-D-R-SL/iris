@@ -152,21 +152,85 @@ def _result_box(pdf: Canvas, notice: Notice) -> None:
     pdf.drawRightString(RIGHT, 624, format_money(balance))
 
 
-def _draw_cover_page(pdf: Canvas, notice: Notice) -> None:
-    _page_header(pdf, 1)
+# Cover page text, word for word from the sample notice.
+THANKS = (
+    "Merci d'avoir produit votre déclaration de revenus. Par ce geste, vous contribuez au "
+    "développement économique, social et culturel du Québec."
+)
+ACCEPTED = "Nous avons accepté votre déclaration de revenus telle que soumise."
+ADJUSTED = (
+    "Nous avons modifié votre déclaration de revenus. Les changements sont expliqués à la page 2."
+)
+DETAILS = (
+    "Vous trouverez le détail des calculs ainsi que les renseignements relatifs à votre "
+    "avis de cotisation à la page suivante."
+)
+KEEP_NOTICE = (
+    "Conservez précieusement cet avis. Il contient des renseignements qui vous permettront "
+    "de vous identifier si vous avez à communiquer avec nous ou si vous souhaitez vous "
+    "inscrire à Mon dossier pour les citoyens."
+)
+REFUND_BY_DEPOSIT = (
+    "IMPORTANT : Nous déposerons votre remboursement dans votre compte bancaire. Si "
+    "nous ne pouvons pas déposer ce remboursement, nous vous enverrons un chèque."
+)
+REFUND_BY_CHEQUE = "IMPORTANT : Nous vous enverrons votre remboursement par chèque."
+BALANCE_OWED = (
+    "IMPORTANT : Payez le solde dès que possible pour éviter que des intérêts "
+    "s'ajoutent au montant que vous devez."
+)
 
-    # Sender (plain text, no logo) and the document control number.
+# Calculation table columns.
+SIGN_X, DECLARED_X, ASSESSED_X = 372, 452, RIGHT
+
+
+def review_message(notice: Notice) -> str:
+    """Cover page: whether Revenu Québec accepted the return or changed it."""
+    return ADJUSTED if notice.is_adjusted else ACCEPTED
+
+
+def important_message(notice: Notice) -> str:
+    """Cover page: how the refund is paid or that a balance is owed; empty at zero."""
+    if notice.balance_cents < 0:
+        return REFUND_BY_DEPOSIT if notice.direct_deposit else REFUND_BY_CHEQUE
+    return BALANCE_OWED if notice.balance_cents > 0 else ""
+
+
+def calculation_order(notice: Notice) -> list[str]:
+    """Page 2 rows: the assessed TP-1 lines and any line only declared, in number order."""
+    order = [line for line in LINE_LABELS if line in notice.assessed_lines]
+    order += [line for line in notice.declared_lines if line not in notice.assessed_lines]
+    return sorted(order, key=float)
+
+
+def change_explanation(notice: Notice) -> str:
+    """Page 2 note on an adjusted notice, about the first income line that changed."""
+    declared, assessed = notice.declared_lines, notice.assessed_lines
+    changed = next(line for line in INCOME_LINES if declared.get(line, 0) != assessed.get(line, 0))
+    added = assessed.get(changed, 0) - declared.get(changed, 0)
+    return (
+        f"Ligne {changed} : nous avons ajouté {format_money(added)} à vos "
+        f"{LINE_LABELS[changed].lower()}, selon les relevés que nous avons reçus. Les "
+        "montants des lignes qui en dépendent ont été recalculés."
+    )
+
+
+def _sender(pdf: Canvas, notice: Notice) -> None:
+    """Sender (plain text, no logo) and the document control number."""
     pdf.setFillColor(black)
     _text(pdf, MARGIN, 752, "Revenu Québec", "Helvetica-Bold", 13)
     _text(pdf, MARGIN, 738, notice.document_number, "Helvetica-Bold", 6.5)
 
-    # Address block, as seen through the envelope window.
-    for index, line in enumerate(
-        (notice.full_name, format_address_line(notice), f"Montréal (Québec)  {notice.postal_code}")
-    ):
+
+def _address_block(pdf: Canvas, notice: Notice) -> None:
+    """Name and address, as seen through the envelope window."""
+    city = f"Montréal (Québec)  {notice.postal_code}"
+    for index, line in enumerate((notice.full_name, format_address_line(notice), city)):
         _text(pdf, 100, 712 - index * 12, line, "Courier", 10)
 
-    # Identification block (top right).
+
+def _identification_block(pdf: Canvas, notice: Notice) -> None:
+    """Top right: masked SIN, notice number and notice date."""
     rows = (
         ("Numéro d'identification :", MASKED_SIN, "Helvetica"),
         ("Numéro de l'avis :", notice.notice_number, "Helvetica-Bold"),
@@ -177,124 +241,94 @@ def _draw_cover_page(pdf: Canvas, notice: Notice) -> None:
         _text(pdf, 372, y, label, font, 8.5)
         _text(pdf, 476, y, value, "Helvetica", 8.5)
 
-    _result_box(pdf, notice)
 
-    # Title and messages.
+def _title(pdf: Canvas, notice: Notice) -> None:
     pdf.setFillColor(TITLE_GREY)
     _text(pdf, 100, 568, "Avis de cotisation", "Helvetica-Bold", 22)
     pdf.setFillColor(black)
     _text(pdf, 100, 552, f"Année d'imposition {notice.tax_year}", "Helvetica-Bold", 11)
 
-    width = RIGHT - 100
-    y = _paragraph(
-        pdf,
-        100,
-        524,
-        "Merci d'avoir produit votre déclaration de revenus. Par ce geste, vous contribuez au "
-        "développement économique, social et culturel du Québec.",
-        width,
-    )
-    if notice.is_adjusted:
-        message = (
-            "Nous avons modifié votre déclaration de revenus. Les changements sont expliqués "
-            "à la page 2."
-        )
-    else:
-        message = "Nous avons accepté votre déclaration de revenus telle que soumise."
-    y = _paragraph(pdf, 100, y, message, width, "Helvetica-Bold")
-    y = _paragraph(
-        pdf,
-        100,
-        y,
-        "Vous trouverez le détail des calculs ainsi que les renseignements relatifs à votre "
-        "avis de cotisation à la page suivante.",
-        width,
-    )
-    y = _paragraph(
-        pdf,
-        100,
-        y,
-        "Conservez précieusement cet avis. Il contient des renseignements qui vous permettront "
-        "de vous identifier si vous avez à communiquer avec nous ou si vous souhaitez vous "
-        "inscrire à Mon dossier pour les citoyens.",
-        width,
-    )
-    if notice.balance_cents < 0 and notice.direct_deposit:
-        important = (
-            "IMPORTANT : Nous déposerons votre remboursement dans votre compte bancaire. Si "
-            "nous ne pouvons pas déposer ce remboursement, nous vous enverrons un chèque."
-        )
-    elif notice.balance_cents < 0:
-        important = "IMPORTANT : Nous vous enverrons votre remboursement par chèque."
-    elif notice.balance_cents > 0:
-        important = (
-            "IMPORTANT : Payez le solde dès que possible pour éviter que des intérêts "
-            "s'ajoutent au montant que vous devez."
-        )
-    else:
-        important = ""
-    if important:
-        _paragraph(pdf, 100, y, important, width, "Helvetica-Bold")
 
+def _messages(pdf: Canvas, notice: Notice) -> None:
+    """Cover page paragraphs, top down; an empty IMPORTANT message is left out."""
+    paragraphs = (
+        (THANKS, "Helvetica"),
+        (review_message(notice), "Helvetica-Bold"),
+        (DETAILS, "Helvetica"),
+        (KEEP_NOTICE, "Helvetica"),
+        (important_message(notice), "Helvetica-Bold"),
+    )
+    y = 524
+    for text, font in paragraphs:
+        if text:
+            y = _paragraph(pdf, 100, y, text, RIGHT - 100, font)
+
+
+def _mon_dossier_link(pdf: Canvas) -> None:
     _text(pdf, 100, 150, "MON DOSSIER POUR LES CITOYENS", "Helvetica-Bold", 9)
     _text(pdf, 330, 150, "> revenuquebec.ca/mondossier", size=8)
+
+
+def _draw_cover_page(pdf: Canvas, notice: Notice) -> None:
+    _page_header(pdf, 1)
+    _sender(pdf, notice)
+    _address_block(pdf, notice)
+    _identification_block(pdf, notice)
+    _result_box(pdf, notice)
+    _title(pdf, notice)
+    _messages(pdf, notice)
+    _mon_dossier_link(pdf)
     _page_footer(pdf, notice)
     _diagonal_watermark(pdf)
 
 
-def _draw_calculation_page(pdf: Canvas, notice: Notice) -> None:
-    _page_header(pdf, 2)
+def _calculation_headings(pdf: Canvas) -> None:
     pdf.setFillColor(black)
     _text(pdf, MARGIN, 728, "Détail des calculs", "Helvetica-Bold", 13)
-
-    declared_x, assessed_x, sign_x = 452, RIGHT, 372
     pdf.setFont("Helvetica-Bold", 9)
     pdf.drawString(MARGIN, 704, "Ligne")
-    pdf.drawRightString(declared_x, 704, "Montant déclaré")
-    pdf.drawRightString(assessed_x, 704, "Montant établi")
+    pdf.drawRightString(DECLARED_X, 704, "Montant déclaré")
+    pdf.drawRightString(ASSESSED_X, 704, "Montant établi")
 
-    order = [line for line in LINE_LABELS if line in notice.assessed_lines]
-    order += [line for line in notice.declared_lines if line not in notice.assessed_lines]
-    order.sort(key=lambda line: float(line))
-    y = 688
-    previous = ""
-    for line in order:
+
+def _calculation_row(pdf: Canvas, notice: Notice, line: str, y: float) -> None:
+    """One TP-1 line; totals are bold with a rule above them."""
+    font = "Helvetica-Bold" if line in TOTAL_LINES else "Helvetica"
+    if line in TOTAL_LINES:
+        pdf.setStrokeColor(LIGHT_GREY)
+        pdf.setLineWidth(0.6)
+        pdf.line(MARGIN + 30, y + 10, RIGHT, y + 10)
+    _text(pdf, MARGIN, y, line, font, 9)
+    _text(pdf, MARGIN + 34, y, LINE_LABELS[line], font, 9)
+    _text(pdf, SIGN_X, y, LINE_SIGNS[line], size=9)
+    pdf.setFont(font, 9)
+    pdf.drawRightString(DECLARED_X, y, format_amount(notice.declared_lines.get(line, 0)))
+    pdf.drawRightString(ASSESSED_X, y, format_amount(notice.assessed_lines.get(line, 0)))
+
+
+def _calculation_rows(pdf: Canvas, notice: Notice) -> float:
+    """Draws every row from the top and returns the y just below the last one."""
+    y, previous = 688, ""
+    for line in calculation_order(notice):
         if previous in TOTAL_LINES or line == "350":
             y -= 8  # gap between groups, as on the notice
+        _calculation_row(pdf, notice, line, y)
         previous = line
-        bold = line in TOTAL_LINES
-        font = "Helvetica-Bold" if bold else "Helvetica"
-        if bold:
-            pdf.setStrokeColor(LIGHT_GREY)
-            pdf.setLineWidth(0.6)
-            pdf.line(MARGIN + 30, y + 10, RIGHT, y + 10)
-        _text(pdf, MARGIN, y, line, font, 9)
-        _text(pdf, MARGIN + 34, y, LINE_LABELS[line], font, 9)
-        _text(pdf, sign_x, y, LINE_SIGNS[line], size=9)
-        pdf.setFont(font, 9)
-        pdf.drawRightString(declared_x, y, format_amount(notice.declared_lines.get(line, 0)))
-        pdf.drawRightString(assessed_x, y, format_amount(notice.assessed_lines.get(line, 0)))
         y -= 14
+    return y
 
+
+def _change_explanation(pdf: Canvas, notice: Notice, y: float) -> None:
+    _text(pdf, MARGIN, y, "Explication des changements", "Helvetica-Bold", 10)
+    _paragraph(pdf, MARGIN, y - 16, change_explanation(notice), RIGHT - MARGIN)
+
+
+def _draw_calculation_page(pdf: Canvas, notice: Notice) -> None:
+    _page_header(pdf, 2)
+    _calculation_headings(pdf)
+    y = _calculation_rows(pdf, notice)
     if notice.is_adjusted:
-        changed = next(
-            line
-            for line in INCOME_LINES
-            if notice.declared_lines.get(line, 0) != notice.assessed_lines.get(line, 0)
-        )
-        added = notice.assessed_lines.get(changed, 0) - notice.declared_lines.get(changed, 0)
-        y -= 14
-        _text(pdf, MARGIN, y, "Explication des changements", "Helvetica-Bold", 10)
-        _paragraph(
-            pdf,
-            MARGIN,
-            y - 16,
-            f"Ligne {changed} : nous avons ajouté {format_money(added)} à vos "
-            f"{LINE_LABELS[changed].lower()}, selon les relevés que nous avons reçus. Les "
-            "montants des lignes qui en dépendent ont été recalculés.",
-            RIGHT - MARGIN,
-        )
-
+        _change_explanation(pdf, notice, y - 14)
     _page_footer(pdf, notice)
     _diagonal_watermark(pdf)
 

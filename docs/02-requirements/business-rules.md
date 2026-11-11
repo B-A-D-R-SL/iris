@@ -7,6 +7,22 @@ Decisions taken where B.A.D.R. had not specified anything are marked **Default**
 
 Each owner publishes their section of this document in their own pull request. This version contains the listing categories and the prohibited items (SET-12), and partner applications (US-12); the other sections (roles, eligibility, reservations, priority, strikes, notifications, retention) are added by their owners.
 
+## Shared household access (US-63)
+
+Mark confirmed this scope for US-63: intake workers and administrators share
+household files across staff; the registering staff member does not own the file.
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-HH-ACCESS-001 | Active intake workers and administrators can search all non-anonymized households, including files created by another staff member and unassigned files. Other roles, inactive users and anonymous callers are refused. `created_by` records provenance and never restricts staff search scope. |
+| BR-HH-ACCESS-002 | Anonymized households are excluded before counting and pagination and cannot be read, edited or offered for resuming through the walk-in endpoints. |
+| BR-HH-AUDIT-001 | Search results disclose household details. Persist a view event for each returned household before disclosing the response; an audit failure prevents disclosure. Events contain household IDs and empty metadata, never search text or personal details. |
+
+These access and privacy rules have no configurable numeric threshold. The API
+enforces them; the frontend uses the search API's authorization response to decide
+whether to open the search screen. Audit retention and any change to disclosure
+logging belong to an agreed audit/privacy policy.
+
 ## Invitations (US-04)
 
 | Rule ID | Business rule |
@@ -77,6 +93,35 @@ The eligibility owner and reviewers must confirm them before merge.
 
 Threshold values come from the versioned `lico_thresholds` RuleSet,
 not from hardcoded values.
+
+## Household size
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-HH-001 | Drafts and submissions use the active `household_size.max_people` RuleSet limit, including the holder. Approved seed default: 15 people (14 additional members). Missing configuration prevents size validation; there is no runtime fallback. |
+
+## Duplicate households (US-25)
+
+Approved rules for #479 and #478.
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-DUP-001 | The same address and unit, or a member with the same names and birth date, in another open file is a possible duplicate. Suspended files count. Ignore draft, rejected and anonymized files, and files whose `expires_at` is in the past. |
+| BR-DUP-002 | Save possible duplicates as review_required with reason POSSIBLE_DUPLICATE. Keep both files. A clean file becomes submitted. Approval is a separate step. |
+| BR-DUP-003 | Submissions sharing an address or person wait on PostgreSQL advisory locks. Take locks in a fixed order before the search and hold them until the outer transaction ends. |
+
+Open statuses: `submitted`, `review_required`, `awaiting_visit`,
+`approved`, `renewal_needed`, and `suspended`. A missing or future expiry does not
+exclude a file.
+
+## Household suspension (US-32)
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-HH-SUSPEND-001 | Only an active administrator can suspend an approved file or reactivate a suspended file. Both actions require a reason and an audit event. |
+| BR-HH-SUSPEND-002 | Suspension preserves the approval expiry, cancels every reserved reservation without a strike, and returns its units to the listing. Reactivation is refused after expiry. |
+| BR-HH-SUSPEND-003 | A localized status email is queued after commit when the household has an email. A counter-only file without email can still change status. Delivery failure does not undo the change. |
+| BR-HH-SUSPEND-004 | A status reason is limited by the active `household_suspension.reason_max_length` RuleSet value (default 500). Reasons containing personal, identity, document or financial information are refused before an audit event or email job is created. |
 
 ## Listings
 
@@ -157,3 +202,16 @@ The listings owner and reviewers must confirm them before merge.
 The margin and the prohibited list come from the versioned `listing_safety`
 RuleSet, not from hardcoded values. The rules are checked in
 `backend/modules/listings/domain/safety.py`.
+
+### Browsing rules (US-36)
+
+The following rule IDs are introduced for review with US-36 (#504).
+The listings owner and reviewers must confirm them before merge.
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-LIST-004 | An approved household (status `approved` and not expired) sees a listing when it is published, has units left and its pickup has not ended. Until tiers exist (US-51), every approved household sees every such listing. |
+| BR-LIST-005 | The "pickup today" filter keeps visible listings whose pickup starts before the next midnight, Montreal time, including a window that started the day before. |
+
+Visibility is decided only in `listings.queries.visible_listings`; the end of
+the day comes from `backend/modules/listings/domain/browsing.py`.

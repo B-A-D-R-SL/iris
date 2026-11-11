@@ -13,6 +13,9 @@ msgstr "Un compte de commerce actif est requis pour confirmer une cueillette."
 msgid "Enter the %(length)s-character pickup code."
 msgstr "Entrez le code de cueillette de %(length)s caractères."
 
+msgid "Only approved households can see listings."
+msgstr "Seuls les foyers approuvés peuvent voir les offres."
+
 msgid "Check the highlighted fields."
 msgstr "Vérifiez les champs indiqués."
 
@@ -45,3 +48,24 @@ msgstr "Cette cueillette n'a pas encore commencé. Remettez les articles une foi
 
 msgid "The pickup window has ended. This pickup cannot be confirmed here."
 msgstr "La plage de cueillette est terminée. Cette cueillette ne peut pas être confirmée ici."
+
+msgid "Sign in to see listings."
+msgstr "Connectez-vous pour voir les offres."
+
+msgid "This page of listings does not exist."
+msgstr "Cette page d'offres n'existe pas."
+
+msgid "Listings can only be read here."
+msgstr "Les offres peuvent seulement être consultées ici."
+
+msgid "Enter a category code of 1 to 64 characters."
+msgstr "Entrez un code de catégorie de 1 à 64 caractères."
+
+msgid "Enter a valid store ID."
+msgstr "Entrez un identifiant de commerce valide."
+
+msgid "Enter true or false."
+msgstr "Entrez true ou false."
+
+msgid "Photos are temporarily unavailable."
+msgstr "Les photos sont temporairement indisponibles."

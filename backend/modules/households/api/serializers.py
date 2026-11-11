@@ -12,8 +12,11 @@ from rest_framework import serializers
 
 from modules.households.domain.address import normalize_postal_code
 from modules.households.domain.person import valid_name, validate_birth_date
+from modules.households.limits import max_household_people
 from modules.households.messages import domain_error_message
 from modules.households.models import Household, Member
+from modules.households.policies import suspension_actions
+from modules.rules import queries as rule_queries
 
 
 class RejectUnknownFieldsMixin:
@@ -136,8 +139,7 @@ class MemberInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
 
 @extend_schema_field(MemberInputSerializer(many=True))
 class CompleteMembersField(serializers.Field):
-    """The member list replaces every other member, so each item must be complete,
-    even in a PATCH (a nested serializer would inherit the PATCH's partial mode)."""
+    """Require complete replacements; nested serializers inherit PATCH partial mode."""
 
     def to_internal_value(self, data: Any) -> list[dict[str, Any]]:
         if not isinstance(data, list):
@@ -162,15 +164,26 @@ class WalkInDraftInputSerializer(RejectUnknownFieldsMixin, serializers.Serialize
     consent_data_processing = serializers.BooleanField(required=False)
 
     def validate_members(self, members):
-        if len(members) > 14:
+        """The holder already occupies one place in the household."""
+        limit = max_household_people()
+        if len(members) > limit - 1:
             raise serializers.ValidationError(
-                _("Add at most 14 people besides the holder.")
+                _("Add at most %(limit)s people besides the holder.")
+                % {"limit": limit - 1}
             )
         return members
 
     def validate_address(self, address):
         address.pop("province", None)  # fixed QC; never stored as a free-form province.
         return address
+
+
+class HouseholdErrorSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    message = serializers.CharField()
+    fields = serializers.DictField(
+        child=serializers.ListField(child=serializers.CharField())
+    )
 
 
 class MemberReadSerializer(serializers.ModelSerializer):
@@ -180,12 +193,51 @@ class MemberReadSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class WalkInSubmissionInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
+    """Submit saved data; no input fields are allowed."""
+
+
+class WalkInSubmissionReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Household
+        fields = ("id", "status", "status_reason", "submitted_at")
+        read_only_fields = fields
+
+
+class HouseholdStatusInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
+    """Accept a reason whose policy limits are enforced by the service."""
+
+    reason = serializers.CharField(trim_whitespace=True)
+
+
+class HouseholdStatusReadSerializer(serializers.ModelSerializer):
+    """Return the status fields changed by a suspension action."""
+
+    class Meta:
+        model = Household
+        fields = ("id", "status", "status_reason", "expires_at")
+        read_only_fields = fields
+
+
 class WalkInDraftReadSerializer(serializers.ModelSerializer):
     members = MemberReadSerializer(many=True, read_only=True)
-    created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
+    created_by_email = serializers.EmailField(
+        source="created_by.email", read_only=True, allow_null=True
+    )
     verified_by_email = serializers.EmailField(
         source="verified_by.email", read_only=True, allow_null=True
     )
+    allowed_actions = serializers.SerializerMethodField()
+    reason_max_length = serializers.SerializerMethodField()
+
+    def get_allowed_actions(self, household: Household) -> list[str]:
+        """Return only actions currently authorized for the requesting user."""
+        request = self.context.get("request")
+        return suspension_actions(household, getattr(request, "user", None))
+
+    def get_reason_max_length(self, household: Household) -> int:
+        """Expose the active server limit used by status-action forms."""
+        return rule_queries.household_suspension_reason_max_length()
 
     class Meta:
         model = Household
@@ -193,6 +245,8 @@ class WalkInDraftReadSerializer(serializers.ModelSerializer):
             "id",
             "channel",
             "status",
+            "status_reason",
+            "member_number",
             "email",
             "preferred_language",
             "phone",
@@ -208,7 +262,10 @@ class WalkInDraftReadSerializer(serializers.ModelSerializer):
             "created_by_email",
             "created_at",
             "updated_at",
+            "expires_at",
             "verified_by_email",
             "verified_at",
+            "allowed_actions",
+            "reason_max_length",
         )
         read_only_fields = fields

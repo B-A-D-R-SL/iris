@@ -11,6 +11,8 @@ import { SignIn } from "../areas/public/pages/SignIn";
 import { AcceptInvitation } from "../areas/public/pages/AcceptInvitation";
 import { PartnerApply } from "../areas/public/pages/PartnerApply";
 import { Audit } from "../areas/staff/pages/Audit";
+import { Search } from "../areas/staff/pages/Search";
+import { Household } from "../areas/staff/pages/Household";
 import { WalkIn } from "../areas/staff/pages/WalkIn/WalkIn";
 import { NewListing } from "../areas/store/pages/NewListing";
 import { MobileAreaLayout } from "./layouts/MobileAreaLayout";
@@ -20,6 +22,7 @@ import { AREA_ROLES } from "./navigation";
 import { NotFoundPage } from "./NotFoundPage";
 import { PlaceholderScreen } from "./PlaceholderScreen";
 import { RequireRole } from "./RequireRole";
+import { RequireHouseholdSearch } from "./RequireHouseholdSearch";
 import { CategoriesPage } from "../features/categories/CategoriesPage";
 
 // Size exception: React Router inspects Route children directly. Keep this
@@ -92,13 +95,16 @@ export default function App() {
         </Route>
       </Route>
 
+      <Route element={<RequireHouseholdSearch />}>
+        <Route element={<StaffLayout />}>
+          <Route path="staff/households" element={<Search />} />
+          <Route path="staff/households/:id" element={<Household />} />
+        </Route>
+      </Route>
+
       <Route element={<RequireRole roles={AREA_ROLES.staff} />}>
         <Route element={<StaffLayout />}>
           <Route path="staff" element={<Navigate to="/staff/households" replace />} />
-          <Route
-            path="staff/households"
-            element={<PlaceholderScreen titleKey="app.staffNav.households" />}
-          />
           <Route path="staff/walk-in" element={<WalkIn />} />
           <Route path="staff/walk-in/:id" element={<WalkIn />} />
           <Route element={<RequireRole roles={["admin"]} />}>

@@ -48,7 +48,7 @@ Categories were added by
 | Paging      | `?page=1&page_size=20` (max 100); response `{ "count", "next", "previous", "results" }`                                                                                         |
 | Errors      | HTTP status + `{ "code": "validation_error", "message": "...", "fields": { "postal_code": ["Enter a postal code like H2X 1Y4"] } }`; messages in the user's language            |
 | Auth        | Session cookie (django-allauth headless) + CSRF token header `X-CSRFToken`                                                                                                      |
-| Permissions | Checked on the server for every endpoint against the matrix in business-rules.md; deny by default                                                                               |
+| Permissions | Checked on the server for every endpoint; deny by default. `backend/tests/test_endpoint_access.py` (SEC-05) calls every DRF endpoint as each role, and every DRF endpoint not listed as public anonymously, and checks that DRF's permission check lets the request through or refuses it. Plain Django routes under `/api/` (health, allauth) are listed with a reason but not called. The role matrix comes with US-07 (#434) |
 | Languages   | `Accept-Language: fr` or `en`                                                                                                                                                   |
 
 ## Endpoints
@@ -188,27 +188,70 @@ US-13 staff screens exist.
 | POST       | `/api/households/me/application/submit/`                | Beneficiary          | Submit                                            | Planned |
 | PATCH      | `/api/households/me/alternate/`                         | Beneficiary          | Alternate for pickups                             | Planned |
 | POST       | `/api/households/me/renewal/`                           | Beneficiary          | Start a renewal                                   | Planned |
-| GET        | `/api/staff/households/?q=`                             | Intake worker, admin | Search                                            | Planned |
+| GET        | `/api/staff/households/?q=`                             | Intake worker, admin | Partial, accent-insensitive search; authorized non-anonymized files, pagination, audits and server-derived `can_resume` and `can_open` | Implemented (US-63, US-32) |
 | POST/PATCH | `/api/staff/households/`, `/api/staff/households/{id}/` | Intake worker, admin | Walk-in create and edit (drafts only)             | Implemented (US-17) |
+| POST       | `/api/staff/households/{id}/submit/`                    | Intake worker, admin | Submit saved walk-in registration; possible duplicates go to review | Implemented (US-25; proposed endpoint for review) |
 | POST       | `/api/staff/households/{id}/notices/`                   | Intake worker, admin | Walk-in notice (scan + typed values)              | Planned |
 | POST       | `/api/staff/households/{id}/approve/`                   | Intake worker, admin | Approve a walk-in (eligibility runs)              | Planned |
-| GET        | `/api/staff/households/{id}/`                           | Intake worker, admin | Household page (fields per role)                  | Partly: walk-in draft read for resuming (US-17) |
+| GET        | `/api/staff/households/{id}/`                           | Intake worker, admin | Read any non-anonymized online or walk-in file in any status, including status reason, expiry, member number and server-derived actions | Implemented (US-17, US-32) |
 | GET        | `/api/staff/notices/{id}/file/`                         | Intake worker, admin | Signed URL valid 5 minutes (audited)              | Planned |
-| POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`                                     | Planned |
+| POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`; preserves expiry                    | Implemented (US-32) |
 | GET/POST   | `/api/staff/households/{id}/notes/`                     | Intake worker, admin | Staff notes                                       | Planned |
+
+Active intake workers and admins may read, edit and submit shared,
+non-anonymized walk-in files, including another worker's and unassigned files.
+Edits and submissions still require a draft. `created_by` records provenance,
+not exclusive ownership.
+
+Submission accepts `{}`. It needs an address, one holder, an identity check, and
+consent. The household limit comes from `household_size.max_people`; the seed
+default is 15 people, including the holder. Approval is separate.
+
+Success returns 200 with `{id, status, status_reason, submitted_at}`. A clean file
+is `submitted`; a possible duplicate is `review_required` with reason
+`POSSIBLE_DUPLICATE`. Details of matching files are not returned.
+Suspended files remain duplicate candidates. Files whose `expires_at` is in the
+past are excluded from both address and person matching.
+Invalid or repeated submission returns 400; signed-out or deactivated sessions,
+401; refused signed-in roles, 403; anonymized, online or unknown files, 404.
+Access is checked before request validation.
+Create, edit and submit return 503 with code `household_unavailable` and a generic
+retry message when required household-size rules are missing or invalid.
+Submission also returns this response if a duplicate advisory lock times out;
+the draft and its members remain unchanged. The positive setting
+`HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS` defaults to 5000 milliseconds and applies
+only while acquiring those advisory locks. See the
+[households module](../../backend/modules/households/README.md) for candidate
+statuses and locking steps.
 
 ### Listings and reservations
 
 US-33 adds the posting backend and US-34 its safety checks (food best-before
 date, prohibited categories, the safe-and-allowed confirmation). Photo storage
-remains pending, so only posts without a photo can be published; see the
+is implemented through the configured private Azure/Azurite adapter; see the
 [posting implementation and handoff](../guides/listing-posting.md).
+
+US-36 adds browsing. `GET /api/listings/` returns the listings an approved
+household can see (BR-LIST-004), sorted by pickup start. Pages are always 20
+cards: only `?page=` is read, and `page_size` is ignored (#506). Filters:
+`category` (a category code), `store` (a store ID) and `today=true` (can still
+be picked up today, Montreal time; BR-LIST-005). Leave out an unused filter.
+Signed out gets 401; any other role, or a household that is not approved
+(code `household_not_approved`), gets 403. Tiers do not exist yet (US-51), so
+every approved household sees every visible listing. Cards include nullable
+`photo_url`: a read-only link for one private blob that expires within five
+minutes. Internal photo references are not returned. Responses containing links
+use `Cache-Control: private, no-store`. If storage configuration or signing
+fails, the authorized listing details remain available with `photo_url: null`;
+the backend logs a safe event and never substitutes a public URL.
+The view is in reservations, the module
+allowed to read both households and listings.
 
 | Method   | Path                                       | Who                  | Purpose                                          | Status  |
 | -------- | ------------------------------------------ | -------------------- | ------------------------------------------------ | ------- |
-| GET      | `/api/listings/?category=&store=&today=`   | Approved beneficiary | Visible listings (tier timing applied)           | Planned |
+| GET      | `/api/listings/?category=&store=&today=`   | Approved beneficiary | Visible listings (tier timing applied)           | Implemented (US-36); tier timing waits for US-51 |
 | GET      | `/api/listings/{id}/`                      | Approved beneficiary | Listing detail                                   | Planned |
-| GET/POST | `/api/store/listings/`                     | Store staff          | Own store's listings; post a listing             | Partial: POST implemented (photo storage pending); GET planned |
+| GET/POST | `/api/store/listings/`                     | Store staff          | Own store's listings; post a listing             | POST implemented, including private photos; GET planned |
 | GET      | `/api/store/listings/categories/`          | Store staff          | Categories the store may post in (prohibited ones left out) | Implemented |
 | PATCH    | `/api/store/listings/{id}/`                | Store staff          | Edit (quantity ≥ reserved)                       | Planned |
 | POST     | `/api/store/listings/{id}/cancel/`         | Store staff          | Cancel; reservations cancelled without strikes   | Planned |

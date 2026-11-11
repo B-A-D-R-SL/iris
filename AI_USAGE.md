@@ -1,6 +1,7 @@
 <!-- AI contribution: 50% or more AI-generated -->
-<!-- Size exception: the course uses this central contribution inventory to audit
-file declarations alongside their verification history across features. -->
+<!-- Size exception: the PR template points to this single ledger, and its feature
+inventory and example evidence must stay together to avoid duplicate cross-file
+indexes and synchronization errors. -->
 # AI usage
 
 How the Iris team uses generative AI, as required by the course rubric. This file stays up to date every iteration.
@@ -39,6 +40,14 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
 | T-06.44.2 Confirm pickup service and API, with T-06.44.1 tests (#522, #521) | `backend/modules/reservations/{queries.py,services.py,permissions.py,domain/pickup.py,README.md}`, `backend/modules/reservations/api/{pickup_serializers,pickup_views,store_permissions,store_urls}.py`, `backend/modules/reservations/locale/fr/LC_MESSAGES/django.po`, `backend/modules/reservations/tests/{conftest,test_pickup_domain,test_pickup_service,test_pickup_api}.py`, `backend/modules/households/{queries.py,domain/names.py,tests/test_pickup_names.py,README.md}`, `backend/modules/listings/{queries.py,README.md}`, `backend/iris/{urls.py,settings/base.py}`, `backend/pyproject.toml`, `docs/02-requirements/business-rules.md`, `docs/03-design/api.md`, `frontend/src/shared/api/generated.d.ts`, `AI_USAGE.md` | 50% or more AI-generated (compiled catalog `django.mo` and generated API declarations exempt) | Not yet opened (`US-44-confirm-pickup` branch) |
+| FIX-23 Frontend development dependency security (#614) | `frontend/package.json`, `frontend/scripts/test-api-generation.mjs`, `sonar-project.properties`, `AI_USAGE.md`; `frontend/pnpm-lock.yaml` | 50% or more AI-generated; lockfile exempt | [#680](https://github.com/B-A-D-R-SL/iris/pull/680) |
+| FIX-10 Translation files by area (#636) | `frontend/src/shared/i18n/{en,fr}/*.json`, `frontend/src/shared/i18n/{index,resources}.ts`, `frontend/src/test/i18n.test.ts`, `docs/01-project/glossary.md`, `docs/guides/design-system.md`, `AI_USAGE.md` | 50% or more AI-generated | [#679](https://github.com/B-A-D-R-SL/iris/pull/679) |
+| FIX-07 Deny-by-default endpoint access test (#633) | `backend/tests/test_endpoint_access.py`, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | [#673](https://github.com/B-A-D-R-SL/iris/pull/673) |
+| FIX-02 Private listing-photo processing and storage (#628) | `backend/adapters/{photos.py,blob_photos.py,photo_types.py}`, `backend/modules/listings/{contracts.py,photo_storage.py,services.py,queries.py,tests/,locale/,README.md}`, `backend/modules/reservations/{api/serializers.py,api/views.py,tests/test_api.py,locale/}`, `backend/{tools/,tests/test_photos.py,tests/test_photo_demo.py,tests/test_blob_photos.py,tests/test_blob_photos_azurite.py,photos.ini,iris/settings/base.py,pyproject.toml,.dockerignore,.env.example}`, `.env.example`, `docker-compose.yml`, `.github/workflows/ci.yml`, `docs/guides/listing-photo-*.md`, `docs/guides/listing-posting.md`, `docs/03-design/api.md`, generated API types and `AI_USAGE.md` | 50% or more AI-generated; generated lock file, compiled catalogs and API declarations exempt | Not yet opened (`FIX-02-listing-photo-processing` branch) |
+| US-25 duplicate check and tests (#479, #478) | `backend/modules/households/`, `backend/iris/settings/base.py`, `docs/02-requirements/business-rules.md`, `docs/03-design/api.md`, generated API types, `AI_USAGE.md` | 50% or more AI-generated | [#660](https://github.com/B-A-D-R-SL/iris/pull/660) |
+| US-63 Household search (#553, #554; tests #552) | `backend/modules/households/`, `backend/modules/audit/{services.py,README.md,tests/test_household_views.py}`, `backend/iris/{asgi.py,settings/base.py,settings/local.py}`, `backend/{.env.example,tests/test_backend_config.py}`, `frontend/src/app/{App,RequireHouseholdSearch}.tsx`, `frontend/src/areas/staff/pages/Search*`, `frontend/src/features/households/{searchApi,useHouseholdSearch}*`, `frontend/src/test/{householdSearch.ts,render.tsx}`, routes, translations, generated API types and search documentation | 50% or more AI-generated; generated migration and API types exempt | [#662](https://github.com/B-A-D-R-SL/iris/pull/662) |
+| SET-33 Colour prototypes and design docs (#651) | `docs/03-design/mockups/` (Release 1 coloured exports under the existing names, plus `Foundations.png` and the new-screen PNGs), `docs/guides/design-system.md` (Theme tokens and status map), `AI_USAGE.md` | 50% or more AI-generated for the Theme documentation; mockup PNGs are Figma exports | [#668](https://github.com/B-A-D-R-SL/iris/pull/668) |
+| FIX-21 Split the mock notice page-drawing functions (#647) | `tools/mock_notices/layout.py`, `tools/mock_notices/tests/test_layout.py`, `AI_USAGE.md` | 50% or more AI-generated | [#667](https://github.com/B-A-D-R-SL/iris/pull/667) |
 | FIX-15 Seed command boundary and household expiry (#641) | `backend/iris/management/commands/seed.py`, `backend/modules/households/domain/expiry.py`, `backend/modules/households/models.py`, `backend/modules/households/tests/test_expiry.py`, `backend/tests/test_seed.py`, `backend/pyproject.toml`, `docs/04-architecture/architecture.md`, `AI_USAGE.md` | 50% or more AI-generated | [#663](https://github.com/B-A-D-R-SL/iris/pull/663) |
 | T-01.04.3 Invitation password page (#431) | `frontend/src/areas/public/pages/AcceptInvitation{,.test}.tsx`, `frontend/src/features/accounts/invitations{,.test}.ts`, `frontend/src/app/App.tsx`, `frontend/src/shared/i18n/{fr,en}.json`, `frontend/src/shared/logger.ts`, `.coderabbit.yaml`, `backend/modules/accounts/README.md`, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
 | T-01.04.2 Invitation model, services and acceptance API (#430) | `backend/modules/accounts/{models.py,services.py,api/,locale/fr/LC_MESSAGES/,README.md,migrations/0005_invitation.py}`, `backend/modules/accounts/tests/{conftest,test_invitations,test_invitation_logging,test_invitation_errors}.py`, `backend/modules/rules/{domain/schemas.py,tests/test_invitation_rules.py}`, `docs/02-requirements/business-rules.md`, `docs/03-design/{api,database-schema,domain-model}.md`, `docs/04-architecture/architecture.md`, `frontend/src/shared/api/generated.d.ts`, `AI_USAGE.md` | 50% or more AI-generated for source changes; Django migration, compiled catalog and generated API declarations exempt | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
@@ -84,6 +93,79 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | T-05.35.2 Category admin API and screen (#503) and T-05.35.1 tests (#502) | `backend/modules/listings/tests/test_category_admin.py`, `backend/modules/categories/` (`domain/rules.py`, `queries.py`, `services.py`, `api/serializers.py`, `api/staff_views.py`, `api/staff_urls.py`, `tests/test_staff_api.py`, French catalog, README), `backend/iris/urls.py`, `backend/pyproject.toml` (test-only import exceptions), `frontend/src/features/categories/` (`adminApi.ts`, `categoryForm.ts`, `CategoryDialog.tsx`, `CategoriesPage.tsx` and tests), translations, regenerated API types, `docs/02-requirements/forms-and-fields.md`, `docs/03-design/{api,database-schema}.md`, `AI_USAGE.md` | 50% or more AI-generated (generated API declarations and compiled catalog exempt) | Not yet opened (`user_story/US-35` branch) |
 
 ## Examples, verification and corrections
+
+### FIX-07 Deny-by-default endpoint access test (#633)
+
+- **Feature or task:** FIX-07 (#633), the automatic SEC-05 check: every API endpoint must refuse anonymous visitors and every role it does not allow, and a new endpoint without an entry in the access table fails the build.
+- **What the AI produced:** with Claude Code, under Ammar Ranko's direction: `backend/tests/test_endpoint_access.py` (route discovery through Django's URL resolver, the `ACCESS`, `PUBLIC` and `NON_DRF` tables, a spy on DRF's permission check, and the anonymous and per-role tests), the Permissions row in `docs/03-design/api.md`, and this entry.
+- **Developer direction and review:** Ammar chose the design: walk the resolver rather than list endpoints by hand, keep public endpoints and plain Django routes as explicit exceptions with a written reason, and judge each request by DRF's permission step rather than the status code alone. He reviewed the code line by line and checked the results locally before the pull request.
+- **How we verified it:** the test file runs every DRF endpoint anonymously (unless public) and as each of the five roles against PostgreSQL, plus checks for missing or stale table entries, unlisted plain Django routes, and stand-in `path`, `re_path` and ViewSet routes. Ruff and mypy pass.
+- **Problems found and corrections:**
+  - Anonymous requests answered 401, not 403, because session authentication sends a `WWW-Authenticate` header; the anonymous test accepts both.
+  - The peer review of #673 (MassPaol) and CodeRabbit found that only allowed roles were checked against the permission step: for anonymous visitors and refused roles, any 403 passed, including one raised later by a query or service (for example the household search query). A permission class raising by itself also skipped the first spy on `permission_denied`. The spy now wraps `check_permissions` and records whether the request passed or was refused there, and every case asserts it.
+  - The review also found that the AI's discovery code missed ViewSet routes (their handlers are named `list` and `create`, so no methods were found and nothing was called) and `re_path` routes (their text starts with `^api/`). Both are now detected, with tests, and a DRF endpoint with no methods fails.
+  - The AI's reason for the public schema ("for the generated TypeScript client") was wrong: `pnpm gen:api` builds the schema with `manage.py`, not the URL. The reason was corrected. The schema is still open in production; FIX-04 (#630) makes it admin-only, and this table changes with it.
+  - The AI's comments referred to a role matrix in `business-rules.md` that does not exist yet; they now point to US-07 (#434), and the `api.md` row states exactly what the test does and does not call.
+  - The review also asked for the project's `UserFactory` instead of `create_user`, a skip instead of a `KeyError` for an endpoint missing from the table, and the reason check folded into the access-table test rather than kept as its own test. All done.
+  - Two CodeRabbit pre-merge checks were answered without changes: the overlap with `test_signed_out_cannot_search` is intended, since this test covers every endpoint automatically; and splitting this shared file is a team decision.
+- **Remaining:** after merge, the wiki Testing Plan and Security pages get SEC-05's status and a link to the test.
+### FIX-02 Private listing-photo processing and storage (#628)
+
+- **What the AI produced:** under Mark’s (@markantoun0) direction, Codex implemented JPEG/PNG validation, Pillow resizing, EXIF orientation correction, metadata removal, private blob storage, five-minute read-only links, listing integration, failure cleanup, tests and documentation. Mark  requested sharing one storage loader between posting and browsing, moving shared result/error types out of the Azure adapter, and checking container privacy once per browse page instead of once per photo. He also provided SonarQube findings for correction, and directed that unrelated UI and backend issues remain outside the task’s scope.
+- **Developer direction and learning:** Mark requested a step-by-step plan before coding and asked how image processing, storage adapters, Azure/Azurite, permissions and signed-link expiry fit together. He clarified the division of work with teammates, supplied SonarQube findings, reviewed the proposed simplifications and directed corrections. He kept the work focused on the photo task and explicitly excluded unrelated frontend placeholders. Local test accounts and setup data were kept in his local database; no credentials or account seed changes were committed.
+- **Mark's manual verification:** Mark signed in as a store user, posted listings with different pictures and checked that the uploaded photos were saved and could be displayed through the returned signed URLs. He inspected Azurite blob storage in Docker and investigated why two photos appeared inside one internal storage file; listing the actual blobs confirmed two separate objects and references, rather than an overwrite. He verified that a working photo link allowed access during its five-minute lifetime and that requesting the same link after expiry returned `AuthorizationFailure`; an already downloaded image can remain visible in a browser tab. Using the test pictures, Mark also checked metadata removal and the change in pixel dimensions after processing.
+- **Automated verification performed with AI assistance:** the latest full backend regression run passed 1,444 tests, covering the whole backend rather than only this feature; the real five-minute waiting test was excluded from that run. The standalone photo suite passed 79 tests, and Ruff, mypy and all four import-boundary checks passed. Real Azurite tests exercised uploads, private access, scoped links and deletion; the real five-minute expiry test had also passed in an earlier run. These checks complement Mark's manual tests; real Azure staging verification remains pending.
+
+### US-25 Duplicate checking and tests (#479, #478)
+
+- **AI help:** ChatGPT helped build the search, submission service, locks, staff API, translations, migration, tests, and docs.
+- **Approved policy:** suspended files count as possible duplicates; files whose `expires_at` is in the past do not. Active intake workers and admins share non-anonymized walk-in files, including another worker's and unassigned files. `created_by` records provenance. Approval stays in US-18.
+- **Initial checks:** 803 backend tests passed, with 93.21% coverage. The 120 household tests reached 93.49%, including six tests with two database connections. Domain coverage exceeds 90%. Lint, types, module rules, migration checks, schema generation, eight API-generator tests, and TypeScript checks passed.
+- **Fixes:** migration 0004 updates old search keys. Rollback keeps those keys; names and addresses stay unchanged. The API keeps its existing status type name. The development database was not migrated.
+- **PR review:** ChatGPT helped split the concurrency test, record submission actors, log outcomes after commit, and add the 15-person boundary test. Draft, submission and serializer checks share the household-size RuleSet; its approved seed default is 15 including the holder, with tests at a configured limit of 3 and for missing configuration (BR-HH-001). A public lock-and-check context keeps the caller's write in the transaction. French status labels follow the glossary.
+- **Review checks:** 825 backend tests passed at 93.34% coverage; 142 household tests passed at 94.13%. All six concurrency cases, lint, formatting, typing, module boundaries, migration checks, API generation, eight generator tests, and TypeScript checks passed.
+- **RuleSet update:** the full backend suite passed 840 tests at 93.38% coverage. Household and rule tests cover configured limits, missing configuration and idempotent seeding. Existing databases need `python manage.py seed_rules`; existing versions are kept.
+- **Policy checks:** 303 household and RuleSet tests passed, including expiry boundaries, suspended candidates and staff permissions. Ruff lint and formatting, type checks for the changed views, queries and services, and diff checks passed.
+- **Main integration:** ChatGPT resolved the search, invitation and settings conflicts while keeping the approved household rules. Search excludes anonymized files before counts, pages and audits; resume flags follow the walk-in edit rule. A merge migration joins the search and duplicate-check branches. API types were regenerated.
+- **Merge checks:** 1,240 backend tests and 443 frontend tests passed. Ruff, backend/frontend type checks, frontend lint, module boundaries, migration checks, API types and diff checks passed.
+- **CI load test:** ChatGPT found that the benchmark server's 10-connection queue could overflow under the 64-worker driver. A Linux regression failed with the original queue. The test server now queues 128 connections; the 100 requests/second and 500 ms p95 targets stay unchanged. Failed assertions include the complete timing report.
+- **Load-test checks:** 1,241 backend tests passed with 93.95% coverage. All 16 load-server/client checks passed in a two-CPU Linux container. Ruff, targeted type checks and diff checks passed.
+- **Final review fixes:** duplicate advisory locks use a positive, configurable wait limit and restore the caller's timeout after acquisition. A timeout rolls back before returning a generic 503. Missing or invalid size rules use the same translated response and a privacy-safe log event. Tests now use real deactivated sessions and verify transaction boundaries without Django's test wrapper. Staff access tests are grouped in `test_api.py`; repeated duplicate cases were removed.
+- **Final checks:** 1,268 backend tests passed with 93.94% coverage, including 490 household, RuleSet and configuration tests. Ruff, backend/frontend type checks, module boundaries, migration checks, API drift checks, eight generator tests and diff checks passed.
+- **Access-test follow-up:** ChatGPT split the API, query and service tests by operation, keeping all 64 staff-access cases. All 85 access tests and 1,268 backend tests passed; coverage stayed at 93.94%. Ruff, complexity checks, mypy and diff checks passed. The PR description and verified issue checkboxes were updated.
+- **Search-load follow-up:** after CI exceeded the 500 ms p95 target, ChatGPT inspected query plans and removed a redundant household ID subquery that caused a second table scan. A regression failed on the old query and passed on the direct predicate. All 85 focused search tests passed. The two-CPU Linux HTTP tests passed at the unchanged 100 requests/second and 500 ms limits (56.71 ms p95); Ruff, mypy, module boundaries and diff checks passed.
+- **Shared-access restoration:** following [MassPaol's confirmation with Mark](https://github.com/B-A-D-R-SL/iris/pull/660#issuecomment-6730240599), ChatGPT restored shared staff access in queries, resume permissions, tests and docs. Cross-worker submissions preserve the original creator and record the submitting actor. Anonymized files, inactive accounts and nonstaff roles remain refused. All 1,266 backend tests passed at 93.97% coverage; Ruff, mypy, module boundaries, migration checks, API drift and diff checks passed.
+
+### US-63 Household search and tests (#552, #553, #554)
+
+- **What the AI produced:** under Mark's direction, the staff search API,
+  normalized search columns and indexes, migration, audit integration and
+  French/English search screen with pagination and a typing delay. Search covers
+  partial or accented member names, email, phone, address and member number.
+  ChatGPT also helped write tests, generated API types and documentation.
+- **Owner's decisions:** Mark requested the backend before the frontend and
+  required the existing Docker setup to be preserved. For safety, he reviewed
+  the database connection, backup and migration.
+- **Verification:** Mark reviewed the implementation, saved-draft flow, local
+  database, search fields and household/member links. Automated checks cover role
+  permissions, shared staff access, anonymized-file refusal, read-only queries,
+  API/database integration, accents, pagination, migration reversal, audit failure
+  handling, response validation and search authorization in the frontend. Lint,
+  formatting, type checks, module boundaries and migration checks are part of the
+  verification workflow. Current test and coverage results belong in CI output;
+  this record does not retain numerical performance or coverage snapshots for US-63.
+- **Problems found and corrections:** normalized search columns and trigram
+  indexes address broad searches, WSGI startup validates routes before accepting
+  requests, and healthy database connection reuse avoids repeated connection
+  setup. The ASGI entry point identifies its server interface before Django loads
+  settings; settings disable persistence without rewriting the configured lifetime.
+  Test diagnostics use structured logging; the subprocess JSON protocol remains
+  separate. Existing PostgreSQL extensions are reused in their installed schemas.
+  Search access is decided by the API, including the frontend screen's access
+  probe. Mark confirmed shared staff access and accepted the central AI inventory's
+  size. Staging and phone/4G checks remain deployment verification. Repeatable
+  commands and thresholds are in the [verification guide](docs/guides/household-search.md).
+
 
 ### T-01.04.3 Invitation password page (#431)
 
@@ -225,6 +307,19 @@ At least half of the AI-assisted features need an example here. For each one:
 - **How we verified it:** the automated tests or the review comment that checked it
 - **Problems found and corrections:** what was wrong or rejected, and what we changed
 
+### FIX-23 Frontend development dependency security (#614)
+
+- **What the AI produced:** scoped pnpm overrides for jsdom's Undici 8.12.4 and openapi-typescript's Undici 6.29.1, the regenerated lockfile, an HTTP redirect regression test that uses Undici without Node's built-in fetch, and Sonar test classification for that standalone runner.
+- **Why:** keep openapi-typescript 6.7.6 and TypeScript 6 compatible. Undici 6.29.1 removes the old busboy dependency. Undici 8.12.4 also covers the November 5 security fixes published after this issue.
+- **Verification:** frozen install, dependency tree, ESLint, Prettier, TypeScript, build, unchanged generated API types, all 9 generator tests, and all 443 frontend tests passed (93.68% statement coverage). The coverage run used four workers after three tests timed out with the default 30 workers.
+- **Audit:** no Undici or busboy findings remain. The full development audit still reports two existing findings: Zod 4.6.5 (high, GHSA-mrhx-c7xc-m3w5) and minimatch 10.2.6 (moderate, GHSA-g3hv-75wg-m249). GitHub alerts must be checked again after merging into main.
+
+### FIX-10 Translation files by area (#636)
+
+- **What the AI produced:** matching common, public, household, store and staff JSON files for English and French; a resource module that keeps the existing translation namespace; file-level parity, size, loading and empty-string tests; glossary and design-system updates.
+- **Preserved:** every original key and value matches the files on `main`. No screen calls or translation wording changed. The largest file is now 182 lines instead of 686.
+- **Verification:** all 458 frontend tests passed at 93.69% statement coverage, including 21 translation tests. ESLint, Prettier, TypeScript and the production build passed. Tests discover every area file, reject overlapping top-level prefixes, check that every file is loaded, and resolve every key in both languages. They also check French fallback when English entries are missing and key fallback when neither language has an entry.
+
 ### T-09.62.1–2 Audit tests and service (#548, #549)
 
 - **What the AI produced:** the append-only AuditEvent model, public `record()` service, PostgreSQL trigger migrations, concise module README, and unit/integration tests. Existing accounts code was reused; #550 is excluded.
@@ -273,6 +368,19 @@ At least half of the AI-assisted features need an example here. For each one:
 - **Scope:** `backend/modules/reservations/services.py`, `backend/iris/settings/base.py`, `backend/modules/reservations/tests/test_pickup_service.py`, and this entry.
 - **Contribution:** 50% or more AI-generated. Moved the confirmation clock read after acquiring the reservation lock, enabled the pickup success logger, and added regression coverage for a lock wait crossing the deadline and for the timestamp saved after a wait. The logging test now uses the project's configured log level.
 - **Verification:** The three regression cases failed against the original implementation before the fixes were applied. Changes are local and uncommitted; no pull request or push was made.
+
+### FIX-21 Split the mock notice page-drawing functions (#647)
+
+- **What the AI produced:** the split of `_draw_cover_page` and `_draw_calculation_page` into one helper per block of the page; the four functions that choose the text and row order (`review_message`, `important_message`, `calculation_order`, `change_explanation`); and `tests/test_layout.py`, written before the code.
+- **How we verified it:** `test_committed_output_is_up_to_date` regenerates the 50 notices and still matches the committed files byte for byte. Seven deliberate bugs were each caught: five by the new tests, and two drawing changes (row spacing and the gap above the explanation) by the committed-output test. 34 tests passed and ruff was clean; these were local runs, because CI does not run this tool's tests.
+- **Problems found and corrections:** the first plan had a test that "377.1" sorts as a number rather than as text. Every real line number has three digits, so both orders agree and that test could never fail. It was replaced by a test that a line only declared is placed in number order.
+
+### SET-33 Colour prototypes and design docs (#651)
+
+- **Firas's direction:** keep the Step 4 repository file names so existing links still work, restore later-release grayscale exports, and replace the Theme section in `design-system.md` with the Foundations token table and status map. The wiki and the pull request stay with Firas.
+- **What the AI produced:** the renames and restores under `docs/03-design/mockups/`, and the Theme section (token table, status colour map, colour rules, Foundations link).
+- **How we verified it:** the mockups folder matches the Step 4 file list; later-release PNGs match `HEAD`; the Theme hex values and Mantine shade names match the Foundations export.
+- **Problems found and corrections:** the first exports used Figma page names (`W4 · …`, `S2 · …`). Step 4 needs the old names (`Staff Review-partnership-application.png`, `Store - Confirm a pickup.png`, …), so the coloured files were copied onto those names and the Figma-named copies were removed.
 
 ### FIX-15 Seed command boundary and household expiry (#641)
 
@@ -647,3 +755,9 @@ At least half of the AI-assisted features need an example here. For each one:
   - While checking the fixes, we found that the `frontend` Docker container keeps the code copied at build time, so frontend checks run with `docker compose exec frontend` used stale files. The frontend checks were re-run in a container with the working folder mounted: 359 tests pass at 93% coverage (categories feature 94%). Backend after the fixes: 727 tests pass at 93% coverage.
 - **Remaining:**
   - Peer review and CI.
+
+### T-04.32.2 Suspend service and buttons and T-04.32.1 tests (#489, #488; US-32)
+
+- **What the AI produced:** Codex implemented the admin-only suspend/reactivate endpoints, atomic cancellation of reserved reservations with stock release, audit actions and reasons, localized post-commit holder email, the staff household actions screen, API types, tests and documentation.
+- **Owner's decisions:** preserve the approval expiry; reactivate only before expiry; cancel only `reserved` reservations with `late_cancel=false`; allow counter-only files without email to change status; log email delivery failures without rolling back; keep the design within existing services and adapters.
+- **Verification:** focused household and audit backend tests, frontend component tests, Ruff, mypy, import-linter, migration checks, TypeScript, ESLint and Prettier. Full frontend tests pass except the existing usability preview tests when sandbox networking forbids their local listener; they are rerun outside that restriction.

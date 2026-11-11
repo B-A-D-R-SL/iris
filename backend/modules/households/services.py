@@ -1,34 +1,129 @@
 # AI contribution: 50% or more AI-generated
-"""Staff-only transactional creation and editing of walk-in household drafts."""
+"""Create, edit and submit walk-in files for staff."""
 
-from collections.abc import Mapping
+import hashlib
+import logging
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from typing import Any
 from uuid import UUID
 
+from django.conf import settings
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import OperationalError, connection, transaction
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from modules.audit import services as audit_services
+from modules.households.exceptions import DuplicateLockTimeout
+from modules.households.limits import max_household_people
 from modules.households.models import Household, HouseholdDraftEvent, Member
+from modules.households.policies import (
+    can_manage_walk_ins,
+    can_suspend_households,
+    is_editable_walk_in,
+)
+from modules.households.queries import find_possible_duplicates, walk_ins_for_staff
+from modules.notifications import services as notification_services
+from modules.privacy import services as privacy_services
+from modules.reservations import services as reservation_services
+from modules.rules import queries as rule_queries
 
-STAFF_ROLES = frozenset(("intake_worker", "admin"))
+logger = logging.getLogger("iris.households")
+
 ADDRESS_FIELDS = frozenset(
     ("street_number", "street_name", "unit", "city", "postal_code")
 )
 MEMBER_FIELDS = frozenset(("first_name", "last_name", "date_of_birth"))
-# Version of the data-processing consent text read to the person.
 CONSENT_TEXT_VERSION = "2026-11-v1"
+POSSIBLE_DUPLICATE = "POSSIBLE_DUPLICATE"
+
+
+def _status_reason(reason: str) -> str:
+    """Normalize a reason and enforce the active privacy and length rules."""
+    value = " ".join(reason.split())
+    if not value:
+        raise ValidationError({"reason": _("Enter a reason.")})
+    limit = rule_queries.household_suspension_reason_max_length()
+    if len(value) > limit:
+        raise ValidationError(
+            {"reason": _("Enter at most %(limit)s characters.") % {"limit": limit}}
+        )
+    if privacy_services.household_reason_contains_sensitive_data(value):
+        raise ValidationError(
+            {"reason": _("Do not include personal or financial information.")}
+        )
+    return value
+
+
+def _locked_status_household(household_id: UUID, reactivate: bool) -> Household:
+    """Lock a visible file and validate the requested source state."""
+    household = (
+        Household.objects.select_for_update()
+        .filter(pk=household_id, anonymized_at__isnull=True)
+        .first()
+    )
+    if household is None:
+        raise Household.DoesNotExist
+    expected = Household.Status.SUSPENDED if reactivate else Household.Status.APPROVED
+    if household.status != expected:
+        message = (
+            _("Only suspended household files can be reactivated.")
+            if reactivate
+            else _("Only approved household files can be suspended.")
+        )
+        raise ValidationError({"status": message})
+    if reactivate and (
+        household.expires_at is None or household.expires_at <= timezone.now()
+    ):
+        raise ValidationError({"status": _("An expired file cannot be reactivated.")})
+    return household
+
+
+def _save_status(household: Household, reason: str, reactivate: bool) -> str:
+    """Persist the new status and return its audit action."""
+    action = "reactivate" if reactivate else "suspend"
+    household.status = (
+        Household.Status.APPROVED if reactivate else Household.Status.SUSPENDED
+    )
+    household.status_reason = "" if reactivate else reason
+    household.full_clean()
+    household.save(update_fields=("status", "status_reason", "updated_at"))
+    return action
+
+
+@transaction.atomic
+def change_suspension(
+    household_id: UUID,
+    reason: str,
+    actor: AbstractBaseUser,
+    *,
+    reactivate: bool,
+) -> Household:
+    """Suspend an approved file or reactivate a suspended file while valid."""
+    if not can_suspend_households(actor):
+        raise PermissionDenied(_("Only active administrators can change suspension."))
+    clean_reason = _status_reason(reason)
+    household = _locked_status_household(household_id, reactivate)
+    action = _save_status(household, clean_reason, reactivate)
+    if not reactivate:
+        reservation_services.cancel_open_for_household(household.pk)
+    audit_services.record(
+        actor, action, "household", household.pk, {"reason": clean_reason}
+    )
+    notification_services.queue_household_status_email(
+        email=household.email,
+        language=household.preferred_language,
+        status=household.status,
+        reason=clean_reason,
+    )
+    return household
 
 
 def _require_staff(user: AbstractBaseUser) -> None:
-    if (
-        not user.is_authenticated
-        or not user.is_active
-        or getattr(user, "role", None) not in STAFF_ROLES
-    ):
+    if not can_manage_walk_ins(user):
         raise PermissionDenied(
             _("Only active intake workers and admins can manage walk-ins.")
         )
@@ -51,7 +146,7 @@ def _apply_address(household: Household, values: Mapping[str, Any]) -> None:
 def _apply_verification(
     household: Household, verified: bool, actor: AbstractBaseUser
 ) -> None:
-    """Record who checked the ID and when; re-sending the same answer changes nothing."""
+    """Keep the original verification time when the answer is unchanged."""
     if verified == household.identity_checked_in_person:
         return
     household.identity_checked_in_person = verified
@@ -60,7 +155,7 @@ def _apply_verification(
 
 
 def _apply_consent(household: Household, given: bool) -> None:
-    """Store when consent was given and which text; keep the first time if re-sent."""
+    """Keep the first consent time when consent is sent again."""
     if not given:
         household.consent_data_processing_at = None
         household.consent_text_version = ""
@@ -85,15 +180,16 @@ def _save_member(
 
 
 def _replace_other_members(household: Household, members: list[dict[str, Any]]) -> None:
-    if len(members) > 14:
+    limit = max_household_people()
+    if len(members) > limit - 1:
         raise ValidationError(
             {
                 "members": _(
-                    "A household can have at most 15 people including the holder."
+                    "A household can have at most %(limit)s people including the holder."
                 )
+                % {"limit": limit}
             }
         )
-    # This is only allowed in draft state; notice records must not reference these rows yet.
     try:
         household.members.exclude(relation=Member.Relation.HOLDER).delete()
     except ProtectedError as exc:
@@ -114,7 +210,7 @@ def _replace_other_members(household: Household, members: list[dict[str, Any]]) 
 
 @transaction.atomic
 def create_walk_in(data: Mapping[str, Any], staff_user: AbstractBaseUser) -> Household:
-    """Create a resumable walk-in draft. The holder is automatically member one."""
+    """The holder is automatically member one."""
     _require_staff(staff_user)
     holder = data.get("holder")
     if not isinstance(holder, Mapping) or not MEMBER_FIELDS.issubset(holder):
@@ -156,12 +252,10 @@ def update_draft(
 ) -> Household:
     """Patch a draft atomically; non-draft files are never editable here."""
     _require_staff(staff_user)
+    household = walk_ins_for_staff(staff_user).select_for_update().get(pk=household_id)
     if not data:
         raise ValidationError({"non_field_errors": _("Provide at least one change.")})
-    household = Household.objects.select_for_update().get(
-        id=household_id, channel=Household.Channel.WALK_IN
-    )
-    if household.status != Household.Status.DRAFT:
+    if not is_editable_walk_in(household):
         raise ValidationError(
             {"status": _("Only draft household files can be edited.")}
         )
@@ -194,4 +288,119 @@ def update_draft(
         actor_role=getattr(staff_user, "role", ""),
         action=HouseholdDraftEvent.Action.UPDATED,
     )
+    return household
+
+
+def _submission_members(household: Household) -> list[Member]:
+    if household.anonymized_at is not None:
+        raise ValidationError({"status": _("An anonymized file cannot be submitted.")})
+    household.full_clean()
+    if not household.address_key:
+        raise ValidationError({"address": _("Complete the address before submission.")})
+    if not household.identity_checked_in_person:
+        raise ValidationError(
+            {"identity_checked_in_person": _("Staff verification is required.")}
+        )
+    if not household.consent_data_processing_at or not household.consent_text_version:
+        raise ValidationError(
+            {"consent_data_processing": _("Data-processing consent is required.")}
+        )
+    members = list(household.members.order_by("pk"))
+    if sum(member.relation == Member.Relation.HOLDER for member in members) != 1:
+        raise ValidationError(
+            {"holder": _("Enter the holder's name and date of birth.")}
+        )
+    limit = max_household_people()
+    if len(members) > limit:
+        raise ValidationError(
+            {
+                "members": _(
+                    "A household can have at most %(limit)s people including the holder."
+                )
+                % {"limit": limit}
+            }
+        )
+    for member in members:
+        member.full_clean()
+    return members
+
+
+def _lock_duplicate_keys(household: Household, members: list[Member]) -> None:
+    """Lock shared addresses and people until the transaction ends."""
+    keys = [f"address:{household.address_key}"]
+    keys.extend(f"person:{member.person_key}" for member in members)
+    # Use the same lock numbers and order in every worker to avoid deadlocks.
+    lock_ids = sorted(
+        {
+            int.from_bytes(
+                hashlib.sha256(f"households:duplicates:{key}".encode()).digest()[:8],
+                signed=True,
+            )
+            for key in keys
+        }
+    )
+    with connection.cursor() as cursor:
+        cursor.execute("SHOW lock_timeout")
+        previous_timeout = cursor.fetchone()[0]
+        cursor.execute(
+            "SELECT set_config('lock_timeout', %s, true)",
+            [f"{settings.HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS}ms"],
+        )
+        for lock_id in lock_ids:
+            try:
+                cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_id])
+            except OperationalError as exc:
+                if getattr(exc.__cause__, "sqlstate", None) != "55P03":
+                    raise
+                logger.warning(
+                    "Household duplicate lock timed out",
+                    extra={"event": "household_duplicate_lock_timeout"},
+                )
+                raise DuplicateLockTimeout from exc
+        # Leave later work in an outer transaction under its original timeout.
+        cursor.execute(
+            "SELECT set_config('lock_timeout', %s, true)", [previous_timeout]
+        )
+
+
+@contextmanager
+def locked_duplicate_check(
+    household_id: UUID, staff_user: AbstractBaseUser
+) -> Iterator[tuple[Household, bool]]:
+    """Hold submission locks while the caller saves the checked draft."""
+    with transaction.atomic():
+        _require_staff(staff_user)
+        household = (
+            walk_ins_for_staff(staff_user).select_for_update().get(pk=household_id)
+        )
+        if household.status != Household.Status.DRAFT:
+            raise ValidationError(
+                {"status": _("Only draft household files can be submitted.")}
+            )
+        members = _submission_members(household)
+        _lock_duplicate_keys(household, members)
+        for member in members:
+            member.save(update_fields=["person_key"])
+        yield household, find_possible_duplicates(household).exists()
+
+
+def submit_walk_in(household_id: UUID, staff_user: AbstractBaseUser) -> Household:
+    """Submit a draft or send a possible duplicate for review."""
+    with locked_duplicate_check(household_id, staff_user) as (household, duplicate):
+        household.status = (
+            Household.Status.REVIEW_REQUIRED
+            if duplicate
+            else Household.Status.SUBMITTED
+        )
+        household.status_reason = POSSIBLE_DUPLICATE if duplicate else ""
+        household.submitted_at = timezone.now()
+        household.save()
+        HouseholdDraftEvent.objects.create(
+            household=household,
+            actor_id=staff_user.pk,
+            actor_role=getattr(staff_user, "role", ""),
+            action=HouseholdDraftEvent.Action.SUBMITTED,
+        )
+        event = "household_duplicate_review" if duplicate else "household_submitted"
+        transaction.on_commit(lambda: logger.info(event, extra={"event": event}))
     return household

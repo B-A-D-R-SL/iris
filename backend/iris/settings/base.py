@@ -117,6 +117,12 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 
+HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS = env.int(
+    "HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS", default=5000
+)
+if HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS <= 0:
+    raise ImproperlyConfigured("HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS must be positive.")
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "modules.accounts.authentication.SessionAuthentication"
@@ -139,6 +145,8 @@ SPECTACULAR_SETTINGS = {
     # Explicit shared enum for the account and household language fields.
     "ENUM_NAME_OVERRIDES": {
         "LanguageEnum": [("fr", "Français"), ("en", "English")],
+        # Keep the existing status type name.
+        "WalkInDraftReadStatusEnum": "modules.households.models.Household.Status",
     },
     # Document the Django health view without changing its authentication or behavior.
     "APPEND_PATHS": {
@@ -197,6 +205,16 @@ AZURE_STORAGE_ACCOUNT_NAME = env("AZURE_STORAGE_ACCOUNT_NAME", default="")
 AZURE_STORAGE_ACCOUNT_KEY = env("AZURE_STORAGE_ACCOUNT_KEY", default="")
 AZURE_STORAGE_CONTAINER_NAME = env("AZURE_STORAGE_CONTAINER_NAME", default="")
 AZURE_STORAGE_CONNECTION_STRING = env("AZURE_STORAGE_CONNECTION_STRING", default="")
+AZURE_STORAGE_BLOB_ENDPOINT = env("AZURE_STORAGE_BLOB_ENDPOINT", default="")
+AZURE_STORAGE_PUBLIC_BLOB_ENDPOINT = env(
+    "AZURE_STORAGE_PUBLIC_BLOB_ENDPOINT", default=""
+)
+AZURE_STORAGE_ALLOW_HTTP = env.bool("AZURE_STORAGE_ALLOW_HTTP", default=False)
+LISTING_PHOTO_MAX_PIXELS = env.int("LISTING_PHOTO_MAX_PIXELS", default=20_000_000)
+LISTING_PHOTO_STORE_BACKEND = env(
+    "LISTING_PHOTO_STORE_BACKEND",
+    default="modules.listings.photo_storage.configured_store",
+)
 
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
@@ -207,6 +225,17 @@ if not database_url:
 DATABASES = {"default": env.db("DATABASE_URL")}
 if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
     raise ImproperlyConfigured("DATABASE_URL must use PostgreSQL")
+
+# Reuse each WSGI worker's connection instead of authenticating to PostgreSQL
+# on every request. Django recommends disabling persistence under ASGI; its
+# entry point identifies the interface before settings load. Local settings
+# also disable persistence for runserver.
+DATABASES["default"]["CONN_MAX_AGE"] = (
+    0
+    if env("IRIS_SERVER_INTERFACE", default="wsgi") == "asgi"
+    else env.int("DATABASE_CONN_MAX_AGE", default=60)
+)
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 
 
 # Password validation

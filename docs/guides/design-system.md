@@ -34,7 +34,38 @@ These only shape the interface: **every endpoint must still check permissions on
 
 ## Theme
 
-Grayscale on purpose: meaning comes from icons, borders and text, never colour alone.
+Colour tokens come from the Figma
+[Foundations · Iris colour](https://www.figma.com/design/mxXyzEOGl4nuDVdYeoRNPA/Wireframes)
+page (SET-33). Screens use tokens, never shade numbers directly. Applying them in
+`theme.ts` is SET-34; until then the running app still uses the grayscale theme.
+
+| Token | Used for | Hex | Mantine colour and shade |
+| --- | --- | --- | --- |
+| `primary` | Filled button, links, checked controls, selected icons, focus ring | `#237A2C` | `irisGreen.9` |
+| `on-primary` | Text and icons on primary and destructive buttons | `#FFFFFF` | white |
+| `text` | Body text, headings, labels | `#013751` | `irisNavy.9` |
+| `text-muted` | Secondary text, helper text, captions | `#455968` | `irisSlate.9` |
+| `surface` | Page and input background | `#FFFFFF` | white |
+| `surface-raised` | Cards, panels, read-only fields, image placeholders | `#FEF3EA` | `irisSand.0` |
+| `border` | Card and divider borders (decorative) | `#EEE6E0` | `irisSand.1` |
+| `success` strong / light | Success text, icons and borders / badge and alert background | `#237A2C` / `#DEF3E0` | `irisGreen.9` / `irisGreen.1` |
+| `warning` strong / light | Warning text and icons / badge and alert background | `#AD5900` / `#FFF4E2` | `irisOrange.9` / `irisOrange.0` |
+| `danger` strong / light | Errors, error borders, destructive buttons / badge and alert background | `#BD250B` / `#FFECE7` | `irisRed.8` / `irisRed.0` |
+| `info` strong / light | Info text and icons / badge and alert background | `#0070B2` / `#E5F9FF` | `irisBlue.9` / `irisBlue.0` |
+
+**Status colours** (strong shade for icon, text and border; light shade for badge and alert background):
+
+| Record | Status and tone |
+| --- | --- |
+| Household file | Draft: neutral · Submitted: info · Awaiting visit: info · Review required: warning · Renewal needed: warning · Approved: success · Suspended: danger · Rejected: danger |
+| Listing | Published: success · Sold out: neutral · Closed: neutral · Cancelled: neutral |
+| Reservation | Reserved: info · Picked up: success · Cancelled: neutral · Cancelled by store: warning · No-show: danger |
+| Partner application | Submitted: info · Approved: success · Rejected: danger |
+| Store, category | Active: success · Deactivated or inactive: neutral |
+| Pickup scan result | Confirmed: success · Late pickup: warning · Unknown code, other store, already picked up, cancelled: danger |
+
+**Rules:** colour is never the only signal (every status keeps its icon and label; links stay underlined); one filled `primary` button per screen; `danger` only for destructive actions and blocking errors.
+
 Buttons are 48 px and inputs 44 px with 16 px text (touch targets, no iOS zoom). Use Mantine
 components with their defaults; pass `size="sm"` only for compact controls. Icons come from
 `@tabler/icons-react` (the wireframes use the same set). One filled `Button` per screen (main
@@ -91,8 +122,10 @@ Say plainly why something is empty and what to do next; never show technical det
 ## Translations
 
 Every visible text goes through `t("area.screen.element")`, with the French and the English
-value added to `src/shared/i18n/fr.json` and `en.json` (the test fails if a key is missing in
-one of them). Shared keys live under `app.*` (shell) and `shared.*` (fields, states).
+value added to matching area files under `src/shared/i18n/fr/` and `en/`.
+The tests check every file for matching keys and empty strings. Shared keys live
+in `common.json` under `app.*` (shell) and `shared.*` (fields, states).
+See [the glossary](../01-project/glossary.md#translation-keys) for the file map.
 
 ## Tests
 
