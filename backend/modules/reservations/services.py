@@ -31,7 +31,6 @@ def confirm_pickup(
     at once give one pickup and one ``already_picked_up``. Listing stock is not
     changed: the units stay taken (BR-RES-005).
     """
-    moment = timezone.now() if now is None else now
     listings = listing_queries.pickup_listings(pickup_store_id(staff))
     reservation = (
         Reservation.objects.select_for_update()
@@ -40,6 +39,8 @@ def confirm_pickup(
     )
     if reservation is None:
         raise PickupRefused(pickup.UNKNOWN_RESERVATION)
+    # Waiting for the row lock can cross the pickup deadline.
+    moment = timezone.now() if now is None else now
     shown = confirmable_pickup(
         reservation, listings.get(id=reservation.listing_id), now=moment
     )

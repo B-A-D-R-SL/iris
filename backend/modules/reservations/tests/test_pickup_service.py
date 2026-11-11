@@ -5,12 +5,13 @@ import logging
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
+from threading import Event
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
 from django.core.exceptions import PermissionDenied
-from django.db import close_old_connections, connection
+from django.db import close_old_connections, connection, transaction
 from django.utils import timezone
 
 from modules.accounts.models import User
@@ -238,10 +239,9 @@ def test_us44_confirm_records_who_and_when_once_and_keeps_stock(
     listing.save(update_fields=["quantity_reserved"])
     reservation = make_reservation()
 
-    with (
-        caplog.at_level(logging.INFO, logger="modules.reservations.services"),
-        django_capture_on_commit_callbacks(execute=True),
-    ):
+    # Exercise the configured logger without enabling INFO just for this test.
+    assert services.logger.isEnabledFor(logging.INFO)
+    with django_capture_on_commit_callbacks(execute=True):
         confirmed = services.confirm_pickup(reservation.pk, pickup_case.staff)
 
     reservation.refresh_from_db()
@@ -297,6 +297,70 @@ def test_us44_simultaneous_confirmations_record_one_pickup(
 
     assert results.count("confirmed") == 1
     assert results.count(pickup.ALREADY_PICKED_UP) == 5
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("window_ended", [False, True])
+def test_us44_confirmation_uses_time_after_acquiring_the_lock(
+    pickup_case: SimpleNamespace,
+    make_reservation: MakeReservation,
+    monkeypatch: pytest.MonkeyPatch,
+    window_ended: bool,
+) -> None:
+    # rule: BR-RES-002. Advance the clock while another transaction holds the row.
+    reservation = make_reservation()
+    lock_requested = Event()
+    clock = [pickup_case.now]
+    later = (
+        pickup_case.listing.pickup_end + timedelta(seconds=1)
+        if window_ended
+        else pickup_case.now + timedelta(minutes=5)
+    )
+    monkeypatch.setattr(timezone, "now", lambda: clock[0])
+
+    def observe_lock(
+        execute: Callable[..., Any],
+        sql: str,
+        params: Any,
+        many: bool,
+        context: Any,
+    ) -> Any:
+        if "FOR UPDATE" in sql:
+            lock_requested.set()
+        return execute(sql, params, many, context)
+
+    def confirm() -> str:
+        close_old_connections()
+        try:
+            with connection.execute_wrapper(observe_lock):
+                services.confirm_pickup(reservation.pk, pickup_case.staff)
+            return "confirmed"
+        except PickupRefused as refused:
+            return refused.code
+        finally:
+            connection.close()
+
+    with ThreadPoolExecutor(max_workers=1) as worker:
+        with transaction.atomic():
+            Reservation.objects.select_for_update().get(pk=reservation.pk)
+            result = worker.submit(confirm)
+            assert lock_requested.wait(timeout=10), (
+                "Confirmation never requested its lock"
+            )
+            clock[0] = later
+        outcome = result.result(timeout=10)
+
+    reservation.refresh_from_db()
+    if window_ended:
+        assert outcome == pickup.WINDOW_ENDED
+        assert reservation.status == ReservationStatus.RESERVED
+        assert reservation.picked_up_at is None
+        assert reservation.confirmed_by_id is None
+    else:
+        assert outcome == "confirmed"
+        assert reservation.status == ReservationStatus.PICKED_UP
+        assert reservation.picked_up_at == later
+        assert reservation.confirmed_by_id == pickup_case.staff.pk
 
 
 def test_us44_staff_of_another_store_cannot_confirm(
