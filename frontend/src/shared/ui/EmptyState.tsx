@@ -12,6 +12,7 @@ export interface EmptyStateProps {
   action?: ReactNode;
 }
 
+/** Present an empty result with optional explanation and next action. */
 export function EmptyState({
   title,
   description,
@@ -25,7 +26,7 @@ export function EmptyState({
         {title}
       </Title>
       {description && (
-        <Text size="sm" c="gray.7" maw={420}>
+        <Text size="sm" c="dimmed" maw={420}>
           {description}
         </Text>
       )}

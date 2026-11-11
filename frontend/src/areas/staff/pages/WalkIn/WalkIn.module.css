@@ -1,9 +1,10 @@
-/* Figma W3 cards: gray-0 background, 8 px radius, 20 px padding. */
+/* AI contribution: 50% or more AI-generated */
+/* Figma W3 cards: semantic raised surface, 8 px radius, 20 px padding. */
 .card {
   width: 100%;
   padding: 20px;
   border-radius: 8px;
-  background: var(--mantine-color-gray-0);
+  background: var(--iris-surface-raised);
 }
 
 .member {
@@ -21,7 +22,7 @@
   line-height: 16px;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--mantine-color-gray-7);
+  color: var(--iris-text-muted);
 }
 
 /* Steps wrap under each other on a narrow tablet in portrait. */

@@ -84,7 +84,7 @@ export function CategoryPicker(props: CategoryPickerProps) {
           {/* SET-11 "Category sheet" note: 12/16 gray text, 16 px icon, 6 px gap. */}
           <Group gap={6} wrap="nowrap" align="flex-start">
             <IconAlertTriangle size={16} stroke={2} aria-hidden className={classes.noteIcon} />
-            <Text size="xs" c="gray.7">
+            <Text size="xs" c="dimmed">
               {t("store.newListing.prohibitedNote")} <ProhibitedItemsLink short />
             </Text>
           </Group>

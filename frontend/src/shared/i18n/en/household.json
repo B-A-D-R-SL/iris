@@ -1,16 +1,6 @@
 {
   "_meta": "AI contribution: 50% or more AI-generated",
   "household": {
-    "status": {
-      "draft": "Draft",
-      "submitted": "Submitted",
-      "reviewRequired": "Staff review required",
-      "awaitingVisit": "In-person visit required",
-      "approved": "Approved",
-      "renewalNeeded": "Renewal required",
-      "suspended": "Suspended",
-      "rejected": "Rejected"
-    },
     "common": {
       "walkInRegistration": "Walk-in registration",
       "onlineApplication": "Online application",

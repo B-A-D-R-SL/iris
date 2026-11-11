@@ -21,6 +21,7 @@ type MembersStepProps = {
 
 const nameFields = ["firstName", "lastName"] as const;
 
+/** Edit household members using the shared form state and field-error presentation. */
 export function MembersStep({ form }: MembersStepProps) {
   const { t } = useTranslation();
 
@@ -39,7 +40,7 @@ export function MembersStep({ form }: MembersStepProps) {
     <Stack gap="md">
       <Text>{t("staff.walkIn.holderIsPersonOne", { name: holderName })}</Text>
 
-      {members.length === 0 && <Text c="gray.7">{t("staff.walkIn.noOtherPeople")}</Text>}
+      {members.length === 0 && <Text c="dimmed">{t("staff.walkIn.noOtherPeople")}</Text>}
 
       {members.map((member, index) => {
         const number = index + 2;
@@ -100,7 +101,7 @@ export function MembersStep({ form }: MembersStepProps) {
         </Button>
 
         {isFull && (
-          <Text size="sm" c="gray.7" mt={4}>
+          <Text size="sm" c="dimmed" mt={4}>
             {t("staff.walkIn.maxPeople")}
           </Text>
         )}
