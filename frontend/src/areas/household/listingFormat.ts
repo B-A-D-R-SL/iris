@@ -17,9 +17,22 @@ export interface DayLabels {
 
 const locale = (language: Language) => (language === "fr" ? "fr-CA" : "en-CA");
 
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+/** Builds each formatter once: a page of cards reuses them instead of rebuilding them per card. */
+function formatter(localeName: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${localeName}|${JSON.stringify(options)}`;
+  let cached = formatters.get(key);
+  if (!cached) {
+    cached = new Intl.DateTimeFormat(localeName, options);
+    formatters.set(key, cached);
+  }
+  return cached;
+}
+
 /** The calendar day of a moment in Montreal, as YYYY-MM-DD. */
 export function montrealDate(moment: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
+  return formatter("en-CA", {
     timeZone: MONTREAL_TIME_ZONE,
     year: "numeric",
     month: "2-digit",
@@ -34,7 +47,7 @@ function nextDay(isoDate: string): string {
 
 /** "16 h" or "16 h 30" in French; "4 p.m." or "4:30 p.m." in English. */
 export function formatTime(moment: Date, language: Language): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
+  const parts = formatter("en-CA", {
     timeZone: MONTREAL_TIME_ZONE,
     hour: "2-digit",
     minute: "2-digit",
@@ -45,7 +58,7 @@ export function formatTime(moment: Date, language: Language): string {
   if (language === "fr") {
     return minute ? `${hour} h ${String(minute).padStart(2, "0")}` : `${hour} h`;
   }
-  return new Intl.DateTimeFormat("en-CA", {
+  return formatter("en-CA", {
     timeZone: MONTREAL_TIME_ZONE,
     hour: "numeric",
     ...(minute ? { minute: "2-digit" } : {}),
@@ -58,7 +71,7 @@ export function formatDay(moment: Date, now: Date, language: Language, labels: D
   const today = montrealDate(now);
   if (day === today) return labels.today;
   if (day === nextDay(today)) return labels.tomorrow;
-  return new Intl.DateTimeFormat(locale(language), {
+  return formatter(locale(language), {
     timeZone: MONTREAL_TIME_ZONE,
     weekday: "short",
     day: "numeric",
@@ -86,7 +99,7 @@ export function formatPickupWindow(
 /** A calendar date "YYYY-MM-DD" as "11 oct." or, with the year, "11 oct. 2026". */
 export function formatDate(isoDate: string, language: Language, withYear = false): string {
   const [year, month, day] = isoDate.split("-").map(Number);
-  return new Intl.DateTimeFormat(locale(language), {
+  return formatter(locale(language), {
     timeZone: "UTC",
     day: "numeric",
     month: "short",
