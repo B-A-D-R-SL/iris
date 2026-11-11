@@ -162,6 +162,21 @@ describe("i18next resource behavior", () => {
     }
   });
 
+  it("falls back to French across every area when English translations are missing", async () => {
+    const i18n = createInstance();
+    await i18n.init({
+      resources: { en: { translation: {} }, fr: resources.fr },
+      lng: "en",
+      fallbackLng: "fr",
+      initAsync: false,
+      interpolation: { escapeValue: false },
+    });
+
+    for (const [key, value] of Object.entries(french)) {
+      expect(i18n.t(key), key).toBe(value);
+    }
+  });
+
   it("returns the key when a translation is missing", async () => {
     const i18n = createInstance();
     await i18n.init({

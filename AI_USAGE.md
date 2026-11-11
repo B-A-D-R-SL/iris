@@ -306,8 +306,8 @@ At least half of the AI-assisted features need an example here. For each one:
 ### FIX-10 Translation files by area (#636)
 
 - **What the AI produced:** matching common, public, household, store and staff JSON files for English and French; a resource module that keeps the existing translation namespace; file-level parity, size, loading and empty-string tests; glossary and design-system updates.
-- **Preserved:** every original key and value matches the previous files. No screen calls or translation wording changed. The largest file is now 181 lines instead of 686.
-- **Verification:** all 457 frontend tests passed at 93.68% statement coverage, including 20 translation tests. ESLint, Prettier, TypeScript and the production build passed. Tests discover every area file, reject overlapping top-level prefixes, check that every file is loaded, and resolve every key in both languages, including missing-key fallback behavior.
+- **Preserved:** every original key and value matches the files on `main`. No screen calls or translation wording changed. The largest file is now 182 lines instead of 686.
+- **Verification:** all 458 frontend tests passed at 93.69% statement coverage, including 21 translation tests. ESLint, Prettier, TypeScript and the production build passed. Tests discover every area file, reject overlapping top-level prefixes, check that every file is loaded, and resolve every key in both languages. They also check French fallback when English entries are missing and key fallback when neither language has an entry.
 
 ### T-09.62.1–2 Audit tests and service (#548, #549)
 
