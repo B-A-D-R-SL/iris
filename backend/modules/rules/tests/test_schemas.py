@@ -64,6 +64,11 @@ def test_default_values_satisfy_each_rule_schema(rule_type: str) -> None:
             "minimum of 1",
         ),
         (
+            "household_suspension",
+            {"reason_max_length": 0},
+            "minimum of 1",
+        ),
+        (
             "listing_safety",
             {
                 **DEFAULT_RULE_VALUES["listing_safety"],

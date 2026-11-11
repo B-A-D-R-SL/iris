@@ -735,3 +735,9 @@ At least half of the AI-assisted features need an example here. For each one:
   - While checking the fixes, we found that the `frontend` Docker container keeps the code copied at build time, so frontend checks run with `docker compose exec frontend` used stale files. The frontend checks were re-run in a container with the working folder mounted: 359 tests pass at 93% coverage (categories feature 94%). Backend after the fixes: 727 tests pass at 93% coverage.
 - **Remaining:**
   - Peer review and CI.
+
+### T-04.32.2 Suspend service and buttons and T-04.32.1 tests (#489, #488; US-32)
+
+- **What the AI produced:** Codex implemented the admin-only suspend/reactivate endpoints, atomic cancellation of reserved reservations with stock release, audit actions and reasons, localized post-commit holder email, the staff household actions screen, API types, tests and documentation.
+- **Owner's decisions:** preserve the approval expiry; reactivate only before expiry; cancel only `reserved` reservations with `late_cancel=false`; allow counter-only files without email to change status; log email delivery failures without rolling back; keep the design within existing services and adapters.
+- **Verification:** focused household and audit backend tests, frontend component tests, Ruff, mypy, import-linter, migration checks, TypeScript, ESLint and Prettier. Full frontend tests pass except the existing usability preview tests when sandbox networking forbids their local listener; they are rerun outside that restriction.

@@ -49,6 +49,7 @@ function isResult(value: unknown): value is HouseholdSearchResult {
     strings.every((key) => typeof row[key] === "string") &&
     nullable.every((key) => row[key] === null || typeof row[key] === "string") &&
     typeof row.can_resume === "boolean" &&
+    typeof row.can_open === "boolean" &&
     typeof row.status === "string" &&
     Object.hasOwn(householdStatusLabels, row.status) &&
     (row.channel === "walk_in" || row.channel === "online")

@@ -114,6 +114,8 @@
       "roleBeneficiary": "Ménage",
       "actionView": "Consultation",
       "actionDecision": "Décision",
+      "actionSuspend": "Suspension",
+      "actionReactivate": "Réactivation",
       "outcomeApproved": "Approuvé",
       "outcomeRejected": "Refusé",
       "outcomeReview": "Vérification requise",

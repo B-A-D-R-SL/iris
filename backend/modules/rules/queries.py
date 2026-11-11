@@ -1,3 +1,4 @@
+# AI contribution: 50% or more AI-generated
 """Read-only access to versioned business-rule settings."""
 
 from datetime import datetime
@@ -32,3 +33,14 @@ def active(rule_type: str, at: datetime | None = None) -> RuleSetVersion | None:
         .order_by("-effective_from", "-version")
         .first()
     )
+
+
+def household_suspension_reason_max_length() -> int:
+    """Return the active limit or fail closed when configuration is missing."""
+    rule = active("household_suspension")
+    if rule is None:
+        raise ValidationError("Household suspension rules are unavailable.")
+    value = rule.values.get("reason_max_length")
+    if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+        raise ValidationError("Household suspension rules are invalid.")
+    return value

@@ -112,6 +112,7 @@
       "unnamed": "Nom non renseigné",
       "noMemberNumber": "Numéro de membre non attribué",
       "resume": "Reprendre l’inscription",
+      "open": "Ouvrir le dossier",
       "newRegistration": "Nouvelle inscription",
       "previous": "Précédent",
       "next": "Suivant",
@@ -124,6 +125,23 @@
       "signIn": "Se reconnecter",
       "countOne": "{{count}} foyer trouvé",
       "countOther": "{{count}} foyers trouvés"
+    },
+    "manage": {
+      "title": "Dossier du foyer",
+      "contact": "Coordonnées",
+      "expires": "Valide jusqu’au {{date}}",
+      "actions": "Actions du personnel",
+      "actionHelp": "Chaque changement de statut exige un motif et est consigné dans le journal d’audit.",
+      "suspend": "Suspendre le dossier",
+      "reactivate": "Réactiver le dossier",
+      "suspendTitle": "Suspendre ce dossier de foyer",
+      "reactivateTitle": "Réactiver ce dossier de foyer",
+      "reason": "Motif",
+      "cancel": "Annuler",
+      "back": "Retour aux foyers",
+      "failed": "Le statut n’a pas pu être modifié. Réessayez.",
+      "suspendSuccess": "Le dossier du foyer a été suspendu.",
+      "reactivateSuccess": "Le dossier du foyer a été réactivé."
     }
   },
   "reservation": {

@@ -27,6 +27,8 @@ from modules.households.api.search_serializers import (
 )
 from modules.households.api.serializers import (
     HouseholdErrorSerializer,
+    HouseholdStatusInputSerializer,
+    HouseholdStatusReadSerializer,
     WalkInDraftInputSerializer,
     WalkInDraftReadSerializer,
     WalkInSubmissionInputSerializer,
@@ -34,7 +36,7 @@ from modules.households.api.serializers import (
 )
 from modules.households.exceptions import HouseholdUnavailable
 from modules.households.models import Household
-from modules.households.policies import can_manage_walk_ins
+from modules.households.policies import can_manage_walk_ins, can_suspend_households
 
 
 def _flatten_errors(detail: Any, prefix: str = "") -> dict[str, list[str]]:
@@ -101,6 +103,12 @@ class IsIntakeWorkerOrAdmin(BasePermission):
     def has_permission(self, request: Request, view: Any) -> bool:
         """Check the same staff permission used by edits and advertised actions."""
         return can_manage_walk_ins(request.user)
+
+
+class IsAdmin(BasePermission):
+    def has_permission(self, request: Request, view: Any) -> bool:
+        """Allow only active administrators to change household status."""
+        return can_suspend_households(request.user)
 
 
 def _validated(data: Any, *, partial: bool = False) -> dict[str, Any]:
@@ -188,11 +196,17 @@ class WalkInDetailView(WalkInErrorHandlingMixin, GenericAPIView):
     @extend_schema(
         responses={200: WalkInDraftReadSerializer},
         tags=["staff households"],
-        summary="Resume an existing walk-in household draft",
+        summary="View a household file (staff)",
     )
     def get(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
-        return Response(
-            WalkInDraftReadSerializer(self._get_household(id, request.user)).data
+        household = queries.household_for_staff(id, request.user)
+        if household is None:
+            raise Http404
+        return Response(self.get_read_serializer(household).data)
+
+    def get_read_serializer(self, household: Household) -> WalkInDraftReadSerializer:
+        return WalkInDraftReadSerializer(
+            household, context=self.get_serializer_context()
         )
 
     @extend_schema(
@@ -235,3 +249,59 @@ class WalkInSubmissionView(WalkInErrorHandlingMixin, GenericAPIView):
         except DjangoValidationError as exc:
             raise _service_validation(exc) from exc
         return Response(WalkInSubmissionReadSerializer(household).data)
+
+
+class HouseholdStatusView(WalkInErrorHandlingMixin, GenericAPIView):
+    serializer_class = HouseholdStatusInputSerializer
+    permission_classes = (IsAdmin,)
+    reactivate = False
+
+    def post(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            household = services.change_suspension(
+                id,
+                serializer.validated_data["reason"],
+                request.user,
+                reactivate=self.reactivate,
+            )
+        except Household.DoesNotExist as exc:
+            raise Http404 from exc
+        except DjangoValidationError as exc:
+            raise _service_validation(exc) from exc
+        return Response(HouseholdStatusReadSerializer(household).data)
+
+
+class HouseholdSuspensionView(HouseholdStatusView):
+    @extend_schema(
+        request=HouseholdStatusInputSerializer,
+        responses={
+            200: HouseholdStatusReadSerializer,
+            400: HouseholdErrorSerializer,
+            403: HouseholdErrorSerializer,
+            404: HouseholdErrorSerializer,
+        },
+        tags=["staff households"],
+        summary="Suspend a household file (administrator)",
+    )
+    def post(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
+        return super().post(request, id, *args, **kwargs)
+
+
+class HouseholdReactivationView(HouseholdStatusView):
+    reactivate = True
+
+    @extend_schema(
+        request=HouseholdStatusInputSerializer,
+        responses={
+            200: HouseholdStatusReadSerializer,
+            400: HouseholdErrorSerializer,
+            403: HouseholdErrorSerializer,
+            404: HouseholdErrorSerializer,
+        },
+        tags=["staff households"],
+        summary="Reactivate a household file (administrator)",
+    )
+    def post(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
+        return super().post(request, id, *args, **kwargs)
