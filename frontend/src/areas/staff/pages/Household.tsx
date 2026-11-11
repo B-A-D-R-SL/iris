@@ -1,16 +1,5 @@
 // AI contribution: 50% or more AI-generated
-import {
-  Alert,
-  Badge,
-  Button,
-  Group,
-  Modal,
-  Paper,
-  Stack,
-  Text,
-  Textarea,
-  Title,
-} from "@mantine/core";
+import { Button, Group, Modal, Paper, Stack, Text, Textarea, Title } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -22,8 +11,7 @@ import {
   HouseholdStatusFailed,
 } from "../../../features/households/statusApi";
 import type { StaffHousehold } from "../../../features/households/statusApi";
-import { householdStatusLabels } from "../../../features/households/searchApi";
-import { ErrorState, LoadingState } from "../../../shared/ui";
+import { ErrorState, LoadingState, Notice, StatusBadge } from "../../../shared/ui";
 
 type Action = "suspend" | "reactivate";
 type ActionModalProps = {
@@ -74,7 +62,7 @@ function HouseholdHeader({ file }: { file: StaffHousehold }) {
         </Title>
         <Text c="dimmed">{file.member_number || t("household.search.noMemberNumber")}</Text>
       </div>
-      <Badge variant="light">{t(householdStatusLabels[file.status])}</Badge>
+      <StatusBadge record="household" status={file.status} />
     </Group>
   );
 }
@@ -83,9 +71,11 @@ function HouseholdHeader({ file }: { file: StaffHousehold }) {
 function StatusAlerts({ file, outcome }: { file: StaffHousehold; outcome: string | null }) {
   return (
     <>
-      {outcome && <Alert color="green">{outcome}</Alert>}
+      {outcome && <Notice type="success">{outcome}</Notice>}
       {file.status_reason && (
-        <Alert color={file.status === "suspended" ? "red" : "yellow"}>{file.status_reason}</Alert>
+        <Notice type={file.status === "suspended" ? "error" : "warning"}>
+          {file.status_reason}
+        </Notice>
       )}
     </>
   );
@@ -103,7 +93,7 @@ function ActionCard({ action, open }: { action: Action | null; open: (value: Act
         </Title>
         <Text>{t("household.manage.actionHelp")}</Text>
         <Button
-          color={action === "suspend" ? "red" : "blue"}
+          color={action === "suspend" ? "danger" : "info"}
           variant="outline"
           onClick={() => open(action)}
         >
@@ -142,13 +132,15 @@ function ActionModal({
           error={fieldError}
           onChange={(event) => setReason(event.currentTarget.value)}
         />
-        {Boolean(error) && !fieldError && <Alert color="red">{t("household.manage.failed")}</Alert>}
+        {Boolean(error) && !fieldError && (
+          <Notice type="error">{t("household.manage.failed")}</Notice>
+        )}
         <Group justify="flex-end">
           <Button variant="subtle" onClick={close}>
             {t("household.manage.cancel")}
           </Button>
           <Button
-            color={action === "suspend" ? "red" : "blue"}
+            color={action === "suspend" ? "danger" : "info"}
             loading={pending}
             disabled={!reason.trim()}
             onClick={submit}

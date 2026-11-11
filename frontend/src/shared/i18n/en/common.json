@@ -84,8 +84,6 @@
       "reactivateName": "Reactivate {{name}}",
       "status": "Status",
       "actions": "Actions",
-      "active": "Active",
-      "inactive": "Inactive",
       "codeHelp": "Lowercase letters, numbers and _, starting with a letter. It cannot be changed later.",
       "codeLocked": "The code cannot be changed.",
       "codeError": "Use lowercase letters, numbers and _, starting with a letter.",
@@ -150,6 +148,44 @@
       "errorTitle": "This page could not be shown",
       "errorDescription": "Check your Internet connection, then try again.",
       "retry": "Try again"
+    },
+    "status": {
+      "household": {
+        "draft": "Draft",
+        "submitted": "Submitted",
+        "awaiting_visit": "In-person visit required",
+        "review_required": "Staff review required",
+        "renewal_needed": "Renewal required",
+        "approved": "Approved",
+        "suspended": "Suspended",
+        "rejected": "Rejected"
+      },
+      "listing": {
+        "published": "Published",
+        "sold_out": "Sold out",
+        "closed": "Closed",
+        "cancelled": "Cancelled"
+      },
+      "reservation": {
+        "reserved": "Reserved",
+        "picked_up": "Picked up",
+        "cancelled": "Cancelled",
+        "cancelled_by_store": "Cancelled by store",
+        "no_show": "No-show"
+      },
+      "partnerApplication": {
+        "submitted": "Submitted",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "store": {
+        "active": "Active",
+        "deactivated": "Deactivated"
+      },
+      "category": {
+        "active": "Active",
+        "inactive": "Inactive"
+      }
     }
   }
 }

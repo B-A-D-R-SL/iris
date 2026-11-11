@@ -1,7 +1,4 @@
 <!-- AI contribution: 50% or more AI-generated -->
-<!-- Size exception: the PR template points to this single ledger, and its feature
-inventory and example evidence must stay together to avoid duplicate cross-file
-indexes and synchronization errors. -->
 # AI usage
 
 How the Iris team uses generative AI, as required by the course rubric. This file stays up to date every iteration.
@@ -96,21 +93,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 ## Examples, verification and corrections
 
-### FIX-07 Deny-by-default endpoint access test (#633)
-
-- **Feature or task:** FIX-07 (#633), the automatic SEC-05 check: every API endpoint must refuse anonymous visitors and every role it does not allow, and a new endpoint without an entry in the access table fails the build.
-- **What the AI produced:** with Claude Code, under Ammar Ranko's direction: `backend/tests/test_endpoint_access.py` (route discovery through Django's URL resolver, the `ACCESS`, `PUBLIC` and `NON_DRF` tables, a spy on DRF's permission check, and the anonymous and per-role tests), the Permissions row in `docs/03-design/api.md`, and this entry.
-- **Developer direction and review:** Ammar chose the design: walk the resolver rather than list endpoints by hand, keep public endpoints and plain Django routes as explicit exceptions with a written reason, and judge each request by DRF's permission step rather than the status code alone. He reviewed the code line by line and checked the results locally before the pull request.
-- **How we verified it:** the test file runs every DRF endpoint anonymously (unless public) and as each of the five roles against PostgreSQL, plus checks for missing or stale table entries, unlisted plain Django routes, and stand-in `path`, `re_path` and ViewSet routes. Ruff and mypy pass.
-- **Problems found and corrections:**
-  - Anonymous requests answered 401, not 403, because session authentication sends a `WWW-Authenticate` header; the anonymous test accepts both.
-  - The peer review of #673 (MassPaol) and CodeRabbit found that only allowed roles were checked against the permission step: for anonymous visitors and refused roles, any 403 passed, including one raised later by a query or service (for example the household search query). A permission class raising by itself also skipped the first spy on `permission_denied`. The spy now wraps `check_permissions` and records whether the request passed or was refused there, and every case asserts it.
-  - The review also found that the AI's discovery code missed ViewSet routes (their handlers are named `list` and `create`, so no methods were found and nothing was called) and `re_path` routes (their text starts with `^api/`). Both are now detected, with tests, and a DRF endpoint with no methods fails.
-  - The AI's reason for the public schema ("for the generated TypeScript client") was wrong: `pnpm gen:api` builds the schema with `manage.py`, not the URL. The reason was corrected. FIX-04 (#630) now restricts production schema/docs access to active Iris admins; this table describes the local/test settings, with production access covered separately.
-  - The AI's comments referred to a role matrix in `business-rules.md` that does not exist yet; they now point to US-07 (#434), and the `api.md` row states exactly what the test does and does not call.
-  - The review also asked for the project's `UserFactory` instead of `create_user`, a skip instead of a `KeyError` for an endpoint missing from the table, and the reason check folded into the access-table test rather than kept as its own test. All done.
-  - Two CodeRabbit pre-merge checks were answered without changes: the overlap with `test_signed_out_cannot_search` is intended, since this test covers every endpoint automatically; and splitting this shared file is a team decision.
-- **Remaining:** after merge, the wiki Testing Plan and Security pages get SEC-05's status and a link to the test.
+Historical examples are preserved in the linked verification records.
+The headings remain here so existing feature anchors continue to resolve.
 ### FIX-02 Private listing-photo processing and storage (#628)
 
 - **What the AI produced:** under Mark’s (@markantoun0) direction, Codex implemented JPEG/PNG validation, Pillow resizing, EXIF orientation correction, metadata removal, private blob storage, five-minute read-only links, listing integration, failure cleanup, tests and documentation. Mark  requested sharing one storage loader between posting and browsing, moving shared result/error types out of the Azure adapter, and checking container privacy once per browse page instead of once per photo. He also provided SonarQube findings for correction, and directed that unrelated UI and backend issues remain outside the task’s scope.
@@ -120,194 +104,27 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 ### US-25 Duplicate checking and tests (#479, #478)
 
-- **AI help:** ChatGPT helped build the search, submission service, locks, staff API, translations, migration, tests, and docs.
-- **Approved policy:** suspended files count as possible duplicates; files whose `expires_at` is in the past do not. Active intake workers and admins share non-anonymized walk-in files, including another worker's and unassigned files. `created_by` records provenance. Approval stays in US-18.
-- **Initial checks:** 803 backend tests passed, with 93.21% coverage. The 120 household tests reached 93.49%, including six tests with two database connections. Domain coverage exceeds 90%. Lint, types, module rules, migration checks, schema generation, eight API-generator tests, and TypeScript checks passed.
-- **Fixes:** migration 0004 updates old search keys. Rollback keeps those keys; names and addresses stay unchanged. The API keeps its existing status type name. The development database was not migrated.
-- **PR review:** ChatGPT helped split the concurrency test, record submission actors, log outcomes after commit, and add the 15-person boundary test. Draft, submission and serializer checks share the household-size RuleSet; its approved seed default is 15 including the holder, with tests at a configured limit of 3 and for missing configuration (BR-HH-001). A public lock-and-check context keeps the caller's write in the transaction. French status labels follow the glossary.
-- **Review checks:** 825 backend tests passed at 93.34% coverage; 142 household tests passed at 94.13%. All six concurrency cases, lint, formatting, typing, module boundaries, migration checks, API generation, eight generator tests, and TypeScript checks passed.
-- **RuleSet update:** the full backend suite passed 840 tests at 93.38% coverage. Household and rule tests cover configured limits, missing configuration and idempotent seeding. Existing databases need `python manage.py seed_rules`; existing versions are kept.
-- **Policy checks:** 303 household and RuleSet tests passed, including expiry boundaries, suspended candidates and staff permissions. Ruff lint and formatting, type checks for the changed views, queries and services, and diff checks passed.
-- **Main integration:** ChatGPT resolved the search, invitation and settings conflicts while keeping the approved household rules. Search excludes anonymized files before counts, pages and audits; resume flags follow the walk-in edit rule. A merge migration joins the search and duplicate-check branches. API types were regenerated.
-- **Merge checks:** 1,240 backend tests and 443 frontend tests passed. Ruff, backend/frontend type checks, frontend lint, module boundaries, migration checks, API types and diff checks passed.
-- **CI load test:** ChatGPT found that the benchmark server's 10-connection queue could overflow under the 64-worker driver. A Linux regression failed with the original queue. The test server now queues 128 connections; the 100 requests/second and 500 ms p95 targets stay unchanged. Failed assertions include the complete timing report.
-- **Load-test checks:** 1,241 backend tests passed with 93.95% coverage. All 16 load-server/client checks passed in a two-CPU Linux container. Ruff, targeted type checks and diff checks passed.
-- **Final review fixes:** duplicate advisory locks use a positive, configurable wait limit and restore the caller's timeout after acquisition. A timeout rolls back before returning a generic 503. Missing or invalid size rules use the same translated response and a privacy-safe log event. Tests now use real deactivated sessions and verify transaction boundaries without Django's test wrapper. Staff access tests are grouped in `test_api.py`; repeated duplicate cases were removed.
-- **Final checks:** 1,268 backend tests passed with 93.94% coverage, including 490 household, RuleSet and configuration tests. Ruff, backend/frontend type checks, module boundaries, migration checks, API drift checks, eight generator tests and diff checks passed.
-- **Access-test follow-up:** ChatGPT split the API, query and service tests by operation, keeping all 64 staff-access cases. All 85 access tests and 1,268 backend tests passed; coverage stayed at 93.94%. Ruff, complexity checks, mypy and diff checks passed. The PR description and verified issue checkboxes were updated.
-- **Search-load follow-up:** after CI exceeded the 500 ms p95 target, ChatGPT inspected query plans and removed a redundant household ID subquery that caused a second table scan. A regression failed on the old query and passed on the direct predicate. All 85 focused search tests passed. The two-CPU Linux HTTP tests passed at the unchanged 100 requests/second and 500 ms limits (56.71 ms p95); Ruff, mypy, module boundaries and diff checks passed.
-- **Shared-access restoration:** following [MassPaol's confirmation with Mark](https://github.com/B-A-D-R-SL/iris/pull/660#issuecomment-6730240599), ChatGPT restored shared staff access in queries, resume permissions, tests and docs. Cross-worker submissions preserve the original creator and record the submitting actor. Anonymized files, inactive accounts and nonstaff roles remain refused. All 1,266 backend tests passed at 93.97% coverage; Ruff, mypy, module boundaries, migration checks, API drift and diff checks passed.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#us-25-duplicate-checking-and-tests-479-478).
 
 ### US-63 Household search and tests (#552, #553, #554)
 
-- **What the AI produced:** under Mark's direction, the staff search API,
-  normalized search columns and indexes, migration, audit integration and
-  French/English search screen with pagination and a typing delay. Search covers
-  partial or accented member names, email, phone, address and member number.
-  ChatGPT also helped write tests, generated API types and documentation.
-- **Owner's decisions:** Mark requested the backend before the frontend and
-  required the existing Docker setup to be preserved. For safety, he reviewed
-  the database connection, backup and migration.
-- **Verification:** Mark reviewed the implementation, saved-draft flow, local
-  database, search fields and household/member links. Automated checks cover role
-  permissions, shared staff access, anonymized-file refusal, read-only queries,
-  API/database integration, accents, pagination, migration reversal, audit failure
-  handling, response validation and search authorization in the frontend. Lint,
-  formatting, type checks, module boundaries and migration checks are part of the
-  verification workflow. Current test and coverage results belong in CI output;
-  this record does not retain numerical performance or coverage snapshots for US-63.
-- **Problems found and corrections:** normalized search columns and trigram
-  indexes address broad searches, WSGI startup validates routes before accepting
-  requests, and healthy database connection reuse avoids repeated connection
-  setup. The ASGI entry point identifies its server interface before Django loads
-  settings; settings disable persistence without rewriting the configured lifetime.
-  Test diagnostics use structured logging; the subprocess JSON protocol remains
-  separate. Existing PostgreSQL extensions are reused in their installed schemas.
-  Search access is decided by the API, including the frontend screen's access
-  probe. Mark confirmed shared staff access and accepted the central AI inventory's
-  size. Staging and phone/4G checks remain deployment verification. Repeatable
-  commands and thresholds are in the [verification guide](docs/guides/household-search.md).
-
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#us-63-household-search-and-tests-552-553-554).
 
 ### T-01.04.3 Invitation password page (#431)
 
-- **What the AI produced:** under Leon's approved plan, the public
-  `/invitation/:token` password-and-confirmation page, generated-type API
-  helper, French/English messages, additional page/helper tests and updated
-  API/module documentation. Confirmation stays in the browser; the backend
-  remains responsible for token validation and the full password policy.
-- **Owner's decisions:** successful anonymous acceptance opens `/sign-in`.
-  An existing session is preserved, with completion guidance to use the
-  existing sign-out control before signing into the new account. Issuing
-  screens, email delivery and approval workflows remain in their own stories.
-- **Initial implementation verification:** all **395 frontend tests across 28 files** passed,
-  including 15 page cases and 21 API-helper cases. Added executable frontend
-  lines have **100% coverage** (87/87); overall frontend line coverage is
-  **94.37%**. The full run used two workers and a 15-second per-test timeout
-  after existing listing cases exceeded the default five seconds; no tests
-  were skipped or assertions changed to accommodate this. Frontend type
-  checking, ESLint, Prettier and the production build passed.
-  Disposable Chromium checks passed in French and English at
-  360px and 1024px, including expiry/retry, CSRF bootstrap, live translation,
-  navigation to sign-in and signed-in completion. Browser API responses were
-  mocked; these checks did not write database data or replace #430's backend
-  API-to-database tests.
-- **Problems found and corrections:** focused tests exposed missing explicit
-  `aria-invalid` on password controls for backend field errors and an ambiguous
-  test status query. Both were corrected. Backend field text is hidden after
-  a language switch until the visitor submits again; entered passwords remain.
-- **PR #657 focus correction:** under Leon's direction, replaced error-object
-  focus dependencies with a counter that advances only on failed submissions.
-  Editing, blur validation and language changes keep the visitor's focus;
-  repeated local or API failures still focus the summary. The temporary
-  reproduction failed before the fix and passed afterward. All **38 invitation
-  tests** passed (17 page cases and 21 API-helper cases), including two new
-  focus regressions and a language-switch focus assertion. ESLint, Prettier,
-  TypeScript and the production build passed for this correction.
-- **PR #657 pre-merge corrections:** under Leon's approved scope, renamed the
-  role/API tests to `test_api.py` and updated the import-boundary exception;
-  added event-only backend logs after commit and frontend failure events;
-  documented size exceptions for the shared references and test-registration
-  callbacks. `.coderabbit.yaml` excepts only the file length of the two complete
-  locale catalogs, without changing function or complexity limits. The accounts
-  README documents the new commit-time events. Intentional translated password
-  validation feedback remains available to users.
-- **Review-fix verification:** 132 existing accounts/invitation-rule cases and
-  all four new logging tests passed. The new tests inspect raw event records,
-  verify deferred emission and rollback suppression, and reject recipient or
-  secret data in logs. All 45 focused frontend tests passed with one worker and
-  a 15-second test timeout, including real logger-output privacy assertions,
-  the invitation page and translation parity. Ruff, mypy, module boundaries,
-  ESLint, Prettier, TypeScript, production build, YAML parsing and individual
-  function/test size checks passed. The four new logging cases were rerun with
-  `iris.settings.test` after correcting their per-phase log-capture fixture.
-
-- **PR #657 remaining error/size checks:** restored the ledger's adjacent size
-  justification and extracted persisted-account assertions while retaining the
-  API-to-database-to-sign-in path. Django password codes and safe parameters now
-  survive service wrapping; approved invitation/password translations replace
-  arbitrary exception text. Unknown codes and field names receive generic
-  feedback. The French catalog was compiled from the updated `.po`. Unexpected
-  page failures log only a fixed event, and handled API errors are not logged
-  twice. The accounts README documents this behavior.
-- **Final targeted verification:** all 129 invitation API, service, logging,
-  error-mapping and RuleSet cases passed with `iris.settings.test`, including
-  37 new mapping/privacy cases. All 47 focused frontend cases passed (19 page,
-  21 helper, one logger and six translation cases), including two new page-error
-  regressions. Ruff, mypy, module boundaries, ESLint, Prettier, TypeScript,
-  production build and translation-catalog checks passed. Individual changed
-  functions/tests satisfy 50 lines; the main integration test and its account
-  helper have assertion-inclusive complexity scores of nine and eight.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#t-01043-invitation-password-page-431).
 
 ### T-01.04.2 Invitation model, services and acceptance API (#430)
 
-- **What the AI produced:** under Leon's approved plan, the Invitation model
-  and incremental migration, secure token creation, atomic acceptance, the
-  public API and translated errors, the invitation RuleSet schema/default,
-  regenerated API types and documentation aligned with new accounts only.
-- **Owner's decisions:** an existing active or inactive account is never
-  overwritten. Tokens encode 32 random bytes and only their SHA-256 hash is
-  stored. The saved expiry comes from `invitations.expires_after_days`, whose
-  initial value is seven days. Acceptance does not sign in or switch sessions.
-  Issuing screens, email delivery and other stories' approval workflows remain
-  separate; the public password page is #431.
-- **Verification:** all 88 invitation backend cases passed, including the
-  #429 tests and additional malformed-configuration, database-constraint,
-  rollback and competing-invitation cases. Ruff, mypy, module-boundary checks,
-  Django system/migration checks, OpenAPI validation, API declaration drift
-  checking and the frontend TypeScript/production build passed.
-  The full backend suite passed **816 tests** with **92.96% overall coverage**.
-  Added executable lines in changed production files have **97.42% coverage**
-  (151/155); the modified RuleSet domain module has **100% coverage**.
-  The local invitation migration applied cleanly. The idempotent rule seed
-  added invitation version 1 and a previously missing `listing_posting`
-  version 1 without rewriting existing versions.
-- **Problems found and corrections:** the local backend image does not contain
-  GNU `msgfmt`; the existing host Babel compiler produced the tracked French
-  catalog without introducing a runtime dependency. Email uniqueness races
-  are translated only for the known email constraints, and the tests verify
-  that unrelated database failures roll back and propagate.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#t-01042-invitation-model-services-and-acceptance-api-430).
 
 ### T-01.04.1 Invitation acceptance tests (#429)
 
-- **What the AI produced:** under Leon's approved plan, executable service,
-  API-to-database, RuleSet and public-page tests, generated invitation inputs,
-  deterministic clock fixtures and narrowly scoped test import exceptions.
-- **Owner's decisions:** invitations create new accounts only; existing active
-  and inactive accounts must never be overwritten. The initial invitation
-  lifetime is seven days, configured as `invitations.expires_after_days` in
-  RuleSet. Invitation issuing screens, email delivery, partner approval and
-  household approval remain with their respective stories.
-- **Verification at the tests-first commit:** all 74 backend cases collected
-  without importing absent invitation symbols at module load. They failed
-  because the Invitation model, acceptance endpoint and invitation RuleSet did
-  not exist yet; all 11 frontend cases failed because the route/page did not
-  exist. The existing 75 accounts/rules backend tests and 29 sign-in and
-  translation frontend tests pass. Mypy, frontend type checking, Ruff, ESLint,
-  formatting and module-boundary checks pass for the test changes.
-- **Follow-up verification:** #430 supplied the backend implementation and
-  passed 88 invitation cases. #431 supplied the public page and passed its
-  original 11 cases plus four added page cases and 21 API-helper cases.
-  No test is skipped or replaced with a fake implementation. Story PR checks
-  and teammate review remain required before closing the task.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#t-01041-invitation-acceptance-tests-429).
 
 ### T-09.62.3 Audit search API and screen (#550)
 
-- **AI assistance:** ChatGPT/Codex helped write and review code for the
-  admin-only search API, filters, pagination and bilingual screen, including
-  implementation and tests, under Reuven's direction.
-- **Verification:** The search integration tests were run against a temporary
-  PostgreSQL 17 instance. Frontend tests, type checking, lint, build and schema
-  generation were run locally; teammate review remains outstanding.
-- **Limits:** Search accepts household and staff UUIDs rather than names. The
-  audit service and accounts work live on the parent story branch.
-
-At least half of the AI-assisted features need an example here. For each one:
-
-- **Feature or task:** issue number and title
-- **What the AI produced:** files, commit or pull request
-- **How we verified it:** the automated tests or the review comment that checked it
-- **Problems found and corrections:** what was wrong or rejected, and what we changed
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#t-09623-audit-search-api-and-screen-550).
 
 ### FIX-04 Production settings and entry points (#630)
 
@@ -340,33 +157,19 @@ At least half of the AI-assisted features need an example here. For each one:
 
 ### T-09.62.1–2 Audit tests and service (#548, #549)
 
-- **What the AI produced:** the append-only AuditEvent model, public `record()` service, PostgreSQL trigger migrations, concise module README, and unit/integration tests. Existing accounts code was reused; #550 is excluded.
-- **How we verified it:** 56 audit tests and all 185 backend tests passed in Docker with PostgreSQL. Audit coverage was 100%; total backend coverage was 89.30%. Ruff, mypy, all three module-boundary contracts, Django checks, and migration consistency checks passed. The current database migrated successfully; trigger reversal and reapplication were tested only on the isolated test database.
-- **Problems found and corrections:** tightened target-type validation to reject a trailing newline and recorded the change in a migration. Local dependency caches required source-directory targets for lint and typing checks. No databases or volumes were recreated.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#t-096212-audit-tests-and-service-548-549).
+
 ### T-02.12.3 Become a partner page (#446)
 
-- **AI assistance:** ChatGPT helped write and review the form, API integration, translations and tests using the existing requirements and partner application API.
-- **Verification:** the frontend suite passed 265 tests, the partner application backend API suite passed 61 tests, and a fictional application was submitted through the local frontend and backend. Teammate review is pending.
-- **Dependency:** the backend is on the open US-12 pull request, #618.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#t-02123-become-a-partner-page-446).
+
 ### US-16 Eligibility engine (#457)
 
-- **AI contribution:** I first designed the eligibility logic and wrote
-  the initial pseudocode myself. I then used ChatGPT to help translate
-  my pseudocode into working code, including the LICO rule, decision model,
-  service, tests, migrations, and documentation. I reviewed and refined
-  the implementation throughout development.
-- **Verification:** 75 eligibility tests and 388 backend tests passed locally.
-  Domain coverage reached 100%; Ruff, mypy and architecture checks passed.
-- **Corrections:** Fixed PostgreSQL ArrayField configuration, type-checking
-  and lint issues; added adult-count completeness validation and negative tests.
-- **Outstanding:** Real household/notice integration, audit events,
-  and end-to-end API verification.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#us-16-eligibility-engine-457).
 
 ### SET-18 Seed data generator (#409)
 
-- **What the AI produced:** the `seed` command, the fixed fictional plan (seed 18), household and reservation tables taken from the published schema, and `docs/04-data/seed-data.md`.
-- **How we verified it:** `test_seed_plan` checks the agreed counts, status spread, stock limits, and fictional contact details. `test_seed` runs `manage.py seed` on an empty database, checks 1 admin, 2 intake workers, B.A.D.R. plus 4 partner stores, 50 households, 30 listings, and 40 reservations, then runs it again and checks that edited rows are kept.
-- **Problems found and corrections:** household and reservation models did not exist yet, so the seed could not insert those rows. The tables follow `docs/03-design/database-schema.md`. Registration and pickup workflows are still owned by their own stories.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#set-18-seed-data-generator-409).
 
 ### FIX-21 Split the mock notice page-drawing functions (#647)
 
@@ -376,384 +179,271 @@ At least half of the AI-assisted features need an example here. For each one:
 
 ### SET-33 Colour prototypes and design docs (#651)
 
-- **Firas's direction:** keep the Step 4 repository file names so existing links still work, restore later-release grayscale exports, and replace the Theme section in `design-system.md` with the Foundations token table and status map. The wiki and the pull request stay with Firas.
-- **What the AI produced:** the renames and restores under `docs/03-design/mockups/`, and the Theme section (token table, status colour map, colour rules, Foundations link).
-- **How we verified it:** the mockups folder matches the Step 4 file list; later-release PNGs match `HEAD`; the Theme hex values and Mantine shade names match the Foundations export.
-- **Problems found and corrections:** the first exports used Figma page names (`W4 · …`, `S2 · …`). Step 4 needs the old names (`Staff Review-partnership-application.png`, `Store - Confirm a pickup.png`, …), so the coloured files were copied onto those names and the Figma-named copies were removed.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#set-33-colour-prototypes-and-design-docs-651).
 
 ### FIX-15 Seed command boundary and household expiry (#641)
 
-- **Firas's direction:** keep the seed's direct writes as a documented exception rather than routing fictional rows through services that cannot create those states, and move the expiry rule into the households domain so US-18 can reuse it. Edits that would collide with open pull requests were left out (the households README).
-- **What the AI produced:** the exception note at the top of `seed.py`; the import-linter contract "Only the seed command imports module models"; `households/domain/expiry.py` (calendar months, approved expiry, expiry per status); `test_expiry.py`; the seed changes; and the matching `test_seed.py`, `architecture.md` and model edits.
-- **How we verified it:** 881 backend tests passed with 93% coverage; ruff, mypy, lint-imports (4 contracts kept) and `makemigrations --check` were clean. `manage.py seed` on a local database still gave 50 households, 30 listings and 40 reservations. Trial merges against the open pull requests found no new conflicts in code.
-- **Problems found and corrections:**
-  - CodeRabbit flagged a minimum-month module constant in `domain/` and a stale pull request link here; both were removed or updated.
-  - MassPaol's review found that approved demo files lasted 12 months and 30 days, because the months were counted from the seed date instead of the backdated approval. `test_seed.py` built its expected value the same way, so it passed anyway. The seed now counts from the approval date, and the test fails on the old behaviour.
-  - Months were counted on the UTC calendar: 30 January 22:00 in Montreal gave 27 February instead of 28 February. The seed now passes Montreal local time, and a test covers that case.
-  - The seed caught every `ValueError` as a bad month count; the domain now raises `InvalidApprovedMonths` and only that is caught. Tests were added for a missing `file_validity` rule and a broken month count.
-  - The contract covered `iris` only; it now covers `adapters` too. The three status names were duplicated in the domain and the model; `Household.Status` now builds them from the domain constants.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#fix-15-seed-command-boundary-and-household-expiry-641).
 
 ### T-01.01.1 Sign-in and sign-out tests (#423)
 
-- **Leon's direction:** implement the approved test plan and use `/staff/households` as the staff landing path, as updated in US-01.
-- **What the AI produced:** expanded account API tests to exercise real sign-in, current-user lookup, and sign-out for all five roles; added a shared-browser-session logout test; expanded the app routing test to cover every role's landing area.
-- **How we verified it:** all 34 focused account tests and 54 focused app/navigation tests passed. The accounts module reached 100% coverage in the focused backend run; Ruff, ESLint, TypeScript, and formatting checks passed. Only test files changed for this task, so changed-production-code coverage does not apply.
-- **Problems found and corrections:** the first routing expectations used a generic staff path; Leon supplied the updated `/staff/households` path from US-01, and the tests were corrected before the screen was built.
-- **Follow-on screen work:** the form, localized errors, and sign-out controls were delivered in T-01.01.3.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#t-01011-sign-in-and-sign-out-tests-423).
 
 ### T-01.01.3 Sign-in screen and session handling (#425)
 
-**Leon's direction and AI output:** Leon approved the frontend plan and specified `/staff/households` for staff. The AI built a bilingual sign-in form, CSRF-aware allauth requests, a conditional MFA code step, role redirects, a TanStack Query session provider, and sign-out controls. The `/api/me/` type comes from generated OpenAPI declarations; staff MFA enrollment belongs to US-09 (#436). The work is in [US-01 PR #610](https://github.com/B-A-D-R-SL/iris/pull/610).
-
-**Verification, problems and corrections:** The first 183 frontend tests passed with 92.96% overall statement coverage; the sign-in page reached 93.61%. Review found an inaccessible live session after a failed profile lookup, stale cached data after sign-out, and missing deep-link handling; the AI added a profile-only retry, cache clearing, redirects, and tests. After these fixes, 202 frontend tests, TypeScript, ESLint, Prettier, and the build passed. Earlier corrections fixed a TypeScript parameter property, Fast Refresh lint, and translation-key shape.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#t-01013-sign-in-screen-and-session-handling-425).
 
 ### T-01.01.2 User model and authentication (#424)
 
-**Leon's direction and AI output:** Leon approved the custom-user plan and reviewed the migration impact. The AI built `accounts.User`, the allauth adapter with a shared five-attempt lockout, PostgreSQL `AuthCache`, the rate-limited admin form, the `/api/me/` endpoint and serializer, and account tests. It also added `UserFactory` and generated `fr | en` API types in [US-01 PR #610](https://github.com/B-A-D-R-SL/iris/pull/610).
-
-**Verification, problems and corrections:** The backend suite initially passed 129 tests against PostgreSQL; after review fixes, 135 passed. Ruff, mypy, import-linter, and API type drift checks passed. Leon backed up and recreated his local database after the custom-user migration changed its dependency order, then verified the admin, nine rule types, seven LICO sizes, and B.A.D.R. Store. Startup exposed a missing Argon2 lockfile entry; the AI regenerated `backend/uv.lock`. Review also found a dynamic cache-table SQL string and an admin lockout bypass; static SQL and a shared admin authentication form fixed them.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#t-01012-user-model-and-authentication-424).
 
 ### T-00.01.4 Categories reference module (#377) and SET-14 Module skeletons (#405)
 
-- **What the AI produced:** ChatGPT assisted with the Categories Django model, migration, services, queries, pure domain rules, REST API, seed command, React page, bilingual translations, tests, and reference documentation. It also assisted with scaffolding the 15 Django modules, registering their applications, documenting their interfaces, and configuring architectural dependency checks.
-- **Developer involvement:** Reviewed GitHub acceptance criteria and Iris architecture requirements, executed the implementation and verification commands, identified gaps in the architectural enforcement, and validated the corrected configuration.
-- **How we verified it:** The initial full regression run passed 91 backend tests with 86.86% coverage and 172 frontend tests with 94.32% statement coverage. Ruff, mypy, ESLint, TypeScript, migrations, frontend build, API type generation, and dependency security audits passed. All 15 module READMEs were checked for ownership, public-function, and audit-event sections.
-- **Problems found and corrections:** The original Import Linter configuration allowed unauthorized cross-module imports through any public services or queries. Replaced the generic exceptions with the architecture's approved dependency whitelist. A negative test confirmed that Categories cannot import Stores services, a positive test confirmed that Listings can import Categories services, and the clean project passed all three Import Linter contracts.
-- **Remaining verification:** Final regression checks after the documentation updates, GitHub Actions results, and teammate review are pending. The remaining modules are intentionally scaffolds; their business functionality belongs to separate backlog tasks.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#t-00014-categories-reference-module-377-and-set-14-module-skeletons-405).
 
 ### SET-15 OpenAPI and TypeScript generation (#406)
 
-- **What the AI produced:** health response schema metadata and regression tests, a pinned openapi-typescript generator and generated declarations, temporary-copy drift tests, an added CI drift check, a generation guide, and the reviewed team API conventions document. The draft's conventions and endpoint catalog are preserved with implementation status and unresolved decisions identified.
-- **How we verified it:** 13 focused backend tests and Ruff checks passed. Isolated frontend validation with pnpm 10.34.6 and TypeScript 6.0.3 passed type checking, ESLint, formatting, all 11 Vitest tests, production build, and the generation/drift regression test. Schema export passed validation. Existing lockfile entries and CI checks were compared and remain unchanged. Documentation validation checked all 10 convention rows and 69 endpoint rows against the supplied draft, plus Markdown formatting and local links/anchors.
-- **Problems found and corrections:** openapi-typescript 7.13.0 requires a TypeScript 5 peer, so 6.7.6 was selected and tested without peer overrides or a compiler downgrade. Vitest initially collected the Node-only regression test; its filename was changed without altering Vitest configuration. The local backend environment uses Python 3.14.8 rather than CI's 3.13; CI execution and PostgreSQL-dependent backend tests remain to be verified. PR #604 review fixes add explicit UTF-8 Python output, remove the default subprocess buffer limit, and skip only symbolic-link creation on Windows. A schema-stdin mode supports generation and drift tests across the separate Docker containers; the README now lists both API checks and the command to copy regenerated declarations back to the checkout. Regression coverage includes Unicode schemas larger than 1 MiB through both Python and stdin.
-- **PR #604 review verification:** all eight generator tests passed with local Python, and seven passed with a piped schema (the Python-only export test is skipped in that mode). Generated declarations match the validated schema. Four backend schema tests, all 11 Vitest tests, TypeScript checking, ESLint, and formatting of changed frontend files and the generation guide passed. Validation used Python 3.13 and Node 22.23.2; CI uses Node 24. Native Windows and the full container workflow were not run; the Docker daemon was stopped.
-- **CI follow-up:** updated only `certifi` from 2026.7.22 to 2026.10.19 to address the dependency audit finding PYSEC-2026-4320. Merged current `main` so the PR base matches the newly introduced commit-policy workflow, and reworded the ten older SET-15 commit subjects to the required ID-first format while preserving each commit's tree, authorship, and merge structure. The original branch head is retained locally as `backup/SET-15-before-ci-fix-b9933c2`. Removed the empty `.github/workflows/story-test-task.yml`, which GitHub rejected before running any jobs. The locked dependency audit reports no known vulnerabilities after the update; 13 focused backend tests, all eight generator tests, schema drift checking, and Ruff lint/format checks passed after the merge.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#set-15-openapi-and-typescript-generation-406).
 
 ### T-00.01.1 Backend project (#374)
 
-- **What the AI produced:** the Django 6.1 backend using Python 3.13 and uv, environment-specific settings (`base`, `local`, `test`, `production`), configuration for Django REST Framework, django-allauth, drf-spectacular, Procrastinate, and PostgreSQL, along with automated tests and Ruff/mypy configuration.
-- **How we verified it:** ran pytest, Ruff, mypy, and Django system checks. Verified PostgreSQL connectivity, successful database migrations, API documentation routing, and local Django startup.
-- **Problems found and corrections:**
-  - Django initially failed to load the secret key correctly. Fixed the environment configuration using `django-environ`.
-  - PostgreSQL needed to be configured locally. Created a PostgreSQL 17 Docker container and successfully applied the database migrations.
-  - The SQLite fallback was incompatible with Procrastinate's PostgreSQL-specific migrations. PostgreSQL is now required for all environments.
-  - Fixed Ruff import-order warnings and reran the backend checks.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#t-00011-backend-project-374).
 
 ### T-00.01.2 Frontend project (#375)
 
-- **What the AI produced:** the React 19 frontend with TypeScript, Vite, Mantine UI, React Router, TanStack Query, and French/English internationalization. Also generated the homepage, backend health-check integration, automated tests, and frontend quality tooling.
-- **How we verified it:** four Vitest tests passed before hardening, covering French as the default language, English switching, successful backend communication, and unavailable backend handling. Production build, ESLint, and Prettier checks also passed before hardening.
-- **Problems found and corrections:**
-  - Mantine required `window.matchMedia`, which was unavailable in the test environment. Added a mock to the test setup.
-  - Configured the Vite API proxy to allow React to communicate with Django.
-  - Resolved ESLint/Prettier compatibility issues and corrected formatting.
-  - Enabled strict TypeScript type-checking in both the application and Node configuration files.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#t-00012-frontend-project-375).
 
 ### T-00.01.3 Docker Compose and README (#376)
 
-- **What the AI produced:** the five-service Docker Compose environment (Django, React, PostgreSQL, Azurite, Mailpit), backend and frontend Dockerfiles, automatic migrations, development administrator creation, SMTP mailer adapter, integration tests, and updated README documentation.
-- **How we verified it:** all five containers started; PostgreSQL, migrations, health endpoint, development admin authentication, and SMTP delivery were verified. Eight backend and four frontend tests passed before hardening, and 13 backend tests passed after adding observability tests. Additional formatting and typing verification remains in progress.
-- **Problems found and corrections:**
-  - pnpm attempted to reinstall dependencies without an interactive terminal. Moved dependency installation into image builds and reused the installed packages.
-  - The frontend homepage timed out through host port `5173`. Changed the host port to `5174`.
-  - Windows frontend bind mounts slowed page loading. Replaced them with Docker Compose Watch.
-  - Fixed Ruff and mypy issues and excluded generated pnpm caches from formatting.
-  - Azurite's SDK integration is deferred because the requested API version is unsupported by the emulator.
-  - Updated the README with the Docker development workflow, credentials, ports, checks and current limitations.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#t-00013-docker-compose-and-readme-376).
 
 ### SET-01 Setup hardening (#373, #374–#376)
 
-- **What the AI produced:** strict TypeScript configuration, PostgreSQL-only database settings, structured JSON logging with request IDs, an event-only frontend logger, a single allauth headless mount at `/api/auth/`, supporting tests, and documentation.
-- **How we verified it:** after the first application, 13 backend pytest tests passed and Django reported no pending migrations. Additional Ruff, mypy, and Django routing issues were detected and corrected in a subsequent full-file replacement; the full suite must be rerun before committing.
-- **Problems found and corrections:**
-  - Mounting django-allauth headless under both `/api/auth/` and `/_allauth/` caused six URL namespace warnings. Removed the legacy mount.
-  - Ruff required `datetime.UTC` instead of `timezone.utc`.
-  - mypy could not infer the type of a test lambda. Replaced it with a typed callback.
-  - Ruff's format report panicked on a file containing a UTF-8 byte-order mark. Replaced the affected production settings file without the marker and formatted relevant Django entry points.
-  - The public authentication contract remains a SET-15 decision. Only routing changed; no custom authentication handlers were implemented.
-  - Request logs exclude raw URL paths, query strings, request bodies, authorization tokens, and arbitrary message content to avoid exposing personal data.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#set-01-setup-hardening-373-374376).
 
 ### SET-32 SonarQube Cloud quality gate (#595)
 
-- **What the AI produced:** SonarQube Cloud CI integration reusing coverage artifacts, repository-wide analysis configuration, setup documentation, and a commit-policy fix.
-- **How we verified it:** Backend/frontend CI and the Sonar quality gate passed before the latest scope changes. Local workflow, scope, and commit-policy checks passed; latest integration still needs hosted validation.
-- **Problems found and corrections:** Removed duplicate test runs, fixed coverage paths and lint exclusions, pinned Actions, updated certifi, expanded analysis to tools/workflows/configs, and corrected stale-base validation. Tools are excluded only from coverage. Existing quality gates remain unchanged; the policy fix activates after reaching main.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#set-32-sonarqube-cloud-quality-gate-595).
 
 ### SET-02 CI workflow and branch protection (#378, #379, #380, #381)
 
-- **What the AI produced:** the `backend` and `frontend` jobs in `.github/workflows/ci.yml`, the coverage (70% minimum) and import-linter settings in `backend/pyproject.toml`, the Vitest coverage settings, the `typecheck` and `test:coverage` scripts, and the README CI section. The `main` ruleset (#381) is configured in the GitHub settings after this merges, not in code.
-- **How we verified it:** ran every CI step locally against PostgreSQL 17 (Docker Compose) and Node 24 before opening the pull request; backend total coverage is 74%. Checked that each gate fails on bad input: a ruff error, a failing test, coverage below the minimum and a TypeScript error all exit non-zero. The pull request's own CI run is the final check.
-- **Problems found and corrections:**
-  - uv picked Python 3.14 for the backend on a Windows machine because the root `.python-version` is not seen from `backend/`. Added `backend/.python-version` (3.13) so local runs match CI and the Docker image; CI also pins 3.13.
-  - Prettier reported every frontend file on Windows. The cause is `core.autocrlf` (CRLF in the working copy), not style: `prettier --check --end-of-line auto` passes, and the Linux runner checks out LF.
-  - The first CI run failed: `backend/manage.py` has a shebang but was stored in git as not executable, which ruff (EXE001) only reports on Linux. Marked it executable in git (`git update-index --chmod=+x`).
-  - SonarCloud failed the security rating on `ci.yml`: third-party actions not pinned to a commit and `uv run` calls that can re-resolve or build packages. Pinned every action to a full SHA, installed with `uv sync --locked --no-build` and called the tools straight from the synced environment.
-  - `backend/modules/` does not exist yet, so the first import-linter contract only keeps `adapters/` independent of the Django project package. The module contracts are SET-14's job.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#set-02-ci-workflow-and-branch-protection-378-379-380-381).
 
 ### SET-13 Glossary and French/English terminology (#404)
 
-- **What the AI produced:** 50% or more AI-generated translation support for French/English terminology, wording consistency, shared translation content, and translation validation tests.
-- **How we verified it:** compared terminology against the SET-13 acceptance criteria, checked that the glossary includes one French and one English wording per term, verified that shared translation keys match across languages, and ran the frontend tests, build, lint, and formatting checks.
-- **Problems found and corrections:**
-  - Kept legacy homepage/backend keys unchanged because they predate the `area.screen.element` convention.
-  - Standardized new translation keys to `area.screen.element` with camelCase segments for multi-word names.
-  - Reviewed French wording for project-specific terms such as B.A.D.R., notices of assessment, pickup, household files, and staff review.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#set-13-glossary-and-frenchenglish-terminology-404).
 
 ### SET-09 Mock notices of assessment (#397, #398, #399, #400)
 
-- **What the AI produced:** the generator (`generate.py`, `notices.py`, `tax.py`, `layout.py`), the phone-photo pipeline (`photos.py`), the tests, the tool README and the published spec, from the team draft and the owner's decisions (exact counts, a separate `applicants.csv`, a standalone uv project, committing the output).
-- **How we verified it:** 26 pytest checks in `tools/mock_notices/tests/` (byte-identical output for seed 42; counts and cases; watermark and footer on both pages; `XXX XXX XXX` identification number; the cover page and line 199 `Montant établi` equal `truth.csv`; changed returns; calculation columns that add up; no negative declared amount with other seeds; edge cases; name and address rules on `applicants.csv`; committed output up to date, byte for byte; a failed run keeps the previous files). The layout was compared with a redacted sample notice and the line labels with the official 2025 TP-1. We changed a value in the committed `truth.csv`, a committed PDF and a committed photo on purpose and checked that the tests failed. We also looked at the PDFs and photos one by one.
-- **Problems found and corrections:**
-  - The team draft contradicted itself (50 PDFs + 15 photos in one table, 50 files in total in another). The final amount decided was 50 files (34 PDFs + 16 photos), and the spec now matches it.
-  - The first lighting effect rotated a gradient and left dark triangles in the photo corners. Fixed by cropping the centre of a larger rotated gradient.
-  - The first "unreadable" photo was so overexposed that the SPÉCIMEN watermark disappeared too. Replaced by an out-of-focus blur that loses the values but keeps the large watermark legible.
-  - uv picked Python 3.14 for the tool because the root `.python-version` is not seen from a nested project. Pinned 3.13 in `tools/mock_notices/.python-version`.
-  - A test expected the double space before the postal code, but PDF text extraction collapses it. The test now normalizes spaces.
-  - The first layout (one page, four summary lines, ISO dates, `Last, First` name) was invented by the AI and never checked against a real notice. After it was asked, it was compared with a redacted sample notice (tax year 2018) and redesigned: two pages (cover page, then `Détail des calculs` with `Montant déclaré` / `Montant établi`), envelope-window address, notice number, French dates, footer box on every page, and some changed returns. Line labels now come from the 2025 TP-1. Photos show both pages side by side.
-  - CodeRabbit found two bugs that only show with other seeds (the committed seed 42 output was not affected). The slip left out of a changed return could be larger than the employment income on line 101, giving a negative declared amount (seeds 50, 98, 213); it is now capped at that income. And `generate()` deleted the previous PDFs and photos before building the notices, so a seed that cannot give every case (533) left the old CSV files with no documents; the notices are now built first. Both have a test.
- 
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#set-09-mock-notices-of-assessment-397-398-399-400).
+
 ### SET-05 Database schema review and ERD (#384)
 
-- **What the AI produced:** 50% or more AI-generated drafts of the
-  Release 1 database schema, ERD, domain model and migration order.
-- **How we verified it:** documents were read, reviewed and modified
-  to reflect member discussions and the agreed Release 1 scope.
-- **Problems found and corrections:**
-  - Reviewed missing fields and omitted models in the migration order.
-  - Clarified address storage, user names and Django password hashing.
-  - Improved diagram readability and relationship explanations.
-  - Requested consistency between Markdown fields and diagrams.
-  - Left uncertain requirements open for agreement before implementation.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#set-05-database-schema-review-and-erd-384).
 
 ### SET-06 Architecture diagrams
 
-- **What the AI produced:** 50% or more AI-generated architecture
-  documentation, Mermaid diagrams and PNG exports for Release 1.
-- **How we verified it:** documents were read, reviewed and modified
-  following member discussions. Initial diagrams were rendered in
-  Mermaid; final edited sources and exports require a consistency check.
-- **Problems found and corrections:**
-  - Connected the notice of assessment to Iris in the system context.
-  - Clarified approval and rejection notifications to the proposed
-    store manager.
-  - Revised the dependency design so Eligibility receives decision
-    inputs without calling back into Households.
-  - Documented proposed failed-pickup and no-show handling, with final
-    rules to be agreed before implementation.
-  - Kept later features, including strikes and AI registration,
-    outside the active Release 1 flows.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#set-06-architecture-diagrams).
 
 ### SET-08.3 Git hooks and commit policy
 
-- **What the AI produced:** tracked pre-commit and commit-msg hooks, a pull-request commit-policy check, Git line-ending attributes for the hooks, and setup instructions.
-- **Leon's contribution:** Leon requested and approved the implementation plan, clarified that commit subjects may begin with `T` as well as `SET`, `US`, or `ES`, and activated the hooks in his clone. He brought CodeRabbit and SonarQube feedback back for review, including the untrusted-validator concern, and directed the follow-up changes before committing.
-- **How we verified it:** enabled the tracked hooks in this checkout; used a temporary Git repository to confirm that ordinary invalid messages and staged whitespace fail, `T`, `SET`, `US`, and `ES` messages pass, and a real merge commit succeeds. A second temporary repository exercised the original pull-request check. The revised workflow passed YAML and shell syntax checks; an isolated local PR simulation rejected an invalid subject even when the PR replaced its hook with a script that always succeeds, and accepted a valid subject. Its GitHub-hosted behavior needs verification after it is merged into the base branch.
-- **Problems found and corrections:** Atlassian's examples assume `issue-` branches and use older Python syntax, so the hooks were adapted to Iris's approved ID format. Local hooks cannot enforce policy across other clones by themselves; the pull-request check was added. CodeRabbit then found that the check executed the hook from the PR, allowing a contributor to replace it. The workflow was changed to run the base branch's hook and read PR commits only as data. SonarQube Cloud subsequently flagged the `actions/checkout` step under `pull_request_target`; the workflow now fetches Git objects without checking out PR files and executes only the hook extracted from the trusted base commit. The first PR needs human review because the trusted workflow is unavailable on the base branch until merge. A repository administrator must require the check, prevent direct pushes, and allow `pull_request_target` in the Actions event policy before GitHub's default block takes effect on November 2, 2026.
+[Verification and corrections](docs/05-process/ai-usage-verification-1.md#set-083-git-hooks-and-commit-policy).
 
 ### T-00.08.1 Official LICO table (#394)
 
-- **What the AI produced:** a draft of `docs/04-data/lico-thresholds.md` recording the official table, selection criteria, retrieval date, and seven threshold values.
-- **Leon's contribution:** Leon stopped the initial implementation to request a plan, asked for a comparison with `Iris-Requirements.md` and a rewrite, then approved the revised scope before implementation. He reviewed the resulting documentation and committed it as `5e3baad`.
-- **How we verified it:** the published document records Statistics Canada table 11-10-0241-01, the before-tax series for communities of 500,000 and over, reference year 2024, retrieval on October 18, 2026, and the seven values for family sizes 1 through 7 or more. It includes the selected-table link so a teammate can check the figures against the source.
-- **Problems found and corrections:** the first implementation preceded Leon's review. At his request, the work returned to a reviewable plan and was narrowed to fetching and documenting the official values; the CSV and rule seeding were left for T-00.08.2.
+[Verification and corrections](docs/05-process/ai-usage-verification-2.md#t-00081-official-lico-table-394).
 
 ### T-00.08.2 LICO threshold seed
 
-- **What the AI produced:** the reviewed 2024 LICO CSV, a seed loader for its source and retrieval metadata, and focused seed tests.
-- **Leon's contribution:** Leon requested a comparison of the draft with `Iris-Requirements.md`, approved the resulting plan, and ran `seed_rules` in his local Docker environment. He inspected the stored `lico_thresholds` version 1 values and metadata and asked for confirmation that the unit test covers all seven family sizes and cent amounts.
-- **How we verified it:** the default seed path publishes version 1 with all seven exact cent amounts from the SET-08.1 source document, the Statistics Canada link, and the recorded retrieval date. Six focused tests passed, including idempotence and rejection of missing or duplicate data and missing retrieval metadata. Ruff lint, Ruff formatting, and mypy passed on the changed Python files. Teammate review remains pending.
-- **Problems found and corrections:** the earlier seed loader used the date when the command ran as `retrieved_on`, which could misstate when the data was obtained. Source and retrieval metadata now travel with the CSV, and the loader validates them before publishing.
+[Verification and corrections](docs/05-process/ai-usage-verification-2.md#t-00082-lico-threshold-seed).
 
 ### T-02.11.1 B.A.D.R. first store tests (#439)
 
-- **What the AI produced:** tests covering the Store fields and one-B.A.D.R. constraint, an idempotent seed, and Django admin access. `test_api.py` records only a comment for the later US-14 Store REST endpoint tests.
-- **Leon's direction:** use the documented local administrator credentials for the admin test, with an isolated PostgreSQL test database. Keep this task limited to US-11 tests; the Store model, seed command, admin registration, migration, and app setup belong to the build tasks.
-- **How we verified it:** the original model, seed, and admin tests passed against a temporary Store implementation, which was removed at Leon's request. With the #441 model in place, nine focused model and admin tests passed against PostgreSQL with 96% Store-module coverage. The seed test passes with #442; teammate review remains pending.
-- **Problems found and corrections:** the initial work included production code beyond T-02.11.1. It was removed, and the local demo migration and seed were reversed. The seed test now checks the exact placeholder address from issue #442. At Leon's request, the admin HTTP-to-database integration test was replaced by direct admin form tests. REST endpoint tests were later reduced to a US-14 comment after reviewing the team requirements and architecture.
+[Verification and corrections](docs/05-process/ai-usage-verification-2.md#t-02111-badr-first-store-tests-439).
 
 ### T-02.11.2 Store model and migration (#441)
 
-- **What the AI produced:** a PostgreSQL-backed Store model with UUID ID, the partial one-B.A.D.R. constraint, case-insensitive `citext` email, Django admin registration routed through `stores.services`, an initial migration, app configuration, and a reusable `StoreFactory`.
-- **Leon's contribution:** Leon supplied the #441 task scope, checked the proposed work against `Iris-Requirements.md` and the team architecture, database, and API documents, and kept the REST endpoint out of this model task. He requested a revised plan, reviewed the staged partner-application foreign key and service-layer admin writes, and approved implementation.
-- **How we verified it:** the Store migration applied cleanly to local PostgreSQL; `makemigrations --check --dry-run` found no changes; nine focused tests passed, including validation, the database uniqueness constraint, admin permissions, and case-insensitive email. Focused coverage was 96%; Ruff and mypy passed on the Store module. A teammate's review is still needed.
-- **Problems found and corrections:** Django's `ModelAdmin` cannot be subscripted at runtime, so its annotation was removed before generating the migration. The generated migration needed a `CITextExtension` operation before creating the table. The nullable `application_id` foreign key is staged for the PartnerApplication model rather than represented as an unvalidated UUID in #441.
-- **PR review follow-up:** Leon brought a CodeRabbit finding about untranslated Django admin text and approved a minimal localization fix. The Store app name and postal-code validation message use lazy translation with a compiled French catalog; Django selects French by default and English from the request. That focused fix passed seven admin tests and all 63 backend tests, plus Ruff and mypy. Leon then requested the remaining Store admin labels in both languages. The Store field and model names now use lazy translation with Store-specific message context so project wording such as “Courriel” takes precedence over Django's generic translation. A label-only migration records the changes; bilingual admin form tests cover the approved labels. The first test run caught Django's generic “Adresse e-mail” translation, which was fixed with Store-specific context. The final run passed all 65 backend tests, Ruff, mypy, and the migration check. CI then found an import-order error in the generated migration; Leon reported it, and repository-wide Ruff lint and format checks passed after the migration was sorted and formatted.
-- **PR CI follow-up:** Leon reported that a teammate's CodeRabbit suggestion made `is_badr` read-only in Django admin. The AI updated the bilingual admin test to verify the translated read-only label while checking that `is_badr` cannot be edited through the form. All 65 backend tests passed with 84.90% coverage; repository-wide Ruff lint and format, mypy, and migration checks passed. The suggestion commit's original subject failed the project's commit policy. With Leon's approval, its subject was reworded to follow the policy while preserving the teammate's author, code change, and a separate follow-up commit for the test correction.
-- **Generated API types:** The next CI run found that narrowing Django's supported languages to English and French changed the OpenAPI `lang` enum. The AI exported the schema with test settings, ran the pinned `pnpm gen:api` generator in an isolated frontend container copy, and updated `frontend/src/shared/api/generated.d.ts`. The generator's check, frontend type check, and Prettier check passed.
+[Verification and corrections](docs/05-process/ai-usage-verification-2.md#t-02112-store-model-and-migration-441).
 
 ### T-02.11.3 B.A.D.R. seed (#442)
 
-- **What the AI produced:** a `seed_badr_store` management command, a Store service that creates only a missing B.A.D.R. row, and tests for the exact placeholder address, repeat runs, retained administrator edits, and an unaffected partner store.
-- **Leon's contribution:** Leon requested a plan based on the team requirements, architecture, database, and API documents, then reviewed and approved the plan before implementation. The real store details remain for B.A.D.R. to confirm.
-- **How we verified it:** eleven focused Store tests passed against PostgreSQL, including both seed tests. Focused Store-module coverage was 96.59%; Ruff lint and formatting and mypy passed on the changed Python files. A teammate's review is still needed.
-- **Problems found and corrections:** Ruff found an import ordering issue and mypy treated the test factory instance as a factory rather than a Store. Both were corrected before the final checks.
+[Verification and corrections](docs/05-process/ai-usage-verification-2.md#t-02113-badr-seed-442).
 
 ### SET-12 Listing categories and safety lists (#403)
 
-- **What the AI produced:** with Claude Code, the Listings section of `docs/02-requirements/business-rules.md` (16 categories with code, French and English names, food or not and default value; the prohibited items list; how food categories, default values and the "safe and allowed" confirmation are used) and the seed file `backend/modules/categories/data/categories.yaml`, from the team draft and the owner's decisions (publish only the SET-12 section, keep the draft's 16 categories and 8 prohibited items, use the column names of the `categories_category` table).
-- **How we verified it:** compared the category table with the team draft line by line (identical); a script checked that every YAML entry matches the document row in the same order (code, both names, food flag, value in cents, active) and that the French and English names match the SET-13 `categories` keys in `fr.json` and `en.json`. TODO: list agreed with the team on 2026-10-16.
-- **Problems found and corrections:**
-  - The AI first added French wording for the prohibited items that was not in the team draft. Removed: the list stays as in the draft until the French wording is agreed with the glossary owner (SET-13).
-  - The team draft contradicts itself: the business rules say prohibited items have no category, but US-34 says "categories on the prohibited list cannot be selected". The document follows the business rules; US-34 is to be reworded or confirmed by the team.
-  - The YAML keys first followed the team draft schema, including `sort_order`, while the SET-05 branch used other names (`french_label`, `food_indicator`, `active_indicator`) and no sort order. Agreed with the SET-05 owner: keep `name_fr`, `name_en`, `is_food`, `is_active` (consistent with `is_active` and `is_badr` on other tables) and drop `sort_order`.
-  - The sentence on the `listing_safety` setting (`prohibited_category_codes`, empty by default) comes from the unmerged SET-07 branch, not the team draft; to be confirmed with the SET-07 owner.
-
+[Verification and corrections](docs/05-process/ai-usage-verification-2.md#set-12-listing-categories-and-safety-lists-403).
 
 ### T-05.33.3 Posting service/API and T-05.33.1 tests (#494, #492)
 
-- **What the AI produced:** with OpenAI Codex, the independent listing-posting
-  backend and tests (50% or more AI-generated): validation, role/store permission
-  checks, database operations, safety/photo integration interfaces, the POST
-  endpoint, translated errors, generated API types, and documentation. Mark
-  required compliance with the repository architecture and testing without
-  integrating Vlad's account code or implementing Ryan's safety checker.
-
-- **How we verified it:** Codex ran the checks under Mark's direction against
-  local PostgreSQL. All 228 backend tests passed with 90.01% coverage, exceeding
-  the 70% gate. Ruff lint and formatting, mypy across 91 files, the existing
-  import-linter contract, Django system checks, and missing-migration checks
-  passed. OpenAPI validation and generated-type drift checks passed; API
-  generator tests recorded seven passes and one expected Python-only skip.
-  All 11 frontend tests, TypeScript checking, production build, ESLint,
-  generated-declaration formatting, and Git whitespace checking passed.
-  Tests cover validation boundaries, permissions, server-controlled fields,
-  database writes, rule versions, safety refusals, upload checks, cleanup,
-  translated responses, and CSRF enforcement. all implemented files have been reviewed.
-
-- **Problems found and corrections:**
-  - Mark requested explanations of every changed file and questioned the
-    dependencies, database requirements, injection protection, and backend
-    translations. The decisions and remaining integration boundaries were
-    explained against the repository documentation.
-  - Mark identified a leading blank line that failed formatting. Removed it
-    using Ruff and reran the static checks.
-  - Mark requested removal of the private photo-storage reference from
-    responses. Removed it, updated schema assertions, and regenerated API types.
-  - Mark requested checking actual JPEG/PNG signatures instead of trusting
-    only the declared content type. Added signature checks and mismatch tests,
-    and updated existing photo fixtures.
-  - Mark requested controlled handling of missing or unexpected posting-rule
-    keys. These now return HTTP 503, with service tests and English/French API
-    tests confirming that no listing is saved.
+[Verification and corrections](docs/05-process/ai-usage-verification-2.md#t-05333-posting-serviceapi-and-t-05331-tests-494-492).
 
 ### SET-16 Design system, translations and app shell (#407)
 
-- **What the AI produced:** with Claude Code, under Anthony Monaco's direction: the Mantine theme built from the Figma Components page of the owner's SET-11 wireframes, layouts for the public, household, store and staff areas with role-based navigation and route guards, the six shared form fields (`TextField`, `DateField`, `PostalCodeField`, `PhoneField`, `MoneyField`, `FileUpload`) with French and English validation messages, loading, empty and error states, the welcome page, the web app manifest and icons, tests and `docs/guides/design-system.md`.
-- **Owner's decisions:** keep the grayscale look of the wireframes; read the signed-in user from US-01's `GET /api/me/` with a hand-written type until US-01 merges, rather than building on the unmerged US-01 branch; add `@tabler/icons-react`, `@mantine/dates` and `dayjs`, `@mantine/form`, `@fontsource/inter` and an accessibility checker; deliver all of SET-16 in one change, left uncommitted for review.
-- **How we verified it:** Anthony read through all of the generated code to check its structure, naming and fit with the architecture (`app/`, `areas/`, `features/`, `shared/`) and that he can explain it. 158 Vitest tests pass (94.3% coverage), including axe accessibility checks on forms and pages and tests of every role's menu and redirects; TypeScript, ESLint, Prettier, the production build, `pnpm test:api` and `pnpm gen:api --check` pass. Each area was screenshotted with phone emulation at 360 px and at 1024 px: no page scrolls sideways.
-- **Problems found and corrections:**
-  - Found by Anthony during his review: the date rule accepted impossible dates such as `2026-02-31`, because JavaScript's `Date.parse` rolls them into the next month. Confirmed with a test, fixed by checking that the year, month and day survive a round trip, and covered by regression tests (`2026-02-31`, `2026-02-29` and `2026-04-31` refused; `2028-02-29` accepted).
-  - Inputs and buttons first rendered at Mantine's default `sm` size (36 px, 14 px text) instead of the Figma 44 px inputs and 48 px buttons with 16 px text; `md` became the default size, tuned to the Figma values, and a theme test now checks them.
-  - The fields first required `value`, so the standard `{...form.getInputProps("…")}` pattern did not compile; `value` is now optional with an empty default.
-  - `MoneyField` returned `null` while an amount was being typed; it now reads the parsed number from `onValueChange`.
-  - The 360 px screenshots showed the staff header cutting off the language switch and a long side-nav label overflowing its row; both layouts were fixed and checked again.
-  - `vitest-axe` (last released in 2022) was replaced by `axe-core`, which it only wraps.
-  - The placeholder colour is darker than in the wireframes (`#6c757d` instead of `#868e96`) to meet the 4.5:1 contrast of NFR-03.
+[Verification and corrections](docs/05-process/ai-usage-verification-2.md#set-16-design-system-translations-and-app-shell-407).
 
 ### T-05.33.4 Posting form (#495)
 
-- **What the AI produced:** with Claude Code, under Anthony Monaco's direction: the one-screen, phone-first posting form at `/store/listings/new` following his SET-11 "Store - Post a listing" flow (bottom-sheet category picker with food first, − / + steppers, day chips, unit switch, best-before date for food only, error summary, publish bar that stays above the tab bar), the API client with CSRF and `Accept-Language`, a shared `IntegerField`, French and English texts, and tests. Before the form, `main` was merged into `US-33-post-a-listing` to bring in SET-16 and SET-14.
-- **Owner's decisions:** change the posting API to take the category **code**, because `GET /api/categories/` deliberately exposes no database IDs; add test-only import-linter exceptions for the listings tests rather than loosen SET-14's contract for every module; show "L'adresse de votre commerce" instead of the real address until a store endpoint exists; leave everything uncommitted for review.
-- **How we verified it:** 32 new Vitest tests (form rules, payload, API client and the whole screen through the router, including axe checks) and all 204 frontend tests pass; TypeScript, ESLint, Prettier and the production build pass. Backend: 255 tests pass (90.3% coverage); Ruff, mypy, import-linter, `manage.py check` and `makemigrations --check` pass; API types regenerated and the drift check passes. Anthony reviewed the code before committing it and checked the screen in his browser through the preview API; the one-hand check is part of T-05.33.5's sessions.
-- **Problems found and corrections:**
-  - The 7-days-ahead check first added calendar days, which is one hour off from the server's elapsed-time rule across a daylight-saving change (1 November 2026); it now adds 168 hours, and the tests use a week without a change so they pass in any time zone.
-  - The best-before date picker first had a minimum date, so an earlier date was silently dropped and the field said "Remplissez ce champ."; without it the date stays visible with its explanation, as in the SET-11 error state.
-  - ESLint's React Compiler rules refused reading a ref inside the submit handler; scrolling to the notices now happens in an effect, after they render.
-  - The merge with `main` registered the categories app twice and broke the listings tests against SET-14's new rules; the duplicates were removed and the tests adapted (`RuleValidationError`, constraint name).
+[Verification and corrections](docs/05-process/ai-usage-verification-2.md#t-05334-posting-form-495).
 
 ### T-05.33.5 Time-to-post check (#496)
 
-- **What the AI produced:** with Claude Code, under Anthony Monaco's direction: the study plan in `docs/usability/time-to-post.md` (set-up, French scenario card, procedure, results and fixes templates, limitations) and the tools in `frontend/scripts/usability/`: a preview API that answers as a store worker until US-01, times each participant from the form appearing to the accepted post, checks the post against the scenario and prints the median, plus a report script and 18 unit tests.
-- **Owner's decisions:** time runs automatically in the preview (stopwatch as backup); run the sessions in the browser's phone view on a PC rather than on phones; one food listing for everyone; commit the tools with tests so the team can rerun the study.
-- **How we verified it:** the 18 tool tests pass with the 204 existing frontend tests. End to end, a page opened in headless Edge as `?participant=P1` started P1's clock through Vite's proxy, a post was timed and matched the scenario, and the report printed the table. Anthony reviewed the code and ran a practice session with the preview. The sessions themselves, and so the times, are his to run.
-- **Problems found and corrections:**
-  - The categories are refetched when the tab becomes visible again, so "first request after the page loads" could have started a clock early; each participant now has their own clock, started by their page's first load and keyed by the code in the page address.
-  - Anthony's practice run showed a new clock starting when he came back to the browser, and pressing F5 did not restart it; a page reload (its `/api/me/` request) now drops the running clock, and the preview prints it.
-  - Vitest's Node environment cannot load the shared test set-up (it needs `document`); the tool tests run in the default jsdom environment, where Node's `http` still works.
+[Verification and corrections](docs/05-process/ai-usage-verification-2.md#t-05335-time-to-post-check-496).
 
 ### T-03.17.2 and T-03.17.3 Walk-in household registration (#463, #464; US-17)
 
-- **Developer direction and AI assistance:** The owner requested implementation of the two assigned backend tasks for US-17 and chose a shared `US-17` branch. ChatGPT consulted the project proposal, team reference ZIPs, repository conventions and issue acceptance criteria, then drafted a ZIP-based implementation, two follow-up quality-fix scripts and an OpenAPI enum fix. The owner applied the files locally, executed all commands, investigated failures with ChatGPT, and retained responsibility for review, commits and integration. No pull request or merge has been completed.
-- **What the AI produced:** A Django `Household`/`Member` schema and AI-drafted initial migration, address and person normalization, reusable test factories, staff-restricted `create_walk_in` / `update_draft` services, POST/GET/PATCH household endpoints, permission and draft audit-event tests, API serializers, routes, and module documentation. Supporting changes registered the routes, accommodated test-only factory imports, named the shared preferred-language enum for OpenAPI, and regenerated TypeScript API declarations. The implementation stores an in-person identity-check flag, not identification-document content.
-- **Verification performed by the owner:** 28/28 focused household tests passed. The complete backend suite passed **327/327** tests at **90.36%** coverage (required minimum 70%) after the final schema changes. Ruff lint/format, mypy (270 source files), all three import-linter contracts, Django system checks and migration-drift checks passed. OpenAPI generation with validation and `--fail-on-warn`, generated API-type drift checks, and frontend TypeScript checks passed. The full frontend suite passed **259/259** tests across 21 files with **92.53% statement coverage**; ESLint and the production build also passed.
-- **Problems found and corrections:**
-  - A previously reused local PostgreSQL volume had an inconsistent `account` / `accounts` migration history and caused backend restart loops. The owner created a separate `iris_us17` development database instead of deleting the existing database; migrations then applied. This was a local environment issue, not a household schema test failure.
-  - Initial Ruff failures (imports, formatting, a string-join recommendation and magic numbers) were corrected; four mypy errors were resolved by using the concrete user model type. A forbidden direct import from `modules.households.api.views` into the accounts authentication module was removed in favor of the existing project-wide DRF authentication configuration.
-  - An earlier AI fix script failed because its exact-text replacement did not match Ruff-formatted source; the script was revised and successfully applied without changing unrelated code.
-  - OpenAPI's `preferred_language` choice sets produced two warnings and blocked generated API types. The labeled choices were aligned and an explicit enum name was configured; schema validation, generated declarations and TypeScript checks then passed.
-  - The default `pnpm format:check` flagged 100 frontend files on the Windows checkout. Re-running the same check with `--end-of-line auto` passed, indicating a line-ending mismatch; unrelated frontend files were not reformatted. GitHub CI's default formatting check is still to be verified.
-- **Remaining review/integration:** The household draft currently has a local `HouseholdDraftEvent` audit trail; the team must decide how to integrate it with the central US-62 audit service before merging. The staff registration UI belongs to a separate task (#465), not these backend tasks. Peer review, security/dependency-audit CI results and final merge remain pending.
+[Verification and corrections](docs/05-process/ai-usage-verification-2.md#t-03172-and-t-03173-walk-in-household-registration-463-464-us-17).
 
 ### T-03.17.4 Walk-in form screens and T-03.17.1 tests (#465, #462; US-17)
 
-- **What the AI produced:** with Claude Code, under Ammar Ranko's direction: the staff walk-in screens at `/staff/walk-in` and `/staff/walk-in/:id` (steps holder, address, members, review; "Save draft" and the "Draft saved" screen from Figma W3), the API client for the T-03.17.3 endpoints, the form rules and API mapping, a local select field, French and English texts, and the Vitest tests.
-- **Developer direction and review:** Ammar provided the requirements the AI worked from (the acceptance criteria of user story #461, tasks #462 and #465, and the Figma W3 wireframes) and required the work to follow them and the repository's existing conventions. He stopped the work mid-way to check its direction, had each file explained, reviewed the changes, and had them committed as one commit per file so each part can be reviewed separately. He restructured `HolderStep.tsx` and `AddressStep.tsx` himself (a separate props type, field lists rendered with `map`, a shared translation prefix), and `MembersStep.tsx` and `ReviewStep.tsx` were then aligned to that structure.
-- **Owner's decisions:** follow the Figma W3 look but the fields of user story #461 and the T-03.17.3 API, because the wireframe's counts, income and needs fields are not in the story's acceptance criteria; document the walk-in form in the requirements so later stories (US-18, US-19) use the same fields; use four steps as in #465 instead of the wireframe's single page; rather than send a field the API refuses, store the walk-in consent on the household for now (time given and text version), Ammar offered to add it in the backend as well and the T-03.17.3 owner agreed; work directly on the shared `US-17` branch.
-- **How we verified it:** 48 new Vitest tests (33 for form rules, payload, server-error mapping and resume logic, table-driven at the 18-year and 120-year boundaries; 15 for the screen through the router: create, resume, add a member, server and network errors, French/English, every role allowed or refused, axe checks). All 307 frontend tests pass; coverage of the new code is 94% of statements. TypeScript, ESLint, Prettier (new files, `--end-of-line auto` on Windows) and the production build pass. Ammar then tested the screens by hand in the browser against the running backend (Docker Compose): validation messages, the 18-year rule, saving and resuming a draft, the address and members steps, the review and "Draft saved" screens, English, an unknown draft, and the saved data read back from the API. Everything behaved as expected.
-- **Problems found and corrections:**
-  - The first save must be a POST that creates the draft, and the page then moves to `/staff/walk-in/:id`; the saved draft is put in the query cache and the next step is passed in the navigation state, so the form does not reload or lose its step.
-  - Mantine's select is labelled twice (input and option list), so the tests find it by its `combobox` role.
-  - Translation keys must have three parts, so every new text is under `staff.walkIn`; the field labels reuse `household.registration*`.
-- **Consent follow-up:** with Claude Code: two `Household` fields (`consent_data_processing_at`, `consent_text_version`) with migration `0002_household_consent`, the API field `consent_data_processing` (sending it again keeps the first time; `false` clears it), five backend tests, regenerated API types, the holder-step checkbox (required to continue, may wait in a draft), the review line, French/English texts, frontend tests, and the schema, ERD, walk-in sequence and module README updates. Verified: 33 household backend tests, Ruff, mypy, import-linter and `makemigrations --check` pass; all 308 frontend tests pass.
-- **Households migration conflict (SET-18 / US-17):** following the decision on #461 (proposed by Dani, agreed by Firas; Ammar took on the fix), with Claude Code: `main` merged into `US-17`, SET-18's `0001_initial` kept, a new `0002_walk_in_registration` generated and edited by hand to convert seeded rows (channel `walk-in` to `walk_in`, NULL `unit` to empty, with `SET CONSTRAINTS ALL IMMEDIATE` so PostgreSQL allows the table changes), the consent migration renumbered to `0003`, `HouseholdStatus`/`HouseholdChannel` kept as aliases for the seed, and two small seed fixes (channel value, and `identity_checked_in_person` set for verified files). Two migration tests (upgrade of a seeded row and reverse) were added; the first run of those tests found the PostgreSQL 'pending trigger events' failure, which was then fixed. Verified: 348 backend tests (91.2% coverage), Ruff, mypy, import-linter, `makemigrations --check`, API-type drift check, and 308 frontend tests pass. Adding a holder `Member` to seeded households stays with the SET-18 owner.
-- **Remaining:** the set-password email (acceptance criterion 4) depends on US-18 and US-57; staff can only reopen a draft from its link until search (US-63) exists. Peer review and CI remain pending.
+[Verification and corrections](docs/05-process/ai-usage-verification-2.md#t-03174-walk-in-form-screens-and-t-03171-tests-465-462-us-17).
 
 ### SET-19 AI reading spike (#410)
 
-- **Feature or task:** SET-19 (#410), compare Azure AI Document Intelligence and Gemini on Vertex AI (Montréal) for reading notices of assessment.
-- **What the AI produced:** with Claude Code, the benchmark harness in `tools/notice_reading_spike/` (reader interface, scorer, run loop, both service readers, the layout parser, tests), the runbook, the draft ADR 0005, and the wiki pages Notice Reading, Notice Reading – Results and Notice Reading – Law 25 Evidence. The work is in the `feature/SET-19` commits from `a2d8b4b` onwards; the commits that fixed problems are named below.
-- **How we verified it:** 173 offline pytest tests in `tools/notice_reading_spike/tests/`: the two service readers run through fake clients (request contents, error wrapping, timeouts, cost, deletion of the analyze result, strict validation of model output), and `test_score.py` checks the scoring rules (exact cents, name and street normalization, confident-and-wrong counts, held-out and dev columns). Ruff lint (complexity limit 15) and format checks pass. A run of the truth reader over all 50 mock notices checks the run loop and file handling; the truth reader returns the truth, so 100% is expected there and says nothing about the scoring rules. Each commit got an AI review (Claude Code) against its task's requirements before the next task started, and a final AI review covered the whole branch. The owner ran the live measurements (two full runs per reader on the 50 mock notices, then the real-notice conditions), copied the provider pages and screenshots that the Law 25 evidence quotes, and chose the model settings. A teammate's pull-request review is still to come.
-- **Problems found and corrections:**
-  - Law 25 evidence (`fe1226c`): two Azure rows were marked "Meets" while the document's own "still unknown" table said they could not be confirmed, one row relied on a sentence with no source, a legal reading was not marked for legal review, and the s. 18.3 breach-notice and verification duties were cited to the wrong subparagraph. All corrected; statuses now follow the quoted sources only.
-  - Gemini reader (`c5a5acf`): `httpx` and `google-auth` were imported directly but not declared as dependencies; an error message said "Law 25 allows no other region", which is wrong (the Canadian-region rule is the team's own requirement); the prompt's example amount was a real mock notice's value, which could bias that file's measurement. All corrected.
-  - Document Intelligence reader (`93fa674`): the SDK's behaviour was checked in the installed package instead of assumed, which showed that `poller.result(timeout=...)` returns None on timeout instead of raising; the reader now treats that as a timeout.
-  - Final branch review (`a305a42`, `517dcb9` and the evidence fix): the unit was scored unfairly against Gemini ("app. 106" against "106"), the summary columns did not match the pass criteria, runs recorded no settings or freeze rule, one unexpected error could end a paid run, and some document claims were unsourced or overstated. All corrected; the unit rule now lives in one shared function.
-  - Live dev runs (`a7620ca`): the AI-written layout parser missed fields on real Azure output: watermark text inside the income cell, one misread postal-code character that lost the whole envelope block, and a notice number after the first date label. Fixed and tested on the recorded responses. Look-alike character correction was rejected, because on notice 033 it would have produced a wrong postal code.
-  - Model settings (`00cccd7`): the AI had set temperature 0, which Google's Gemini 3.x guidance says not to set; the reader now sends no sampling parameters.
-  - Law 25 evidence: the AI first wrote that Gemini would keep notices in Québec. Google's data residency page commits the Montréal endpoint's processing only to Canada, so the evidence and the ADR were corrected.
-  - Rejected: the AI's first idea of testing on a team member's own real notice, because the team's rules allow generated data only.
+[Verification and corrections](docs/05-process/ai-usage-verification-2.md#set-19-ai-reading-spike-410).
 
 ### US-34 Listing safety checks (#497: #498, #499, #500)
 
-- **Feature or task:** US-34 (#497), the safety rules every listing must pass before it is published: the safe-and-allowed tick (stored with who and when), a best-before date for food on or after the pickup end date plus a margin, and no category on the prohibited list. Tasks T-05.34.1 tests (#498), T-05.34.2 safety rule (#499) and T-05.34.3 form messages (#500).
-- **What the AI produced:** with Claude Code, from a plan the owner reviewed and decided on first: the pure rule `listings/domain/safety.py`, optional `params` on `Refusal` and the Montreal pickup date in `safety_payload`, the new messages and their French translations, the store-only `GET /api/store/listings/categories/` endpoint (active categories minus prohibited ones), the form's switch to that endpoint, placeholder "See the list of prohibited items" links, the tests, the regenerated API types, and the documentation. The owner's decisions: hide prohibited categories in the form (the server still refuses them); show the minimum date in the best-before message, as the spec and the SET-11 mockup do; ignore a best-before date on non-food; repeat the tick check inside the safety rule; keep the prohibited-items list as a placeholder link only; and the wording of the two messages no spec defines (prohibited category, missing best-before date).
-- **How we verified it:** 68 new backend tests (32 pure rule tests, 11 service tests and 25 API tests, all with the real rule and PostgreSQL) and 7 new frontend tests. The full backend suite passed (381 tests, 92.75% coverage; `safety.py` and `queries.py` fully covered). Ruff lint and format, mypy, the three import-linter contracts, Django checks and the missing-migration check passed. The full frontend suite passed (266 tests, 92.62% coverage), and ESLint, TypeScript checking, the production build and the generated-type drift check passed. The French catalog was compiled with a stdlib script that first reproduced the committed `.mo` exactly from the old `.po`. The rendered messages were checked in both languages against the mockup ("Choisissez le 10 oct. 2026 ou après (fin de la cueillette).").
-- **Problems found and corrections:**
-  - The AI first planned a long month in the best-before date ("14 novembre 2026"); the SET-11 mockup shows a short month ("10 oct. 2026"), so the format was changed.
-  - The AI's first explanations of the story were too dense for the owner to follow; they were rewritten in plain language before any decision was taken.
-  - The AI first treated the prohibited-items link as minor and left it out; after checking the mockup it reported the link as part of the design, and the owner chose a placeholder.
-  - `SafetyRulesInvalid` was placed in `domain/posting.py`, not `safety.py`, so the service can catch it without importing the safety module eagerly and US-33's "missing checker" path keeps working.
-  - Test mistakes caught on the first runs: `Refusal` equality includes `params`; the API client's saved `Accept-Language` header overrode the per-request one in the French cases; published rule versions cannot be deleted, so "no rule in effect" is simulated by patching the rule lookup. Ruff also flagged naive test datetimes and mypy two loose test types; all fixed.
-  - Some frontend tests (US-33's posting form and US-01's sign-in) time out at random under coverage in the local Docker container. The unchanged `main` code times out the same way, so this is not caused by US-34; with a longer test timeout every test passes.
+[Verification and corrections](docs/05-process/ai-usage-verification-2.md#us-34-listing-safety-checks-497-498-499-500).
 
 ### T-05.35.2 Category admin API and screen and T-05.35.1 tests (#503, #502; US-35)
 
-- **What the AI produced:** with Claude Code, under Ammar Ranko's direction: the admin endpoints `GET`/`POST /api/staff/categories/` and `PATCH /api/staff/categories/{code}/`, the admin-only `create_category` and `update_category` services (built on the existing `save_category()`), a pure `validate_default_value` rule, two read-only queries, the French catalog for the categories module, the extended `/staff/categories` page (status column, add and edit dialog, deactivate with confirmation, reactivate), French and English texts, the backend and frontend tests, and the documentation updates.
-- **Developer direction and review:** Ammar provided the requirements (user story #501, task #503, the Release 1 plan and the category business rules), asked for a written plan with request and screen examples before any code, and approved it. He then took over the US-35 tests task (T-05.35.1) from Ryan. Before committing, he had every file explained by following one request through each layer (page, form, API client, view, serializer, service, pure rule, database), checked that he could explain the design choices below, and had the changes committed as one commit per file so each part can be reviewed separately.
-- **Owner's decisions:**
-  - Endpoints: list and add on `/api/staff/categories/`, change by code on `/api/staff/categories/{code}/`, settling the "team decision pending" note in `api.md`. The code identifies a category because the public API exposes no database IDs.
-  - No delete at all, only deactivate and reactivate: listings refer to their category, so deleting one would break their history. Deactivating hides it from the posting and partner forms, and existing listings keep it. Deactivating asks for confirmation; reactivating does not.
-  - The code cannot change after creation, because other modules and the seed data use it as a stable identifier.
-  - The default value follows the business rules' listing value limit and is read from the `listing_posting` rule setting rather than hard-coded, so there is one place to change it. The pure rule receives the limit as an argument, as the team's `domain/` rule requires. The screen checks only formats and required fields; the server gives the limit message. On an edit, the value is checked only when it changes, so a later, lower limit does not block renaming or deactivating an older category.
-  - The admin role is checked in the view and again in the service, so a later caller cannot skip it. Unknown fields are refused rather than ignored.
-  - The existing `/staff/categories` page is extended rather than duplicated. The admin endpoints and calls are in new files (`staff_views.py`, `adminApi.ts`), so the public endpoint and `api.ts` (also changed by US-34) stay untouched.
-  - No audit of category changes: when the AI proposed one, he asked what the story and the code actually require. US-35 does not require it, and the US-62 audit log covers household views and decisions only.
-  - The test split with Ryan (T-05.35.1), later taken over, and the branch `user_story/US-35`.
-- **How we verified it:** 34 new backend tests in `test_staff_api.py` (the main path through the API and the database, every field and its refusals, the value limit from the rule setting at and above the limit, duplicate and unchangeable codes, unknown fields, no delete (405), deactivation hidden from the public list and reactivation, every role refused, signed-out 401, French and English messages, the pure rule), 3 tests in `listings/tests/test_category_admin.py` (a category used by a listing is deactivated, not deleted, and keeps the listing's link; posting with a deactivated category is refused; reactivation makes it usable again) and 30 frontend tests in the new `categoryForm.test.ts` and the rewritten `CategoriesPage.test.tsx` (form rules, payloads, the page: list, add, edit, deactivate with confirmation, reactivate, server and network errors, French and English, admin-only route, axe check). Backend: 425 tests pass at 92.1% coverage (the categories module at 93%, its `domain/` at 93%); Ruff, mypy, import-linter (3 of 3 kept), `makemigrations --check` and the API type check pass. Frontend: all tests pass with 94% coverage on the categories feature; TypeScript, ESLint, Prettier and the build pass.
+[Verification and corrections](docs/05-process/ai-usage-verification-2.md#t-05352-category-admin-api-and-screen-and-t-05351-tests-503-502-us-35).
+
+### SET-34 Colour tokens and status badge (#652, #653, #654)
+
+- **Tool and level:** Codex (OpenAI), 50% or more AI-generated.
+- **Developer direction:** Reuven requested SET-34 from current `main`, initially
+  authorized placeholder colours, then requested integration and completion after
+  SET-33 merged. The working branch is `SET-34-apply-colour-palette-and-status-badges`.
+- **What changed:** colour tokens and Mantine aliases; bilingual status badges with
+  generated enum coverage where available, shared notice icons and scoped unknown-status
+  logging; semantic colours across built screens, including the newly merged household
+  search; accessible control boundaries, inline errors, destructive actions, selected
+  controls and primary hover/pressed states; WCAG contrast tests and review rule 11.
+- **SET-33 integration (November 9, 2026):** PR #668 merged at `fd73186` and closed #651.
+  The earlier #664 draft was not the delivery. Existing local work was backed up before
+  fast-forwarding to `origin/main`; the design guide conflict was resolved by keeping
+  SET-33's token/status tables and adding the implementation guidance. All 70 original
+  palette shades match the Foundations export's swatches exactly. Neutral status,
+  input-border, placeholder, hover and pressed values come from its component-token note.
+  The decorative border is kept separate from the accessible input border.
+- **Verification:** 529 frontend tests passed across 32 files, with 94.72% line coverage.
+  TypeScript, ESLint, Prettier, production build and the required colour-literal scans
+  passed. Contrast checks include all semantic pairs, primary button states, destructive
+  text, placeholders, both control backgrounds, and black/white/self edge cases. Badge
+  tests cover every status in both languages, hidden icons, unknown/inherited-property
+  values, logging and axe; search integration checks success/danger badges.
+- **Browser review:** 76 French/English before-and-after captures at 360 px and staff
+  also at 1024 px, using fictional responses and no backend writes. No page errors or
+  page-level horizontal overflow; status labels do not clip. Primary normal/hover/pressed
+  colours passed live computed-style checks. Existing business flows/layouts were retained.
+  The evidence and available-prototype comparisons are in the local SET-34 handoff report.
+- **Pull request:** [#671](https://github.com/B-A-D-R-SL/iris/pull/671).
+- **Delivery:** screenshot evidence is committed under
+  `docs/03-design/verification/SET-34/`. CI, CodeRabbit, teammate review, merge and the
+  post-merge team announcement remain tracked in the pull request; local checks do not
+  substitute for those external steps.
+
+- **Review follow-up:** added success/warning contrast checks on the page surface,
+  clarified the neutral-token reference and replaced the tone-key cast with a type guard.
+  Added function documentation and split the enlarged test suites. Historical verification
+  entries moved into two linked files below 500 lines, retaining root feature anchors;
+  historical wording is unchanged and one relative link was adjusted for its new folder.
+  The pre-existing category-page/table structure remains intact for this colour task.
+
+- **Main integration:** retained main's split translation catalogs and all translation-file
+  checks, moving shared status labels into each language's common catalog and removing
+  the obsolete monolithic catalogs. Adapted the new household suspension detail screen
+  to shared status badges/notices and semantic action colours, preserving its server-led
+  permissions and transitions. Retained both logger event sets and all main AI records.
+  Merge verification: all 610 frontend tests pass across 33 files, with 95.09% line
+  coverage. TypeScript, lint, formatting and production build pass. Main translation
+  values and all 50 AI verification entries were checked for preservation.
+- **Ammar review follow-up:** removed the duplicate household/category status labels and
+  the household label map; search now validates the shared status map against both API
+  status types. Added filled/light/default hover tokens and contrasting light-hover text,
+  keeping all 70 Foundations swatches unchanged. Added a complete route/override inventory,
+  supplemental fictional-data browser captures, and regression/contrast coverage.
+  Verification: 578 frontend tests pass (94.72% line coverage), plus TypeScript, lint,
+  formatting and production build. Browser checks cover 32 route captures, two control
+  matrices and 42 hover measurements, with no page errors/overflow. Disabled controls
+  stay unchanged; filled/light hover text meets 4.5:1. No GitHub review reply was posted.
+
+AI-assisted files for this entry:
+
+- `frontend/src/areas/staff/pages/Household.tsx`
+- `frontend/src/areas/staff/pages/Household.test.tsx`
+- `frontend/src/shared/i18n/en/common.json`
+- `frontend/src/shared/i18n/en/household.json`
+- `frontend/src/shared/i18n/fr/common.json`
+- `frontend/src/shared/i18n/fr/household.json`
+
+- `frontend/src/features/households/searchApi.test.ts`
+- `frontend/src/features/households/searchApi.ts`
+- `docs/03-design/verification/SET-34/ammar-review.zip`
+- `docs/03-design/verification/SET-34/affected-screens.md`
+- `AI_USAGE.md`
+- `docs/03-design/verification/SET-34/README.md`
+- `docs/03-design/verification/SET-34/categories-before-after.png`
+- `docs/03-design/verification/SET-34/screenshots.zip`
+- `docs/03-design/verification/SET-34/sign-in-validation-before-after.png`
+- `docs/05-process/ai-usage-verification-1.md`
+- `docs/05-process/ai-usage-verification-2.md`
+- `docs/05-process/review-rules.md`
+- `docs/guides/design-system.md`
+- `frontend/src/app/contrast.test.ts`
+- `frontend/src/app/contrast.ts`
+- `frontend/src/app/layouts/Wordmark.tsx`
+- `frontend/src/app/layouts/layouts.module.css`
+- `frontend/src/app/theme.module.css`
+- `frontend/src/app/theme.test.tsx`
+- `frontend/src/app/theme.ts`
+- `frontend/src/app/tokens.ts`
+- `frontend/src/areas/public/pages/PartnerApply.tsx`
+- `frontend/src/areas/staff/pages/Search.module.css`
+- `frontend/src/areas/staff/pages/Search.test.tsx`
+- `frontend/src/areas/staff/pages/SearchResults.tsx`
+- `frontend/src/areas/staff/pages/WalkIn/DraftSaved.tsx`
+- `frontend/src/areas/staff/pages/WalkIn/MembersStep.tsx`
+- `frontend/src/areas/staff/pages/WalkIn/ReviewStep.tsx`
+- `frontend/src/areas/staff/pages/WalkIn/WalkIn.module.css`
+- `frontend/src/areas/staff/pages/WalkIn/WalkIn.tsx`
+- `frontend/src/areas/store/components/CategoryPicker.tsx`
+- `frontend/src/areas/store/pages/NewListing.tsx`
+- `frontend/src/features/categories/CategoriesPage.tsx`
+- `frontend/src/shared/auth/SignOutButton.tsx`
+- `frontend/src/shared/forms/FileUpload.tsx`
+- `frontend/src/shared/forms/fields.module.css`
+- `frontend/src/shared/logger.test.ts`
+- `frontend/src/shared/logger.ts`
+- `frontend/src/shared/ui/EmptyState.tsx`
+- `frontend/src/shared/ui/ErrorState.tsx`
+- `frontend/src/shared/ui/LoadingState.tsx`
+- `frontend/src/shared/ui/Notice.module.css`
+- `frontend/src/shared/ui/Notice.tsx`
+- `frontend/src/shared/ui/StatusBadge.test.tsx`
+- `frontend/src/shared/ui/StatusBadge.tsx`
+- `frontend/src/shared/ui/index.ts`
+- `frontend/src/shared/ui/statusTones.ts`
+- `frontend/src/shared/ui/toneIcons.ts`
+- `frontend/src/test/i18n.test.ts`
+- `frontend/src/test/render.tsx`
+
+### FIX-07 Deny-by-default endpoint access test (#633)
+
+- **Feature or task:** FIX-07 (#633), the automatic SEC-05 check: every API endpoint must refuse anonymous visitors and every role it does not allow, and a new endpoint without an entry in the access table fails the build.
+- **What the AI produced:** with Claude Code, under Ammar Ranko's direction: `backend/tests/test_endpoint_access.py` (route discovery through Django's URL resolver, the `ACCESS`, `PUBLIC` and `NON_DRF` tables, a spy on DRF's permission check, and the anonymous and per-role tests), the Permissions row in `docs/03-design/api.md`, and this entry.
+- **Developer direction and review:** Ammar chose the design: walk the resolver rather than list endpoints by hand, keep public endpoints and plain Django routes as explicit exceptions with a written reason, and judge each request by DRF's permission step rather than the status code alone. He reviewed the code line by line and checked the results locally before the pull request.
+- **How we verified it:** the test file runs every DRF endpoint anonymously (unless public) and as each of the five roles against PostgreSQL, plus checks for missing or stale table entries, unlisted plain Django routes, and stand-in `path`, `re_path` and ViewSet routes. Ruff and mypy pass.
 - **Problems found and corrections:**
-  - Checking the generated API types showed `default_value_cents` was optional while the create service read it directly, so a request without it would have failed with a 500. The field is now required, with a test.
-  - Re-running import-linter on its own found the new test importing the rule defaults (`rules.domain.schemas`), which the module contract forbids; a narrow, test-only exception was added, following the existing listings test exception.
-  - `CategoryForm.tsx` and `categoryForm.ts` differed only in letter case, which Windows treats as the same file; the dialog was renamed `CategoryDialog.tsx`, following the team's `NewListing.tsx` / `newListingForm.ts` pattern.
-  - The admin calls live in a new `adminApi.ts` so that `api.ts`, also changed by US-34 (#624), is untouched.
-  - CodeRabbit's review of #649 found four issues, each checked against the code and fixed in its own commit with a regression test that fails without the fix:
-    - The edit form sends the default value on every save, so the service checked it even when it had not changed; renaming an older category after the value limit was lowered was refused (and failed with 503 without the listing rules). This contradicted the decision above; the value is now checked only when it changes.
-    - Two admins adding the same code at the same moment got a 500 from the database's unique rule; `create_category` now returns "This category code already exists" for that case only and lets other database errors through. (Found first in our final read-through and listed as a follow-up.)
-    - Every Reactivate button showed as loading while one category was being reactivated; only that row's button does now. (Also listed as a follow-up.)
-    - The category rules had no `BR-` IDs, which review rule 6 requires in tests; BR-CAT-001 to BR-CAT-003 were added to `docs/02-requirements/business-rules.md` for the reviewers to confirm, and the tests name them.
-  - Two CodeRabbit checks were answered without changes: categories are shared reference data, so there is no per-category ownership beyond the admin role; and the lower bound `0` is "no negative value", not a setting (the listings rule uses the same `0`).
-  - While checking the fixes, we found that the `frontend` Docker container keeps the code copied at build time, so frontend checks run with `docker compose exec frontend` used stale files. The frontend checks were re-run in a container with the working folder mounted: 359 tests pass at 93% coverage (categories feature 94%). Backend after the fixes: 727 tests pass at 93% coverage.
-- **Remaining:**
-  - Peer review and CI.
+  - Anonymous requests answered 401, not 403, because session authentication sends a `WWW-Authenticate` header; the anonymous test accepts both.
+  - The peer review of #673 (MassPaol) and CodeRabbit found that only allowed roles were checked against the permission step: for anonymous visitors and refused roles, any 403 passed, including one raised later by a query or service (for example the household search query). A permission class raising by itself also skipped the first spy on `permission_denied`. The spy now wraps `check_permissions` and records whether the request passed or was refused there, and every case asserts it.
+  - The review also found that the AI's discovery code missed ViewSet routes (their handlers are named `list` and `create`, so no methods were found and nothing was called) and `re_path` routes (their text starts with `^api/`). Both are now detected, with tests, and a DRF endpoint with no methods fails.
+  - The AI's reason for the public schema ("for the generated TypeScript client") was wrong: `pnpm gen:api` builds the schema with `manage.py`, not the URL. The reason was corrected. FIX-04 (#630) now restricts production schema/docs access to active Iris admins; this table describes the local/test settings, with production access covered separately.
+  - The AI's comments referred to a role matrix in `business-rules.md` that does not exist yet; they now point to US-07 (#434), and the `api.md` row states exactly what the test does and does not call.
+  - The review also asked for the project's `UserFactory` instead of `create_user`, a skip instead of a `KeyError` for an endpoint missing from the table, and the reason check folded into the access-table test rather than kept as its own test. All done.
+  - Two CodeRabbit pre-merge checks were answered without changes: the overlap with `test_signed_out_cannot_search` is intended, since this test covers every endpoint automatically; and splitting this shared file is a team decision.
+- **Remaining:** after merge, the wiki Testing Plan and Security pages get SEC-05's status and a link to the test.
 
 ### T-04.32.2 Suspend service and buttons and T-04.32.1 tests (#489, #488; US-32)
 
