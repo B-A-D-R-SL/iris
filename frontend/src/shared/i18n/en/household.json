@@ -142,6 +142,42 @@
       "failed": "The status could not be changed. Try again.",
       "suspendSuccess": "The household file was suspended.",
       "reactivateSuccess": "The household file was reactivated."
+    },
+    "browse": {
+      "filters": "Filters",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "category": "Category",
+      "store": "Store",
+      "allCategories": "All categories",
+      "allStores": "All stores",
+      "foodCategories": "Food",
+      "otherCategories": "Other goods",
+      "noStores": "The stores of the listings shown appear here.",
+      "closeFilter": "Close",
+      "countOne": "1 listing · by pickup time",
+      "countMany": "{{count}} listings · by pickup time",
+      "unitLeft": "1 left",
+      "unitsLeft": "{{count}} left",
+      "bundleLeft": "1 bundle left",
+      "bundlesLeft": "{{count}} bundles left",
+      "bestBefore": "Best before {{date}}",
+      "loadMore": "Show more listings",
+      "emptyTitle": "No listings right now",
+      "emptyDescription": "New listings arrive every day.",
+      "noMatchTitle": "No listings for these filters",
+      "noMatchDescription": "Try another day or category. New listings arrive every day.",
+      "clearFilters": "Clear filters",
+      "notApprovedTitle": "Listings will be visible once your file is approved",
+      "notApprovedDescription": "The B.A.D.R. team must approve your file first. Its status is on the home page.",
+      "fileStatus": "See my file's status"
+    },
+    "listingDetail": {
+      "bestBefore": "Best before {{date}}",
+      "unit": "unit {{unit}}",
+      "goneTitle": "This listing is no longer available",
+      "goneDescription": "It may have been fully reserved, or its pickup has ended.",
+      "backToListings": "See listings"
     }
   },
   "reservation": {

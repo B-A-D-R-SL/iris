@@ -15,6 +15,8 @@ import { Search } from "../areas/staff/pages/Search";
 import { Household } from "../areas/staff/pages/Household";
 import { WalkIn } from "../areas/staff/pages/WalkIn/WalkIn";
 import { NewListing } from "../areas/store/pages/NewListing";
+import { ListingDetail } from "../areas/household/pages/ListingDetail";
+import { Listings } from "../areas/household/pages/Listings";
 import { MobileAreaLayout } from "./layouts/MobileAreaLayout";
 import { PublicLayout } from "./layouts/PublicLayout";
 import { StaffLayout } from "./layouts/StaffLayout";
@@ -56,16 +58,8 @@ export default function App() {
             path="home"
             element={<PlaceholderScreen titleKey="app.householdNav.home" appBar />}
           />
-          <Route
-            path="listings"
-            element={<PlaceholderScreen titleKey="app.householdNav.listings" appBar />}
-          />
-          <Route
-            path="listings/:id"
-            element={
-              <PlaceholderScreen titleKey="listing.common.listing" appBar backTo="/listings" />
-            }
-          />
+          <Route path="listings" element={<Listings />} />
+          <Route path="listings/:id" element={<ListingDetail />} />
           <Route
             path="reservations"
             element={<PlaceholderScreen titleKey="app.householdNav.reservations" appBar />}
