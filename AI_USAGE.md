@@ -1,6 +1,7 @@
 <!-- AI contribution: 50% or more AI-generated -->
-<!-- Size exception: the course uses this central contribution inventory to audit
-file declarations alongside their verification history across features. -->
+<!-- Size exception: the PR template points to this single ledger, and its feature
+inventory and example evidence must stay together to avoid duplicate cross-file
+indexes and synchronization errors. -->
 # AI usage
 
 How the Iris team uses generative AI, as required by the course rubric. This file stays up to date every iteration.
