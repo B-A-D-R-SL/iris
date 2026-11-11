@@ -2,6 +2,7 @@
 """Separate-process HTTP driver: keep client work outside the server's Python GIL."""
 
 import json
+import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from http.client import HTTPConnection
@@ -20,6 +21,15 @@ SEARCH_TERMS = (
 # At 100 requests/second and 500 ms, 50 requests may legitimately be in flight.
 # Leave headroom so the client does not impose a tighter concurrency limit.
 CLIENT_WORKERS = 64
+
+
+def uninstrumented_environment() -> dict[str, str]:
+    """Measure normal runtime in both children, without inherited coverage hooks."""
+    return {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith(("COV_CORE_", "COVERAGE_"))
+    }
 
 
 class LoadClient:

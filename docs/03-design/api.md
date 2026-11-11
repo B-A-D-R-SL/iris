@@ -22,6 +22,10 @@ Status refers to the current working tree, not a deployed release:
   checkout. The listed role and purpose describe intended behavior.
 
 The infrastructure endpoints `/api/schema/` and `/api/docs/` are implemented.
+In production, both require an authenticated, active Iris `admin` role; the
+application role is checked independently of Django's `is_staff` flag. They stay
+public with local/test settings for developer tooling. Schema generation through
+`manage.py spectacular` remains available without an HTTP session.
 The schema describes health and implemented DRF endpoints, including `/api/me/`,
 categories and invitation acceptance; it does not describe allauth operations
 or the planned business APIs.
@@ -36,6 +40,30 @@ consumers have not been rewritten to use them.
 Categories were added by
 [reference module #377](https://github.com/B-A-D-R-SL/iris/issues/377).
 
+### Production request limits (FIX-04 / SEC-04)
+
+Production applies DRF anonymous and authenticated request limits, initially
+**60/minute per anonymous client IP** and **300/minute per authenticated account**.
+Operators configure these with `DRF_ANON_THROTTLE_RATE` and
+`DRF_USER_THROTTLE_RATE`. The partner application endpoint retains its existing
+**5/hour/IP** limit shared by anonymous and signed-in callers. Allauth keeps its
+separate sign-in protection; the plain Django health probe is not DRF-throttled.
+
+An exceeded DRF limit returns HTTP 429 with
+`{"code": "throttled", "message": "…", "fields": {}}` and `Retry-After`.
+Messages follow the request language. DRF's cache-based limits are best effort
+under concurrency. Trust forwarded client addresses only after setting the
+verified `DRF_NUM_PROXIES`; changing connection ports does not create an allowance.
+See [production settings](../guides/production-settings.md) for proxy and cache
+requirements. DRF permission checks run before throttling: repeated anonymous
+requests to a protected route return 401 without consuming its DRF quota.
+
+Allauth's login action instead returns HTTP 429 with `{"status": 429}` and no
+`Retry-After`. Failed-credential lockouts use HTTP 400 with an
+`errors[].code` of `too_many_login_attempts`. These responses bypass the DRF
+handler. See [authentication routing](../guides/auth-routing.md#rate-limit-responses)
+for the browser behavior and allauth's separate trusted-proxy setting.
+
 ## Conventions
 
 | Topic       | Rule                                                                                                                                                                            |
@@ -48,7 +76,7 @@ Categories were added by
 | Paging      | `?page=1&page_size=20` (max 100); response `{ "count", "next", "previous", "results" }`                                                                                         |
 | Errors      | HTTP status + `{ "code": "validation_error", "message": "...", "fields": { "postal_code": ["Enter a postal code like H2X 1Y4"] } }`; messages in the user's language            |
 | Auth        | Session cookie (django-allauth headless) + CSRF token header `X-CSRFToken`                                                                                                      |
-| Permissions | Checked on the server for every endpoint against the matrix in business-rules.md; deny by default                                                                               |
+| Permissions | Checked on the server for every endpoint; deny by default. `backend/tests/test_endpoint_access.py` (SEC-05) calls every DRF endpoint as each role, and every DRF endpoint not listed as public anonymously, and checks that DRF's permission check lets the request through or refuses it. Plain Django routes under `/api/` (health, allauth) are listed with a reason but not called. The role matrix comes with US-07 (#434) |
 | Languages   | `Accept-Language: fr` or `en`                                                                                                                                                   |
 
 ## Endpoints
@@ -188,14 +216,14 @@ US-13 staff screens exist.
 | POST       | `/api/households/me/application/submit/`                | Beneficiary          | Submit                                            | Planned |
 | PATCH      | `/api/households/me/alternate/`                         | Beneficiary          | Alternate for pickups                             | Planned |
 | POST       | `/api/households/me/renewal/`                           | Beneficiary          | Start a renewal                                   | Planned |
-| GET        | `/api/staff/households/?q=`                             | Intake worker, admin | Partial, accent-insensitive search; authorized non-anonymized files, pagination, audits and server-derived `can_resume` | Implemented (US-63) |
+| GET        | `/api/staff/households/?q=`                             | Intake worker, admin | Partial, accent-insensitive search; authorized non-anonymized files, pagination, audits and server-derived `can_resume` and `can_open` | Implemented (US-63, US-32) |
 | POST/PATCH | `/api/staff/households/`, `/api/staff/households/{id}/` | Intake worker, admin | Walk-in create and edit (drafts only)             | Implemented (US-17) |
 | POST       | `/api/staff/households/{id}/submit/`                    | Intake worker, admin | Submit saved walk-in registration; possible duplicates go to review | Implemented (US-25; proposed endpoint for review) |
 | POST       | `/api/staff/households/{id}/notices/`                   | Intake worker, admin | Walk-in notice (scan + typed values)              | Planned |
 | POST       | `/api/staff/households/{id}/approve/`                   | Intake worker, admin | Approve a walk-in (eligibility runs)              | Planned |
-| GET        | `/api/staff/households/{id}/`                           | Intake worker, admin | Household page (fields per role)                  | Partly: walk-in draft read for resuming (US-17) |
+| GET        | `/api/staff/households/{id}/`                           | Intake worker, admin | Read any non-anonymized online or walk-in file in any status, including status reason, expiry, member number and server-derived actions | Implemented (US-17, US-32) |
 | GET        | `/api/staff/notices/{id}/file/`                         | Intake worker, admin | Signed URL valid 5 minutes (audited)              | Planned |
-| POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`                                     | Planned |
+| POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`; preserves expiry                    | Implemented (US-32) |
 | GET/POST   | `/api/staff/households/{id}/notes/`                     | Intake worker, admin | Staff notes                                       | Planned |
 
 Active intake workers and admins may read, edit and submit shared,
@@ -317,9 +345,9 @@ frontend behavior, select new routes, or change the release scope.
 
 ### Errors and pagination
 
-The backend uses DRF's standard exception handler. A shared
-`code/message/fields` error envelope is not configured, and plain Django and
-allauth responses are separate integration concerns. DRF has no default
+The shared DRF exception handler normalizes throttling responses only. A global
+`code/message/fields` envelope for other errors is not configured; plain Django
+and allauth retain their own response formats. DRF has no default
 pagination class or page size configured. The draft's paging query, maximum,
 and response fields are therefore a target contract, not verified behavior.
 The paging response notation in the conventions table lists keys rather than
@@ -360,9 +388,12 @@ Integer cents and `*_cents` naming align with the existing
 [review rules](../05-process/review-rules.md) and field design. Money-bearing
 business endpoints remain planned, so their serialization is not yet verified.
 
-The backend does not configure Django's `LocaleMiddleware`; automatic
-`Accept-Language` negotiation and localized API error responses are not
-established by the current configuration.
+The backend configures Django's `LocaleMiddleware` for French and English.
+A supported `django_language` cookie takes precedence over `Accept-Language`,
+with French as the fallback. DRF throttling messages use the selected language;
+`test_throttled_responses_are_translated` in `backend/tests/test_api.py` verifies
+French and English request headers. This does not establish translation coverage
+for every endpoint or change the error-format limitations described above.
 
 ### UUID identifiers
 

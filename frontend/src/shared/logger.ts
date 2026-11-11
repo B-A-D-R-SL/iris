@@ -11,7 +11,8 @@ type FrontendEvent =
   | "sign_out_failed"
   | "invitation_accept_failed_unexpectedly"
   | "invitation_response_invalid"
-  | "invitation_request_failed";
+  | "invitation_request_failed"
+  | "household_status_response_invalid";
 interface StatusContext {
   record: string;
   status: string;

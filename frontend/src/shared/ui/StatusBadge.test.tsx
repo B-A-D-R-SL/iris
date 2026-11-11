@@ -4,8 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { expectNoAxeViolations, renderWithProviders } from "../../test/render";
 import i18n from "../i18n";
-import en from "../i18n/en.json";
-import fr from "../i18n/fr.json";
+import { resources } from "../i18n/resources";
 import { logger } from "../logger";
 import { StatusBadge } from "./StatusBadge";
 import { type StatusRecord, type StatusTone } from "./statusTones";
@@ -53,8 +52,8 @@ describe("StatusBadge", () => {
     async (record, status, tone) => {
       const { container } = renderWithProviders(<StatusBadge record={record} status={status} />);
       for (const [language, translations] of [
-        ["fr", fr],
-        ["en", en],
+        ["fr", resources.fr.translation],
+        ["en", resources.en.translation],
       ] as const) {
         await act(() => i18n.changeLanguage(language));
         const labels: Record<string, string> = translations.shared.status[record];

@@ -13,7 +13,8 @@ from django.conf import settings
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import UploadedFile
-from django.db import transaction
+from django.db import connection, transaction
+from django.db.models import F
 from django.utils import dateformat, timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -68,6 +69,19 @@ MESSAGES = {
 
 # Short month, as in the S1 mockup: "Oct. 10, 2026" / "10 oct. 2026".
 DATE_DISPLAY_FORMAT = _("N j, Y")
+
+
+def release_units(listing_id: UUID, quantity: int) -> None:
+    """Return reserved units inside the caller's transaction."""
+    if not connection.in_atomic_block:
+        raise RuntimeError("release_units must run inside a transaction.")
+    if quantity < 1:
+        raise ValueError("quantity must be 1 or more.")
+    changed = Listing.objects.filter(
+        pk=listing_id, quantity_reserved__gte=quantity
+    ).update(quantity_reserved=F("quantity_reserved") - quantity)
+    if changed != 1:
+        raise RuntimeError("Reserved listing units are inconsistent.")
 
 
 class PostingUnavailable(Exception):

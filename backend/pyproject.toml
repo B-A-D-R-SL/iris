@@ -62,6 +62,9 @@ markers = ["slow_expiry: real five-minute provider expiry acceptance test"]
 [tool.coverage.run]
 source = ["."]
 branch = true
+# Startup/security tests load production settings in fresh Python processes.
+patch = ["subprocess"]
+parallel = true
 omit = [".venv/*", "manage.py", "tests/*", "**/tests/*", "**/migrations/*"]
 
 [tool.coverage.report]
@@ -116,6 +119,11 @@ ignore_imports = [
     "modules.rules.tests.test_rule_set_versions -> modules.accounts.tests.factories",
     "modules.households.tests.** -> modules.accounts.tests.factories",
     "modules.households.tests.** -> modules.stores.tests.factories",
+    # US-32 integration tests build reservations and verify their audit records.
+    "modules.households.tests.test_suspension_api -> modules.audit.models",
+    "modules.households.tests.test_suspension_api -> modules.listings.models",
+    "modules.households.tests.test_suspension_api -> modules.listings.tests.factories",
+    "modules.households.tests.test_suspension_api -> modules.reservations.models",
     "modules.stores.tests.test_admin -> modules.accounts.tests.factories",
     "modules.categories.tests.test_staff_api -> modules.accounts.tests.factories",
     "modules.categories.tests.test_staff_api -> modules.stores.tests.factories",
@@ -126,6 +134,8 @@ ignore_imports = [
     "modules.** -> modules.rules.queries",
     "modules.** -> modules.notifications.services",
     "modules.** -> modules.notifications.queries",
+    "modules.audit.services -> modules.privacy.services",
+    "modules.households.services -> modules.privacy.services",
 
     # stores -> accounts
     "modules.stores.** -> modules.accounts.services",
@@ -145,6 +155,8 @@ ignore_imports = [
     "modules.households.** -> modules.priority.queries",
     "modules.households.** -> modules.review.services",
     "modules.households.** -> modules.review.queries",
+    # US-32 coordinates status and reservation cancellation in one transaction.
+    "modules.households.services -> modules.reservations.services",
 
     # eligibility -> households
     "modules.eligibility.** -> modules.households.services",

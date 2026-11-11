@@ -41,8 +41,10 @@ def seeded(seed_password: None) -> None:
 
 @pytest.mark.django_db
 def test_seed_creates_the_agreed_counts_on_an_empty_database(seeded: None) -> None:
-    """One admin, two intake workers, five stores, and the agreed row counts."""
-    assert User.objects.filter(role=User.Role.ADMIN, is_superuser=False).count() == 1
+    """Check the agreed demo counts and the system account for rule publishing."""
+    admins = User.objects.filter(role=User.Role.ADMIN, is_superuser=False)
+    assert admins.exclude(email=SEED_USERNAME).count() == 1
+    assert not admins.get(email=SEED_USERNAME).has_usable_password()
     assert User.objects.filter(role=User.Role.INTAKE_WORKER).count() == 2
     assert (
         User.objects.filter(role=User.Role.STORE_STAFF, store__is_badr=True).count()

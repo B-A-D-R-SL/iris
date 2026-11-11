@@ -3,7 +3,7 @@
 # SET-34 global theme impact
 
 This inventory is for the route tree in `frontend/src/app/App.tsx` on this PR,
-including its merge of main at `ea428cd`. A route that is still a placeholder is
+including its merge of main at `8fe37ae`. A route that is still a placeholder is
 listed explicitly: it receives the shared shell/theme, not an unimplemented feature.
 New screens added on other branches must be checked when they adopt this theme.
 
@@ -18,8 +18,8 @@ even when no source file for a screen changed in SET-34.
 | Override | Current consumers / state to inspect |
 | --- | --- |
 | Card, cream background | Welcome cards; partner-application success card |
-| Paper, cream background | Household search result cards (`SearchResults`) |
-| Modal, white content/header | Categories add/edit (`CategoryDialog`), deactivate confirmation |
+| Paper, cream background | Household search result cards (`SearchResults`); household detail contact/action cards |
+| Modal, white content/header | Categories add/edit (`CategoryDialog`), deactivate confirmation; household suspend/reactivate reason dialog |
 | Drawer, white content/header | New listing category sheet (`CategoryPicker`) |
 | Table, border/stripe/hover tokens | Categories and audit results |
 | Checkbox, accessible unchecked border | Partner application consent; walk-in holder identity/consent; listing no-best-before-date; category add/edit food flag |
@@ -31,7 +31,7 @@ even when no source file for a screen changed in SET-34.
 | Menu and subtle ActionIcon, inherited Mantine colours | AppBar account dropdown on household/store routes; SignOutButton in public/staff headers and account menus; these sign-out icons are **subtle**, not default |
 | SegmentedControl | Language switch on public/staff headers; new listing item/bundle selector |
 | Alert/Notice | Form failures, success messages, permission/search errors, walk-in saved/not-found states; icons and bold errors remain |
-| Badge | Shared household/category statuses; category type badge |
+| Badge | Shared household statuses in search and detail; category statuses and type badge |
 | AppShell and custom navigation CSS | Public/staff header, staff sidebar, mobile bottom navigation, selected tabs |
 
 ## Every routed screen
@@ -59,6 +59,7 @@ additional components in the screen itself, including reachable dialogs/states.
 | `/store/listings` | Placeholder / store | AppBar account Menu, subtle icons, bottom navigation, EmptyState |
 | `/store/listings/new` | New listing / store | AppBar/Menu, inputs, IntegerField default icons, SegmentedControl, Chip, Checkbox, category Drawer/Radio, date popovers, Button, Notice |
 | `/staff/households` | Search / staff | Search input, Paper result cards, StatusBadge, Button, Notice/empty/loading states |
+| `/staff/households/:id` | Household detail / staff | Paper contact/action cards, StatusBadge, Notice outcome/reason/errors, semantic suspend/reactivate buttons, reason Modal/Textarea |
 | `/staff/walk-in` | New walk-in / staff | Holder inputs/select/date and Checkbox; address inputs; member inputs/select/date and remove buttons; review text/edit buttons; Stepper, Notice and save/continue buttons |
 | `/staff/walk-in/:id` | Resume walk-in / staff | Same steps; saved summary/resume actions; loading, not-found and error notices |
 | `/staff/review` | Placeholder / staff | EmptyState text/icon |
@@ -87,6 +88,8 @@ captures described in the [verification README](README.md). The supplemental
   ActionIcon, with computed normal/hover foreground/background measurements.
 
 The archive records 32 route captures, two matrix captures and `browser-results.json`.
-These are representative states for the inventory, not a claim that every possible
+The household detail route arrived in the later main merge and is covered by its
+component tests, including shared status labels/tones in both languages; it is not in
+these pre-merge archives. These are representative states for the inventory, not a claim that every possible
 state of every route has a screenshot. Only fictional API responses were used;
 requests were intercepted and no real server changes were made.

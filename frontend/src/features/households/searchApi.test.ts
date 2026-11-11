@@ -104,6 +104,7 @@ describe("household search response validation", () => {
     searchPage({ results: [{ ...searchFile(), phone: null } as never] }),
     searchPage({ results: [{ ...searchFile(), can_resume: undefined } as never] }),
     searchPage({ results: [{ ...searchFile(), can_resume: "true" } as never] }),
+    searchPage({ results: [{ ...searchFile(), can_open: undefined } as never] }),
     { ...searchPage(), next: {} },
   ])("rejects malformed responses", async (body) => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(body)));

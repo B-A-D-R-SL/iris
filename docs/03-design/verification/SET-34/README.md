@@ -62,3 +62,18 @@ record 32 route captures and two control-matrix captures, 42 normal/hover measur
 no page exceptions or page-level horizontal overflow, and unchanged disabled controls.
 All filled/light hover text pairs meet 4.5:1. The 70 original palette entries are
 byte-for-byte unchanged from the pre-review PR head.
+
+## Latest main integration
+
+Merged main at `8fe37ae`, retaining its per-area translation catalogs and household
+suspend/reactivate flow. Shared status wording now lives in `en/common.json` and
+`fr/common.json`; legacy copies remain removed. The household detail screen uses
+StatusBadge, Notice and semantic danger/info actions. Both logger event sets remain.
+
+Verification after conflict resolution: **610 tests pass** in 33 files, **95.09% line
+coverage**; TypeScript, ESLint, Prettier and production build pass. All main translation
+values were retained except the obsolete duplicate status keys. All 50 main AI
+verification entries were preserved (including the existing linked history records).
+The [screen inventory](affected-screens.md) now includes the household detail route;
+its shared badges are tested in French and English. Earlier screenshot archives
+remain identified by their original comparison commits.

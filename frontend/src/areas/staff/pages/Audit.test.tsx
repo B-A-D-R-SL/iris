@@ -43,6 +43,58 @@ describe("Audit search", () => {
     expect(await screen.findByRole("cell", { name: expected })).toBeInTheDocument();
   });
 
+  it("translates rule publication events in French and English", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({
+          count: 1,
+          next: null,
+          previous: null,
+          results: [
+            {
+              ...event,
+              action: "rule_published",
+              target_type: "rule_set_version",
+              metadata: { rule_type: "priority", version: 2 },
+            },
+          ],
+        }),
+      ),
+    );
+    renderWithProviders(<Audit />);
+    expect(await screen.findByText("Règle publiée")).toBeInTheDocument();
+    expect(screen.getByText("Version de règle: abc (Priorité, version 2)")).toBeInTheDocument();
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
+    expect(screen.getByText("Rule published")).toBeInTheDocument();
+    expect(screen.getByText("Rule version: abc (Priority, version 2)")).toBeInTheDocument();
+  });
+
+  it("ignores malformed publication metadata", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({
+          count: 1,
+          next: null,
+          previous: null,
+          results: [
+            {
+              ...event,
+              action: "rule_published",
+              target_type: "rule_set_version",
+              metadata: { rule_type: "priority", version: "2" },
+            },
+          ],
+        }),
+      ),
+    );
+    renderWithProviders(<Audit />);
+    expect(await screen.findByText("Version de règle: abc")).toBeInTheDocument();
+  });
+
   it("submits filters and pages through results", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
