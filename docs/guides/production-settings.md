@@ -24,20 +24,21 @@ real credentials in the repository or command examples.
 | --- | --- |
 | `DJANGO_SETTINGS_MODULE` | `iris.settings.production` for production management commands and workers |
 | `DJANGO_SECRET_KEY` | Generated secret, at least 50 characters; `django-insecure` and `iris-insecure` prefixes are refused |
-| `DJANGO_ALLOWED_HOSTS` | Comma-separated hostnames for this deployment |
+| `DJANGO_ALLOWED_HOSTS` | Comma-separated hostnames for this deployment; `*` is refused |
 | `DATABASE_URL` | PostgreSQL connection string for this environment |
 | `EMAIL_BACKEND` | Real delivery backend; console, dummy, file-based and in-memory backends are refused |
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` | Delivery-provider configuration when using Django's SMTP backend |
 | `DRF_ANON_THROTTLE_RATE` | Anonymous client limit; default `60/min` |
 | `DRF_USER_THROTTLE_RATE` | Authenticated account limit; default `300/min` |
 | `DRF_NUM_PROXIES` | Verified number of trusted reverse proxies; default `0` ignores forwarded client IPs |
+| `ALLAUTH_TRUSTED_PROXY_COUNT` | Separate verified proxy count for allauth sign-in limits; default `0` ignores forwarded client IPs |
 
 Throttle rates must use a positive request count and a second/minute/hour/day
 period, for example `60/min`. Accepted period names are `s`, `sec`, `secs`,
 `second`, `seconds`; `m`, `min`, `mins`, `minute`, `minutes`; `h`, `hr`, `hrs`,
 `hour`, `hours`; and `d`, `day`, `days`. Zero, negative or malformed rates,
 unsupported periods such as `month`, and negative proxy counts are refused
-during production startup.
+during production startup. Both proxy counts must be nonnegative integers.
 
 Django 6.1 uses `MAILERS`; Iris builds its default mailer from the `EMAIL_*`
 environment variables. Production validates that effective configuration.
@@ -58,6 +59,15 @@ forwarded addresses for rate limits. With `0`, client-supplied
 `X-Forwarded-For` is ignored. Anonymous client identification removes a connection
 port from forwarded IPv4 or bracketed IPv6 addresses so a new port does not
 create a fresh allowance.
+
+Allauth resolves sign-in client IPs independently of DRF. Production also reads
+`ALLAUTH_TRUSTED_PROXY_COUNT`; configure both counts for the verified proxy chain.
+With `0`, allauth uses `REMOTE_ADDR`, so users behind one proxy share its IP quota.
+With a positive count, allauth selects that trusted position from the right of
+`X-Forwarded-For` and normalizes connection ports. Only trusted front ends may
+reach the backend, and their forwarding-header behavior must be verified in
+SET-17 before enabling this trust. Synthetic tests cover zero, one and two proxy
+hops; they do not establish Azure's actual topology.
 
 ## HSTS preload decision
 
@@ -81,8 +91,15 @@ partner application endpoint keeps its separate `5/hour/IP` policy shared by
 anonymous and signed-in callers. Allauth's sign-in limits remain independent,
 and the plain Django health probe is not DRF-throttled.
 
-HTTP 429 responses use `{ "code": "throttled", "message": "…", "fields": {} }`
-and preserve `Retry-After`. The message follows the request language.
+DRF checks permissions before throttling. Repeated anonymous requests to protected
+routes return 401 without consuming the DRF quota; these limits do not cover all
+rejected traffic. Broader ingress protection belongs at the trusted front end.
+
+DRF HTTP 429 responses use
+`{ "code": "throttled", "message": "…", "fields": {} }` and preserve
+`Retry-After`. The message follows the request language. Allauth's separate
+authentication responses are documented in
+[authentication routing](auth-routing.md#rate-limit-responses).
 
 ## Verification before deployment
 

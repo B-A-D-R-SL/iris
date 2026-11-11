@@ -22,6 +22,11 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[])
 if not ALLOWED_HOSTS:
     raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS must be configured in production.")
 
+if "*" in ALLOWED_HOSTS:
+    raise ImproperlyConfigured(
+        "DJANGO_ALLOWED_HOSTS must not contain '*' in production."
+    )
+
 if len(SECRET_KEY) < 50 or SECRET_KEY.startswith(("django-insecure", "iris-insecure")):
     raise ImproperlyConfigured(
         "DJANGO_SECRET_KEY must contain at least 50 characters and must not use "
@@ -33,6 +38,11 @@ if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
 
 if REST_FRAMEWORK["NUM_PROXIES"] < 0:
     raise ImproperlyConfigured("DRF_NUM_PROXIES must be zero or positive.")
+
+# Allauth's sign-in quotas select client IPs independently of DRF.
+ALLAUTH_TRUSTED_PROXY_COUNT = env.int("ALLAUTH_TRUSTED_PROXY_COUNT", default=0)
+if ALLAUTH_TRUSTED_PROXY_COUNT < 0:
+    raise ImproperlyConfigured("ALLAUTH_TRUSTED_PROXY_COUNT must be zero or positive.")
 
 if MAILERS["default"]["BACKEND"] in {
     "django.core.mail.backends.console.EmailBackend",

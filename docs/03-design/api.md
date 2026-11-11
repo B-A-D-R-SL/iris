@@ -49,13 +49,20 @@ Operators configure these with `DRF_ANON_THROTTLE_RATE` and
 **5/hour/IP** limit shared by anonymous and signed-in callers. Allauth keeps its
 separate sign-in protection; the plain Django health probe is not DRF-throttled.
 
-An exceeded limit returns HTTP 429 with
+An exceeded DRF limit returns HTTP 429 with
 `{"code": "throttled", "message": "…", "fields": {}}` and `Retry-After`.
 Messages follow the request language. DRF's cache-based limits are best effort
 under concurrency. Trust forwarded client addresses only after setting the
 verified `DRF_NUM_PROXIES`; changing connection ports does not create an allowance.
 See [production settings](../guides/production-settings.md) for proxy and cache
-requirements. Endpoint-specific authentication and permission checks still run.
+requirements. DRF permission checks run before throttling: repeated anonymous
+requests to a protected route return 401 without consuming its DRF quota.
+
+Allauth's login action instead returns HTTP 429 with `{"status": 429}` and no
+`Retry-After`. Failed-credential lockouts use HTTP 400 with an
+`errors[].code` of `too_many_login_attempts`. These responses bypass the DRF
+handler. See [authentication routing](../guides/auth-routing.md#rate-limit-responses)
+for the browser behavior and allauth's separate trusted-proxy setting.
 
 ## Conventions
 
@@ -338,9 +345,9 @@ frontend behavior, select new routes, or change the release scope.
 
 ### Errors and pagination
 
-The backend uses DRF's standard exception handler. A shared
-`code/message/fields` error envelope is not configured, and plain Django and
-allauth responses are separate integration concerns. DRF has no default
+The shared DRF exception handler normalizes throttling responses only. A global
+`code/message/fields` envelope for other errors is not configured; plain Django
+and allauth retain their own response formats. DRF has no default
 pagination class or page size configured. The draft's paging query, maximum,
 and response fields are therefore a target contract, not verified behavior.
 The paging response notation in the conventions table lists keys rather than

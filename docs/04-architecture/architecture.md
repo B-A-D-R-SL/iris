@@ -85,6 +85,10 @@ requires HTTPS with HSTS, and trusts the configured HTTPS header only behind a
 proxy that strips and replaces client-supplied headers. API docs require an active
 Iris admin role. General DRF limits are operational environment settings;
 partner applications and allauth retain their separate request policies.
+DRF checks permissions before throttling, so rejected anonymous requests to
+protected routes do not consume its quota. Allauth has an independent trusted
+proxy count and native error responses, documented in
+[authentication routing](../guides/auth-routing.md#rate-limit-responses).
 
 The [production settings guide](../guides/production-settings.md) documents the
 configuration, the deliberate HSTS preload exception and the strict deploy check.

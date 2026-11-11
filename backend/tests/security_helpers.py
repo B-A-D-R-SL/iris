@@ -46,6 +46,7 @@ def production_api(script: str, *arguments: str, proxies: int = 0) -> Any:
             "DRF_ANON_THROTTLE_RATE": "2/min",
             "DRF_USER_THROTTLE_RATE": "3/min",
             "DRF_NUM_PROXIES": str(proxies),
+            "ALLAUTH_TRUSTED_PROXY_COUNT": str(proxies),
         },
         capture_output=True,
         text=True,

@@ -49,6 +49,18 @@ describe("allauth browser session", () => {
     });
   });
 
+  it("handles allauth's native 429 without requiring the DRF error envelope", async () => {
+    document.cookie = "csrftoken=ready; path=/";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ status: 429 }, { status: 429 })),
+    );
+
+    await expect(loginWithPassword("person@example.test", "secret", "en")).rejects.toMatchObject({
+      code: "unavailable",
+    });
+  });
+
   it("recognizes lockout and requests a code only for a real MFA challenge", async () => {
     document.cookie = "csrftoken=ready; path=/";
     const fetchMock = vi

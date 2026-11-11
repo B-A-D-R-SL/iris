@@ -90,6 +90,16 @@ def test_production_requires_allowed_hosts() -> None:
     assert "DJANGO_ALLOWED_HOSTS must be configured in production" in result.stderr
 
 
+@pytest.mark.parametrize("hosts", ["*", "staging.example.test,*"])
+def test_production_refuses_wildcard_allowed_hosts(hosts: str) -> None:
+    """A deployment must not disable Host-header validation with a wildcard."""
+    result = _run(["-c", "import iris.settings.production"], DJANGO_ALLOWED_HOSTS=hosts)
+
+    assert result.returncode != 0
+    assert "ImproperlyConfigured" in result.stderr
+    assert "DJANGO_ALLOWED_HOSTS must not contain '*'" in result.stderr
+
+
 @pytest.mark.parametrize("database_url", ["", "sqlite:///:memory:"])
 def test_production_keeps_the_required_postgresql_database(database_url: str) -> None:
     result = _run(["-c", "import iris.settings.production"], DATABASE_URL=database_url)
@@ -286,11 +296,12 @@ def test_production_throttle_periods_have_the_expected_duration(
 
 
 @pytest.mark.parametrize("proxy_count", ["-1", "-2"])
-def test_production_refuses_negative_trusted_proxy_counts(proxy_count: str) -> None:
-    result = _run(
-        ["-c", "import iris.settings.production"], DRF_NUM_PROXIES=proxy_count
-    )
+@pytest.mark.parametrize("name", ["DRF_NUM_PROXIES", "ALLAUTH_TRUSTED_PROXY_COUNT"])
+def test_production_refuses_negative_trusted_proxy_counts(
+    name: str, proxy_count: str
+) -> None:
+    result = _run(["-c", "import iris.settings.production"], **{name: proxy_count})
 
     assert result.returncode != 0
     assert "ImproperlyConfigured" in result.stderr
-    assert "DRF_NUM_PROXIES must be zero or positive" in result.stderr
+    assert f"{name} must be zero or positive" in result.stderr

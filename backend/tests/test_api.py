@@ -83,6 +83,19 @@ print(json.dumps([client.get(url, secure=True).status_code
     assert result == [401, 401]
 
 
+def test_anonymous_permission_refusals_do_not_consume_the_drf_quota():
+    """DRF permissions run first; refusals do not count as admitted API traffic."""
+    result = production_api(
+        """
+refused = [client.get('/api/me/', secure=True) for _ in range(3)]
+admitted = [client.get('/api/categories/', secure=True) for _ in range(3)]
+print(json.dumps({'refused': [response.status_code for response in refused],
+                  'admitted': [response.status_code for response in admitted]}))
+"""
+    )
+    assert result == {"refused": [401, 401, 401], "admitted": [200, 200, 429]}
+
+
 def test_anonymous_quota_boundary_queries_the_database_and_keeps_retry_header():
     """SEC-04: allow exactly the quota, then refuse before another database read."""
     category = CategoryFactory()
@@ -176,6 +189,29 @@ print(json.dumps([response.status_code for response in responses]))
 """
     )
     assert result == [200, 200, 429]
+
+
+@pytest.mark.parametrize("proxies", [0, 1, 2])
+def test_allauth_login_quotas_honor_their_own_trusted_proxy_count(proxies):
+    """SEC-04: trust verified proxy clients, ignoring ports and spoofed headers."""
+    result = production_api(
+        """
+from django.test import override_settings
+addresses = [f'198.51.100.8:{1000 + index}' for index in range(3)]
+addresses.append('198.51.100.9:2000')
+if sys.argv[1] == '2':
+    addresses = [f'{address}, 192.0.2.10' for address in addresses]
+with override_settings(ACCOUNT_RATE_LIMITS={'login': '2/m/ip'}):
+    responses = [client.post('/api/auth/browser/v1/auth/login', {}, format='json',
+                             secure=True, REMOTE_ADDR='192.0.2.9',
+                             HTTP_X_FORWARDED_FOR=address)
+                 for address in addresses]
+print(json.dumps([response.status_code for response in responses]))
+""",
+        str(proxies),
+        proxies=proxies,
+    )
+    assert result == ([400, 400, 429, 400] if proxies else [400, 400, 429, 429])
 
 
 @pytest.mark.parametrize("address", ["198.51.100.8", "[2001:db8::8]"])
