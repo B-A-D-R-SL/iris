@@ -20,11 +20,13 @@ The actor must be a saved user. Target types use lowercase identifiers such as
 Valid household UUID strings are normalized to lowercase with hyphens so they
 match household search. Other target identifiers are preserved.
 
-Supported actions: `view`, `decision`, and `rule_published`.
-Metadata accepts `{}` or `{"outcome": "approved" | "rejected" | "review_required"}`.
+The supported actions are `view`, `decision`, `rule_published`, `suspend`, and `reactivate`.
+Views accept empty metadata. Decisions accept `{}` or
+`{"outcome": "approved" | "rejected" | "review_required"}`.
 For `rule_published` on `rule_set_version`, metadata instead contains the supported
-`rule_type` and positive integer `version`. No names, contact details, SINs, income, immigration status, document contents,
-free text, nested values, or other metadata keys are accepted.
+`rule_type` and positive integer `version`. Suspension and reactivation accept a
+`reason` validated against the configured length limit and sensitive-data checks.
+Each action accepts only its defined metadata keys.
 Callers must supply record identifiers rather than personal data as targets.
 
 ```python

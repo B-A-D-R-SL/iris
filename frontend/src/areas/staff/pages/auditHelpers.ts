@@ -21,6 +21,8 @@ export function useAuditLabels(): Record<string, string> {
     view: t("audit.search.actionView"),
     decision: t("audit.search.actionDecision"),
     rule_published: t("audit.search.actionRulePublished"),
+    suspend: t("audit.search.actionSuspend"),
+    reactivate: t("audit.search.actionReactivate"),
     approved: t("audit.search.outcomeApproved"),
     rejected: t("audit.search.outcomeRejected"),
     review_required: t("audit.search.outcomeReview"),

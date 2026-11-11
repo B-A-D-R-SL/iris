@@ -8,6 +8,8 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from modules.audit.models import AuditEvent
+from modules.privacy import services as privacy_services
+from modules.rules import queries as rule_queries
 
 
 def _actor_role(actor: AbstractBaseUser) -> str:
@@ -37,6 +39,7 @@ def _target_identifier(target_type: str, target_id: str | int | UUID) -> str:
 RULE_PUBLICATION_TYPES = frozenset(
     {
         "household_size",
+        "household_suspension",
         "invitations",
         "lico_thresholds",
         "auto_approval",
@@ -52,31 +55,52 @@ RULE_PUBLICATION_TYPES = frozenset(
 )
 
 
+def _validate_rule_publication(
+    target_type: str, metadata: dict[str, str | int]
+) -> None:
+    """Require a supported rule type and a positive publication version."""
+    valid = (
+        target_type == "rule_set_version"
+        and set(metadata) == {"rule_type", "version"}
+        and isinstance(metadata["rule_type"], str)
+        and metadata["rule_type"] in RULE_PUBLICATION_TYPES
+        and type(metadata["version"]) is int
+        and metadata["version"] > 0
+    )
+    if not valid:
+        raise ValidationError({"metadata": "Unsupported audit metadata."})
+
+
 def _validate_metadata(
     action: str, target_type: str, metadata: dict[str, str | int]
 ) -> None:
-    """Allow only supported outcomes or rule publication identifiers."""
-    if action == "rule_published":
-        valid = (
-            target_type == "rule_set_version"
-            and isinstance(metadata, dict)
-            and set(metadata) == {"rule_type", "version"}
-            and isinstance(metadata["rule_type"], str)
-            and metadata["rule_type"] in RULE_PUBLICATION_TYPES
-            and type(metadata["version"]) is int
-            and metadata["version"] > 0
-        )
-    else:
-        valid = (
-            isinstance(metadata, dict)
-            and not (metadata.keys() - {"outcome"})
-            and (
-                "outcome" not in metadata
-                or metadata["outcome"] in ("approved", "rejected", "review_required")
-            )
-        )
-    if not valid:
-        raise ValidationError({"metadata": "Unsupported audit metadata."})
+    """Accept only the fields defined for each audit action."""
+    if not isinstance(metadata, dict):
+        raise ValidationError({"metadata": "Audit metadata must be an object."})
+    if action == AuditEvent.Action.RULE_PUBLISHED:
+        _validate_rule_publication(target_type, metadata)
+        return
+    if action == AuditEvent.Action.DECISION:
+        if not metadata:
+            return
+        if set(metadata) != {"outcome"} or metadata["outcome"] not in (
+            "approved",
+            "rejected",
+            "review_required",
+        ):
+            raise ValidationError({"metadata": "A supported outcome is required."})
+        return
+    if action in (AuditEvent.Action.SUSPEND, AuditEvent.Action.REACTIVATE):
+        reason = metadata.get("reason")
+        if set(metadata) != {"reason"} or not isinstance(reason, str) or not reason:
+            raise ValidationError({"metadata": "A reason is required."})
+        if len(reason) > rule_queries.household_suspension_reason_max_length():
+            raise ValidationError({"metadata": "The reason is too long."})
+        if privacy_services.household_reason_contains_sensitive_data(reason):
+            raise ValidationError({"metadata": "Sensitive reasons are not allowed."})
+        return
+    if metadata:
+        raise ValidationError({"metadata": "This action does not accept metadata."})
 
 
 @transaction.atomic

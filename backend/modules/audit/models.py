@@ -9,6 +9,8 @@ class AuditEvent(models.Model):
         VIEW = "view"
         DECISION = "decision"
         RULE_PUBLISHED = "rule_published"
+        SUSPEND = "suspend"
+        REACTIVATE = "reactivate"
 
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     actor_role = models.CharField(max_length=20)

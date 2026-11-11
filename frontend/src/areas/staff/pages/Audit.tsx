@@ -11,6 +11,7 @@ import { emptyFilters, useAuditLabels, type Filters } from "./auditHelpers";
 
 type AuditPage = components["schemas"]["PaginatedAuditEventList"];
 
+/** Fetch and minimally validate one private audit page. */
 async function getAuditEvents(filters: Filters, page: number): Promise<AuditPage> {
   const params = new URLSearchParams({ page: String(page) });
   for (const [key, value] of Object.entries(filters)) {
@@ -32,6 +33,7 @@ async function getAuditEvents(filters: Filters, page: number): Promise<AuditPage
   return data as AuditPage;
 }
 
+/** Keep audit query, filters and pagination in one page-level state owner. */
 export function Audit() {
   const { t, i18n } = useTranslation();
   const [filters, setFilters] = useState<Filters>(emptyFilters);

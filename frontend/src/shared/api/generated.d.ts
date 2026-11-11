@@ -75,14 +75,22 @@ export interface paths {
     post: operations["staff_households_create"];
   };
   "/api/staff/households/{id}/": {
-    /** Resume an existing walk-in household draft */
+    /** View a household file (staff) */
     get: operations["staff_households_retrieve"];
     /** Edit an existing walk-in household draft */
     patch: operations["staff_households_partial_update"];
   };
+  "/api/staff/households/{id}/reactivate/": {
+    /** Reactivate a household file (administrator) */
+    post: operations["staff_households_reactivate_create"];
+  };
   "/api/staff/households/{id}/submit/": {
     /** Submit a walk-in draft and check for duplicates */
     post: operations["staff_households_submit_create"];
+  };
+  "/api/staff/households/{id}/suspend/": {
+    /** Suspend a household file (administrator) */
+    post: operations["staff_households_suspend_create"];
   };
   "/api/store/listings/": {
     /** Post a listing for the signed-in user's active store */
@@ -110,9 +118,11 @@ export interface components {
      * @description * `view` - View
      * * `decision` - Decision
      * * `rule_published` - Rule Published
+     * * `suspend` - Suspend
+     * * `reactivate` - Reactivate
      * @enum {string}
      */
-    ActionEnum: "view" | "decision" | "rule_published";
+    ActionEnum: "view" | "decision" | "rule_published" | "suspend" | "reactivate";
     AddressInput: {
       city: string;
       postal_code: string;
@@ -222,8 +232,10 @@ export interface components {
       };
       message: string;
     };
-    /** @description Expose minimal household fields and the server-authorized resume action. */
+    /** @description Expose minimal fields and server-authorized resume and open actions. */
     HouseholdSearchResult: {
+      /** @description Fail closed when serialization has no authenticated request context. */
+      can_open: boolean;
       /** @description Fail closed when serialization has no authenticated request context. */
       can_resume: boolean;
       channel: components["schemas"]["ChannelEnum"];
@@ -241,6 +253,19 @@ export interface components {
       street_name: string;
       street_number: string;
       unit: string;
+    };
+    /** @description Accept a reason whose policy limits are enforced by the service. */
+    HouseholdStatusInput: {
+      reason: string;
+    };
+    /** @description Return the status fields changed by a suspension action. */
+    HouseholdStatusRead: {
+      /** Format: date-time */
+      expires_at: string | null;
+      /** Format: uuid */
+      id: string;
+      status: components["schemas"]["WalkInDraftReadStatusEnum"];
+      status_reason: string;
     };
     /** @description Confirm completion without returning credentials or account information. */
     InvitationAccepted: {
@@ -575,6 +600,8 @@ export interface components {
       members?: components["schemas"]["MemberInput"][];
     };
     WalkInDraftRead: {
+      /** @description Return only actions currently authorized for the requesting user. */
+      allowed_actions: readonly string[];
       channel: components["schemas"]["ChannelEnum"];
       city: string;
       /** Format: date-time */
@@ -583,17 +610,23 @@ export interface components {
       /** Format: date-time */
       created_at: string;
       /** Format: email */
-      created_by_email: string;
+      created_by_email: string | null;
       /** Format: email */
       email: string | null;
+      /** Format: date-time */
+      expires_at: string | null;
       /** Format: uuid */
       id: string;
       identity_checked_in_person: boolean;
+      member_number: string | null;
       members: readonly components["schemas"]["MemberRead"][];
       phone: string;
       postal_code: string;
       preferred_language: components["schemas"]["LanguageEnum"];
+      /** @description Expose the active server limit used by status-action forms. */
+      reason_max_length: number;
       status: components["schemas"]["WalkInDraftReadStatusEnum"];
+      status_reason: string;
       street_name: string;
       street_number: string;
       unit: string;
@@ -1003,7 +1036,7 @@ export interface operations {
       };
     };
   };
-  /** Resume an existing walk-in household draft */
+  /** View a household file (staff) */
   staff_households_retrieve: {
     parameters: {
       path: {
@@ -1045,6 +1078,43 @@ export interface operations {
       };
     };
   };
+  /** Reactivate a household file (administrator) */
+  staff_households_reactivate_create: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["HouseholdStatusInput"];
+        "application/x-www-form-urlencoded": components["schemas"]["HouseholdStatusInput"];
+        "multipart/form-data": components["schemas"]["HouseholdStatusInput"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["HouseholdStatusRead"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+    };
+  };
   /** Submit a walk-in draft and check for duplicates */
   staff_households_submit_create: {
     parameters: {
@@ -1059,6 +1129,43 @@ export interface operations {
         };
       };
       503: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+    };
+  };
+  /** Suspend a household file (administrator) */
+  staff_households_suspend_create: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["HouseholdStatusInput"];
+        "application/x-www-form-urlencoded": components["schemas"]["HouseholdStatusInput"];
+        "multipart/form-data": components["schemas"]["HouseholdStatusInput"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["HouseholdStatusRead"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+      404: {
         content: {
           "application/json": components["schemas"]["HouseholdError"];
         };

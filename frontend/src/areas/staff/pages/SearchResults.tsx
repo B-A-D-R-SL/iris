@@ -60,6 +60,13 @@ function HouseholdCard({ file }: { file: HouseholdSearchResult }) {
             </Button>
           </Group>
         )}
+        {file.can_open && (
+          <Group>
+            <Button component={Link} to={`/staff/households/${file.id}`} variant="outline">
+              {t("household.search.open")}
+            </Button>
+          </Group>
+        )}
       </Stack>
     </Paper>
   );

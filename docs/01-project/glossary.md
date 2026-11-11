@@ -1,3 +1,4 @@
+<!-- AI contribution: 50% or more AI-generated -->
 # Glossary
 
 French and English terms used in Iris screens and documentation. Translation keys follow `area.screen.element` for example, `store.newListing.title`.
@@ -202,6 +203,22 @@ Labels from `forms-and-fields.md`, grouped by form. Repeated labels are kept whe
 | Furniture offer form | `donor_name`, `donor_email`, `donor_phone` | Vos coordonnées | Your contact details |
 
 ## Translation keys
+
+French and English files live in `frontend/src/shared/i18n/fr/` and `en/`.
+Add a new key to the same area file in both languages:
+
+| File | Key prefixes |
+| --- | --- |
+| `common.json` | `app`, `category`, `shared` |
+| `public.json` | `auth`, `public` |
+| `household.json` | `household`, `reservation`, `privacy`, `assistant`, `furniture` |
+| `store.json` | `store`, `listing` |
+| `staff.json` | `staff`, `audit` |
+
+`resources.ts` combines these files into one i18next `translation` namespace.
+File names are not part of the key: keep calling `t("store.newListing.title")`.
+Keep each file below 500 lines. Register new area files in `resources.ts`;
+each top-level prefix must belong to only one file.
 
 Keys use exactly three segments: `area.screen.element`. Use camelCase for names containing more than one word.
 

@@ -1,6 +1,7 @@
 <!-- AI contribution: 50% or more AI-generated -->
-<!-- Size exception: the course uses this central contribution inventory to audit
-file declarations alongside their verification history across features. -->
+<!-- Size exception: the PR template points to this single ledger, and its feature
+inventory and example evidence must stay together to avoid duplicate cross-file
+indexes and synchronization errors. -->
 # AI usage
 
 How the Iris team uses generative AI, as required by the course rubric. This file stays up to date every iteration.
@@ -38,12 +39,15 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| FIX-23 Frontend development dependency security (#614) | `frontend/package.json`, `frontend/scripts/test-api-generation.mjs`, `sonar-project.properties`, `AI_USAGE.md`; `frontend/pnpm-lock.yaml` | 50% or more AI-generated; lockfile exempt | [#680](https://github.com/B-A-D-R-SL/iris/pull/680) |
+| FIX-10 Translation files by area (#636) | `frontend/src/shared/i18n/{en,fr}/*.json`, `frontend/src/shared/i18n/{index,resources}.ts`, `frontend/src/test/i18n.test.ts`, `docs/01-project/glossary.md`, `docs/guides/design-system.md`, `AI_USAGE.md` | 50% or more AI-generated | [#679](https://github.com/B-A-D-R-SL/iris/pull/679) |
 | FIX-07 Deny-by-default endpoint access test (#633) | `backend/tests/test_endpoint_access.py`, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | [#673](https://github.com/B-A-D-R-SL/iris/pull/673) |
 | FIX-02 Private listing-photo processing and storage (#628) | `backend/adapters/{photos.py,blob_photos.py,photo_types.py}`, `backend/modules/listings/{contracts.py,photo_storage.py,services.py,queries.py,tests/,locale/,README.md}`, `backend/modules/reservations/{api/serializers.py,api/views.py,tests/test_api.py,locale/}`, `backend/{tools/,tests/test_photos.py,tests/test_photo_demo.py,tests/test_blob_photos.py,tests/test_blob_photos_azurite.py,photos.ini,iris/settings/base.py,pyproject.toml,.dockerignore,.env.example}`, `.env.example`, `docker-compose.yml`, `.github/workflows/ci.yml`, `docs/guides/listing-photo-*.md`, `docs/guides/listing-posting.md`, `docs/03-design/api.md`, generated API types and `AI_USAGE.md` | 50% or more AI-generated; generated lock file, compiled catalogs and API declarations exempt | Not yet opened (`FIX-02-listing-photo-processing` branch) |
 | FIX-09 Rule publishing audit and refactoring (#635) | `backend/modules/{rules,audit}/`, `backend/tests/{test_rule_publication.py,test_seed.py}`, `frontend/src/areas/staff/pages/{Audit*,auditHelpers.ts}`, audit translations and generated API types | 50% or more AI-generated overall; `backend/modules/rules/tests/test_rule_set_versions.py` is below 50%; generated migration and API types exempt | [#658](https://github.com/B-A-D-R-SL/iris/pull/658) |
 | US-25 duplicate check and tests (#479, #478) | `backend/modules/households/`, `backend/iris/settings/base.py`, `docs/02-requirements/business-rules.md`, `docs/03-design/api.md`, generated API types, `AI_USAGE.md` | 50% or more AI-generated | [#660](https://github.com/B-A-D-R-SL/iris/pull/660) |
 | US-63 Household search (#553, #554; tests #552) | `backend/modules/households/`, `backend/modules/audit/{services.py,README.md,tests/test_household_views.py}`, `backend/iris/{asgi.py,settings/base.py,settings/local.py}`, `backend/{.env.example,tests/test_backend_config.py}`, `frontend/src/app/{App,RequireHouseholdSearch}.tsx`, `frontend/src/areas/staff/pages/Search*`, `frontend/src/features/households/{searchApi,useHouseholdSearch}*`, `frontend/src/test/{householdSearch.ts,render.tsx}`, routes, translations, generated API types and search documentation | 50% or more AI-generated; generated migration and API types exempt | [#662](https://github.com/B-A-D-R-SL/iris/pull/662) |
 | SET-33 Colour prototypes and design docs (#651) | `docs/03-design/mockups/` (Release 1 coloured exports under the existing names, plus `Foundations.png` and the new-screen PNGs), `docs/guides/design-system.md` (Theme tokens and status map), `AI_USAGE.md` | 50% or more AI-generated for the Theme documentation; mockup PNGs are Figma exports | [#668](https://github.com/B-A-D-R-SL/iris/pull/668) |
+| FIX-21 Split the mock notice page-drawing functions (#647) | `tools/mock_notices/layout.py`, `tools/mock_notices/tests/test_layout.py`, `AI_USAGE.md` | 50% or more AI-generated | [#667](https://github.com/B-A-D-R-SL/iris/pull/667) |
 | FIX-15 Seed command boundary and household expiry (#641) | `backend/iris/management/commands/seed.py`, `backend/modules/households/domain/expiry.py`, `backend/modules/households/models.py`, `backend/modules/households/tests/test_expiry.py`, `backend/tests/test_seed.py`, `backend/pyproject.toml`, `docs/04-architecture/architecture.md`, `AI_USAGE.md` | 50% or more AI-generated | [#663](https://github.com/B-A-D-R-SL/iris/pull/663) |
 | T-01.04.3 Invitation password page (#431) | `frontend/src/areas/public/pages/AcceptInvitation{,.test}.tsx`, `frontend/src/features/accounts/invitations{,.test}.ts`, `frontend/src/app/App.tsx`, `frontend/src/shared/i18n/{fr,en}.json`, `frontend/src/shared/logger.ts`, `.coderabbit.yaml`, `backend/modules/accounts/README.md`, `docs/03-design/api.md`, `AI_USAGE.md` | 50% or more AI-generated | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
 | T-01.04.2 Invitation model, services and acceptance API (#430) | `backend/modules/accounts/{models.py,services.py,api/,locale/fr/LC_MESSAGES/,README.md,migrations/0005_invitation.py}`, `backend/modules/accounts/tests/{conftest,test_invitations,test_invitation_logging,test_invitation_errors}.py`, `backend/modules/rules/{domain/schemas.py,tests/test_invitation_rules.py}`, `docs/02-requirements/business-rules.md`, `docs/03-design/{api,database-schema,domain-model}.md`, `docs/04-architecture/architecture.md`, `frontend/src/shared/api/generated.d.ts`, `AI_USAGE.md` | 50% or more AI-generated for source changes; Django migration, compiled catalog and generated API declarations exempt | [#657](https://github.com/B-A-D-R-SL/iris/pull/657) |
@@ -303,6 +307,19 @@ At least half of the AI-assisted features need an example here. For each one:
 - **How we verified it:** the automated tests or the review comment that checked it
 - **Problems found and corrections:** what was wrong or rejected, and what we changed
 
+### FIX-23 Frontend development dependency security (#614)
+
+- **What the AI produced:** scoped pnpm overrides for jsdom's Undici 8.12.4 and openapi-typescript's Undici 6.29.1, the regenerated lockfile, an HTTP redirect regression test that uses Undici without Node's built-in fetch, and Sonar test classification for that standalone runner.
+- **Why:** keep openapi-typescript 6.7.6 and TypeScript 6 compatible. Undici 6.29.1 removes the old busboy dependency. Undici 8.12.4 also covers the November 5 security fixes published after this issue.
+- **Verification:** frozen install, dependency tree, ESLint, Prettier, TypeScript, build, unchanged generated API types, all 9 generator tests, and all 443 frontend tests passed (93.68% statement coverage). The coverage run used four workers after three tests timed out with the default 30 workers.
+- **Audit:** no Undici or busboy findings remain. The full development audit still reports two existing findings: Zod 4.6.5 (high, GHSA-mrhx-c7xc-m3w5) and minimatch 10.2.6 (moderate, GHSA-g3hv-75wg-m249). GitHub alerts must be checked again after merging into main.
+
+### FIX-10 Translation files by area (#636)
+
+- **What the AI produced:** matching common, public, household, store and staff JSON files for English and French; a resource module that keeps the existing translation namespace; file-level parity, size, loading and empty-string tests; glossary and design-system updates.
+- **Preserved:** every original key and value matches the files on `main`. No screen calls or translation wording changed. The largest file is now 182 lines instead of 686.
+- **Verification:** all 458 frontend tests passed at 93.69% statement coverage, including 21 translation tests. ESLint, Prettier, TypeScript and the production build passed. Tests discover every area file, reject overlapping top-level prefixes, check that every file is loaded, and resolve every key in both languages. They also check French fallback when English entries are missing and key fallback when neither language has an entry.
+
 ### T-09.62.1–2 Audit tests and service (#548, #549)
 
 - **What the AI produced:** the append-only AuditEvent model, public `record()` service, PostgreSQL trigger migrations, concise module README, and unit/integration tests. Existing accounts code was reused; #550 is excluded.
@@ -338,6 +355,7 @@ At least half of the AI-assisted features need an example here. For each one:
 - **What the AI produced:** the split of `_draw_cover_page` and `_draw_calculation_page` into one helper per block of the page; the four functions that choose the text and row order (`review_message`, `important_message`, `calculation_order`, `change_explanation`); and `tests/test_layout.py`, written before the code.
 - **How we verified it:** `test_committed_output_is_up_to_date` regenerates the 50 notices and still matches the committed files byte for byte. Seven deliberate bugs were each caught: five by the new tests, and two drawing changes (row spacing and the gap above the explanation) by the committed-output test. 34 tests passed and ruff was clean; these were local runs, because CI does not run this tool's tests.
 - **Problems found and corrections:** the first plan had a test that "377.1" sorts as a number rather than as text. Every real line number has three digits, so both orders agree and that test could never fail. It was replaced by a test that a line only declared is placed in number order.
+
 ### SET-33 Colour prototypes and design docs (#651)
 
 - **Firas's direction:** keep the Step 4 repository file names so existing links still work, restore later-release grayscale exports, and replace the Theme section in `design-system.md` with the Foundations token table and status map. The wiki and the pull request stay with Firas.
@@ -718,3 +736,9 @@ At least half of the AI-assisted features need an example here. For each one:
   - While checking the fixes, we found that the `frontend` Docker container keeps the code copied at build time, so frontend checks run with `docker compose exec frontend` used stale files. The frontend checks were re-run in a container with the working folder mounted: 359 tests pass at 93% coverage (categories feature 94%). Backend after the fixes: 727 tests pass at 93% coverage.
 - **Remaining:**
   - Peer review and CI.
+
+### T-04.32.2 Suspend service and buttons and T-04.32.1 tests (#489, #488; US-32)
+
+- **What the AI produced:** Codex implemented the admin-only suspend/reactivate endpoints, atomic cancellation of reserved reservations with stock release, audit actions and reasons, localized post-commit holder email, the staff household actions screen, API types, tests and documentation.
+- **Owner's decisions:** preserve the approval expiry; reactivate only before expiry; cancel only `reserved` reservations with `late_cancel=false`; allow counter-only files without email to change status; log email delivery failures without rolling back; keep the design within existing services and adapters.
+- **Verification:** focused household and audit backend tests, frontend component tests, Ruff, mypy, import-linter, migration checks, TypeScript, ESLint and Prettier. Full frontend tests pass except the existing usability preview tests when sandbox networking forbids their local listener; they are rerun outside that restriction.

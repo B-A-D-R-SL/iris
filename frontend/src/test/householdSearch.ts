@@ -11,6 +11,7 @@ export function searchFile(overrides: Partial<HouseholdSearchResult> = {}): Hous
     status: "draft",
     channel: "walk_in",
     can_resume: true,
+    can_open: true,
     email: "elodie@example.test",
     phone: "+15145550123",
     street_number: "123",

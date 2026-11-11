@@ -6,7 +6,7 @@ description = "Generates fake Revenu Québec notices of assessment (SPECIMEN) fo
 requires-python = ">=3.13"
 dependencies = [
     "faker>=37.0",
-    "pillow>=11.0",
+    "pillow>=13.0.0",
     "pypdfium2>=4.30",
     "reportlab>=4.2",
 ]
