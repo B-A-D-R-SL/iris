@@ -255,9 +255,7 @@ def test_us44_anonymized_other_store_live_is_unknown(
     household = pickup_household()
     household.anonymized_at = pickup_case.now
     household.save(update_fields=["anonymized_at"])
-    elsewhere = make_reservation(
-        listing=pickup_case.other_listing, household=household
-    )
+    elsewhere = make_reservation(listing=pickup_case.other_listing, household=household)
     refused = refusal(
         lambda: queries.lookup_pickup(
             pickup_case.staff, elsewhere.pickup_code, now=pickup_case.now
