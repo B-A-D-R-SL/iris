@@ -124,8 +124,8 @@ def test_us44_signed_out_is_refused(
 ) -> None:
     reservation = make_reservation()
     client = client_for(None)
-    assert lookup(client, reservation.pickup_code).status_code == 403
-    assert confirm(client, reservation.pk).status_code == 403
+    assert lookup(client, reservation.pickup_code).status_code == 401
+    assert confirm(client, reservation.pk).status_code == 401
     reservation.refresh_from_db()
     assert reservation.status == ReservationStatus.RESERVED
 

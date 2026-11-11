@@ -8,7 +8,6 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import GenericAPIView
 from rest_framework.request import Request
@@ -83,7 +82,7 @@ REFUSALS = {
         _("The pickup window has ended. This pickup cannot be confirmed here."),
     ),
 }
-ERROR_RESPONSES = {code: PickupErrorSerializer for code in (400, 403, 404, 409)}
+ERROR_RESPONSES = {code: PickupErrorSerializer for code in (400, 401, 403, 404, 409)}
 
 
 def pickup_exception_handler(
@@ -121,7 +120,6 @@ def pickup_exception_handler(
 
 
 class PickupView(GenericAPIView):
-    authentication_classes = (SessionAuthentication,)
     permission_classes = (IsPickupStaff,)
 
     def get_exception_handler(self) -> Any:

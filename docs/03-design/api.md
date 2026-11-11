@@ -293,10 +293,11 @@ allowed to read both households and listings.
 | POST     | `/api/staff/households/{id}/reservations/` | Intake worker, admin | Reserve on behalf                                | Planned |
 
 The two pickup endpoints (US-44) accept `store_staff` and `store_manager`
-accounts assigned to a store, with the session cookie and CSRF token; every
-other caller gets 403. Lookup takes `{"code": "…"}` (spaces and lowercase
-accepted; the scan screen sends the decoded QR text the same way) and changes
-nothing. Confirm has no body. Both return the pickup as
+accounts assigned to a store, with the session cookie and CSRF token.
+Signed out gets 401; other signed-in roles get 403. Lookup takes
+`{"code": "…"}` (spaces and lowercase accepted; the scan screen sends the
+decoded QR text the same way) and changes nothing. Confirm has no body. Both
+return the pickup as
 `{"id", "status", "holder", "alternate", "title", "unit", "quantity",
 "pickup_code", "pickup_start", "pickup_end", "picked_up_at"}`, where `holder`
 and `alternate` are a first name and last initial or `null`
@@ -306,7 +307,8 @@ and `alternate` are a first name and last initial or `null`
 | --- | --- |
 | 200 | The pickup. After confirm, `status` is `picked_up` and `picked_up_at` is set. |
 | 400 | `{"code": "validation_error", "message", "fields": {"code": ["…"]}}` |
-| 403 | `{"code": "permission_denied" or "not_authenticated", "message", "fields": {}}` |
+| 401 | `{"code": "not_authenticated", "message", "fields": {}}` |
+| 403 | `{"code": "permission_denied", "message", "fields": {}}` |
 | 404 | `{"code": "unknown_code"}` (lookup) or `{"code": "unknown_reservation"}` (confirm: not at this store), with `message` and `fields: {}` |
 | 409 | `{"code", "message", "fields": {}}` with `wrong_store`, `ambiguous_code`, `already_picked_up` (adds `picked_up_at`, the first confirmation), `cancelled`, `no_show`, `not_open_yet` or `window_ended` |
 
