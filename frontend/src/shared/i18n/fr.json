@@ -33,16 +33,6 @@
     }
   },
   "household": {
-    "status": {
-      "draft": "Brouillon",
-      "submitted": "Demande soumise",
-      "reviewRequired": "Vérification par l'équipe requise",
-      "awaitingVisit": "Visite en personne requise",
-      "approved": "Approuvé",
-      "renewalNeeded": "Renouvellement requis",
-      "suspended": "Suspendu",
-      "rejected": "Refusé"
-    },
     "common": {
       "walkInRegistration": "Inscription en personne",
       "onlineApplication": "Demande en ligne",
@@ -184,8 +174,6 @@
       "reactivateName": "Réactiver {{name}}",
       "status": "Statut",
       "actions": "Actions",
-      "active": "Active",
-      "inactive": "Inactive",
       "codeHelp": "Lettres minuscules, chiffres et _, en commençant par une lettre. Il ne pourra plus être modifié.",
       "codeLocked": "Le code ne peut pas être modifié.",
       "codeError": "Utilisez des lettres minuscules, des chiffres et _, en commençant par une lettre.",

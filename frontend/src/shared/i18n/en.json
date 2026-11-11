@@ -33,16 +33,6 @@
     }
   },
   "household": {
-    "status": {
-      "draft": "Draft",
-      "submitted": "Submitted",
-      "reviewRequired": "Staff review required",
-      "awaitingVisit": "In-person visit required",
-      "approved": "Approved",
-      "renewalNeeded": "Renewal required",
-      "suspended": "Suspended",
-      "rejected": "Rejected"
-    },
     "common": {
       "walkInRegistration": "Walk-in registration",
       "onlineApplication": "Online application",
@@ -184,8 +174,6 @@
       "reactivateName": "Reactivate {{name}}",
       "status": "Status",
       "actions": "Actions",
-      "active": "Active",
-      "inactive": "Inactive",
       "codeHelp": "Lowercase letters, numbers and _, starting with a letter. It cannot be changed later.",
       "codeLocked": "The code cannot be changed.",
       "codeError": "Use lowercase letters, numbers and _, starting with a letter.",

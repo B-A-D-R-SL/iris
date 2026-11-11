@@ -109,6 +109,18 @@ both text backgrounds, the four status pairs, neutral/selected states, filled-bu
 states, placeholders on white inputs, input borders on both surfaces and focus rings.
 No placeholder palettes or temporary neutral success/warning fallbacks remain.
 
+Interaction tokens extend (and do not change) the 70 Foundations swatches. Filled
+success uses the published primary hover; danger uses red.9. Warning, info and neutral
+already use their darkest palette shade, so their filled hover is a 15% black mix
+(`#934C00`, `#005F97`, `#012F45`). Light hover uses the next stronger tint (green.2,
+orange.1, red.1, blue.1, sand.2) with the corresponding darker hover text to preserve
+4.5:1 contrast. Default controls use sand.1 on hover over sand.0. These additional
+component states are implementation choices for hover feedback, not new SET-33 swatches.
+
+Household and category status wording lives only under `shared.status`, including
+search results and the category administration table. Search response validation uses
+`statusTones.household`, not a second translation map.
+
 `statusTones.ts` is the single status-to-tone map copied from #651. Household and listing
 statuses use the current generated API enums; reservation and partner application enums
 must be adopted when their endpoints expose them. The `partnerApplication` record name

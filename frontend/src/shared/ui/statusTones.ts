@@ -15,7 +15,10 @@ export const statusTones = {
     approved: "success",
     suspended: "danger",
     rejected: "danger",
-  } satisfies Record<Schemas["WalkInDraftReadStatusEnum"], StatusTone>,
+  } satisfies Record<
+    Schemas["WalkInDraftReadStatusEnum"] | Schemas["HouseholdSearchResult"]["status"],
+    StatusTone
+  >,
   listing: {
     published: "success",
     sold_out: "neutral",

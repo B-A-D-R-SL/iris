@@ -41,3 +41,24 @@ full pixel identity or independent WCAG certification is not claimed.
 
 The backend is unchanged by SET-34. The build retains its existing large-bundle advisory.
 CI and teammate review are separate from these local results.
+
+## Ammar review follow-up
+
+See the [complete route and override inventory](affected-screens.md), including the
+AppBar dropdown, category add/edit dialogs, HolderStep checkboxes, IntegerField and
+SignOutButton. [Supplemental before/after captures and hover measurements](ammar-review.zip)
+compare this follow-up with the PR before review fixes (`ea428cd`), rather than main.
+The original archive remains the evidence for the initial palette migration.
+
+Removed the legacy household status labels/map and unused category admin status
+labels: `shared.status` is the sole bilingual source. Household search validates
+against the same status map, with tests for all eight API statuses and unknown keys.
+Filled, light and default controls now have distinct hover colours; light hover text
+also darkens to maintain normal-text contrast. SET-33's 70 palette shades are unchanged.
+
+Follow-up verification: **578 tests pass** across 32 files, with **94.72% line
+coverage**; TypeScript, lint, formatting and production build pass. Browser checks
+record 32 route captures and two control-matrix captures, 42 normal/hover measurements,
+no page exceptions or page-level horizontal overflow, and unchanged disabled controls.
+All filled/light hover text pairs meet 4.5:1. The 70 original palette entries are
+byte-for-byte unchanged from the pre-review PR head.

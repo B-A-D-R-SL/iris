@@ -1,20 +1,10 @@
 // AI contribution: 50% or more AI-generated
 /** Staff household summaries; personal results stay in memory and bypass HTTP caching. */
 import type { components } from "../../shared/api/generated";
+import { statusTones } from "../../shared/ui/statusTones";
 
 export type HouseholdSearchResult = components["schemas"]["HouseholdSearchResult"];
 export type HouseholdSearchPage = components["schemas"]["PaginatedHouseholdSearchResultList"];
-
-export const householdStatusLabels: Record<HouseholdSearchResult["status"], string> = {
-  draft: "household.status.draft",
-  submitted: "household.status.submitted",
-  review_required: "household.status.reviewRequired",
-  awaiting_visit: "household.status.awaitingVisit",
-  approved: "household.status.approved",
-  renewal_needed: "household.status.renewalNeeded",
-  suspended: "household.status.suspended",
-  rejected: "household.status.rejected",
-};
 
 export class HouseholdSearchError extends Error {
   readonly status: number;
@@ -50,7 +40,7 @@ function isResult(value: unknown): value is HouseholdSearchResult {
     nullable.every((key) => row[key] === null || typeof row[key] === "string") &&
     typeof row.can_resume === "boolean" &&
     typeof row.status === "string" &&
-    Object.hasOwn(householdStatusLabels, row.status) &&
+    Object.hasOwn(statusTones.household, row.status) &&
     (row.channel === "walk_in" || row.channel === "online")
   );
 }

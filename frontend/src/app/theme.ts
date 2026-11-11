@@ -27,12 +27,12 @@ import classes from "./theme.module.css";
 import { palettes, primaryShade, tokens, tokenVariables } from "./tokens";
 
 const toneTokens = {
-  iris: ["primary", "primary-light"],
-  success: ["success-strong", "success-light"],
-  warning: ["warning-strong", "warning-light"],
-  danger: ["danger-strong", "danger-light"],
-  info: ["info-strong", "info-light"],
-  neutral: ["neutral-strong", "neutral-light"],
+  iris: ["primary", "primary-light", "primary-hover", "primary-light-hover"],
+  success: ["success-strong", "success-light", "success-hover", "success-light-hover"],
+  warning: ["warning-strong", "warning-light", "warning-hover", "warning-light-hover"],
+  danger: ["danger-strong", "danger-light", "danger-hover", "danger-light-hover"],
+  info: ["info-strong", "info-light", "info-hover", "info-light-hover"],
+  neutral: ["neutral-strong", "neutral-light", "neutral-hover", "neutral-light-hover"],
 } as const;
 
 /** Narrow semantic aliases while preserving Mantine's handling of explicit shade names. */
@@ -49,20 +49,22 @@ export const theme = createTheme({
     const color = input.color ?? input.theme.primaryColor;
     const fallback = defaultVariantColorsResolver({ ...input, color });
     if (!isToneColor(color)) return fallback;
-    const [strong, light] = toneTokens[color];
+    const [strong, light, hover, lightHover] = toneTokens[color];
     if (input.variant === "filled")
       return {
         ...fallback,
         background: `var(--iris-${strong})`,
         color: "var(--iris-on-primary)",
-        hover: color === "iris" ? "var(--iris-primary-hover)" : `var(--iris-${strong})`,
+        hover: `var(--iris-${hover})`,
       };
     if (input.variant === "light")
       return {
         ...fallback,
         background: `var(--iris-${light})`,
         color: `var(--iris-${strong})`,
-        hover: `var(--iris-${light})`,
+        hover: `var(--iris-${lightHover})`,
+        // Darken both colours so the stronger tint still has accessible text.
+        hoverColor: `var(--iris-${hover})`,
       };
     if (input.variant === "outline")
       return {
@@ -178,6 +180,7 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     "--mantine-color-iris-filled": "var(--iris-primary)",
     "--mantine-color-iris-filled-hover": "var(--iris-primary-hover)",
     "--mantine-color-default": "var(--iris-surface-raised)",
+    "--mantine-color-default-hover": "var(--iris-default-hover)",
   },
   dark: {},
 });

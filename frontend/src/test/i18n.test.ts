@@ -32,6 +32,16 @@ const english = flatten(en);
 const french = flatten(fr);
 
 describe("SET-13 translation catalogs", () => {
+  it("keeps household and category status wording only in the shared status catalog", () => {
+    for (const entries of [english, french]) {
+      expect(Object.keys(entries).some((key) => key.startsWith("household.status."))).toBe(false);
+      expect(entries["category.admin.active"]).toBeUndefined();
+      expect(entries["category.admin.inactive"]).toBeUndefined();
+      expect(entries["shared.status.category.active"]).toBe("Active");
+      expect(entries["shared.status.category.inactive"]).toBe("Inactive");
+    }
+  });
+
   it("has exactly the same keys in French and English", () => {
     expect(Object.keys(french).sort()).toEqual(Object.keys(english).sort());
   });
@@ -93,8 +103,10 @@ describe("SET-13 glossary and shell labels", () => {
     expect(french["household.registrationHolder.firstName"]).toBe("Prénom");
     expect(english["reservation.confirmation.pickupCode"]).toBe("Pickup code");
     expect(french["reservation.confirmation.pickupCode"]).toBe("Code de cueillette");
-    expect(english["household.status.reviewRequired"]).toBe("Staff review required");
-    expect(french["household.status.reviewRequired"]).toBe("Vérification par l'équipe requise");
+    expect(english["shared.status.household.review_required"]).toBe("Staff review required");
+    expect(french["shared.status.household.review_required"]).toBe(
+      "Vérification par l'équipe requise",
+    );
   });
 });
 

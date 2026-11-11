@@ -18,30 +18,48 @@ describe("WCAG 2.1 contrast (NFR-03)", () => {
     expect(() => contrastRatio(color, tokens.surface)).toThrow(TypeError);
     expect(() => contrastRatio(tokens.surface, color)).toThrow(TypeError);
   });
+});
 
-  const textPairs = [
-    ["text", "surface"],
-    ["text", "surfaceRaised"],
-    ["textMuted", "surface"],
-    ["textMuted", "surfaceRaised"],
-    ["onPrimary", "primary"],
-    ["onPrimary", "primaryHover"],
-    ["onPrimary", "primaryPressed"],
-    ["onPrimary", "dangerStrong"],
-    ["textPlaceholder", "surface"],
-    ["dangerStrong", "surface"],
-    ["dangerStrong", "surfaceRaised"],
-    ["text", "primaryLight"],
-    ["primary", "primaryLight"],
-    ["neutralStrong", "neutralLight"],
-    ["successStrong", "successLight"],
-    ["successStrong", "surface"],
-    ["warningStrong", "warningLight"],
-    ["warningStrong", "surface"],
-    ["dangerStrong", "dangerLight"],
-    ["infoStrong", "infoLight"],
-  ] as const;
+const textPairs = [
+  ["text", "defaultHover"],
+  ["neutralHover", "neutralLightHover"],
+  ["infoHover", "infoLightHover"],
+  ["dangerHover", "dangerLightHover"],
+  ["warningHover", "warningLightHover"],
+  ["successHover", "successLightHover"],
+  ["primaryHover", "primaryLightHover"],
+  ["onPrimary", "neutralHover"],
+  ["onPrimary", "infoHover"],
+  ["onPrimary", "dangerHover"],
+  ["onPrimary", "warningHover"],
+  ["onPrimary", "successHover"],
+  ["onPrimary", "neutralStrong"],
+  ["onPrimary", "infoStrong"],
+  ["onPrimary", "warningStrong"],
+  ["onPrimary", "successStrong"],
+  ["text", "surface"],
+  ["text", "surfaceRaised"],
+  ["textMuted", "surface"],
+  ["textMuted", "surfaceRaised"],
+  ["onPrimary", "primary"],
+  ["onPrimary", "primaryHover"],
+  ["onPrimary", "primaryPressed"],
+  ["onPrimary", "dangerStrong"],
+  ["textPlaceholder", "surface"],
+  ["dangerStrong", "surface"],
+  ["dangerStrong", "surfaceRaised"],
+  ["text", "primaryLight"],
+  ["primary", "primaryLight"],
+  ["neutralStrong", "neutralLight"],
+  ["successStrong", "successLight"],
+  ["successStrong", "surface"],
+  ["warningStrong", "warningLight"],
+  ["warningStrong", "surface"],
+  ["dangerStrong", "dangerLight"],
+  ["infoStrong", "infoLight"],
+] as const;
 
+describe("Iris semantic contrast", () => {
   it.each(textPairs)("%s on %s meets 4.5:1 for normal text", (text, background) => {
     expect(contrastRatio(tokens[text], tokens[background])).toBeGreaterThanOrEqual(4.5);
   });

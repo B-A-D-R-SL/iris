@@ -314,8 +314,22 @@ The headings remain here so existing feature anchors continue to resolve.
   historical wording is unchanged and one relative link was adjusted for its new folder.
   The pre-existing category-page/table structure remains intact for this colour task.
 
+- **Ammar review follow-up:** removed the duplicate household/category status labels and
+  the household label map; search now validates the shared status map against both API
+  status types. Added filled/light/default hover tokens and contrasting light-hover text,
+  keeping all 70 Foundations swatches unchanged. Added a complete route/override inventory,
+  supplemental fictional-data browser captures, and regression/contrast coverage.
+  Verification: 578 frontend tests pass (94.72% line coverage), plus TypeScript, lint,
+  formatting and production build. Browser checks cover 32 route captures, two control
+  matrices and 42 hover measurements, with no page errors/overflow. Disabled controls
+  stay unchanged; filled/light hover text meets 4.5:1. No GitHub review reply was posted.
+
 AI-assisted files for this entry:
 
+- `frontend/src/features/households/searchApi.test.ts`
+- `frontend/src/features/households/searchApi.ts`
+- `docs/03-design/verification/SET-34/ammar-review.zip`
+- `docs/03-design/verification/SET-34/affected-screens.md`
 - `AI_USAGE.md`
 - `docs/03-design/verification/SET-34/README.md`
 - `docs/03-design/verification/SET-34/categories-before-after.png`

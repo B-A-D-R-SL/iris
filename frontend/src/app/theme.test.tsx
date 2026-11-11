@@ -56,3 +56,35 @@ describe("Iris theme (Figma Components page)", () => {
     expect(wrapper?.getAttribute("style")).toContain("--input-fz: calc(1rem");
   });
 });
+
+describe("Iris interaction feedback", () => {
+  const resolved = mergeMantineTheme(DEFAULT_THEME, theme);
+
+  it.each(["iris", "success", "warning", "danger", "info", "neutral"])(
+    "gives %s filled and light controls distinct hover states",
+    (color) => {
+      const filled = resolved.variantColorResolver({ theme: resolved, color, variant: "filled" });
+      const light = resolved.variantColorResolver({ theme: resolved, color, variant: "light" });
+      const variables = cssVariablesResolver(resolved).variables;
+      const tokenValue = (value: string) => variables[value.slice(4, -1) as `--${string}`];
+      expect(filled.hover).not.toBe(filled.background);
+      expect(tokenValue(filled.hover)).not.toBe(tokenValue(filled.background));
+      expect(light.hover).not.toBe(light.background);
+      expect(tokenValue(light.hover)).not.toBe(tokenValue(light.background));
+      expect(light.hoverColor).toBe(filled.hover);
+    },
+  );
+
+  it("gives default buttons and ActionIcons a distinct hover background", () => {
+    const colors = resolved.variantColorResolver({
+      theme: resolved,
+      color: "iris",
+      variant: "default",
+    });
+    const variables = cssVariablesResolver(resolved);
+    expect(colors.background).toBe("var(--mantine-color-default)");
+    expect(colors.hover).toBe("var(--mantine-color-default-hover)");
+    expect(variables.light["--mantine-color-default-hover"]).toBe("var(--iris-default-hover)");
+    expect(tokens.defaultHover).not.toBe(tokens.surfaceRaised);
+  });
+});

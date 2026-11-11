@@ -104,10 +104,12 @@ export const palettes = {
 export const primaryShade = 9;
 export const referenceColors = { black: "#000000", white: "#FFFFFF" };
 
-/** Semantic and component tokens from the Foundations table and its component-token note. */
+const primaryHover = "#1D6824";
+
+/** Foundations semantics plus component interaction tokens; palette swatches stay unchanged. */
 export const tokens = {
   primary: palettes.iris[primaryShade],
-  primaryHover: "#1D6824",
+  primaryHover,
   primaryPressed: "#17561D",
   onPrimary: referenceColors.white,
   text: foundationsPalettes.irisNavy[9],
@@ -115,21 +117,34 @@ export const tokens = {
   textPlaceholder: foundationsPalettes.irisSlate[7],
   surface: referenceColors.white,
   surfaceRaised: foundationsPalettes.irisSand[0],
+  defaultHover: foundationsPalettes.irisSand[1],
   // Foundations distinguishes decorative borders from control boundaries.
   border: foundationsPalettes.irisSand[1],
   inputBorder: foundationsPalettes.irisSand[5],
   neutralStrong: foundationsPalettes.irisNavy[9],
+  // Scales already at shade 9 use a 15% black mix for a darker filled hover.
+  neutralHover: "#012F45",
   neutralLight: foundationsPalettes.irisSand[1],
+  neutralLightHover: foundationsPalettes.irisSand[2],
   primaryLight: palettes.iris[1],
+  primaryLightHover: palettes.iris[2],
   successStrong: palettes.success[9],
+  successHover: primaryHover,
   successLight: palettes.success[1],
+  successLightHover: palettes.success[2],
   warningStrong: palettes.warning[9],
+  warningHover: "#934C00",
   warningLight: palettes.warning[0],
+  warningLightHover: palettes.warning[1],
   warningBorder: palettes.warning[6],
   dangerStrong: palettes.danger[8],
+  dangerHover: palettes.danger[9],
   dangerLight: palettes.danger[0],
+  dangerLightHover: palettes.danger[1],
   infoStrong: palettes.info[9],
+  infoHover: "#005F97",
   infoLight: palettes.info[0],
+  infoLightHover: palettes.info[1],
 } as const;
 
 /** camelCase token names become public CSS names, e.g. inputBorder -> input-border. */
