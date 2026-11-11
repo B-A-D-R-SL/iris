@@ -16,9 +16,10 @@ from django.core.files.uploadedfile import UploadedFile
 from django.db import connection, transaction
 from django.db.models import F
 from django.utils import dateformat, timezone
-from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
 
+from adapters.photo_types import PhotoStorageError
+from adapters.photos import PhotoValidationError
 from modules.categories import queries as category_queries
 from modules.listings.contracts import ListingPhotoStore, SafetyChecker
 from modules.listings.domain.posting import (
@@ -31,6 +32,7 @@ from modules.listings.domain.posting import (
 )
 from modules.listings.models import Listing, ListingStatus
 from modules.listings.permissions import assigned_store_id
+from modules.listings.photo_storage import load_store
 from modules.rules import queries as rule_queries
 from modules.stores import queries as store_queries
 
@@ -127,10 +129,130 @@ def _safety_checker() -> SafetyChecker:
 
 
 def _photo_store() -> ListingPhotoStore:
-    backend = getattr(settings, "LISTING_PHOTO_STORE_BACKEND", "")
-    if not backend:
+    if not settings.LISTING_PHOTO_STORE_BACKEND:
         raise PostingUnavailable(_("Listing photo storage is not available yet."))
-    return cast(ListingPhotoStore, import_string(backend)())
+    try:
+        return load_store()
+    except PhotoStorageError:
+        logger.error(
+            "listing_photo_store_failed", extra={"event": "listing_photo_store_failed"}
+        )
+        raise PostingUnavailable(_("Posting is temporarily unavailable.")) from None
+
+
+def _posting_inputs(
+    store: UUID,
+    data: ListingInput,
+    safety_check: SafetyChecker | None,
+) -> tuple[dict[str, Any], PostingLimits, datetime]:
+    offering_store = store_queries.for_listing_post(store)
+    if offering_store is None or not offering_store.is_active:
+        raise PermissionDenied(_("Your store must be active to post a listing."))
+    category = category_queries.for_listing_post(data.category)
+    if category is None or not category["is_active"]:
+        raise ValidationError({"category": _("Choose an active category.")})
+    now = timezone.now()
+    posting_rules = rule_queries.active("listing_posting", at=now)
+    safety_rules = rule_queries.active("listing_safety", at=now)
+    if posting_rules is None or safety_rules is None:
+        raise PostingUnavailable(_("Listing rules must be seeded before posting."))
+    try:
+        limits = PostingLimits(**posting_rules.values)
+    except TypeError as exc:
+        raise PostingUnavailable(
+            _("Listing posting rules need configuration.")
+        ) from exc
+    _refuse(check_posting(data, limits, now=now), limits)
+    checker = safety_check if safety_check is not None else _safety_checker()
+    listing_data = safety_payload(data, local_tz=timezone.get_default_timezone())
+    try:
+        reasons = checker(listing_data, category, safety_rules.values)
+    except SafetyRulesInvalid as exc:
+        raise PostingUnavailable(_("Listing safety rules need configuration.")) from exc
+    _refuse(reasons, limits)
+    return category, limits, now
+
+
+def _new_listing(
+    store: UUID,
+    user: AbstractBaseUser,
+    data: ListingInput,
+    category: dict[str, Any],
+    now: datetime,
+) -> Listing:
+    listing = Listing(
+        store_id=store,
+        category_id=category["id"],
+        title=data.title.strip(),
+        description=data.description,
+        quantity_total=data.quantity,
+        unit=data.unit,
+        max_per_household=data.max_per_household,
+        pickup_start=data.pickup_start,
+        pickup_end=data.pickup_end,
+        best_before=data.best_before,
+        estimated_value_cents=data.estimated_value_cents,
+        status=ListingStatus.PUBLISHED,
+        created_by_id=user.pk,
+        safe_confirmed_by_id=user.pk,
+        safe_confirmed_at=now,
+        published_at=now,
+    )
+    listing.full_clean()
+    return listing
+
+
+def _photo_content(photo: UploadedFile, limits: PostingLimits) -> bytes:
+    signature = PHOTO_SIGNATURES.get(photo.content_type or "")
+    if signature is None:
+        raise ValidationError({"photo": _("Choose a JPEG or PNG image.")})
+    content = photo.read(limits.photo_max_bytes + 1)
+    if len(content) > limits.photo_max_bytes:
+        raise ValidationError({"photo": _("The image exceeds the allowed file size.")})
+    if not content.startswith(signature):
+        raise ValidationError({"photo": _("Choose a JPEG or PNG image.")})
+    return content
+
+
+def _store_photo(
+    photo: UploadedFile,
+    limits: PostingLimits,
+    file_store: ListingPhotoStore | None,
+) -> tuple[str, ListingPhotoStore]:
+    content = _photo_content(photo, limits)
+    storage = file_store if file_store is not None else _photo_store()
+    try:
+        reference = storage.put_image(
+            content,
+            max_dimension=limits.photo_max_dimension,
+            max_bytes=limits.photo_max_bytes,
+        )
+    except PhotoValidationError:
+        raise ValidationError(
+            {
+                "photo": _(
+                    "Choose a readable still JPEG or PNG image within the allowed dimensions."
+                )
+            }
+        ) from None
+    except PhotoStorageError:
+        logger.error(
+            "listing_photo_store_failed", extra={"event": "listing_photo_store_failed"}
+        )
+        raise PostingUnavailable(_("Posting is temporarily unavailable.")) from None
+    return reference, storage
+
+
+def _cleanup_photo(reference: str | None, storage: ListingPhotoStore | None) -> None:
+    if reference is None or storage is None:
+        return
+    try:
+        storage.delete(reference)
+    except Exception:  # noqa: BLE001 - cleanup must preserve the original posting error.
+        logger.error(
+            "listing_photo_cleanup_failed",
+            extra={"event": "listing_photo_cleanup_failed", "photo_ref": reference},
+        )
 
 
 def post_listing(
@@ -142,11 +264,7 @@ def post_listing(
     safety_check: SafetyChecker | None = None,
     file_store: ListingPhotoStore | None = None,
 ) -> Listing:
-    """Post for the user's assigned active store, or leave no listing behind.
-
-    Checker/storage injection is for trusted service callers and unit tests;
-    the HTTP endpoint never accepts either dependency from request data.
-    """
+    """Publish for the assigned store; injected dependencies are trusted test hooks."""
     if assigned_store_id(user) != store:
         raise PermissionDenied(_("You can only post for your own store."))
 
@@ -154,85 +272,15 @@ def post_listing(
     storage: ListingPhotoStore | None = None
     try:
         with transaction.atomic():
-            offering_store = store_queries.for_listing_post(store)
-            if offering_store is None or not offering_store.is_active:
-                raise PermissionDenied(
-                    _("Your store must be active to post a listing.")
-                )
-
-            category = category_queries.for_listing_post(data.category)
-            if category is None or not category["is_active"]:
-                raise ValidationError({"category": _("Choose an active category.")})
-
-            now = timezone.now()
-            posting_rules = rule_queries.active("listing_posting", at=now)
-            safety_rules = rule_queries.active("listing_safety", at=now)
-            if posting_rules is None or safety_rules is None:
-                raise PostingUnavailable(
-                    _("Listing rules must be seeded before posting.")
-                )
-            try:
-                limits = PostingLimits(**posting_rules.values)
-            except TypeError as exc:
-                raise PostingUnavailable(
-                    _("Listing posting rules need configuration.")
-                ) from exc
-            _refuse(check_posting(data, limits, now=now), limits)
-            checker = safety_check if safety_check is not None else _safety_checker()
-            listing_data = safety_payload(
-                data, local_tz=timezone.get_default_timezone()
-            )
-            try:
-                reasons = checker(listing_data, category, safety_rules.values)
-            except SafetyRulesInvalid as exc:
-                raise PostingUnavailable(
-                    _("Listing safety rules need configuration.")
-                ) from exc
-            _refuse(reasons, limits)
-
-            listing = Listing(
-                store_id=store,
-                category_id=category["id"],
-                title=data.title.strip(),
-                description=data.description,
-                quantity_total=data.quantity,
-                unit=data.unit,
-                max_per_household=data.max_per_household,
-                pickup_start=data.pickup_start,
-                pickup_end=data.pickup_end,
-                best_before=data.best_before,
-                estimated_value_cents=data.estimated_value_cents,
-                status=ListingStatus.PUBLISHED,
-                created_by_id=user.pk,
-                safe_confirmed_by_id=user.pk,
-                safe_confirmed_at=now,
-                published_at=now,
-            )
-            listing.full_clean()
+            category, limits, now = _posting_inputs(store, data, safety_check)
+            listing = _new_listing(store, user, data, category, now)
             if photo is not None:
-                signature = PHOTO_SIGNATURES.get(photo.content_type or "")
-                if signature is None:
-                    raise ValidationError({"photo": _("Choose a JPEG or PNG image.")})
-                content = photo.read(limits.photo_max_bytes + 1)
-                if len(content) > limits.photo_max_bytes:
-                    raise ValidationError(
-                        {"photo": _("The image exceeds the allowed file size.")}
-                    )
-                if not content.startswith(signature):
-                    raise ValidationError({"photo": _("Choose a JPEG or PNG image.")})
-                storage = file_store if file_store is not None else _photo_store()
-                photo_ref = storage.put_image(
-                    content, max_dimension=limits.photo_max_dimension
-                )
+                photo_ref, storage = _store_photo(photo, limits, file_store)
                 listing.photo_ref = photo_ref
                 listing.full_clean()
             listing.save()
-            return listing
     except Exception:
-        if photo_ref is not None and storage is not None:
-            try:
-                storage.delete(photo_ref)
-            except Exception:  # noqa: BLE001 - preserve the original posting error.
-                # No filenames, references, user data or provider error text.
-                logger.error("listing_photo_cleanup_failed")
+        _cleanup_photo(photo_ref, storage)
         raise
+    logger.info("listing_published", extra={"event": "listing_published"})
+    return listing
