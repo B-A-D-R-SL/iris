@@ -1303,6 +1303,11 @@ export interface operations {
           "application/json": components["schemas"]["PickupError"];
         };
       };
+      401: {
+        content: {
+          "application/json": components["schemas"]["PickupError"];
+        };
+      };
       403: {
         content: {
           "application/json": components["schemas"]["PickupError"];
@@ -1339,6 +1344,11 @@ export interface operations {
         };
       };
       400: {
+        content: {
+          "application/json": components["schemas"]["PickupError"];
+        };
+      };
+      401: {
         content: {
           "application/json": components["schemas"]["PickupError"];
         };
