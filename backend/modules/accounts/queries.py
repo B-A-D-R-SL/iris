@@ -8,6 +8,7 @@ STAFF_ROLES = (UserRole.INTAKE_WORKER, UserRole.ADMIN)
 
 
 def is_admin(user: object) -> bool:
+    """Return whether the user is an active authenticated administrator."""
     return bool(
         getattr(user, "is_authenticated", False)
         and getattr(user, "is_active", False)

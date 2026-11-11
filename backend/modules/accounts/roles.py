@@ -5,6 +5,8 @@ from django.db import models
 
 
 class UserRole(models.TextChoices):
+    """Stable role values shared by account permission checks."""
+
     BENEFICIARY = "beneficiary"
     STORE_STAFF = "store_staff"
     STORE_MANAGER = "store_manager"

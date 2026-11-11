@@ -23,6 +23,7 @@ from modules.accounts.queries import STAFF_ROLES, STORE_ROLES, is_admin
     ],
 )
 def test_role_permissions(role, store, staff, admin):
+    """Each role belongs only to its intended permission groups."""
     user = SimpleNamespace(role=role, is_authenticated=True, is_active=True)
     assert (role in STORE_ROLES) is store
     assert (role in STAFF_ROLES) is staff
@@ -41,4 +42,5 @@ def test_role_permissions(role, store, staff, admin):
     ],
 )
 def test_admin_check_denies_inactive_anonymous_or_missing_role(user):
+    """Admin checks deny incomplete or inactive identities."""
     assert not is_admin(user)

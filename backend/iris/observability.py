@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from collections.abc import Callable
 from contextvars import ContextVar
@@ -24,6 +25,7 @@ class JsonLogFormatter(logging.Formatter):
     """Serialize an allowlist of fields instead of arbitrary log message text."""
 
     def format(self, record: logging.LogRecord) -> str:
+        """Return one privacy-filtered JSON event."""
         event = getattr(record, "event", "application_event")
         if not isinstance(event, str) or not event.replace("_", "").isalnum():
             event = "application_event"
@@ -61,6 +63,13 @@ class JsonLogFormatter(logging.Formatter):
             elif field in {"status_code", "duration_ms"} and isinstance(value, int):
                 payload[field] = value
 
+        # Only this cleanup event may identify an orphan; never serialize a SAS URL.
+        if record.name == "iris.listings" and event == "listing_photo_cleanup_failed":
+            photo_ref = getattr(record, "photo_ref", None)
+            if isinstance(photo_ref, str) and re.fullmatch(
+                r"listing-photos/[0-9a-f]{32}\.(?:jpg|png)", photo_ref
+            ):
+                payload["photo_ref"] = photo_ref
         return json.dumps(payload, separators=(",", ":"))
 
 
@@ -71,6 +80,7 @@ class RequestIdMiddleware:
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponseBase:
+        """Attach a request ID and log safe request metrics."""
         request_id = uuid4().hex
         token = _request_id.set(request_id)
         request.iris_request_id = request_id  # type: ignore[attr-defined]

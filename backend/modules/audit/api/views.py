@@ -13,6 +13,7 @@ from modules.audit.queries import search_events
 
 class IsAuditAdmin(BasePermission):
     def has_permission(self, request, view):
+        """Allow only active authenticated administrators."""
         return is_admin(request.user)
 
 
@@ -43,6 +44,7 @@ class AuditSearchView(generics.ListAPIView):
     http_method_names = ("get", "head", "options")
 
     def get_queryset(self):
+        """Validate filters and return matching audit events."""
         params = self.request.query_params
         data = {
             internal: params[external]

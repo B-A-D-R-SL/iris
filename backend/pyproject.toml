@@ -5,12 +5,14 @@ version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
     "argon2-cffi>=25.1.0",
+    "azure-storage-blob>=12.27,<13",
     "django>=6.1,<6.2",
     "django-allauth[headless]>=65.19.7",
     "django-environ>=0.14.0",
     "djangorestframework>=3.18.3",
     "drf-spectacular>=0.30.0",
     "jsonschema>=4.26,<5",
+    "pillow>=13.0,<14",
     "procrastinate[django]>=3.10.0",
     "psycopg[binary]>=3.3.6",
     "pyyaml>=6,<7",
@@ -55,6 +57,7 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "iris.settings.test"
 testpaths = ["tests", "modules"]
+markers = ["slow_expiry: real five-minute provider expiry acceptance test"]
 
 [tool.coverage.run]
 source = ["."]
@@ -164,6 +167,8 @@ ignore_imports = [
     "modules.listings.tests.** -> modules.stores.tests.factories",
     "modules.listings.tests.** -> modules.rules.models",
     "modules.listings.tests.** -> modules.rules.domain.schemas",
+    # FIX-02 API tests inject a fake adapter factory, never a production dependency.
+    "modules.reservations.tests.test_api -> modules.listings.photo_storage",
 
     # reservations -> listings, households, priority
     "modules.reservations.** -> modules.listings.services",

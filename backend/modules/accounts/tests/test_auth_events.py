@@ -14,10 +14,12 @@ PASSWORD = "test-auth-events-password"
 
 
 def auth_events(caplog):
+    """Return captured authentication events."""
     return [record for record in caplog.records if record.name == "iris.auth"]
 
 
 def test_browser_session_logs_each_completed_change_once(client, caplog):
+    """A browser session logs one sign-in and one sign-out."""
     user = UserFactory(password=PASSWORD)
     with caplog.at_level("INFO", logger="iris.auth"):
         assert (
@@ -37,6 +39,7 @@ def test_browser_session_logs_each_completed_change_once(client, caplog):
 
 
 def test_failed_login_does_not_log_success(client, caplog):
+    """A failed login never emits a success event."""
     user = UserFactory(password=PASSWORD)
     with caplog.at_level("INFO", logger="iris.auth"):
         assert (
@@ -51,6 +54,7 @@ def test_failed_login_does_not_log_success(client, caplog):
 
 
 def test_admin_session_uses_the_same_events(client, caplog):
+    """Admin sessions emit the shared authentication events."""
     user = UserFactory(password=PASSWORD, role="admin", is_staff=True)
     with caplog.at_level("INFO", logger="iris.auth"):
         assert (
@@ -67,6 +71,7 @@ def test_admin_session_uses_the_same_events(client, caplog):
 
 @pytest.mark.parametrize("user", [None, AnonymousUser()])
 def test_anonymous_logout_has_no_account_event(user, caplog):
+    """Anonymous logout does not identify an account."""
     with caplog.at_level("INFO", logger="iris.auth"):
         user_logged_out.send(sender=type(user), request=None, user=user)
     assert auth_events(caplog) == []

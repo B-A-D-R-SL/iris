@@ -10,4 +10,5 @@ class AccountsConfig(AppConfig):
     verbose_name = "Accounts"
 
     def ready(self) -> None:
+        """Register account signal handlers."""
         from modules.accounts import signals  # noqa: F401
