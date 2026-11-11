@@ -1,5 +1,7 @@
+# AI contribution: 50% or more AI-generated
 """Write operations for versioned business-rule settings."""
 
+import logging
 from datetime import datetime
 from typing import Any
 
@@ -8,8 +10,14 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from modules.rules.domain.schemas import RuleValidationError, validate_rule_values
+from modules.audit.services import record
+from modules.rules.domain.schemas import (
+    RuleValidationError,
+    validate_rule_values,
+)
 from modules.rules.models import RuleSetVersion
+
+logger = logging.getLogger("iris.rules")
 
 
 def publish(
@@ -33,20 +41,41 @@ def publish(
     _validate_effective_from(effective_at)
 
     with transaction.atomic():
-        latest_version = (
-            RuleSetVersion.objects.select_for_update()
-            .filter(rule_type=normalized_rule_type)
-            .order_by("-version")
-            .first()
+        rule = _create_version(normalized_rule_type, values, user, effective_at)
+        record(
+            user,
+            "rule_published",
+            "rule_set_version",
+            rule.pk,
+            {"rule_type": rule.rule_type, "version": rule.version},
         )
-        next_version = 1 if latest_version is None else latest_version.version + 1
-        return RuleSetVersion.objects.create(  # type: ignore[misc]
-            rule_type=normalized_rule_type,
-            version=next_version,
-            values=values,
-            effective_from=effective_at,
-            created_by=user,
+        transaction.on_commit(
+            lambda: logger.info("rule_published", extra={"event": "rule_published"}),
+            robust=True,
         )
+        return rule
+
+
+def _create_version(
+    rule_type: str,
+    values: dict[str, Any],
+    user: AbstractBaseUser,
+    effective_at: datetime,
+) -> RuleSetVersion:
+    """Create the next version while holding the latest row lock."""
+    latest = (
+        RuleSetVersion.objects.select_for_update()
+        .filter(rule_type=rule_type)
+        .order_by("-version")
+        .first()
+    )
+    return RuleSetVersion.objects.create(  # type: ignore[misc]
+        rule_type=rule_type,
+        version=1 if latest is None else latest.version + 1,
+        values=values,
+        effective_from=effective_at,
+        created_by=user,
+    )
 
 
 def _validate_rule_type(rule_type: str) -> str:

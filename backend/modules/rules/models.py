@@ -1,3 +1,4 @@
+# AI contribution: 50% or more AI-generated
 """Persistent, immutable versions of Iris business-rule settings."""
 
 from typing import Any

@@ -8,6 +8,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from modules.accounts.queries import STAFF_ROLES
 from modules.eligibility.domain.eligibility import decide
 from modules.eligibility.models import EligibilityDecision
 from modules.households import queries as household_queries
@@ -63,7 +64,7 @@ def decide_for_household(
     if decided_by is not None and (
         not isinstance(decided_by, get_user_model())
         or getattr(decided_by, "pk", None) is None
-        or getattr(decided_by, "role", None) not in {"admin", "intake_worker"}
+        or getattr(decided_by, "role", None) not in STAFF_ROLES
         or not getattr(decided_by, "is_active", False)
     ):
         raise PermissionDenied("Only active intake staff may record staff decisions.")

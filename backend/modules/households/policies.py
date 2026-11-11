@@ -5,9 +5,9 @@ from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.models import AnonymousUser
 from django.utils import timezone
 
+from modules.accounts.queries import STAFF_ROLES
 from modules.households.models import Household
 
-STAFF_ROLES = frozenset(("intake_worker", "admin"))
 StaffActor = AbstractBaseUser | AnonymousUser | None
 
 

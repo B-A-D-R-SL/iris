@@ -119,7 +119,25 @@
       "outcomeApproved": "Approuvé",
       "outcomeRejected": "Refusé",
       "outcomeReview": "Vérification requise",
-      "targetHousehold": "Ménage"
+      "targetHousehold": "Ménage",
+      "actionRulePublished": "Règle publiée",
+      "targetRuleSetVersion": "Version de règle",
+      "ruleVersion": "version {{version}}"
+    },
+    "ruleTypes": {
+      "householdSize": "Taille du ménage",
+      "invitations": "Invitations",
+      "licoThresholds": "Seuils de faible revenu",
+      "autoApproval": "Approbation automatique",
+      "priority": "Priorité",
+      "tiers": "Paliers",
+      "strikes": "Avertissements",
+      "reservations": "Réservations",
+      "listingSafety": "Sécurité des annonces",
+      "listingPosting": "Publication des annonces",
+      "fileValidity": "Validité du dossier",
+      "retention": "Conservation",
+      "householdSuspension": "Suspension du dossier"
     }
   }
 }

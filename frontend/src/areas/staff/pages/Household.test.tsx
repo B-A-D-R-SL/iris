@@ -193,3 +193,22 @@ describe("staff household suspension", () => {
     expect(warning).toHaveBeenCalledWith("household_status_response_invalid");
   });
 });
+
+describe("shared household detail status badges", () => {
+  it.each([
+    ["en", "approved", "Approved", "success"],
+    ["fr", "approved", "Approuvé", "success"],
+    ["en", "suspended", "Suspended", "danger"],
+    ["fr", "suspended", "Suspendu", "danger"],
+  ] as const)(
+    "shows %s %s with the shared %s label and %s cue",
+    async (language, status, label, tone) => {
+      await i18n.changeLanguage(language);
+      mockStatusResponse(household(status, []), Response.json({}));
+      renderWithProviders(page, { route: `/staff/households/${id}` });
+      const badge = (await screen.findByText(label)).closest("[data-tone]");
+      expect(badge).toHaveAttribute("data-tone", tone);
+      expect(badge?.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    },
+  );
+});

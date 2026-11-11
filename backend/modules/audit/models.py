@@ -8,6 +8,7 @@ class AuditEvent(models.Model):
     class Action(models.TextChoices):
         VIEW = "view"
         DECISION = "decision"
+        RULE_PUBLISHED = "rule_published"
         SUSPEND = "suspend"
         REACTIVATE = "reactivate"
 
