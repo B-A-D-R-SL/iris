@@ -1,7 +1,7 @@
 # Notifications module
 
 **Owner pair:** Platform & setup
-**Status:** SET-14 architecture skeleton
+**Status:** Implemented for household status notices
 
 ## Responsibility
 
@@ -19,22 +19,14 @@ Own the notifications feature boundary within the Iris modular monolith.
 
 ## Public functions
 
-No public functions implemented yet.
+- `queue_household_status_email`: after the caller commits, enqueue a localized
+  suspend or reactivate notice. Files without email are skipped.
+- `send_household_status_email`: Procrastinate worker task that delivers through
+  the mail adapter and records a privacy-safe failure event.
 
 ## Architectural rules
 
 Other modules must communicate through public services or queries.
 Do not import another module's models or internal domain code.
 
-## Future implementation
-
-TODO: Module owner defines business operations, model ownership,
-API endpoints, tests, and applicable audit events.
-
-Do not treat this scaffold as implemented business functionality.
-
-## Audit events
-
-No audit events are implemented as part of SET-14.
-Document emitted event names here when the module's
-business workflows are implemented.
+The Compose `worker` service runs queued jobs separately from HTTP requests.

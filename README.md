@@ -203,6 +203,8 @@ The SonarQube Cloud job in `.github/workflows/ci.yml` imports backend Cobertura 
 ### Email Testing
 
 Mailpit captures outgoing development emails without delivering them to real recipients.
+The Compose `worker` service processes Procrastinate jobs, including household
+status notices, so SMTP work never blocks the request that changed the file.
 
 Send a test email:
 

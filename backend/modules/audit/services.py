@@ -8,6 +8,8 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from modules.audit.models import AuditEvent
+from modules.privacy import services as privacy_services
+from modules.rules import queries as rule_queries
 
 
 def _actor_role(actor: AbstractBaseUser) -> str:
@@ -32,17 +34,31 @@ def _target_identifier(target_type: str, target_id: str | int | UUID) -> str:
     return identifier
 
 
-def _validate_metadata(metadata: dict[str, str]) -> None:
-    """Permit only fixed decision outcomes, excluding arbitrary personal payloads."""
-    if (
-        not isinstance(metadata, dict)
-        or metadata.keys() - {"outcome"}
-        or (
-            "outcome" in metadata
-            and metadata["outcome"] not in ("approved", "rejected", "review_required")
-        )
-    ):
-        raise ValidationError({"metadata": "Only a supported outcome is allowed."})
+def _validate_metadata(action: str, metadata: dict[str, str]) -> None:
+    """Accept only the fields defined for each audit action."""
+    if not isinstance(metadata, dict):
+        raise ValidationError({"metadata": "Audit metadata must be an object."})
+    if action == AuditEvent.Action.DECISION:
+        if not metadata:
+            return
+        if set(metadata) != {"outcome"} or metadata["outcome"] not in (
+            "approved",
+            "rejected",
+            "review_required",
+        ):
+            raise ValidationError({"metadata": "A supported outcome is required."})
+        return
+    if action in (AuditEvent.Action.SUSPEND, AuditEvent.Action.REACTIVATE):
+        reason = metadata.get("reason")
+        if set(metadata) != {"reason"} or not isinstance(reason, str) or not reason:
+            raise ValidationError({"metadata": "A reason is required."})
+        if len(reason) > rule_queries.household_suspension_reason_max_length():
+            raise ValidationError({"metadata": "The reason is too long."})
+        if privacy_services.household_reason_contains_sensitive_data(reason):
+            raise ValidationError({"metadata": "Sensitive reasons are not allowed."})
+        return
+    if metadata:
+        raise ValidationError({"metadata": "This action does not accept metadata."})
 
 
 @transaction.atomic
@@ -55,7 +71,7 @@ def record(
 ) -> AuditEvent:
     """Record a validated event with outcome-only metadata in the caller's transaction."""
     role = _actor_role(actor)
-    _validate_metadata(metadata)
+    _validate_metadata(action, metadata)
     event = AuditEvent(
         actor_id=actor.pk,
         actor_role=role,

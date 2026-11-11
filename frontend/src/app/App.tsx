@@ -12,6 +12,7 @@ import { AcceptInvitation } from "../areas/public/pages/AcceptInvitation";
 import { PartnerApply } from "../areas/public/pages/PartnerApply";
 import { Audit } from "../areas/staff/pages/Audit";
 import { Search } from "../areas/staff/pages/Search";
+import { Household } from "../areas/staff/pages/Household";
 import { WalkIn } from "../areas/staff/pages/WalkIn/WalkIn";
 import { NewListing } from "../areas/store/pages/NewListing";
 import { MobileAreaLayout } from "./layouts/MobileAreaLayout";
@@ -97,6 +98,7 @@ export default function App() {
       <Route element={<RequireHouseholdSearch />}>
         <Route element={<StaffLayout />}>
           <Route path="staff/households" element={<Search />} />
+          <Route path="staff/households/:id" element={<Household />} />
         </Route>
       </Route>
 
