@@ -43,6 +43,12 @@
   aspect-ratio: 16 / 9;
 }
 
+/* On the detail screen the whole photo shows, never cropped or zoomed; any space
+   left in the 16:9 frame stays beige, like the placeholder. */
+img.photo[data-size="large"] {
+  object-fit: contain;
+}
+
 .placeholder {
   display: flex;
   align-items: center;
