@@ -3,7 +3,6 @@
 
 import json
 import logging
-import os
 import subprocess
 import sys
 from http.client import HTTPConnection
@@ -18,6 +17,7 @@ from django.db import connection
 
 from modules.accounts.tests.factories import UserFactory
 from modules.households.tests.search_dataset import seed_search_dataset
+from modules.households.tests.search_load_client import uninstrumented_environment
 
 pytestmark = pytest.mark.django_db(transaction=True)
 REQUESTS_PER_SECOND = 100
@@ -30,11 +30,7 @@ def search_server(transactional_db):
     """Serve the real WSGI application against pytest's disposable database."""
     # Functional API tests measure coverage; this process measures normal runtime
     # without coverage tracing or pytest's log-capture overhead.
-    env = {
-        key: value
-        for key, value in os.environ.items()
-        if not key.startswith(("COV_CORE_", "COVERAGE_"))
-    }
+    env = uninstrumented_environment()
     with TemporaryFile(mode="w+b") as errors:
         server = subprocess.Popen(
             [sys.executable, "-B", "-m", "modules.households.tests.search_load_server"],
@@ -90,6 +86,7 @@ def test_api_p95_under_500ms_at_100_requests_per_second(client, search_server):
         ),
         capture_output=True,
         text=True,
+        env=uninstrumented_environment(),
         timeout=30,
         check=True,
     )

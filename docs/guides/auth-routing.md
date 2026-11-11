@@ -19,3 +19,20 @@ The frontend calls `/api/auth/browser/v1/auth/login` and
 SameSite=Lax session cookies. `GET /api/me/` uses session authentication.
 The allauth routes are not included in the DRF OpenAPI schema. The team still
 needs to decide whether to expose allauth's versioned app paths publicly.
+
+## Rate-limit responses
+
+Authentication routes use allauth rather than DRF's shared exception handler.
+The browser login action's IP limit returns HTTP 429 with `{"status": 429}`,
+without a `Retry-After` header or the DRF `code/message/fields` envelope. The
+frontend safely maps that response to its translated `unavailable` error.
+
+Failed-credential lockouts are a different allauth response: HTTP 400 with
+`status: 400` and an `errors` entry whose `code` is `too_many_login_attempts`.
+The frontend maps that code to its translated `locked` error. Backend tests
+exercise both response shapes; a frontend test covers the native HTTP 429.
+
+Production's `ALLAUTH_TRUSTED_PROXY_COUNT` controls allauth's client IP selection
+separately from DRF's `DRF_NUM_PROXIES`. See
+[production proxy configuration](production-settings.md#https-and-trusted-proxies)
+before deploying behind Azure.
