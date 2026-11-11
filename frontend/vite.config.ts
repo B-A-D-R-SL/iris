@@ -8,6 +8,8 @@ const apiTarget = process.env.API_PROXY_TARGET ?? "http://127.0.0.1:8000";
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Phone / Cloudflare quick tunnels hit Vite with a public Host header.
+    allowedHosts: [".trycloudflare.com", ".ngrok-free.app", ".ngrok.io"],
     watch: { usePolling: process.env.IRIS_DOCKER === "1" },
     proxy: {
       "/api": {
