@@ -122,8 +122,10 @@ Say plainly why something is empty and what to do next; never show technical det
 ## Translations
 
 Every visible text goes through `t("area.screen.element")`, with the French and the English
-value added to `src/shared/i18n/fr.json` and `en.json` (the test fails if a key is missing in
-one of them). Shared keys live under `app.*` (shell) and `shared.*` (fields, states).
+value added to matching area files under `src/shared/i18n/fr/` and `en/`.
+The tests check every file for matching keys and empty strings. Shared keys live
+in `common.json` under `app.*` (shell) and `shared.*` (fields, states).
+See [the glossary](../01-project/glossary.md#translation-keys) for the file map.
 
 ## Tests
 
