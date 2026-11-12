@@ -490,3 +490,32 @@ AI-assisted files for this entry:
   - The translation files are now merged with a shallow spread (FIX-10), so new `listing.*` keys in `household.json` would have replaced the store's `listing.*` keys; the new keys are under `household.browse` and `household.listingDetail` instead.
   - Server errors were first retried with back-off, which delayed the error screen by seconds; a server answer now shows at once with « Réessayer », and only a lost connection is retried.
   - Running Prettier on whole folders converted the line endings of teammates' files; those files were restored, leaving only the intended changes.
+
+
+### FIX-03 Eligibility decision refactor and application logging (#629)
+
+- **Tool and contribution level:** OpenAI Codex; 50% or more AI-generated.
+- **Changes:** extracted evidence validation and staff authorization from
+  `decide_for_household`, renamed `EligibilityEvidenceUnavailableError`, and
+  added a post-commit `eligibility_decided` event. Extended the JSON formatter
+  with an event-specific allowlist for decision/household UUIDs, outcome and
+  LICO rule version; no income, names or evidence enter the event.
+- **AI-assisted files:** `backend/modules/eligibility/services.py`,
+  `backend/modules/eligibility/tests/test_decision_service.py`,
+  `backend/iris/observability.py`, `backend/tests/test_observability.py`,
+  `backend/modules/eligibility/README.md`, `docs/guides/observability.md`,
+  and `AI_USAGE.md`.
+- **Verification:** existing eligibility assertions retained (exception imports
+  and references renamed); new caplog/JSON tests cover staff and automatic
+  decisions, both outcomes, rollback, failed inserts, and privacy filtering.
+  The full PostgreSQL backend run passed 1,936 tests (5 skipped, the slow-expiry
+  test deselected) with 95.54% coverage; the focused suite passed 114 tests with
+  91.72% eligibility/observability coverage. Ruff, mypy (399 files), all four
+  import contracts, Django/migration checks, pip-audit and 36 PR-policy tests pass.
+- **Correction during implementation:** adding logging extras alone would not
+  make the references visible in Iris JSON logs; the formatter now explicitly
+  validates those fields only for `iris.eligibility` / `eligibility_decided`.
+  The Windows-mounted full run hit startup timeouts and a search-load timing
+  failure; the complete run passed from a byte-verified temporary native Linux
+  copy, with all test thresholds unchanged.
+- **Owner review and pull request:** pending; no commit or push made by Codex.

@@ -1,3 +1,4 @@
+<!-- AI contribution: 50% or more AI-generated -->
 # Eligibility module
 
 **Owner pair:** Fairness & partners
@@ -24,7 +25,18 @@ Own the eligibility feature boundary within the Iris modular monolith.
 - `services.decide_for_household(household_id, decided_by)`:
   validates evidence and active rules, then inserts a new historical decision.
   Other modules must call this service rather than writing decision rows.
+- `services.EligibilityEvidenceUnavailableError`: raised when the public
+  household evidence reader is unavailable or returns incomplete evidence.
 
+## Application logging
+
+After the surrounding transaction commits, each new decision emits one
+`eligibility_decided` event through `iris.eligibility`, with only `decision_id`,
+`household_id`, `outcome` (`eligible` or `ineligible`), and `rule_version` (the
+LICO rule's version number). Income amounts, thresholds, names and evidence
+never enter the event. Rolled-back decisions emit no event. The JSON formatter
+allows these four fields only for this logger/event pair; see the
+[observability guide](../../../docs/guides/observability.md).
 
 ## Architectural rules
 
