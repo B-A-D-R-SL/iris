@@ -11,6 +11,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+from math import isfinite
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +35,9 @@ DEBUG = False
 
 
 ALLOWED_HOSTS: list[str] = []
+
+# Public frontend origin used to construct invitation links.
+FRONTEND_URL = env("FRONTEND_URL", default="")
 
 
 # Application definition
@@ -293,6 +297,14 @@ MAILERS: dict[str, dict[str, Any]] = {
     }
 }
 
+# Transport deadline, not a business-rule threshold: never block a request indefinitely.
+try:
+    SMTP_TIMEOUT = float(env("SMTP_TIMEOUT", default="10"))
+except (TypeError, ValueError) as exc:
+    raise ImproperlyConfigured("SMTP_TIMEOUT must be finite and positive.") from exc
+if not isfinite(SMTP_TIMEOUT) or SMTP_TIMEOUT <= 0:
+    raise ImproperlyConfigured("SMTP_TIMEOUT must be finite and positive.")
+
 if MAILER_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
     MAILERS["default"]["OPTIONS"] = {
         "host": env("EMAIL_HOST", default="localhost"),
@@ -300,6 +312,7 @@ if MAILER_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
         "username": env("EMAIL_HOST_USER", default=""),
         "password": env("EMAIL_HOST_PASSWORD", default=""),
         "use_tls": env.bool("EMAIL_USE_TLS", default=False),
+        "timeout": SMTP_TIMEOUT,
     }
 
 # JSON events with an allowlist of safe fields. Never include arbitrary messages,
