@@ -105,7 +105,8 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 ### SET-35 create-pr skill for opening pull requests (#692)
 
-- **What the AI produced:** the `create-pr` skill (`.claude/skills/create-pr/SKILL.md`): the up-front questions, the merge-only branch update, the rules for which conflicts it resolves and which it asks about, the quick and full test runs with the rerun-alone rule for timeouts, and the description and GitHub fields steps; `scripts/check_pr.py`, which runs `pr_policy.evaluate` on the local diff; and the guide `docs/guides/create-pr.md`.
+- **What the AI produced:** Claude Code generated the skill: `.claude/skills/create-pr/SKILL.md`, `scripts/check_pr.py` and the guide `docs/guides/create-pr.md`.
+- **Owner's decisions:** Ryan decided what the skill had to do, its behaviour, and its restrictions and limitations, and tested the skill.
 - **How we verified it:** PR #693 was opened with the skill itself. `check_pr.py` passed on its title and description before the push, and the PR got its assignee, milestone and Project Iris as the skill describes (checked with `gh pr view`).
 - **Problems found and corrections:** the first `gh pr create` failed because the project was passed as "Iris" instead of its full title, "Project Iris"; the PR was opened on the retry. Checking the story against the skill showed two requirements were not implemented (repeating the command's answers back in one line, and checking for an already open PR before pushing); they were removed from #692 rather than claimed as done.
 
