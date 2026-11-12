@@ -510,6 +510,24 @@ describe("Failed post log (FIX-12)", () => {
     expect(JSON.stringify(warn.mock.calls)).not.toContain("Pains de la veille");
   });
 
+  it("logs a 201 whose answer cannot be read as an error with its status code", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockApi({ post: () => new Response("{not json", { status: 201 }) });
+    await renderForm();
+    await fillRequiredFields();
+    await publish();
+    await screen.findByRole("alert");
+
+    expect(entries(error)).toEqual([
+      {
+        timestamp: expect.any(String),
+        level: "ERROR",
+        event: "listing_post_failed",
+        status_code: 201,
+      },
+    ]);
+  });
+
   it("logs a lost connection as an error with no status code", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const fetchMock = mockApi();

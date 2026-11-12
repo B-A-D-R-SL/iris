@@ -108,6 +108,14 @@ describe("postListing", () => {
       fields: {},
     });
   });
+
+  it("keeps the status of a 201 whose answer cannot be read", async () => {
+    stubFetch(new Response("{not json", { status: 201 }));
+
+    const error = await postListing(listing, null, "fr").catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(PostingFailed);
+    expect(error).toMatchObject({ status: 201, message: "", fields: {} });
+  });
 });
 
 describe("getPostingCategories (US-34)", () => {

@@ -33,10 +33,13 @@ export function usePostingFeedback() {
 
 export type PostingFeedback = ReturnType<typeof usePostingFeedback>[0];
 
-/** Logs a failed post with its status code only: 4xx as a warning, 5xx or no answer as an error. */
+/**
+ * Logs a failed post with its status code only: a 4xx refusal as a warning; a 5xx,
+ * an answer that cannot be read (even a 201) or no answer at all as an error.
+ */
 function logPostFailure(error: Error) {
   const statusCode = error instanceof PostingFailed ? error.status : null;
-  if (statusCode !== null && statusCode < 500) {
+  if (statusCode !== null && statusCode >= 400 && statusCode < 500) {
     logger.warning("listing_post_failed", { statusCode });
   } else {
     logger.error("listing_post_failed", { statusCode });
