@@ -39,6 +39,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| SET-35 create-pr skill for opening pull requests (#692) | `.claude/skills/create-pr/{SKILL.md,scripts/check_pr.py}`, `docs/guides/create-pr.md`, `AI_USAGE.md` | 50% or more AI-generated | [#693](https://github.com/B-A-D-R-SL/iris/pull/693) |
 | T-02.13.4 Partner review screens (#451) | `frontend/src/areas/staff/pages/PartnerApplications{,.test}.tsx`, `frontend/src/app/App{,.test}.tsx`, `frontend/src/shared/i18n/{en,fr}/store.json`, `frontend/src/shared/logger.ts`, `.env.example`, `docker-compose.yml`, `AI_USAGE.md` | 50% or more AI-generated | [#665](https://github.com/B-A-D-R-SL/iris/pull/665) |
 | T-02.13.3 Partner applications staff API (#450) | `backend/modules/stores/{queries.py,README.md,api/serializers.py,api/staff_views.py,api/staff_urls.py,tests/test_staff_application_api.py,locale/fr/LC_MESSAGES/django.po}`, `backend/iris/urls.py`, `backend/pyproject.toml`, `docs/03-design/api.md`, `docs/04-architecture/architecture.md`, generated API types, `AI_USAGE.md` | 50% or more AI-generated; compiled catalog and generated API declarations exempt | [#665](https://github.com/B-A-D-R-SL/iris/pull/665) |
 | T-02.13.1 Partner application review tests (#448) | `backend/modules/stores/tests/{conftest,test_application_decisions,test_application_recovery,test_staff_application_api}.py`, `AI_USAGE.md` | 50% or more AI-generated | [#665](https://github.com/B-A-D-R-SL/iris/pull/665) |
@@ -101,6 +102,12 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | T-05.35.2 Category admin API and screen (#503) and T-05.35.1 tests (#502) | `backend/modules/listings/tests/test_category_admin.py`, `backend/modules/categories/` (`domain/rules.py`, `queries.py`, `services.py`, `api/serializers.py`, `api/staff_views.py`, `api/staff_urls.py`, `tests/test_staff_api.py`, French catalog, README), `backend/iris/urls.py`, `backend/pyproject.toml` (test-only import exceptions), `frontend/src/features/categories/` (`adminApi.ts`, `categoryForm.ts`, `CategoryDialog.tsx`, `CategoriesPage.tsx` and tests), translations, regenerated API types, `docs/02-requirements/forms-and-fields.md`, `docs/03-design/{api,database-schema}.md`, `AI_USAGE.md` | 50% or more AI-generated (generated API declarations and compiled catalog exempt) | Not yet opened (`user_story/US-35` branch) |
 
 ## Examples, verification and corrections
+
+### SET-35 create-pr skill for opening pull requests (#692)
+
+- **What the AI produced:** the `create-pr` skill (`.claude/skills/create-pr/SKILL.md`): the up-front questions, the merge-only branch update, the rules for which conflicts it resolves and which it asks about, the quick and full test runs with the rerun-alone rule for timeouts, and the description and GitHub fields steps; `scripts/check_pr.py`, which runs `pr_policy.evaluate` on the local diff; and the guide `docs/guides/create-pr.md`.
+- **How we verified it:** PR #693 was opened with the skill itself. `check_pr.py` passed on its title and description before the push, and the PR got its assignee, milestone and Project Iris as the skill describes (checked with `gh pr view`).
+- **Problems found and corrections:** the first `gh pr create` failed because the project was passed as "Iris" instead of its full title, "Project Iris"; the PR was opened on the retry. Checking the story against the skill showed two requirements were not implemented (repeating the command's answers back in one line, and checking for an already open PR before pushing); they were removed from #692 rather than claimed as done.
 
 ### T-02.13.1 Partner application review tests (#448)
 
