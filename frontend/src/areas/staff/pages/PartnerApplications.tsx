@@ -94,6 +94,9 @@ async function decide(
   if (!response.ok) throw await decisionFailure(response);
   return response.json() as Promise<Application>;
 }
+// Size exception: this state owner coordinates the selection drawer, confirmation
+// modal, pending-close guard, page reset and query invalidation as one decision
+// workflow. Keep the declarative views beside those transitions for review.
 export function PartnerApplications() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -298,7 +301,7 @@ export function PartnerApplications() {
                 </Text>
               </div>
             ))}
-            {selected.status === "submitted" && (
+            {selected.can_decide && (
               <Group>
                 <Button
                   onClick={() => {

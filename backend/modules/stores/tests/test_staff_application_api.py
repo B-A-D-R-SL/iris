@@ -185,6 +185,7 @@ def test_list_shows_what_the_admin_needs_to_decide(admin_client: APIClient) -> N
     assert item["goods_categories"] == ["bakery"]
     assert item["message"] == "We bake daily."
     assert item["status"] == "submitted"
+    assert item["can_decide"] is True
     assert item["decision_reason"] is None
     assert item["decided_at"] is None
     assert item["created_at"].endswith("Z")
@@ -226,6 +227,7 @@ def test_approve_creates_store_invitation_audit_and_email(
 
     assert response.status_code == 200
     assert response.json()["status"] == "approved"
+    assert response.json()["can_decide"] is False
     store = Store.objects.get(application=application)
     invitation = Invitation.objects.get(store=store)
     assert invitation.role == User.Role.STORE_MANAGER
@@ -320,6 +322,7 @@ def test_reject_records_reason_audit_and_email(
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "rejected"
+    assert body["can_decide"] is False
     assert body["decision_reason"] == "Hors de notre territoire"
     assert body["decided_at"]
     assert AuditEvent.objects.filter(
@@ -356,3 +359,21 @@ def test_rejecting_a_decided_application_answers_409(admin_client: APIClient) ->
     )
 
     assert response.status_code == 409
+
+
+@pytest.mark.parametrize(
+    "status", [ApplicationStatus.APPROVED, ApplicationStatus.REJECTED]
+)
+def test_decided_applications_expose_no_decision_actions(admin_client, status):
+    """Availability comes from the same server rule as decision enforcement."""
+    application = _decided(status, reason="reason")
+    item = admin_client.get(LIST_URL).json()["results"][0]
+    assert item["id"] == str(application.pk)
+    assert item["can_decide"] is False
+
+
+def test_decision_availability_denies_without_request_context():
+    """Serializing without an authorized request never advertises actions."""
+    from modules.stores.api.serializers import StaffPartnerApplicationSerializer
+
+    assert StaffPartnerApplicationSerializer(_application()).data["can_decide"] is False

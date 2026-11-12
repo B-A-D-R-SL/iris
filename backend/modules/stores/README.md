@@ -61,7 +61,7 @@ keeps the new invitation committed so the command can be retried. Every successf
 reissue expires previous links, including links from earlier failed sends.
 An accepted invitation or an existing account cannot be reissued.
 
-Approval and recovery require `FRONTEND_URL` to be an HTTP(S) origin without a
+Approval and recovery require `FRONTEND_URL` to be an HTTPS origin (HTTP only for localhost/loopback development) without a
 path, query, fragment or credentials. Invalid configuration raises
 `ImproperlyConfigured` before the application row is locked, after authorization.
 
@@ -89,3 +89,7 @@ Do not import another module's models or internal domain code.
 ## Audit events
 
 Approval and rejection record a `decision` on `partner_application`, with only the outcome in metadata.
+
+SMTP delivery has a finite `SMTP_TIMEOUT` deadline (10 seconds by default).
+Approval/rejection and recovery emails use the applicant’s language through Django
+translation catalogs. Committed decisions emit privacy-safe structured log events.

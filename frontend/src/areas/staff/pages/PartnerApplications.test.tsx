@@ -10,6 +10,7 @@ import { PartnerApplications } from "./PartnerApplications";
 const application = {
   id: "00000000-0000-4000-8000-000000000001",
   status: "submitted",
+  can_decide: true,
   business_name: "Bakery",
   business_type: "grocery",
   city: "Montreal",
@@ -46,6 +47,8 @@ afterEach(async () => {
   await i18n.changeLanguage("fr");
 });
 
+// Size exception: this Vitest callback registers independent workflow cases;
+// its source length includes their bodies rather than one runtime control flow.
 describe("Partner applications", () => {
   it("filters, pages, and shows application details", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
@@ -150,7 +153,7 @@ describe("Partner applications", () => {
     await i18n.changeLanguage("en");
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(list([{ ...application, status: "approved" }])),
+      vi.fn().mockResolvedValue(list([{ ...application, status: "approved", can_decide: false }])),
     );
     const user = userEvent.setup();
     renderWithProviders(<PartnerApplications />);
@@ -159,6 +162,19 @@ describe("Partner applications", () => {
     expect(screen.getByText("Grocery")).toBeInTheDocument();
     expect(screen.getByText("Weekly")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+  });
+  it("uses API availability when a submitted application's actions are disabled", async () => {
+    await i18n.changeLanguage("en");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(list([{ ...application, can_decide: false }])),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<PartnerApplications />);
+    await user.click(await screen.findByRole("button", { name: "View Bakery" }));
+    expect(screen.getByText("Business type")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
   });
   it.each([
     [
@@ -288,7 +304,9 @@ describe("Partner applications", () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
       String(input).endsWith("/api/me/")
         ? Response.json(testUser("intake_worker"))
-        : new Response(null, { status: 404 }),
+        : String(input).includes("/api/staff/households/")
+          ? Response.json({ count: 0, next: null, previous: null, results: [] })
+          : new Response(null, { status: 404 }),
     );
     vi.stubGlobal("fetch", fetchMock);
     renderWithProviders(<App />, { route: "/staff/partners" });

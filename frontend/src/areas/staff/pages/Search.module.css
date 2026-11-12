@@ -1,0 +1,39 @@
+/* AI contribution: 50% or more AI-generated */
+.results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.identity {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--mantine-spacing-sm);
+  margin: 0;
+}
+
+.details dt {
+  color: var(--iris-text-muted);
+  font-size: var(--mantine-font-size-sm);
+}
+
+.details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.address {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 40em) {
+  .details {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

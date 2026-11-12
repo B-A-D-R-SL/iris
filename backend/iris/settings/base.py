@@ -11,6 +11,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+from math import isfinite
 from pathlib import Path
 from typing import Any
 
@@ -96,6 +97,7 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 HEADLESS_ONLY = True
+HEADLESS_CLIENTS = ("browser",)
 AUTH_USER_MODEL = "accounts.User"
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_LOGIN_METHODS = {"email"}
@@ -120,18 +122,25 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 
+HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS = env.int(
+    "HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS", default=5000
+)
+if HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS <= 0:
+    raise ImproperlyConfigured("HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS must be positive.")
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "modules.accounts.authentication.SessionAuthentication"
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "iris.api.exception_handler",
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
     # Public forms are rate-limited (SEC-04); views opt in with a throttle scope.
     "DEFAULT_THROTTLE_RATES": {"partner_applications": "5/hour"},
     # Trust X-Forwarded-For only from known proxies; with 0 a client cannot spoof
-    # its address. Set to the proxy count behind a reverse proxy (App Service: 1).
+    # its address. Set to the verified proxy count behind a reverse proxy.
     "NUM_PROXIES": env.int("DRF_NUM_PROXIES", default=0),
 }
 
@@ -142,6 +151,8 @@ SPECTACULAR_SETTINGS = {
     # Explicit shared enum for the account and household language fields.
     "ENUM_NAME_OVERRIDES": {
         "LanguageEnum": [("fr", "Français"), ("en", "English")],
+        # Keep the existing status type name.
+        "WalkInDraftReadStatusEnum": "modules.households.models.Household.Status",
     },
     # Document the Django health view without changing its authentication or behavior.
     "APPEND_PATHS": {
@@ -200,6 +211,16 @@ AZURE_STORAGE_ACCOUNT_NAME = env("AZURE_STORAGE_ACCOUNT_NAME", default="")
 AZURE_STORAGE_ACCOUNT_KEY = env("AZURE_STORAGE_ACCOUNT_KEY", default="")
 AZURE_STORAGE_CONTAINER_NAME = env("AZURE_STORAGE_CONTAINER_NAME", default="")
 AZURE_STORAGE_CONNECTION_STRING = env("AZURE_STORAGE_CONNECTION_STRING", default="")
+AZURE_STORAGE_BLOB_ENDPOINT = env("AZURE_STORAGE_BLOB_ENDPOINT", default="")
+AZURE_STORAGE_PUBLIC_BLOB_ENDPOINT = env(
+    "AZURE_STORAGE_PUBLIC_BLOB_ENDPOINT", default=""
+)
+AZURE_STORAGE_ALLOW_HTTP = env.bool("AZURE_STORAGE_ALLOW_HTTP", default=False)
+LISTING_PHOTO_MAX_PIXELS = env.int("LISTING_PHOTO_MAX_PIXELS", default=20_000_000)
+LISTING_PHOTO_STORE_BACKEND = env(
+    "LISTING_PHOTO_STORE_BACKEND",
+    default="modules.listings.photo_storage.configured_store",
+)
 
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
@@ -210,6 +231,17 @@ if not database_url:
 DATABASES = {"default": env.db("DATABASE_URL")}
 if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
     raise ImproperlyConfigured("DATABASE_URL must use PostgreSQL")
+
+# Reuse each WSGI worker's connection instead of authenticating to PostgreSQL
+# on every request. Django recommends disabling persistence under ASGI; its
+# entry point identifies the interface before settings load. Local settings
+# also disable persistence for runserver.
+DATABASES["default"]["CONN_MAX_AGE"] = (
+    0
+    if env("IRIS_SERVER_INTERFACE", default="wsgi") == "asgi"
+    else env.int("DATABASE_CONN_MAX_AGE", default=60)
+)
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 
 
 # Password validation
@@ -265,6 +297,14 @@ MAILERS: dict[str, dict[str, Any]] = {
     }
 }
 
+# Transport deadline, not a business-rule threshold: never block a request indefinitely.
+try:
+    SMTP_TIMEOUT = float(env("SMTP_TIMEOUT", default="10"))
+except (TypeError, ValueError) as exc:
+    raise ImproperlyConfigured("SMTP_TIMEOUT must be finite and positive.") from exc
+if not isfinite(SMTP_TIMEOUT) or SMTP_TIMEOUT <= 0:
+    raise ImproperlyConfigured("SMTP_TIMEOUT must be finite and positive.")
+
 if MAILER_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
     MAILERS["default"]["OPTIONS"] = {
         "host": env("EMAIL_HOST", default="localhost"),
@@ -272,6 +312,7 @@ if MAILER_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
         "username": env("EMAIL_HOST_USER", default=""),
         "password": env("EMAIL_HOST_PASSWORD", default=""),
         "use_tls": env.bool("EMAIL_USE_TLS", default=False),
+        "timeout": SMTP_TIMEOUT,
     }
 
 # JSON events with an allowlist of safe fields. Never include arbitrary messages,
@@ -288,6 +329,8 @@ LOGGING = {
     },
     "loggers": {
         "iris": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        # Pickup success events use the root's privacy-filtered console handler.
+        "modules.reservations.services": {"level": "INFO"},
         "django.request": {
             "handlers": ["console"],
             "level": "WARNING",

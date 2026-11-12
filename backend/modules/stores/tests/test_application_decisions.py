@@ -1,7 +1,6 @@
 # AI contribution: 50% or more AI-generated
 """Partner decisions preserve consistency and notify only after commit."""
 
-from datetime import timedelta
 from hashlib import sha256
 from unittest.mock import patch
 
@@ -12,12 +11,10 @@ from django.core.exceptions import (
     ValidationError,
 )
 from django.db import transaction
-from django.utils import timezone
 
 from modules.accounts.models import Invitation, User
 from modules.accounts.tests.factories import UserFactory
 from modules.audit.models import AuditEvent
-from modules.rules.models import RuleSetVersion
 from modules.stores import services
 from modules.stores.models import ApplicationStatus, Store
 from modules.stores.tests.factories import PartnerApplicationFactory
@@ -26,23 +23,10 @@ from modules.stores.tests.test_partner_application_service import RecordingMaile
 pytestmark = pytest.mark.django_db
 
 
-@pytest.fixture
-def admin():
-    return UserFactory(role=User.Role.ADMIN)
-
-
-@pytest.fixture
-def invitation_rule(admin):
-    return RuleSetVersion.objects.create(
-        rule_type="invitations",
-        version=1,
-        values={"expires_after_days": 7},
-        effective_from=timezone.now() - timedelta(days=1),
-        created_by=admin,
-    )
-
-
 @pytest.mark.usefixtures("invitation_rule")
+# Complexity exception: one lifecycle verifies the same persisted store/token/audit
+# across commit and repeat refusal; assertions are observations, not input branches.
+# rule: BR-PARTNER-03
 def test_approval_creates_store_invitation_and_audit_after_commit(
     settings, admin, django_capture_on_commit_callbacks
 ):
@@ -75,6 +59,7 @@ def test_approval_creates_store_invitation_and_audit_after_commit(
     assert Invitation.objects.filter(store=store).count() == 1
 
 
+# rule: BR-PARTNER-04
 def test_rejection_requires_reason_and_sends_after_commit(
     admin, django_capture_on_commit_callbacks
 ):
@@ -98,9 +83,7 @@ def test_rejection_requires_reason_and_sends_after_commit(
         services.reject_application(application, admin, "again")
 
 
-@pytest.mark.parametrize(
-    "role,active", [(User.Role.BENEFICIARY, True), (User.Role.ADMIN, False)]
-)
+@pytest.mark.parametrize("role,active", [(User.Role.ADMIN, False)])
 def test_decision_requires_active_admin(role, active):
     application = PartnerApplicationFactory()
     user = UserFactory(role=role, is_active=active)
@@ -185,6 +168,7 @@ def test_invitation_failure_rolls_back_store_and_decision(settings, admin):
     ],
 )
 @pytest.mark.parametrize("decision", ["approve", "reject"])
+# rule: BR-PARTNER-03
 def test_each_non_admin_role_cannot_decide(role, decision, settings):
     from modules.stores.tests.factories import StoreFactory
 
@@ -299,183 +283,50 @@ def test_approval_authorizes_before_reporting_bad_configuration(settings):
         )
 
 
+@pytest.mark.parametrize("decision", ["approve", "reject"])
 @pytest.mark.usefixtures("invitation_rule")
-@pytest.mark.parametrize("recovery_fails", [False, True])
-def test_approval_email_failure_is_recoverable_with_a_fresh_link(
-    settings, admin, django_capture_on_commit_callbacks, caplog, recovery_fails
+def test_decision_logs_only_after_commit(
+    settings, admin, django_capture_on_commit_callbacks, caplog, decision
 ):
-    """Recovery expires the lost link without repeating the approval or audit."""
-    import json
-
-    from iris.observability import JsonLogFormatter
-    from modules.accounts import services as account_services
-    from modules.stores.tests.test_partner_application_service import FailingMailer
-
-    settings.FRONTEND_URL = "https://iris.example/"
-    application = PartnerApplicationFactory(language="en")
-    with django_capture_on_commit_callbacks(execute=True):
-        services.approve_application(application, admin, mailer=FailingMailer())
-    previous = Invitation.objects.get(email=application.contact_email)
-    previous_hash = previous.token_hash
-    failure = next(r for r in caplog.records if r.name == "iris.stores")
-    encoded = JsonLogFormatter().format(failure)
-    assert json.loads(encoded)["application_id"] == str(application.pk)
-    assert json.loads(encoded)["event"] == "partner_application_decision_email_failed"
-    assert application.contact_email not in encoded and previous_hash not in encoded
-
-    if recovery_fails:
-        with django_capture_on_commit_callbacks(execute=True):
-            services.resend_approval_invitation(
-                application, admin, mailer=FailingMailer()
-            )
-    mailer = RecordingMailer()
-    with django_capture_on_commit_callbacks(execute=True):
-        services.resend_approval_invitation(application, admin, mailer=mailer)
-        assert mailer.sent == []
-    previous.refresh_from_db()
-    assert previous.expires_at <= timezone.now()
-    token = (
-        mailer.sent[0]["text"].split("https://iris.example/invitation/")[1].split()[0]
-    )
-    replacement = Invitation.objects.get(token_hash=sha256(token.encode()).hexdigest())
-    assert replacement.token_hash != previous_hash
-    account = account_services.accept_invitation(token, "GeneratedTestPassword!8374")
-    assert account.role == User.Role.STORE_MANAGER and account.store == previous.store
-    application.refresh_from_db()
-    assert application.status == ApplicationStatus.APPROVED
-    assert Store.objects.filter(application=application).count() == 1
-    assert AuditEvent.objects.filter(target_id=str(application.pk)).count() == 1
-    assert token not in caplog.text
-    with pytest.raises(ValidationError, match="No unaccepted"):
-        services.resend_approval_invitation(application, admin, mailer=mailer)
-    assert Invitation.objects.filter(store=previous.store).count() == (
-        3 if recovery_fails else 2
-    )
-
-
-@pytest.mark.usefixtures("invitation_rule")
-def test_reissue_invalidates_old_token_and_outer_rollback_preserves_it(
-    settings, admin, django_capture_on_commit_callbacks
-):
-    """Old tokens expire on commit; a rolled-back recovery never invalidates them."""
-    from modules.accounts import services as account_services
+    """Committed outcomes are observable without logging contact data or rollback events."""
+    import logging
 
     settings.FRONTEND_URL = "https://iris.example"
-    application = PartnerApplicationFactory(language="fr")
-    mailer = RecordingMailer()
-    with django_capture_on_commit_callbacks(execute=True):
-        services.approve_application(application, admin, mailer=mailer)
-    token = mailer.sent[0]["text"].split("/invitation/")[1].split()[0]
-    previous = Invitation.objects.get(email=application.contact_email)
-    expiry = previous.expires_at
-    with (
-        django_capture_on_commit_callbacks(execute=True) as callbacks,
-        pytest.raises(RuntimeError),
-        transaction.atomic(),
-    ):
-        services.resend_approval_invitation(application, admin, mailer=mailer)
-        raise RuntimeError
-    previous.refresh_from_db()
-    assert previous.expires_at == expiry
-    assert Invitation.objects.filter(store=previous.store).count() == 1
-    assert not callbacks and len(mailer.sent) == 1
-    with django_capture_on_commit_callbacks(execute=True):
-        services.resend_approval_invitation(application, admin, mailer=mailer)
-    with pytest.raises(ValidationError) as caught:
-        account_services.accept_invitation(token, "GeneratedTestPassword!8374")
-    assert caught.value.code == "invitation_expired"
-    assert "Votre demande" in mailer.sent[1]["subject"]
-
-
-@pytest.mark.usefixtures("invitation_rule")
-def test_failed_reissue_keeps_previous_invitation_and_sends_nothing(
-    settings, admin, django_capture_on_commit_callbacks
-):
-    """Unavailable issuance configuration rolls back expiry and email scheduling."""
-    settings.FRONTEND_URL = "https://iris.example"
+    caplog.set_level(logging.INFO, logger="iris.stores")
     application = PartnerApplicationFactory()
-    with django_capture_on_commit_callbacks(execute=False):
-        services.approve_application(application, admin, mailer=RecordingMailer())
-    previous = Invitation.objects.get(email=application.contact_email)
-    expiry = previous.expires_at
     mailer = RecordingMailer()
-    with (
-        patch("modules.accounts.services.rule_queries.active", return_value=None),
-        django_capture_on_commit_callbacks(execute=True) as callbacks,
-        pytest.raises(ValidationError),
-    ):
-        services.resend_approval_invitation(application, admin, mailer=mailer)
-    previous.refresh_from_db()
-    assert previous.expires_at == expiry
-    assert Invitation.objects.filter(store=previous.store).count() == 1
-    assert not callbacks and not mailer.sent
-
-
-@pytest.mark.usefixtures("invitation_rule")
-def test_recovery_command_requires_admin_and_never_prints_contact_or_token(
-    settings, admin, django_capture_on_commit_callbacks
-):
-    """Operators can reissue by UUID; non-admins cannot issue invitations."""
-    from io import StringIO
-
-    from django.core import mail
-    from django.core.management import call_command
-    from django.core.management.base import CommandError
-
-    settings.FRONTEND_URL = "https://iris.example"
-    application = PartnerApplicationFactory()
-    with django_capture_on_commit_callbacks(execute=False):
-        services.approve_application(application, admin, mailer=RecordingMailer())
-    output = StringIO()
     with django_capture_on_commit_callbacks(execute=True):
-        call_command(
-            "resend_partner_invitation",
-            str(application.pk),
-            admin_id=admin.pk,
-            stdout=output,
-        )
-    assert str(application.pk) in output.getvalue()
-    assert len(mail.outbox) == 1
-    token = mail.outbox[0].body.split("/invitation/")[1].split()[0]
-    assert application.contact_email not in output.getvalue()
-    assert token not in output.getvalue()
-    for user in (
-        UserFactory(role=User.Role.BENEFICIARY),
-        UserFactory(role=User.Role.ADMIN, is_active=False),
-    ):
-        with pytest.raises(CommandError, match="active admin"):
-            call_command(
-                "resend_partner_invitation",
-                str(application.pk),
-                admin_id=user.pk,
-                stdout=output,
-            )
-    assert Invitation.objects.filter(email=application.contact_email).count() == 2
+        if decision == "approve":
+            services.approve_application(application, admin, mailer=mailer)
+        else:
+            services.reject_application(application, admin, "reason", mailer=mailer)
+        assert not [r for r in caplog.records if r.name == "iris.stores"]
+    events = [r.event for r in caplog.records if r.name == "iris.stores"]
+    assert events == [
+        f"partner_application_{'approved' if decision == 'approve' else 'rejected'}"
+    ]
+    assert application.contact_email not in caplog.text
 
 
 @pytest.mark.parametrize(
-    "status", [ApplicationStatus.SUBMITTED, ApplicationStatus.REJECTED]
+    "origin",
+    ["http://iris.example", "http://localhost.evil.example", "http://192.168.1.2"],
 )
-def test_reissue_refuses_unapproved_applications(settings, admin, status):
-    """Recovery cannot create a store or bypass the original approval decision."""
-    settings.FRONTEND_URL = "https://iris.example"
-    application = PartnerApplicationFactory(status=status, decision_reason="reason")
-    with pytest.raises(ValidationError, match="Only approved"):
-        services.resend_approval_invitation(application, admin)
-    assert not Invitation.objects.filter(email=application.contact_email).exists()
+def test_plaintext_remote_invitation_origin_is_refused(settings, admin, origin):
+    """Invitation bearer tokens are never issued over plaintext remote origins."""
+    settings.FRONTEND_URL = origin
+    with pytest.raises(ImproperlyConfigured, match="HTTPS"):
+        services.approve_application(PartnerApplicationFactory(), admin)
 
 
+@pytest.mark.parametrize(
+    "origin", ["http://localhost:5173", "http://127.0.0.1:5174", "http://[::1]:5173"]
+)
 @pytest.mark.usefixtures("invitation_rule")
-def test_reissue_refuses_existing_account_and_preserves_invitation(settings, admin):
-    """Recovery cannot reset or replace an existing user's account."""
-    settings.FRONTEND_URL = "https://iris.example"
-    application = PartnerApplicationFactory()
-    services.approve_application(application, admin, mailer=RecordingMailer())
-    previous = Invitation.objects.get(email=application.contact_email)
-    expiry = previous.expires_at
-    UserFactory(email=application.contact_email)
-    with pytest.raises(ValidationError) as caught:
-        services.resend_approval_invitation(application, admin)
-    assert caught.value.code == "email_already_registered"
-    previous.refresh_from_db()
-    assert previous.expires_at == expiry
+def test_loopback_development_invitation_origin_is_allowed(settings, admin, origin):
+    """Local development keeps working without a TLS proxy."""
+    settings.FRONTEND_URL = origin
+    application = services.approve_application(
+        PartnerApplicationFactory(), admin, mailer=RecordingMailer()
+    )
+    assert application.status == ApplicationStatus.APPROVED

@@ -385,3 +385,17 @@ msgstr "Cette demande a déjà été approuvée ou refusée."
 
 msgid "This partner application does not exist."
 msgstr "Cette demande de partenariat n’existe pas."
+
+msgid "Your partner application has been approved"
+msgstr "Votre demande de partenariat a été approuvée"
+
+#, python-format
+msgid "Hello,\n\nYour partner application has been approved. Create your account:\n%(link)s\n\nThe Iris team"
+msgstr "Bonjour,\n\nVotre demande de partenariat a été approuvée. Créez votre compte :\n%(link)s\n\nL’équipe Iris"
+
+msgid "Your partner application has been declined"
+msgstr "Votre demande de partenariat a été refusée"
+
+#, python-format
+msgid "Hello,\n\nYour partner application has been declined.\nReason: %(reason)s\n\nThe Iris team"
+msgstr "Bonjour,\n\nVotre demande de partenariat a été refusée.\nMotif : %(reason)s\n\nL’équipe Iris"

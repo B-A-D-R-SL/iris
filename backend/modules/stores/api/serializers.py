@@ -215,12 +215,21 @@ class StaffPartnerApplicationSerializer(serializers.ModelSerializer):
     # API convention: datetimes in UTC (docs/03-design/api.md).
     created_at = serializers.DateTimeField(default_timezone=UTC)
     decided_at = serializers.DateTimeField(default_timezone=UTC, allow_null=True)
+    can_decide = serializers.SerializerMethodField()
+
+    def get_can_decide(self, application: PartnerApplication) -> bool:
+        """Expose the service's decision rule; an absent request denies availability."""
+        from modules.stores.services import can_decide_application
+
+        request = self.context.get("request")
+        return can_decide_application(application, getattr(request, "user", None))
 
     class Meta:
         model = PartnerApplication
         fields = (
             "id",
             "status",
+            "can_decide",
             "business_name",
             "business_type",
             "neq",

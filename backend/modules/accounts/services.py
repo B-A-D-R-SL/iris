@@ -106,14 +106,17 @@ def reissue_store_manager_invitation(
     if not invited_by.is_active or invited_by.role != User.Role.ADMIN:
         from django.core.exceptions import PermissionDenied
 
-        raise PermissionDenied("An active admin is required.")
+        raise PermissionDenied(_("An active admin is required."))
     previous = list(
         Invitation.objects.select_for_update().filter(
             store=store, email__iexact=email, role=User.Role.STORE_MANAGER
         )
     )
     if not previous or any(item.accepted_at is not None for item in previous):
-        raise ValidationError("No unaccepted store-manager invitation exists.")
+        raise ValidationError(
+            _("No unaccepted store-manager invitation exists."),
+            code="invitation_not_pending",
+        )
     Invitation.objects.filter(pk__in=[item.pk for item in previous]).update(
         expires_at=timezone.now()
     )

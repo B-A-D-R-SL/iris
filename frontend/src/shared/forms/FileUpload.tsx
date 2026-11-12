@@ -54,7 +54,7 @@ export function FileUpload(props: FileUploadProps) {
             <Text size="sm" fw={600} truncate>
               {value.name}
             </Text>
-            <Text size="xs" c="gray.7">
+            <Text size="xs" c="dimmed">
               {t("shared.fileUpload.size", { size: value.size / (1024 * 1024) })}
             </Text>
           </Stack>
@@ -100,7 +100,7 @@ export function FileUpload(props: FileUploadProps) {
               <Text size="sm" fw={600}>
                 {props.buttonLabel ?? t("shared.fileUpload.choose")}
               </Text>
-              <Text size="xs" c="gray.7">
+              <Text size="xs" c="dimmed">
                 {maxMb === undefined ? types : t("shared.fileUpload.limits", { types, max: maxMb })}
               </Text>
             </UnstyledButton>

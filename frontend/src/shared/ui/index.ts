@@ -4,3 +4,4 @@ export { ErrorState, type ErrorStateProps } from "./ErrorState";
 export { LanguageSwitch } from "./LanguageSwitch";
 export { LoadingState } from "./LoadingState";
 export { Notice, type NoticeProps, type NoticeType } from "./Notice";
+export { StatusBadge, type StatusBadgeProps } from "./StatusBadge";

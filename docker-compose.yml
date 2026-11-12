@@ -57,6 +57,9 @@ services:
       AZURE_STORAGE_ACCOUNT_NAME: devstoreaccount1
       AZURE_STORAGE_CONTAINER_NAME: iris-dev
       AZURE_STORAGE_BLOB_ENDPOINT: http://azurite:10000/devstoreaccount1
+      AZURE_STORAGE_PUBLIC_BLOB_ENDPOINT: http://localhost:${IRIS_AZURITE_PORT:-10000}/devstoreaccount1
+      AZURE_STORAGE_ALLOW_HTTP: "True"
+      LISTING_PHOTO_STORE_BACKEND: modules.listings.photo_storage.configured_store
       # Public Azurite emulator credential.
       AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
     command: >-
@@ -107,6 +110,36 @@ services:
 
         - action: rebuild
           path: ./frontend/vite.config.ts
+
+  worker:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      DJANGO_SETTINGS_MODULE: iris.settings.local
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-iris-insecure-local-dev-key-change-before-deploying}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-iris}:${POSTGRES_PASSWORD:-iris_local_dev_password}@db:5432/${POSTGRES_DB:-iris}
+      EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+      EMAIL_HOST: mailpit
+      EMAIL_PORT: "1025"
+      EMAIL_HOST_USER: ""
+      EMAIL_HOST_PASSWORD: ""
+      EMAIL_USE_TLS: "False"
+      DEFAULT_FROM_EMAIL: noreply@iris.local
+      AZURE_STORAGE_ACCOUNT_NAME: devstoreaccount1
+      AZURE_STORAGE_CONTAINER_NAME: iris-dev
+      AZURE_STORAGE_BLOB_ENDPOINT: http://azurite:10000/devstoreaccount1
+      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
+    command: python manage.py procrastinate worker
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+      azurite:
+        condition: service_started
 
 volumes:
   postgres_data:

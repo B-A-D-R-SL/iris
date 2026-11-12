@@ -22,6 +22,10 @@ Status refers to the current working tree, not a deployed release:
   checkout. The listed role and purpose describe intended behavior.
 
 The infrastructure endpoints `/api/schema/` and `/api/docs/` are implemented.
+In production, both require an authenticated, active Iris `admin` role; the
+application role is checked independently of Django's `is_staff` flag. They stay
+public with local/test settings for developer tooling. Schema generation through
+`manage.py spectacular` remains available without an HTTP session.
 The schema describes health and implemented DRF endpoints, including `/api/me/`,
 categories and invitation acceptance; it does not describe allauth operations
 or the planned business APIs.
@@ -36,6 +40,30 @@ consumers have not been rewritten to use them.
 Categories were added by
 [reference module #377](https://github.com/B-A-D-R-SL/iris/issues/377).
 
+### Production request limits (FIX-04 / SEC-04)
+
+Production applies DRF anonymous and authenticated request limits, initially
+**60/minute per anonymous client IP** and **300/minute per authenticated account**.
+Operators configure these with `DRF_ANON_THROTTLE_RATE` and
+`DRF_USER_THROTTLE_RATE`. The partner application endpoint retains its existing
+**5/hour/IP** limit shared by anonymous and signed-in callers. Allauth keeps its
+separate sign-in protection; the plain Django health probe is not DRF-throttled.
+
+An exceeded DRF limit returns HTTP 429 with
+`{"code": "throttled", "message": "…", "fields": {}}` and `Retry-After`.
+Messages follow the request language. DRF's cache-based limits are best effort
+under concurrency. Trust forwarded client addresses only after setting the
+verified `DRF_NUM_PROXIES`; changing connection ports does not create an allowance.
+See [production settings](../guides/production-settings.md) for proxy and cache
+requirements. DRF permission checks run before throttling: repeated anonymous
+requests to a protected route return 401 without consuming its DRF quota.
+
+Allauth's login action instead returns HTTP 429 with `{"status": 429}` and no
+`Retry-After`. Failed-credential lockouts use HTTP 400 with an
+`errors[].code` of `too_many_login_attempts`. These responses bypass the DRF
+handler. See [authentication routing](../guides/auth-routing.md#rate-limit-responses)
+for the browser behavior and allauth's separate trusted-proxy setting.
+
 ## Conventions
 
 | Topic       | Rule                                                                                                                                                                            |
@@ -48,7 +76,7 @@ Categories were added by
 | Paging      | `?page=1&page_size=20` (max 100); response `{ "count", "next", "previous", "results" }`                                                                                         |
 | Errors      | HTTP status + `{ "code": "validation_error", "message": "...", "fields": { "postal_code": ["Enter a postal code like H2X 1Y4"] } }`; messages in the user's language            |
 | Auth        | Session cookie (django-allauth headless) + CSRF token header `X-CSRFToken`                                                                                                      |
-| Permissions | Checked on the server for every endpoint against the matrix in business-rules.md; deny by default                                                                               |
+| Permissions | Checked on the server for every endpoint; deny by default. `backend/tests/test_endpoint_access.py` (SEC-05) calls every DRF endpoint as each role, and every DRF endpoint not listed as public anonymously, and checks that DRF's permission check lets the request through or refuses it. Plain Django routes under `/api/` (health, allauth) are listed with a reason but not called. The role matrix comes with US-07 (#434) |
 | Languages   | `Accept-Language: fr` or `en`                                                                                                                                                   |
 
 ## Endpoints
@@ -134,11 +162,13 @@ every other role, and inactive admins, get 403. Errors use the
 | `POST /api/staff/partner-applications/{id}/approve/` (no body) | 200 application with `status: "approved"`; store, store-manager invitation and audit event saved in one transaction, invitation emailed after commit | 404 unknown ID; 409 `application_already_decided` |
 | `POST /api/staff/partner-applications/{id}/reject/` `{ "reason": "..." }` | 200 application with `status: "rejected"` and the trimmed `decision_reason`; audit event saved, reason emailed after commit | 400 `validation_error` on `reason` (missing, blank or over 500 characters); 404; 409 `application_already_decided` |
 
-Each application returns `id`, `status`, the business fields (`business_name`,
+Each application returns `id`, `status`, `can_decide`, the business fields (`business_name`,
 `business_type`, `neq`, `website`, address fields), the contact fields
 (`contact_first_name`, `contact_last_name`, `contact_role`, `contact_email`,
 `contact_phone`), `goods_categories`, `expected_frequency`, `opening_hours`,
 `message`, `language`, `decision_reason`, `decided_at` and `created_at` (UTC).
+`can_decide` is computed by the backend from active-admin access and submitted
+state. Clients render this flag; services recheck the same rule under the lock.
 The decisions are made by `services.approve_application` and
 `services.reject_application`; see the [stores module](../../backend/modules/stores/README.md).
 
@@ -208,27 +238,70 @@ US-13 staff screens exist.
 | POST       | `/api/households/me/application/submit/`                | Beneficiary          | Submit                                            | Planned |
 | PATCH      | `/api/households/me/alternate/`                         | Beneficiary          | Alternate for pickups                             | Planned |
 | POST       | `/api/households/me/renewal/`                           | Beneficiary          | Start a renewal                                   | Planned |
-| GET        | `/api/staff/households/?q=`                             | Intake worker, admin | Search                                            | Planned |
+| GET        | `/api/staff/households/?q=`                             | Intake worker, admin | Partial, accent-insensitive search; authorized non-anonymized files, pagination, audits and server-derived `can_resume` and `can_open` | Implemented (US-63, US-32) |
 | POST/PATCH | `/api/staff/households/`, `/api/staff/households/{id}/` | Intake worker, admin | Walk-in create and edit (drafts only)             | Implemented (US-17) |
+| POST       | `/api/staff/households/{id}/submit/`                    | Intake worker, admin | Submit saved walk-in registration; possible duplicates go to review | Implemented (US-25; proposed endpoint for review) |
 | POST       | `/api/staff/households/{id}/notices/`                   | Intake worker, admin | Walk-in notice (scan + typed values)              | Planned |
 | POST       | `/api/staff/households/{id}/approve/`                   | Intake worker, admin | Approve a walk-in (eligibility runs)              | Planned |
-| GET        | `/api/staff/households/{id}/`                           | Intake worker, admin | Household page (fields per role)                  | Partly: walk-in draft read for resuming (US-17) |
+| GET        | `/api/staff/households/{id}/`                           | Intake worker, admin | Read any non-anonymized online or walk-in file in any status, including status reason, expiry, member number and server-derived actions | Implemented (US-17, US-32) |
 | GET        | `/api/staff/notices/{id}/file/`                         | Intake worker, admin | Signed URL valid 5 minutes (audited)              | Planned |
-| POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`                                     | Planned |
+| POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`; preserves expiry                    | Implemented (US-32) |
 | GET/POST   | `/api/staff/households/{id}/notes/`                     | Intake worker, admin | Staff notes                                       | Planned |
+
+Active intake workers and admins may read, edit and submit shared,
+non-anonymized walk-in files, including another worker's and unassigned files.
+Edits and submissions still require a draft. `created_by` records provenance,
+not exclusive ownership.
+
+Submission accepts `{}`. It needs an address, one holder, an identity check, and
+consent. The household limit comes from `household_size.max_people`; the seed
+default is 15 people, including the holder. Approval is separate.
+
+Success returns 200 with `{id, status, status_reason, submitted_at}`. A clean file
+is `submitted`; a possible duplicate is `review_required` with reason
+`POSSIBLE_DUPLICATE`. Details of matching files are not returned.
+Suspended files remain duplicate candidates. Files whose `expires_at` is in the
+past are excluded from both address and person matching.
+Invalid or repeated submission returns 400; signed-out or deactivated sessions,
+401; refused signed-in roles, 403; anonymized, online or unknown files, 404.
+Access is checked before request validation.
+Create, edit and submit return 503 with code `household_unavailable` and a generic
+retry message when required household-size rules are missing or invalid.
+Submission also returns this response if a duplicate advisory lock times out;
+the draft and its members remain unchanged. The positive setting
+`HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS` defaults to 5000 milliseconds and applies
+only while acquiring those advisory locks. See the
+[households module](../../backend/modules/households/README.md) for candidate
+statuses and locking steps.
 
 ### Listings and reservations
 
 US-33 adds the posting backend and US-34 its safety checks (food best-before
 date, prohibited categories, the safe-and-allowed confirmation). Photo storage
-remains pending, so only posts without a photo can be published; see the
+is implemented through the configured private Azure/Azurite adapter; see the
 [posting implementation and handoff](../guides/listing-posting.md).
+
+US-36 adds browsing. `GET /api/listings/` returns the listings an approved
+household can see (BR-LIST-004), sorted by pickup start. Pages are always 20
+cards: only `?page=` is read, and `page_size` is ignored (#506). Filters:
+`category` (a category code), `store` (a store ID) and `today=true` (can still
+be picked up today, Montreal time; BR-LIST-005). Leave out an unused filter.
+Signed out gets 401; any other role, or a household that is not approved
+(code `household_not_approved`), gets 403. Tiers do not exist yet (US-51), so
+every approved household sees every visible listing. Cards include nullable
+`photo_url`: a read-only link for one private blob that expires within five
+minutes. Internal photo references are not returned. Responses containing links
+use `Cache-Control: private, no-store`. If storage configuration or signing
+fails, the authorized listing details remain available with `photo_url: null`;
+the backend logs a safe event and never substitutes a public URL.
+The view is in reservations, the module
+allowed to read both households and listings.
 
 | Method   | Path                                       | Who                  | Purpose                                          | Status  |
 | -------- | ------------------------------------------ | -------------------- | ------------------------------------------------ | ------- |
-| GET      | `/api/listings/?category=&store=&today=`   | Approved beneficiary | Visible listings (tier timing applied)           | Planned |
+| GET      | `/api/listings/?category=&store=&today=`   | Approved beneficiary | Visible listings (tier timing applied)           | Implemented (US-36); tier timing waits for US-51 |
 | GET      | `/api/listings/{id}/`                      | Approved beneficiary | Listing detail                                   | Planned |
-| GET/POST | `/api/store/listings/`                     | Store staff          | Own store's listings; post a listing             | Partial: POST implemented (photo storage pending); GET planned |
+| GET/POST | `/api/store/listings/`                     | Store staff          | Own store's listings; post a listing             | POST implemented, including private photos; GET planned |
 | GET      | `/api/store/listings/categories/`          | Store staff          | Categories the store may post in (prohibited ones left out) | Implemented |
 | PATCH    | `/api/store/listings/{id}/`                | Store staff          | Edit (quantity ≥ reserved)                       | Planned |
 | POST     | `/api/store/listings/{id}/cancel/`         | Store staff          | Cancel; reservations cancelled without strikes   | Planned |
@@ -236,10 +309,30 @@ remains pending, so only posts without a photo can be published; see the
 | GET      | `/api/reservations/me/?status=`            | Beneficiary          | My reservations and history                      | Planned |
 | POST     | `/api/reservations/{id}/cancel/`           | Beneficiary          | Cancel                                           | Planned |
 | GET      | `/api/store/pickups/?date=`                | Store staff          | Today's expected pickups                         | Planned |
-| POST     | `/api/store/pickups/lookup/`               | Store staff          | `{code}` or `{qr}` → who and what                | Planned |
-| POST     | `/api/store/pickups/{id}/confirm/`         | Store staff          | Mark picked up                                   | Planned |
+| POST     | `/api/store/pickups/lookup/`               | Store staff          | `{code}` → who and what                          | Implemented (US-44); `{qr}` waits for the QR format (US-42) |
+| POST     | `/api/store/pickups/{id}/confirm/`         | Store staff          | Mark picked up                                   | Implemented (US-44) |
 | POST     | `/api/store/pickups/{id}/problem/`         | Store staff          | Report a problem (opens a review case)           | Planned |
 | POST     | `/api/staff/households/{id}/reservations/` | Intake worker, admin | Reserve on behalf                                | Planned |
+
+The two pickup endpoints (US-44) accept `store_staff` and `store_manager`
+accounts assigned to a store, with the session cookie and CSRF token.
+Signed out gets 401; other signed-in roles get 403. Lookup takes
+`{"code": "…"}` (spaces and lowercase accepted; the scan screen sends the
+decoded QR text the same way) and changes nothing. Confirm has no body. Both
+return the pickup as
+`{"id", "status", "holder", "alternate", "title", "unit", "quantity",
+"pickup_code", "pickup_start", "pickup_end", "picked_up_at"}`, where `holder`
+and `alternate` are a first name and last initial or `null`
+(BR-RES-001 to BR-RES-005).
+
+| Status | Body |
+| --- | --- |
+| 200 | The pickup. After confirm, `status` is `picked_up` and `picked_up_at` is set. |
+| 400 | `{"code": "validation_error", "message", "fields": {"code": ["…"]}}` |
+| 401 | `{"code": "not_authenticated", "message", "fields": {}}` |
+| 403 | `{"code": "permission_denied", "message", "fields": {}}` |
+| 404 | `{"code": "unknown_code"}` (lookup) or `{"code": "unknown_reservation"}` (confirm: not at this store), with `message` and `fields: {}` |
+| 409 | `{"code", "message", "fields": {}}` with `wrong_store`, `ambiguous_code`, `already_picked_up` (adds `picked_up_at`, the first confirmation), `cancelled`, `no_show`, `not_open_yet` or `window_ended` |
 
 ### Priority, review and rules
 
@@ -294,9 +387,9 @@ frontend behavior, select new routes, or change the release scope.
 
 ### Errors and pagination
 
-The backend uses DRF's standard exception handler. A shared
-`code/message/fields` error envelope is not configured, and plain Django and
-allauth responses are separate integration concerns. DRF has no default
+The shared DRF exception handler normalizes throttling responses only. A global
+`code/message/fields` envelope for other errors is not configured; plain Django
+and allauth retain their own response formats. DRF has no default
 pagination class or page size configured. The draft's paging query, maximum,
 and response fields are therefore a target contract, not verified behavior.
 The paging response notation in the conventions table lists keys rather than
@@ -337,9 +430,12 @@ Integer cents and `*_cents` naming align with the existing
 [review rules](../05-process/review-rules.md) and field design. Money-bearing
 business endpoints remain planned, so their serialization is not yet verified.
 
-The backend does not configure Django's `LocaleMiddleware`; automatic
-`Accept-Language` negotiation and localized API error responses are not
-established by the current configuration.
+The backend configures Django's `LocaleMiddleware` for French and English.
+A supported `django_language` cookie takes precedence over `Accept-Language`,
+with French as the fallback. DRF throttling messages use the selected language;
+`test_throttled_responses_are_translated` in `backend/tests/test_api.py` verifies
+French and English request headers. This does not establish translation coverage
+for every endpoint or change the error-format limitations described above.
 
 ### UUID identifiers
 

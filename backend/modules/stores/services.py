@@ -5,7 +5,8 @@
 
 import logging
 from collections.abc import Mapping
-from typing import Any
+from ipaddress import ip_address
+from typing import Any, cast
 from urllib.parse import urlsplit
 from uuid import UUID
 
@@ -17,7 +18,7 @@ from django.core.exceptions import (
 )
 from django.core.validators import URLValidator
 from django.db import IntegrityError, transaction
-from django.utils import translation
+from django.utils import timezone, translation
 from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 
@@ -164,6 +165,25 @@ def _require_active_admin(admin: Any) -> None:
         raise PermissionDenied("An active admin is required.")
 
 
+def can_decide_application(application: PartnerApplication, admin: Any) -> bool:
+    """Decision availability for both API presentation and service enforcement."""
+    try:
+        _require_active_admin(admin)
+    except PermissionDenied:
+        return False
+    return application.status == ApplicationStatus.SUBMITTED
+
+
+def _loopback_host(host: str | None) -> bool:
+    """Permit plaintext links only on explicit development loopback hosts."""
+    if host == "localhost":
+        return True
+    try:
+        return ip_address(host or "").is_loopback
+    except ValueError:
+        return False
+
+
 def _frontend_origin() -> str:
     """Fail explicitly on deployment mistakes before acquiring an application lock."""
     value = settings.FRONTEND_URL
@@ -179,11 +199,12 @@ def _frontend_origin() -> str:
             or "#" in value
             or parts.username
             or parts.password
+            or (parts.scheme == "http" and not _loopback_host(parts.hostname))
         ):
             raise ValidationError("Invalid origin")
     except (ValidationError, ValueError) as exc:
         raise ImproperlyConfigured(
-            "FRONTEND_URL must be configured as an http(s) origin."
+            "FRONTEND_URL must be an HTTPS origin; HTTP is allowed only for loopback development."
         ) from exc
     return value
 
@@ -193,7 +214,7 @@ def _locked_application(
 ) -> PartnerApplication:
     _require_active_admin(admin)
     locked = PartnerApplication.objects.select_for_update().get(pk=application.pk)
-    if locked.status != ApplicationStatus.SUBMITTED:
+    if not can_decide_application(locked, admin):
         raise ApplicationAlreadyDecided
     return locked
 
@@ -217,17 +238,45 @@ def _send_decision(
 def _approval_email(
     application: PartnerApplication, base_url: str, token: str
 ) -> tuple[str, str]:
-    """Use the same localized invitation for initial approval and recovery."""
-    link = f"{base_url}/invitation/{token}"
-    if application.language == ApplicationLanguage.FRENCH:
-        return (
-            "Votre demande de partenariat a été approuvée",
-            f"Bonjour,\n\nVotre demande de partenariat a été approuvée. Créez votre compte :\n{link}\n\nL’équipe Iris",
-        )
-    return (
-        "Your partner application has been approved",
-        f"Hello,\n\nYour partner application has been approved. Create your account:\n{link}\n\nThe Iris team",
+    """Translate initial and replacement invitations in the applicant's language."""
+    with translation.override(application.language):
+        subject = gettext("Your partner application has been approved")
+        body = gettext(
+            "Hello,\n\nYour partner application has been approved. Create your account:\n"
+            "%(link)s\n\nThe Iris team"
+        ) % {"link": f"{base_url}/invitation/{token}"}
+    return subject, body
+
+
+def _rejection_email(application: PartnerApplication, reason: str) -> tuple[str, str]:
+    """Translate the refusal while leaving the admin's supplied reason unchanged."""
+    with translation.override(application.language):
+        subject = gettext("Your partner application has been declined")
+        body = gettext(
+            "Hello,\n\nYour partner application has been declined.\n"
+            "Reason: %(reason)s\n\nThe Iris team"
+        ) % {"reason": reason}
+    return subject, body
+
+
+def _record_decision(application: PartnerApplication, admin: Any) -> None:
+    """Persist the decision and audit atomically; log success only after commit."""
+    from modules.audit import services as audit_services
+
+    application.decided_by = admin
+    application.decided_at = timezone.now()
+    application.save(
+        update_fields=["status", "decided_by", "decided_at", "decision_reason"]
     )
+    audit_services.record(
+        admin,
+        "decision",
+        "partner_application",
+        application.pk,
+        {"outcome": application.status},
+    )
+    event = f"partner_application_{application.status}"
+    transaction.on_commit(lambda: logger.info(event, extra={"event": event}))
 
 
 @transaction.atomic
@@ -235,10 +284,7 @@ def approve_application(
     application: PartnerApplication, admin: Any, *, mailer: Mailer | None = None
 ) -> PartnerApplication:
     """Create the store and manager invitation atomically, then email after commit."""
-    from django.utils import timezone
-
     from modules.accounts import services as account_services
-    from modules.audit import services as audit_services
 
     _require_active_admin(admin)
     base_url = _frontend_origin()
@@ -266,19 +312,8 @@ def approve_application(
         invited_by=admin,
     )
     application.status = ApplicationStatus.APPROVED
-    application.decided_by = admin
-    application.decided_at = timezone.now()
     application.decision_reason = None
-    application.save(
-        update_fields=["status", "decided_by", "decided_at", "decision_reason"]
-    )
-    audit_services.record(
-        admin,
-        "decision",
-        "partner_application",
-        application.pk,
-        {"outcome": "approved"},
-    )
+    _record_decision(application, admin)
     subject, body = _approval_email(application, base_url, token)
     sender = mailer if mailer is not None else SmtpMailer()
     transaction.on_commit(
@@ -329,36 +364,24 @@ def reject_application(
     mailer: Mailer | None = None,
 ) -> PartnerApplication:
     """Record a rejection and notify the applicant after the transaction commits."""
-    from django.utils import timezone
-
-    from modules.audit import services as audit_services
-
     application = _locked_application(application, admin)
-    if not isinstance(reason, str) or not reason.strip() or len(reason.strip()) > 500:
+    # BR-PARTNER-04: derive the fixed API/storage bound from its model field.
+    reason_limit = cast(
+        int, PartnerApplication._meta.get_field("decision_reason").max_length
+    )
+    if (
+        not isinstance(reason, str)
+        or not reason.strip()
+        or len(reason.strip()) > reason_limit
+    ):
         raise ValidationError(
             {"reason": _("Enter a reason of at most 500 characters.")}
         )
     reason = reason.strip()
     application.status = ApplicationStatus.REJECTED
-    application.decided_by = admin
-    application.decided_at = timezone.now()
     application.decision_reason = reason
-    application.save(
-        update_fields=["status", "decided_by", "decided_at", "decision_reason"]
-    )
-    audit_services.record(
-        admin,
-        "decision",
-        "partner_application",
-        application.pk,
-        {"outcome": "rejected"},
-    )
-    if application.language == ApplicationLanguage.FRENCH:
-        subject = "Votre demande de partenariat a été refusée"
-        body = f"Bonjour,\n\nVotre demande de partenariat a été refusée.\nMotif : {reason}\n\nL’équipe Iris"
-    else:
-        subject = "Your partner application has been declined"
-        body = f"Hello,\n\nYour partner application has been declined.\nReason: {reason}\n\nThe Iris team"
+    _record_decision(application, admin)
+    subject, body = _rejection_email(application, reason)
     sender = mailer if mailer is not None else SmtpMailer()
     transaction.on_commit(
         lambda: _send_decision(
