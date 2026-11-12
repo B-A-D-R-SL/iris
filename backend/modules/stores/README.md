@@ -2,7 +2,7 @@
 # Stores module
 
 **Owner pair:** Fairness & partners
-**Status:** Store (US-11) and partner applications (US-12) implemented; decisions (US-13) planned
+**Status:** Store (US-11) and partner applications (US-12) implemented; decision service and staff review API (US-13) implemented; review screens planned
 
 ## Responsibility
 
@@ -30,6 +30,8 @@ lead to them, within the Iris modular monolith.
 
 ## Public functions
 
+- `queries.partner_applications(status=None)`: applications oldest first, optionally one status.
+- `queries.partner_application(application_id)`: one application or `None`.
 - `services.save_store(store)`
 - `services.ensure_badr_store()`
 - `services.submit_application(values, *, language, mailer=None)`: saves a
@@ -38,14 +40,44 @@ lead to them, within the Iris modular monolith.
   `ApplicationAlreadyOpen` while the contact email has a submitted application,
   and a `ValidationError` for inactive or unknown category codes.
 
+- `services.approve_application(application, admin, *, mailer=None)`: creates a store and store-manager invitation in one transaction, records the decision, and sends the invitation after commit. Configure `FRONTEND_URL` as the public frontend origin. The application’s free-text hours are preserved in `opening_hours.notes` until a structured schedule is provided.
+- `services.reject_application(application, admin, reason, *, mailer=None)`: requires a non-blank reason of at most 500 characters, records the decision, and emails the applicant after commit. Both functions require an active admin and raise `ApplicationAlreadyDecided` if the application is no longer submitted. Mail delivery failures are logged without personal data and do not undo the decision.
+- `services.resend_approval_invitation(application, admin, *, mailer=None)`: recovery for an approved application. Requires an active admin, expires previous unaccepted manager invitations, issues a fresh token, and sends the invitation only after commit. It refuses existing accounts and never repeats the approval or its audit event. Failed issuance rolls back the expiry changes.
+
+## Recovering a lost approval email
+
+Approval and recovery email failures emit the structured event
+`partner_application_decision_email_failed` with an opaque `application_id`.
+No email address, token, message body or provider exception is logged.
+An operator with backend access can use that UUID and an active admin UUID:
+
+```sh
+python manage.py resend_partner_invitation APPLICATION_UUID --admin-id ADMIN_UUID
+```
+
+The command never prints the recipient or invitation token. Check the failure
+events after the command: email is attempted after commit, and a delivery failure
+keeps the new invitation committed so the command can be retried. Every successful
+reissue expires previous links, including links from earlier failed sends.
+An accepted invitation or an existing account cannot be reissued.
+
+Approval and recovery require `FRONTEND_URL` to be an HTTPS origin (HTTP only for localhost/loopback development) without a
+path, query, fragment or credentials. Invalid configuration raises
+`ImproperlyConfigured` before the application row is locked, after authorization.
+
 ## Endpoints
 
 - `POST /api/partner-applications/`: public, 5 requests per hour per IP. Contract
   in [api.md](../../../docs/03-design/api.md#post-apipartner-applications-us-12).
+- `GET /api/staff/partner-applications/?status=`, `POST .../{id}/approve/` and
+  `POST .../{id}/reject/`: admin only (`api/staff_views.py`). Contract in
+  [api.md](../../../docs/03-design/api.md#staff-review-of-partner-applications-us-13).
 
 ## Dependencies
 
 - `categories.queries`: active category codes for `goods_categories`.
+- `accounts.services`: manager invitation issuance.
+- `audit.services`: decision audit events.
 - `adapters.mailer`: confirmation email (`SmtpMailer`; Mailpit locally). Moves to
   the templated email system and background jobs with US-57.
 
@@ -56,4 +88,8 @@ Do not import another module's models or internal domain code.
 
 ## Audit events
 
-None yet. US-13 records approval and rejection decisions in the audit log.
+Approval and rejection record a `decision` on `partner_application`, with only the outcome in metadata.
+
+SMTP delivery has a finite `SMTP_TIMEOUT` deadline (10 seconds by default).
+Approval/rejection and recovery emails use the applicant’s language through Django
+translation catalogs. Committed decisions emit privacy-safe structured log events.

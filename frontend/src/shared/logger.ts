@@ -12,6 +12,8 @@ type FrontendEvent =
   | "invitation_accept_failed_unexpectedly"
   | "invitation_response_invalid"
   | "invitation_request_failed"
+  | "partner_application_response_invalid"
+  | "partner_application_request_failed"
   | "household_status_response_invalid";
 interface StatusContext {
   record: string;

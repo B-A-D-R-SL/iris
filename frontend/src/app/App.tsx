@@ -10,6 +10,7 @@ import { WelcomePage } from "../areas/public/WelcomePage";
 import { SignIn } from "../areas/public/pages/SignIn";
 import { AcceptInvitation } from "../areas/public/pages/AcceptInvitation";
 import { PartnerApply } from "../areas/public/pages/PartnerApply";
+import { PartnerApplications } from "../areas/staff/pages/PartnerApplications";
 import { Audit } from "../areas/staff/pages/Audit";
 import { Search } from "../areas/staff/pages/Search";
 import { Household } from "../areas/staff/pages/Household";
@@ -106,10 +107,7 @@ export default function App() {
               path="staff/review"
               element={<PlaceholderScreen titleKey="app.staffNav.reviews" />}
             />
-            <Route
-              path="staff/partners"
-              element={<PlaceholderScreen titleKey="app.staffNav.partners" />}
-            />
+            <Route path="staff/partners" element={<PartnerApplications />} />
             <Route
               path="staff/stores"
               element={<PlaceholderScreen titleKey="app.staffNav.stores" />}
