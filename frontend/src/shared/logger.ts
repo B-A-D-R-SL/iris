@@ -10,7 +10,9 @@ type FrontendEvent =
   | "sign_out_failed"
   | "invitation_accept_failed_unexpectedly"
   | "invitation_response_invalid"
-  | "invitation_request_failed";
+  | "invitation_request_failed"
+  | "partner_application_response_invalid"
+  | "partner_application_request_failed";
 type Level = "INFO" | "WARNING" | "ERROR";
 
 function emit(level: Level, event: FrontendEvent): void {

@@ -16,12 +16,55 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { csrfToken } from "../../../shared/api/csrf";
 import type { components } from "../../../shared/api/generated";
+import { logger } from "../../../shared/logger";
 import { EmptyState, ErrorState, LoadingState, Notice } from "../../../shared/ui";
 
 type Application = components["schemas"]["StaffPartnerApplication"];
 type Page = components["schemas"]["PaginatedStaffPartnerApplicationList"];
 type Decision = "approve" | "reject";
 const endpoint = "/api/staff/partner-applications/";
+
+class DecisionFailed extends Error {
+  readonly status: number;
+
+  constructor(status: number, message = "") {
+    super(message);
+    this.name = "DecisionFailed";
+    this.status = status;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Read public client-error messages; server failures use translated fallback text. */
+async function decisionFailure(response: Response): Promise<DecisionFailed> {
+  if (![400, 403, 404, 409].includes(response.status)) return new DecisionFailed(response.status);
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    logger.warning("partner_application_response_invalid");
+    return new DecisionFailed(response.status);
+  }
+  if (
+    !isRecord(data) ||
+    typeof data.code !== "string" ||
+    typeof data.message !== "string" ||
+    !isRecord(data.fields)
+  ) {
+    logger.warning("partner_application_response_invalid");
+    return new DecisionFailed(response.status);
+  }
+  const messages = Object.values(data.fields).flatMap((value) =>
+    Array.isArray(value) && value.every((message) => typeof message === "string")
+      ? value.filter((message: string) => message.trim())
+      : [],
+  );
+  return new DecisionFailed(response.status, messages.join(" ") || data.message);
+}
+
 async function listApplications(status: string, page: number): Promise<Page> {
   const params = new URLSearchParams({ page: String(page) });
   if (status) params.set("status", status);
@@ -36,6 +79,8 @@ async function decide(
   language: string,
 ) {
   const token = csrfToken();
+  // Django's locale cookie takes precedence over Accept-Language.
+  document.cookie = `django_language=${language}; Path=/; SameSite=Lax`;
   const response = await fetch(`${endpoint}${encodeURIComponent(application.id)}/${decision}/`, {
     method: "POST",
     credentials: "same-origin",
@@ -46,7 +91,7 @@ async function decide(
     },
     body: JSON.stringify(decision === "reject" ? { reason: reason.trim() } : {}),
   });
-  if (!response.ok) throw new Error(String(response.status));
+  if (!response.ok) throw await decisionFailure(response);
   return response.json() as Promise<Application>;
 }
 export function PartnerApplications() {
@@ -75,7 +120,10 @@ export function PartnerApplications() {
       setOutcome("success");
       void queryClient.invalidateQueries({ queryKey: ["partner-applications"] });
     },
-    onError: () => {
+    onError: (error) => {
+      if (!(error instanceof DecisionFailed) || error.status >= 500) {
+        logger.error("partner_application_request_failed");
+      }
       setDecision(null);
       setSelected(null);
       setPage(1);
@@ -84,6 +132,10 @@ export function PartnerApplications() {
     },
   });
   const key = "store.partnerReview";
+  const failure = mutation.error instanceof DecisionFailed ? mutation.error : null;
+  const errorMessage =
+    failure?.message ||
+    t(`${key}.${failure?.status === 409 ? "alreadyDecidedMessage" : "errorMessage"}`);
   const camel = (value: string) =>
     value.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
   const date = (value: string) =>
@@ -119,7 +171,7 @@ export function PartnerApplications() {
       />
       {outcome && (
         <Notice type={outcome} title={t(`${key}.${outcome}`)}>
-          {t(`${key}.${outcome}Message`)}
+          {outcome === "error" ? errorMessage : t(`${key}.successMessage`)}
         </Notice>
       )}
       {query.isPending ? (
@@ -199,7 +251,7 @@ export function PartnerApplications() {
                 ["received", date(selected.created_at)],
                 [
                   "businessType",
-                  t(`store.partnerForm.businessTypes.${camel(selected.business_type)}`),
+                  t(`store.partnerApplication.businessTypes.${camel(selected.business_type)}`),
                 ],
                 ["neq", selected.neq],
                 ["website", selected.website],
@@ -227,7 +279,7 @@ export function PartnerApplications() {
                 ],
                 [
                   "frequency",
-                  t(`store.partnerForm.donationFrequency.${selected.expected_frequency}`),
+                  t(`store.partnerApplication.donationFrequency.${selected.expected_frequency}`),
                 ],
                 ["hours", selected.opening_hours],
                 ["message", selected.message],

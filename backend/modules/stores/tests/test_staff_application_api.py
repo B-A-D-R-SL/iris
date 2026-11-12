@@ -238,6 +238,52 @@ def test_approve_creates_store_invitation_audit_and_email(
 
 
 @pytest.mark.usefixtures("frontend_url")
+def test_missing_invitation_rule_rolls_back_approval(
+    admin_client: APIClient, django_capture_on_commit_callbacks
+) -> None:
+    """A failing invitation dependency answers 400 and leaves no partial approval."""
+    application = _application()
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = admin_client.post(approve_url(application.pk))
+    assert response.status_code == 400
+    assert response.json()["code"] == "validation_error"
+    assert "non_field_errors" in response.json()["fields"]
+    application.refresh_from_db()
+    assert application.status == ApplicationStatus.SUBMITTED
+    assert application.decided_by is None and application.decided_at is None
+    assert not Store.objects.filter(application=application).exists()
+    assert not Invitation.objects.filter(email=application.contact_email).exists()
+    assert not AuditEvent.objects.filter(target_id=str(application.pk)).exists()
+    assert not callbacks and not mail.outbox
+
+
+@pytest.mark.usefixtures("frontend_url")
+@pytest.mark.parametrize(
+    "language,message",
+    [
+        ("en", "An account already uses this email address."),
+        ("fr", "Un compte utilise déjà ce courriel."),
+    ],
+)
+def test_registered_contact_email_returns_a_localized_explanation(
+    admin_client: APIClient, language: str, message: str
+) -> None:
+    """The UI receives the real refusal reason and approval remains uncommitted."""
+    application = _application()
+    UserFactory(email=application.contact_email)
+    response = admin_client.post(
+        approve_url(application.pk), HTTP_ACCEPT_LANGUAGE=language
+    )
+    assert response.status_code == 400
+    assert response.json()["fields"]["non_field_errors"] == [message]
+    application.refresh_from_db()
+    assert application.status == ApplicationStatus.SUBMITTED
+    assert not Store.objects.filter(application=application).exists()
+    assert not Invitation.objects.filter(email=application.contact_email).exists()
+    assert not AuditEvent.objects.filter(target_id=str(application.pk)).exists()
+
+
+@pytest.mark.usefixtures("frontend_url")
 def test_approving_twice_answers_409(admin_client: APIClient) -> None:
     """A decided application cannot be decided again."""
     application = _decided(ApplicationStatus.APPROVED)

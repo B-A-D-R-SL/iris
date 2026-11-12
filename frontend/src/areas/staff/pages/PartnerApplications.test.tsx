@@ -1,3 +1,4 @@
+// AI contribution: 50% or more AI-generated
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -38,6 +39,9 @@ const list = (
   previous: string | null = null,
 ) => Response.json({ count: results.length, results, next, previous });
 afterEach(async () => {
+  document.cookie = "csrftoken=; Max-Age=0; Path=/";
+  document.cookie = "django_language=; Max-Age=0; Path=/";
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   await i18n.changeLanguage("fr");
 });
@@ -70,6 +74,8 @@ describe("Partner applications", () => {
     await user.click(await screen.findByRole("button", { name: "Voir Bakery" }));
     expect(await screen.findByText("Fresh bread")).toBeInTheDocument();
     expect(screen.getByText("Marie Test")).toBeInTheDocument();
+    expect(screen.getByText("Épicerie")).toBeInTheDocument();
+    expect(screen.getByText("Chaque semaine")).toBeInTheDocument();
   });
   it("returns to the first page after a decision on a later page", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
@@ -150,7 +156,133 @@ describe("Partner applications", () => {
     renderWithProviders(<PartnerApplications />);
     await user.click(await screen.findByRole("button", { name: "View Bakery" }));
     expect(screen.getByText("Business type")).toBeInTheDocument();
+    expect(screen.getByText("Grocery")).toBeInTheDocument();
+    expect(screen.getByText("Weekly")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+  });
+  it.each([
+    [
+      "en",
+      "An account already uses this email address.",
+      "View Bakery",
+      "Approve",
+      "Confirm approval",
+    ],
+    [
+      "fr",
+      "Un compte utilise déjà ce courriel.",
+      "Voir Bakery",
+      "Approuver",
+      "Confirmer l’approbation",
+    ],
+  ])(
+    "shows the actual registered-email refusal in %s",
+    async (language, message, view, approve, title) => {
+      await i18n.changeLanguage(language);
+      document.cookie = `django_language=${language === "en" ? "fr" : "en"}; Path=/`;
+      const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+        init?.method === "POST"
+          ? Response.json(
+              {
+                code: "validation_error",
+                message: "Check the highlighted fields.",
+                fields: { non_field_errors: [message] },
+              },
+              { status: 400 },
+            )
+          : list(),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      const user = userEvent.setup();
+      renderWithProviders(<PartnerApplications />);
+      await user.click(await screen.findByRole("button", { name: view }));
+      await user.click(screen.getByRole("button", { name: approve }));
+      const dialog = await screen.findByRole("dialog", { name: title });
+      await user.click(within(dialog).getByRole("button", { name: approve }));
+      expect(await screen.findByText(message)).toBeInTheDocument();
+      expect(
+        screen.queryByText(/may already have been decided|peut-être déjà été prise/),
+      ).not.toBeInTheDocument();
+      expect(document.cookie).toContain(`django_language=${language}`);
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/approve/"),
+        expect.objectContaining({
+          headers: expect.objectContaining({ "Accept-Language": language }),
+        }),
+      );
+      expect(screen.queryByText("Check the highlighted fields.")).not.toBeInTheDocument();
+    },
+  );
+  it.each([
+    [
+      "public refusal",
+      () =>
+        Response.json(
+          {
+            code: "permission_denied",
+            message: "Only admins can review partner applications.",
+            fields: {},
+          },
+          { status: 403 },
+        ),
+      "Only admins can review partner applications.",
+    ],
+    [
+      "conflict",
+      () => new Response(null, { status: 409 }),
+      "This application has already been approved or rejected. Refresh the list.",
+    ],
+    [
+      "server failure",
+      () =>
+        Response.json(
+          { code: "error", message: "Internal configuration secret", fields: {} },
+          { status: 500 },
+        ),
+      "Try again later. If the problem continues, contact an administrator.",
+    ],
+    [
+      "invalid JSON",
+      () => new Response("<html>Internal configuration secret</html>", { status: 400 }),
+      "Try again later. If the problem continues, contact an administrator.",
+    ],
+    [
+      "malformed fields",
+      () =>
+        Response.json(
+          { code: "validation_error", message: "Check the highlighted fields.", fields: [] },
+          { status: 400 },
+        ),
+      "Try again later. If the problem continues, contact an administrator.",
+    ],
+    [
+      "network failure",
+      () => {
+        throw new TypeError("Internal configuration secret");
+      },
+      "Try again later. If the problem continues, contact an administrator.",
+    ],
+  ])("handles %s without exposing internal response text", async (_label, response, expected) => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    await i18n.changeLanguage("en");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+        init?.method === "POST" ? response() : list(),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<PartnerApplications />);
+    await user.click(await screen.findByRole("button", { name: "View Bakery" }));
+    await user.click(screen.getByRole("button", { name: "Approve" }));
+    const dialog = await screen.findByRole("dialog", { name: "Confirm approval" });
+    await user.click(within(dialog).getByRole("button", { name: "Approve" }));
+    expect(await screen.findByText(expected)).toBeInTheDocument();
+    expect(screen.queryByText(/Internal configuration secret/)).not.toBeInTheDocument();
+    expect(JSON.stringify([...warning.mock.calls, ...error.mock.calls])).not.toContain(
+      "Internal configuration secret",
+    );
   });
   it("protects the route from non-admins", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
