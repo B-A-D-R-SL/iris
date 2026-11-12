@@ -4,9 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "../../../app/App";
+import type { Pickup } from "../../../features/reservations/pickupApi";
 import i18n from "../../../shared/i18n";
 import { expectNoAxeViolations, renderWithProviders, testUser } from "../../../test/render";
-import type { Pickup } from "../../../features/reservations/pickupApi";
 
 const PICKUP: Pickup = {
   id: "00000000-0000-4000-8000-000000000201",
@@ -22,10 +22,14 @@ const PICKUP: Pickup = {
   picked_up_at: null,
 };
 
+let mockScan: ((text: string) => void) | null = null;
+let mockCameraStatus: "starting" | "live" | "denied" | "unavailable" = "denied";
+
 vi.mock("../components/PickupScanner", async () => {
   const React = await import("react");
   return {
     PickupScanner: ({
+      onDetected,
       onStatus,
     }: {
       active: boolean;
@@ -33,8 +37,9 @@ vi.mock("../components/PickupScanner", async () => {
       onStatus: (status: "starting" | "live" | "denied" | "unavailable") => void;
     }) => {
       React.useEffect(() => {
-        onStatus("denied");
-      }, [onStatus]);
+        mockScan = onDetected;
+        onStatus(mockCameraStatus);
+      }, [onDetected, onStatus]);
       return <div data-testid="pickup-scanner" />;
     },
   };
@@ -88,6 +93,8 @@ async function typeCode(code: string) {
 }
 
 beforeEach(async () => {
+  mockScan = null;
+  mockCameraStatus = "denied";
   await i18n.changeLanguage("fr");
   document.cookie = "csrftoken=test-csrf; path=/";
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -133,6 +140,24 @@ describe("Confirm pickup scan screen (US-44 / T-06.44.3)", () => {
     );
 
     await expectNoAxeViolations(container);
+  });
+
+  it("looks up a decoded scan and shows the matching pickup", async () => {
+    mockCameraStatus = "live";
+    const fetchMock = mockApi();
+    await renderConfirm();
+    await waitFor(() => expect(mockScan).not.toBeNull());
+
+    mockScan?.("p4wz8h");
+
+    expect(
+      await screen.findByRole("heading", { name: "Vérifier la réservation", level: 2 }),
+    ).toBeVisible();
+    expect(screen.getByText("Fatou D.")).toBeVisible();
+    const lookupCall = fetchMock.mock.calls.find((call) =>
+      String(call[0]).endsWith("/api/store/pickups/lookup/"),
+    );
+    expect(JSON.parse(String(lookupCall?.[1]?.body))).toEqual({ code: "P4WZ8H" });
   });
 
   it("shows a clear message for an unknown code and keeps the typed fallback", async () => {

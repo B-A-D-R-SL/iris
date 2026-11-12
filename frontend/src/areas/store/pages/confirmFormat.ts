@@ -1,11 +1,11 @@
 // AI contribution: 50% or more AI-generated
 /**
  * Montreal-time pickup window and confirmation time for the store Confirm
- * screen (api.md: times are UTC; staff read America/Toronto).
+ * screen (api.md: times are UTC; staff read America/Montreal).
  */
 import type { Pickup } from "../../../features/reservations/pickupApi";
 
-const MONTREAL = "America/Toronto";
+const MONTREAL = "America/Montreal";
 
 export type Language = "fr" | "en";
 
@@ -14,13 +14,18 @@ export interface DayLabels {
   tomorrow: string;
 }
 
-function montrealDate(moment: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
+/** Calendar day in Montreal as YYYY-MM-DD, from formatToParts (locale-safe). */
+export function montrealDate(moment: Date): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: MONTREAL,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(moment);
+  }).formatToParts(moment);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  return `${year}-${month}-${day}`;
 }
 
 function nextDay(isoDate: string): string {

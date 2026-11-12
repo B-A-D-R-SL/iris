@@ -7,6 +7,7 @@ import { BrowserQRCodeReader, type IScannerControls } from "@zxing/browser";
 import { useEffect, useEffectEvent, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
+import { logger } from "../../../shared/logger";
 import classes from "./PickupScanner.module.css";
 
 export type ScannerStatus = "starting" | "live" | "denied" | "unavailable";
@@ -35,6 +36,22 @@ function cameraStatus(error: unknown): ScannerStatus {
   return "unavailable";
 }
 
+async function startDecoder(
+  video: HTMLVideoElement,
+  onDetected: (text: string) => void,
+  controlsRef: { current: IScannerControls | null },
+): Promise<IScannerControls> {
+  const reader = new BrowserQRCodeReader();
+  return reader.decodeFromConstraints(
+    { video: { facingMode: { ideal: "environment" } } },
+    video,
+    (result, _error, ctrl) => {
+      controlsRef.current = ctrl;
+      if (result) onDetected(result.getText());
+    },
+  );
+}
+
 /** Continuous QR decode into `onDetected`; stops cleanly on unmount or when inactive. */
 export function PickupScanner({ active, onDetected, onStatus }: PickupScannerProps) {
   const { t } = useTranslation();
@@ -49,24 +66,14 @@ export function PickupScanner({ active, onDetected, onStatus }: PickupScannerPro
 
   useEffect(() => {
     if (!active) return;
-
     const video = videoRef.current;
     if (!video) return;
 
     let cancelled = false;
-    const reader = new BrowserQRCodeReader();
     reportStatus("starting");
-
     void (async () => {
       try {
-        const controls = await reader.decodeFromConstraints(
-          { video: { facingMode: { ideal: "environment" } } },
-          video,
-          (result, _error, ctrl) => {
-            controlsRef.current = ctrl;
-            if (result) reportDetected(result.getText());
-          },
-        );
+        const controls = await startDecoder(video, reportDetected, controlsRef);
         if (cancelled) {
           controls.stop();
           stopTracks(video);
@@ -75,7 +82,10 @@ export function PickupScanner({ active, onDetected, onStatus }: PickupScannerPro
         controlsRef.current = controls;
         reportStatus("live");
       } catch (error) {
-        if (!cancelled) reportStatus(cameraStatus(error));
+        if (!cancelled) {
+          logger.warning("pickup_camera_unavailable");
+          reportStatus(cameraStatus(error));
+        }
       }
     })();
 

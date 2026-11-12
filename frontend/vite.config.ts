@@ -5,11 +5,22 @@ import react from "@vitejs/plugin-react";
 // Docker uses the backend service name; host-native development uses localhost.
 const apiTarget = process.env.API_PROXY_TARGET ?? "http://127.0.0.1:8000";
 
+/** Phone tunnels only when IRIS_ALLOW_TUNNELS=1 or IRIS_TUNNEL_HOST is set. */
+function tunnelAllowedHosts(): string[] | undefined {
+  const exact = process.env.IRIS_TUNNEL_HOST?.trim();
+  if (exact) return [exact];
+  if (process.env.IRIS_ALLOW_TUNNELS === "1") {
+    return [".trycloudflare.com", ".ngrok-free.app", ".ngrok.io"];
+  }
+  return undefined;
+}
+
+const allowedHosts = tunnelAllowedHosts();
+
 export default defineConfig({
   plugins: [react()],
   server: {
-    // Phone / Cloudflare quick tunnels hit Vite with a public Host header.
-    allowedHosts: [".trycloudflare.com", ".ngrok-free.app", ".ngrok.io"],
+    ...(allowedHosts ? { allowedHosts } : {}),
     watch: { usePolling: process.env.IRIS_DOCKER === "1" },
     proxy: {
       "/api": {

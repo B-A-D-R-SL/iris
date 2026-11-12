@@ -13,9 +13,10 @@ describe("confirmCode", () => {
     expect(isCompleteCode("P4WZ8")).toBe(false);
   });
 
-  it("reads a bare code or the last six-character token from a scan", () => {
+  it("reads a bare code or a bounded six-character token from a scan", () => {
     expect(codeFromScan("p4wz8h")).toBe("P4WZ8H");
     expect(codeFromScan("IRIS-P4WZ8H")).toBe("P4WZ8H");
     expect(codeFromScan("no-code-here")).toBeNull();
+    expect(codeFromScan("ABCDEFGH")).toBeNull();
   });
 });

@@ -5,6 +5,7 @@
  */
 import { csrfToken } from "../../shared/api/csrf";
 import type { components } from "../../shared/api/generated";
+import { logger } from "../../shared/logger";
 
 export type Pickup = components["schemas"]["Pickup"];
 export type PickupError = components["schemas"]["PickupError"];
@@ -52,7 +53,10 @@ async function postPickup(path: string, language: "fr" | "en", body?: object): P
   });
   if (response.status === 200) return (await response.json()) as Pickup;
 
-  const error: unknown = await response.json().catch(() => null);
+  const error: unknown = await response.json().catch(() => {
+    logger.error("pickup_response_invalid");
+    return null;
+  });
   if (isPickupError(error)) throw new PickupFailed(response.status, error);
   throw new PickupFailed(response.status, {
     code: "unavailable",

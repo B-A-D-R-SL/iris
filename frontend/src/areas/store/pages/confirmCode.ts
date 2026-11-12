@@ -28,12 +28,16 @@ export function isCompleteCode(code: string): boolean {
 }
 
 /**
- * QR payloads may be the bare code or a longer string that ends with it.
- * Prefer an exact 6-character alnum token; otherwise take the last one found.
+ * Accept a bare 6-character code, or a complete 6-character token bounded by
+ * non-alnum characters. Never truncate a longer alphanumeric string.
  */
 export function codeFromScan(raw: string): string | null {
   const normalized = normalizeCode(raw);
   if (/^[A-Z0-9]{6}$/.test(normalized)) return normalized;
-  const matches = normalized.match(/[A-Z0-9]{6}/g);
-  return matches?.at(-1) ?? null;
+  const re = /(?:^|[^A-Z0-9])([A-Z0-9]{6})(?![A-Z0-9])/g;
+  let last: string | null = null;
+  for (const match of normalized.matchAll(re)) {
+    last = match[1];
+  }
+  return last;
 }
