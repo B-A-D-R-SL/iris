@@ -491,6 +491,27 @@ put in the story's milestone, and added to the Iris project (all from step 3).
   the skill cannot tell who the developer is on GitHub, so remind them to assign themselves
   (Assignees → "assign yourself") after creating it.
 
+### Link the PR on the issues it closes
+
+Once the PR exists, leave a comment on each issue named in a `Closes #<n>` line of the body
+(the picked tasks, and the story when it is closed too), so anyone opening the story or task
+sees straight away which PR closes it:
+
+```sh
+gh issue comment <n> --body "This item is closed in this PR: <PR url>"
+```
+
+- Use the PR's full URL (e.g. `https://github.com/<owner>/<repo>/pull/691`). GitHub shows
+  it as a link with the PR title and its open/merged state.
+- Only `Closes` issues get the comment. `Part of` issues (a story that stays open, or
+  anything when the target is not `main`) do not, because this PR does not close them.
+- Do not add the comment twice. First check the issue's comments
+  (`gh issue view <n> --json comments --jq '.comments[].body'`) and skip it if one already
+  contains this PR's URL, for example when the skill is run again after a failure.
+- If a comment fails, say so in the report instead of stopping; the PR is already open.
+- Without `gh`, list the issues in the report and ask the developer to add the same comment
+  to each one after creating the PR.
+
 ## 11. Restore and report
 
 If step 4 stashed changes: `git stash pop`. If it conflicts, leave the stash in place and tell
@@ -498,7 +519,7 @@ the developer (`git stash list`).
 
 Tell the developer: the PR link (or the create link), the target branch, the milestone and
 project it was added to (or why not), which issues it
-closes or is part of, how conflicts were
+closes or is part of (and which got the "This item is closed in this PR" comment), how conflicts were
 resolved, the test results (and what was skipped or left to CI), untracked files left out,
 and that the PR is open and **not merged**. Remind them that the `pr-policy`, `commit-policy`
 and CI checks run on GitHub, and that the PR is merged with "Create a merge commit" by a
