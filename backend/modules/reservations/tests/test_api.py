@@ -93,7 +93,11 @@ class TestApprovedHousehold:
         store: Any = StoreFactory(name="Épicerie Exemple")
         category = CategoryFactory(code="bakery")
         listing = _listing(
-            store=store, category=category, quantity_total=5, quantity_reserved=2
+            store=store,
+            category=category,
+            quantity_total=5,
+            quantity_reserved=2,
+            max_per_household=2,
         )
         _listing(status="cancelled")
         _listing(quantity_total=2, quantity_reserved=2)
@@ -123,6 +127,7 @@ class TestApprovedHousehold:
                     "pickup_start": "2026-11-06T16:00:00Z",
                     "pickup_end": "2026-11-06T18:00:00Z",
                     "units_left": 3,
+                    "max_per_household": 2,
                     "unit": "item",
                     "best_before": listing.best_before.isoformat(),
                     "photo_url": None,
