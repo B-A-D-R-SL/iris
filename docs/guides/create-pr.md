@@ -55,9 +55,9 @@ its tasks, its milestone and the Iris project. Then it asks:
    It then checks them against `pr_policy.py` and fixes anything that fails.
 4. **Push and open:** pushes, opens the PR assigned to you, and adds the milestone and the
    Iris project.
-5. **Link the issues:** comments "This item is closed in this PR: <link>" on every task (and
-   the story, if it closes too) named in a `Closes #` line, so anyone opening the issue sees
-   which PR closes it.
+5. **Link the issues:** adds "This item is closed in this PR: <link>" to the top of the
+   description of every task (and the story, if it closes too) named in a `Closes #` line,
+   so anyone opening the issue sees which PR closes it.
 6. **Report:** gives you the PR link, test results and anything it skipped.
 
 ### When it stops

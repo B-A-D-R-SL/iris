@@ -493,24 +493,36 @@ put in the story's milestone, and added to the Iris project (all from step 3).
 
 ### Link the PR on the issues it closes
 
-Once the PR exists, leave a comment on each issue named in a `Closes #<n>` line of the body
-(the picked tasks, and the story when it is closed too), so anyone opening the story or task
-sees straight away which PR closes it:
+Once the PR exists, put a line at the **top of the description** of each issue named in a
+`Closes #<n>` line of the body (the picked tasks, and the story when it is closed too), so
+anyone opening the story or task sees straight away which PR closes it:
+
+```
+This item is closed in this PR: <PR url>
+```
+
+followed by a blank line, then the issue's existing description unchanged. Do it with a
+file, never by retyping the description:
 
 ```sh
-gh issue comment <n> --body "This item is closed in this PR: <PR url>"
+gh issue view <n> --json body --jq .body > <scratchpad>/issue-<n>.md
+# write <scratchpad>/issue-<n>-new.md: the line, a blank line, then issue-<n>.md as it is
+gh issue edit <n> --body-file <scratchpad>/issue-<n>-new.md
 ```
 
 - Use the PR's full URL (e.g. `https://github.com/<owner>/<repo>/pull/691`). GitHub shows
   it as a link with the PR title and its open/merged state.
-- Only `Closes` issues get the comment. `Part of` issues (a story that stays open, or
-  anything when the target is not `main`) do not, because this PR does not close them.
-- Do not add the comment twice. First check the issue's comments
-  (`gh issue view <n> --json comments --jq '.comments[].body'`) and skip it if one already
-  contains this PR's URL, for example when the skill is run again after a failure.
-- If a comment fails, say so in the report instead of stopping; the PR is already open.
-- Without `gh`, list the issues in the report and ask the developer to add the same comment
-  to each one after creating the PR.
+- Only `Closes` issues get the line. `Part of` issues (a story that stays open, or anything
+  when the target is not `main`) do not, because this PR does not close them.
+- If the description already has a `This item is closed in this PR:` line, replace that line
+  instead of adding a second one (the PR may have been reopened as a new one). If it already
+  has this PR's URL, leave the issue as it is, for example when the skill is run again.
+- Change nothing else in the description. Read the issue back afterwards
+  (`gh issue view <n> --json body`) and check the rest is identical.
+- Do not post it as a comment.
+- If an edit fails, say so in the report instead of stopping; the PR is already open.
+- Without `gh`, list the issues in the report and ask the developer to add the same line to
+  the top of each description after creating the PR.
 
 ## 11. Restore and report
 
@@ -519,7 +531,7 @@ the developer (`git stash list`).
 
 Tell the developer: the PR link (or the create link), the target branch, the milestone and
 project it was added to (or why not), which issues it
-closes or is part of (and which got the "This item is closed in this PR" comment), how conflicts were
+closes or is part of (and which got the "This item is closed in this PR" line in their description), how conflicts were
 resolved, the test results (and what was skipped or left to CI), untracked files left out,
 and that the PR is open and **not merged**. Remind them that the `pr-policy`, `commit-policy`
 and CI checks run on GitHub, and that the PR is merged with "Create a merge commit" by a
