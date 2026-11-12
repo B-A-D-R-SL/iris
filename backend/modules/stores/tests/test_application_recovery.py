@@ -24,6 +24,7 @@ pytestmark = pytest.mark.django_db
 # reissue and acceptance to prove token continuity and absence of duplicate decisions.
 @pytest.mark.usefixtures("invitation_rule")
 @pytest.mark.parametrize("recovery_fails", [False, True])
+# rule: BR-PARTNER-05
 def test_approval_email_failure_is_recoverable_with_a_fresh_link(
     settings, admin, django_capture_on_commit_callbacks, caplog, recovery_fails
 ):
@@ -82,6 +83,7 @@ def test_approval_email_failure_is_recoverable_with_a_fresh_link(
 
 
 @pytest.mark.usefixtures("invitation_rule")
+# rule: BR-PARTNER-05
 def test_reissue_invalidates_old_token_and_outer_rollback_preserves_it(
     settings, admin, django_capture_on_commit_callbacks
 ):
@@ -116,6 +118,7 @@ def test_reissue_invalidates_old_token_and_outer_rollback_preserves_it(
 
 
 @pytest.mark.usefixtures("invitation_rule")
+# rule: BR-PARTNER-05
 def test_failed_reissue_keeps_previous_invitation_and_sends_nothing(
     settings, admin, django_capture_on_commit_callbacks
 ):
@@ -140,6 +143,7 @@ def test_failed_reissue_keeps_previous_invitation_and_sends_nothing(
 
 
 @pytest.mark.usefixtures("invitation_rule")
+# rule: BR-PARTNER-05
 def test_recovery_command_requires_admin_and_never_prints_contact_or_token(
     settings, admin, django_capture_on_commit_callbacks
 ):
@@ -184,6 +188,7 @@ def test_recovery_command_requires_admin_and_never_prints_contact_or_token(
 @pytest.mark.parametrize(
     "status", [ApplicationStatus.SUBMITTED, ApplicationStatus.REJECTED]
 )
+# rule: BR-PARTNER-05
 def test_reissue_refuses_unapproved_applications(settings, admin, status):
     """Recovery cannot create a store or bypass the original approval decision."""
     settings.FRONTEND_URL = "https://iris.example"
@@ -194,6 +199,7 @@ def test_reissue_refuses_unapproved_applications(settings, admin, status):
 
 
 @pytest.mark.usefixtures("invitation_rule")
+# rule: BR-PARTNER-05
 def test_reissue_refuses_existing_account_and_preserves_invitation(settings, admin):
     """Recovery cannot reset or replace an existing user's account."""
     settings.FRONTEND_URL = "https://iris.example"

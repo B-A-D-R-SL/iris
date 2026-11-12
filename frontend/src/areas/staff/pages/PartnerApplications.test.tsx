@@ -163,7 +163,7 @@ describe("Partner applications", () => {
     expect(screen.getByText("Weekly")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
   });
-  it("uses API availability when a submitted application's actions are disabled", async () => {
+  it("hides actions when the API disables them for a submitted application", async () => {
     await i18n.changeLanguage("en");
     vi.stubGlobal(
       "fetch",

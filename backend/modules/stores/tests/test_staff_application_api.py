@@ -216,6 +216,7 @@ def test_unknown_status_filter_is_a_validation_error(admin_client: APIClient) ->
 
 
 @pytest.mark.usefixtures("invitation_rule", "frontend_url")
+# rule: BR-PARTNER-03
 def test_approve_creates_store_invitation_audit_and_email(
     admin: User, admin_client: APIClient, django_capture_on_commit_callbacks
 ) -> None:
@@ -306,6 +307,7 @@ def test_unknown_application_answers_404(admin_client: APIClient) -> None:
 # Reject -----------------------------------------------------------------
 
 
+# rule: BR-PARTNER-04
 def test_reject_records_reason_audit_and_email(
     admin: User, admin_client: APIClient, django_capture_on_commit_callbacks
 ) -> None:

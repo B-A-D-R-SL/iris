@@ -58,6 +58,15 @@ the names in `backend/modules/households/domain/names.py`, and the window in
 
 ## Partner applications (US-12)
 
+### BR-PARTNER-05: Recovery of unaccepted manager invitations
+
+Only an active admin may reissue the invitation for an approved application, via
+`resend_partner_invitation APPLICATION_UUID --admin-id ADMIN_UUID`. Expire prior
+unaccepted manager links and create a fresh invitation atomically; retain the
+application decision and its audit event. Refuse accepted invitations and existing
+accounts. Failed issuance rolls back expiry changes; send the new email only
+after commit, and permit another recovery if delivery fails.
+
 ### BR-PARTNER-03: Atomic administrator decisions
 
 Only active administrators may decide submitted applications. Approval creates the

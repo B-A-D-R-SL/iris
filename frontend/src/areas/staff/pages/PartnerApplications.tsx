@@ -94,9 +94,11 @@ async function decide(
   if (!response.ok) throw await decisionFailure(response);
   return response.json() as Promise<Application>;
 }
-// Size exception: this state owner coordinates the selection drawer, confirmation
-// modal, pending-close guard, page reset and query invalidation as one decision
-// workflow. Keep the declarative views beside those transitions for review.
+// Size/complexity exception: the 22 AST branches include alternative query states,
+// localized detail fallbacks and guarded modal/drawer transitions. Keep these UI
+// alternatives with their single selection/mutation state owner so pending-close,
+// page-reset and cache-invalidation behavior can be reviewed as one workflow.
+// Eligibility itself comes from the API's can_decide flag.
 export function PartnerApplications() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
