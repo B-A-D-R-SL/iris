@@ -227,7 +227,7 @@ start at BR-RES-006 because US-44 (#520) uses BR-RES-001 to BR-RES-005.
 | BR-RES-007 | A household's reservations on one listing, counting only those still `reserved`, add up to at most the listing's `max_per_household`. Two reservations of 1 on a listing with a maximum of 2 are allowed; a third is not. |
 | BR-RES-008 | A household has fewer active (`reserved`) reservations than `reservations.max_active_per_household` (default 3, a setting) before it can reserve again. Picked-up, cancelled and no-show reservations do not count. The household's row is locked while reserving, so two phones at once cannot pass the limit together. |
 | BR-RES-009 | Units are taken with one conditional SQL update, only while the listing is published, its pickup has not ended and enough units are left, in the same transaction as the reservation insert. Simultaneous reservations never over-book. |
-| BR-RES-010 | **Default:** The pickup code is fixed at 6 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no look-alike characters), drawn at random and unique per listing; a clash draws a new code. The length is fixed at 6, as the database column holds 6 characters; it is not read from the rule settings. |
+| BR-RES-010 | **Default:** The pickup code is fixed at 6 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no look-alike characters), drawn at random and unique per listing; a clash draws a new code. The length is fixed at 6 (the database column holds 6 characters) and is not a rule setting. |
 
 The limits are checked in `backend/modules/reservations/domain/limits.py`, the
 code in `domain/codes.py`, the reservation in `services.py`, the household

@@ -13,7 +13,7 @@ from modules.reservations.domain.codes import PICKUP_CODE_ALPHABET, PICKUP_CODE_
 from modules.reservations.models import MadeByType, Reservation, ReservationStatus
 from modules.rules.services import publish
 
-RESERVATION_RULES = {"max_active_per_household": 3, "pickup_code_length": 6}
+RESERVATION_RULES = {"max_active_per_household": 3}
 
 
 def code_for(number: int) -> str:

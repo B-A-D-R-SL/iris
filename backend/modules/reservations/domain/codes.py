@@ -4,8 +4,8 @@
 The code is fixed at 6 characters. The team pack defines it that way: the
 business rules say "6 characters" with no *(setting)* marker, the database
 design makes ``pickup_code`` a ``char(6)``, and US-41's acceptance criteria
-say "6-character pickup code". The ``reservations.pickup_code_length`` rule
-value is not read: a longer value could not be stored in the column.
+say "6-character pickup code". It is not a rule setting: a longer code could
+not be stored in the column.
 """
 
 from collections.abc import Callable, Sequence
