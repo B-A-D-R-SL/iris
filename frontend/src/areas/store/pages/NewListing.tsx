@@ -21,11 +21,10 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppBar } from "../../../app/layouts/AppBar";
 import type { Category } from "../../../features/categories/api";
 import { getPostingCategories, PostingFailed, postListing } from "../../../features/listings/api";
 import { DateField, FileUpload, IntegerField, MoneyField, TextField } from "../../../shared/forms";
-import { ErrorState, LoadingState, Notice } from "../../../shared/ui";
+import { AppBar, ErrorState, LoadingState, Notice } from "../../../shared/ui";
 import { CategoryPicker } from "../components/CategoryPicker";
 import { ProhibitedItemsLink } from "../components/ProhibitedItemsLink";
 import classes from "./NewListing.module.css";
