@@ -492,6 +492,14 @@ AI-assisted files for this entry:
   - Server errors were first retried with back-off, which delayed the error screen by seconds; a server answer now shows at once with « Réessayer », and only a lost connection is retried.
   - Running Prettier on whole folders converted the line endings of teammates' files; those files were restored, leaving only the intended changes.
 
+### FIX-03 Eligibility decision refactor and application logging (#629)
+
+- **Tool and contribution level:** OpenAI Codex; 50% or more AI-generated. Extracted evidence validation and staff authorization, renamed the public exception to `EligibilityEvidenceUnavailableError`, and added post-commit `eligibility_decided` logging with an event-specific JSON allowlist. Income amounts, names and evidence stay out of the event.
+- **AI-assisted files:** `backend/modules/eligibility/services.py`, `backend/modules/eligibility/tests/test_decision_service.py`, `backend/iris/observability.py`, `backend/tests/test_observability.py`, `backend/modules/eligibility/README.md`, `docs/guides/observability.md`, `AI_USAGE.md`.
+- **Verification:** existing eligibility assertions retained with renamed exception references; new caplog/JSON tests cover staff/automatic decisions, both outcomes, per-decision snapshots, invalid evidence, rollback, failed inserts and privacy filtering. Full PostgreSQL run: 1,936 passed, 5 skipped, slow-expiry deselected, 95.54% coverage. Focused run: 114 passed, 91.72% coverage. Ruff, mypy (399 files), four import contracts, Django/migration checks, pip-audit and 36 PR-policy tests pass.
+- **Corrections and review follow-up:** logging extras required a matching formatter allowlist. Windows-mounted startup/load timing failures cleared in a byte-verified native Linux copy, with thresholds unchanged. A full tracked-repository search for the retired exception name found no remaining references, including imports outside the eligibility module.
+- **Owner review and pull request:** owner reviewed, committed and pushed [PR #687](https://github.com/B-A-D-R-SL/iris/pull/687); Codex did not commit or push. The review-status wording and typo were corrected, and this entry was condensed without removing verification history to respect the 500-line file limit.
+
 ### US-41 Reserve a unit (#513: #514, #515, #516, #517)
 
 [Verification and corrections](docs/05-process/ai-usage-verification-2.md#us-41-reserve-a-unit-513-514-515-516-517).

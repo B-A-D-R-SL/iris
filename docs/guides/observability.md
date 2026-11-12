@@ -11,6 +11,15 @@ The `iris.auth` events `sign_in_succeeded` and `signed_out` also allow `user_id`
 validated as a UUID. This is the only account identifier allowed in logs;
 failed sign-ins and lockouts do not identify the account.
 
+The `iris.eligibility` event `eligibility_decided` also allows exactly four
+business fields: `decision_id` and `household_id` (validated UUIDs), `outcome`
+(`eligible` or `ineligible`), and `rule_version` (the positive integer version
+of the `lico_thresholds` rule). These fields are allowed only for that logger
+and event. No names, income amounts, thresholds, evidence, or staff identifiers
+are included. One event is emitted after the surrounding transaction commits;
+failed saves and rolled-back workflows emit no success event. This application
+log does not replace the append-only audit record tracked in FIX-08 (#634).
+
 Application log events must use static event names, never personal information. **Do not log** bodies, query strings, raw URL paths, cookie or authorization headers, names, email addresses, document data, or other account identifiers. Do not pass such values into event labels. Third-party diagnostic output and Django debug exception pages are outside this formatter's control; production must run with `DEBUG=False`, and logging must be reviewed before handling real beneficiary data.
 
 HTTP results: `INFO` for 2xx/3xx, `WARNING` for 4xx, and `ERROR` for 5xx. The default Django log handler also emits only the allowlisted JSON fields.
