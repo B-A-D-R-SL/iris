@@ -223,4 +223,46 @@ describe("Confirm pickup scan screen (US-44 / T-06.44.3)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Scanner un autre code" }));
     await waitFor(() => expect(screen.getByLabelText("Code de cueillette")).toHaveValue(""));
   });
+
+  it("shows the camera-unavailable hint while keeping typed entry", async () => {
+    mockCameraStatus = "unavailable";
+    mockApi();
+    await renderConfirm();
+    expect(await screen.findByText("Caméra indisponible")).toBeVisible();
+    expect(screen.getByText(/Cet appareil n'a pas de caméra/)).toBeVisible();
+    expect(screen.getByLabelText("Code de cueillette")).toBeVisible();
+  });
+
+  it("keeps review on a transient confirm failure, then returns on a hard refusal", async () => {
+    const fetchMock = mockApi({
+      confirm: () => new Response("down", { status: 502 }),
+    });
+    await renderConfirm();
+    await typeCode("P4WZ8H");
+    await userEvent.click(screen.getByRole("button", { name: "Vérifier la réservation" }));
+    expect(await screen.findByText("Fatou D.")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer la remise" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "Vérifier la réservation", level: 2 }),
+      ).toBeVisible(),
+    );
+    expect(screen.getByText("Fatou D.")).toBeVisible();
+
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (url.endsWith("/api/me/")) return Response.json(testUser("store_staff"));
+      if (url.endsWith("/api/store/pickups/lookup/") && init?.method === "POST") {
+        return Response.json(PICKUP);
+      }
+      if (url.includes("/confirm/") && init?.method === "POST") {
+        return refusal("cancelled");
+      }
+      return new Response(null, { status: 404 });
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer la remise" }));
+    expect(await screen.findByText("Réservation annulée")).toBeVisible();
+    expect(screen.getByLabelText("Code de cueillette")).toBeVisible();
+  });
 });

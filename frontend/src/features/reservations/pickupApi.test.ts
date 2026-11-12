@@ -69,4 +69,16 @@ describe("pickupApi", () => {
       status: 404,
     } satisfies Partial<PickupFailed>);
   });
+
+  it("treats a non-JSON error body as unavailable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("gateway down", { status: 502 })),
+    );
+    await expect(lookupPickup("P4WZ8H", "fr")).rejects.toMatchObject({
+      name: "PickupFailed",
+      code: "unavailable",
+      status: 502,
+    } satisfies Partial<PickupFailed>);
+  });
 });

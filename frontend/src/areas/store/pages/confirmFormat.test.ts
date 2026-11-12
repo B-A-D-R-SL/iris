@@ -20,8 +20,32 @@ describe("confirmFormat", () => {
   });
 
   it("translates listing units", () => {
-    const t = (key: string) => (key === "listing.units.item" ? "Article" : key);
+    const t = (key: string) =>
+      key === "listing.units.item" ? "Article" : key === "listing.units.bundle" ? "Lot" : key;
     expect(unitLabel("item", t)).toBe("Article");
+    expect(unitLabel("bundle", t)).toBe("Lot");
     expect(unitLabel("crate", t)).toBe("crate");
+  });
+
+  it("labels tomorrow and later Montreal days, and English times without minutes", () => {
+    const labels = { today: "Today", tomorrow: "Tomorrow" };
+    const now = new Date("2026-11-12T18:00:00Z");
+    expect(
+      pickupWindowText(
+        { pickup_start: "2026-11-13T20:00:00Z", pickup_end: "2026-11-13T23:00:00Z" },
+        now,
+        "en",
+        labels,
+      ),
+    ).toMatch(/^Tomorrow · /);
+    expect(
+      pickupWindowText(
+        { pickup_start: "2026-11-15T20:00:00Z", pickup_end: "2026-11-16T01:00:00Z" },
+        now,
+        "en",
+        labels,
+      ),
+    ).toMatch(/Sun/);
+    expect(formatTime(new Date("2026-11-12T20:00:00Z"), "en")).toMatch(/3\s?p\.?m\.?/i);
   });
 });
