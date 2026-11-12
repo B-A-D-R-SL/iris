@@ -28,7 +28,7 @@ afterEach(() => {
 });
 
 describe("Listing detail (US-36)", () => {
-  it("finds a listing opened from a link and shows it like H1.4, without reserving", async () => {
+  it("finds a listing opened from a link and shows it like H1.4, ready to reserve", async () => {
     const fetchMock = mockBrowseApi((url) =>
       url.searchParams.get("page") === "2"
         ? page([card({ store: { ...CORNER_BAKERY, unit: "5" } })])
@@ -47,10 +47,11 @@ describe("Listing detail (US-36)", () => {
     expect(facts.getByText("1234, rue Exemple, local 5, Montréal H2X 1Y4")).toBeVisible();
     expect(facts.getByText("Aujourd'hui · 16 h – 18 h")).toBeVisible();
     expect(facts.getByText("Meilleur avant le 13 nov. 2026")).toBeVisible();
-    expect(facts.getByText("7 restants")).toBeVisible();
+    expect(facts.getByText("7 restants · 2 au maximum par foyer")).toBeVisible();
 
-    // Reserving arrives with US-41.
-    expect(screen.queryByRole("button", { name: /Réserver/ })).not.toBeInTheDocument();
+    // US-41: the Reserve button and, since 2 are allowed, the quantity picker.
+    expect(screen.getByRole("button", { name: "Réserver" })).toBeEnabled();
+    expect(screen.getByRole("textbox", { name: "Quantité" })).toHaveValue("1");
     expect(screen.getByRole("link", { name: "Retour" })).toHaveAttribute("href", "/listings");
     await expectNoAxeViolations(container);
   });

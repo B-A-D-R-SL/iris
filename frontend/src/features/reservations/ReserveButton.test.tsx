@@ -43,15 +43,17 @@ function postedBody(fetchMock: ReturnType<typeof mockApi>) {
 }
 
 function renderButton(props: Partial<ReserveButtonProps> = {}) {
-  return renderWithProviders(
+  const callbacks = { onReserved: vi.fn(), onRefused: vi.fn() };
+  const view = renderWithProviders(
     <ReserveButton
       listingId={LISTING_ID}
-      title="Pains de la veille"
       maxPerHousehold={1}
       unitsLeft={5}
+      {...callbacks}
       {...props}
     />,
   );
+  return { ...view, ...callbacks };
 }
 
 const reserveButton = () => screen.getByRole("button", { name: "Réserver" });
@@ -61,17 +63,17 @@ afterEach(() => {
 });
 
 describe("ReserveButton", () => {
-  it("reserves one unit in one tap and shows the pickup code", async () => {
+  it("reserves one unit in one tap and hands the reservation to the page", async () => {
     const fetchMock = mockApi();
-    const onReserved = vi.fn();
-    const { container } = renderButton({ onReserved });
+    const { container, onReserved, onRefused } = renderButton();
 
     await userEvent.click(reserveButton());
 
-    expect(await screen.findByText("K7MPX3")).toBeInTheDocument();
-    expect(screen.getByText("Code de cueillette")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(onReserved).toHaveBeenCalledWith(expect.objectContaining({ pickup_code: "K7MPX3" })),
+    );
+    expect(onRefused).not.toHaveBeenCalled();
     expect(postedBody(fetchMock)).toEqual({ listing_id: LISTING_ID, quantity: 1 });
-    expect(onReserved).toHaveBeenCalledWith(expect.objectContaining({ pickup_code: "K7MPX3" }));
     await expectNoAxeViolations(container);
   });
 
@@ -81,60 +83,101 @@ describe("ReserveButton", () => {
     expect(screen.queryByRole("textbox", { name: "Quantité" })).not.toBeInTheDocument();
   });
 
-  it("shows the quantity picker, capped by the units left, when more are allowed", async () => {
+  it("steps the quantity with − and +, capped by the units left", async () => {
     const fetchMock = mockApi(() => reserved(2));
-    const { container } = renderButton({ maxPerHousehold: 3, unitsLeft: 2 });
+    const { container, onReserved } = renderButton({ maxPerHousehold: 3, unitsLeft: 2 });
 
     const picker = screen.getByRole("textbox", { name: "Quantité" });
-    expect(screen.getByText("Jusqu'à 2 pour votre foyer.")).toBeInTheDocument();
+    const minus = screen.getByRole("button", { name: "Diminuer (Quantité)" });
+    const plus = screen.getByRole("button", { name: "Augmenter (Quantité)" });
+    // The help text names the household maximum; the cap also follows units left.
+    expect(screen.getByText("3 au maximum pour votre foyer")).toBeInTheDocument();
+    expect(minus).toBeDisabled();
     await expectNoAxeViolations(container);
-    await userEvent.clear(picker);
-    await userEvent.type(picker, "2");
+
+    await userEvent.click(plus);
+    expect(picker).toHaveValue("2");
+    expect(plus).toBeDisabled();
     await userEvent.click(reserveButton());
 
-    await screen.findByText("K7MPX3");
+    await waitFor(() => expect(onReserved).toHaveBeenCalled());
     expect(postedBody(fetchMock)).toEqual({ listing_id: LISTING_ID, quantity: 2 });
   });
 
-  it("says sold out and disables the button when no units are left", () => {
+  it("never sends more than the cap, even when more is typed", async () => {
+    const fetchMock = mockApi(() => reserved(2));
+    const { onReserved } = renderButton({ maxPerHousehold: 3, unitsLeft: 2 });
+
+    const picker = screen.getByRole("textbox", { name: "Quantité" });
+    await userEvent.clear(picker);
+    await userEvent.type(picker, "9");
+    await userEvent.click(reserveButton());
+
+    await waitFor(() => expect(onReserved).toHaveBeenCalled());
+    expect(postedBody(fetchMock)).toEqual({ listing_id: LISTING_ID, quantity: 2 });
+  });
+
+  it("shows Épuisée, disabled, and a way to other listings when none are left", () => {
     const fetchMock = mockApi();
     renderButton({ unitsLeft: 0 });
 
-    expect(screen.getByText("Désolé, cette offre est épuisée.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Épuisé" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Épuisée" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "Voir d'autres offres" })).toHaveAttribute(
+      "href",
+      "/listings",
+    );
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
   });
 
-  it("says sold out when the last units went while the page was open", async () => {
+  it("reports a sold-out refusal and switches to Épuisée", async () => {
     mockApi(() => refused(409, "sold_out"));
-    renderButton();
+    const { onRefused } = renderButton();
 
     await userEvent.click(reserveButton());
 
-    expect(await screen.findByText("Désolé, cette offre est épuisée.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Épuisé" })).toBeDisabled();
+    await waitFor(() => expect(onRefused).toHaveBeenCalledWith("sold_out"));
+    expect(screen.getByRole("button", { name: "Épuisée" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "Voir d'autres offres" })).toBeInTheDocument();
+  });
+
+  it("reports the limit and offers the household's reservations instead", async () => {
+    mockApi(() => refused(409, "too_many_active_reservations"));
+    const { onRefused } = renderButton();
+
+    await userEvent.click(reserveButton());
+
+    await waitFor(() => expect(onRefused).toHaveBeenCalledWith("too_many_active_reservations"));
+    expect(reserveButton()).toBeDisabled();
+    expect(screen.getByRole("link", { name: "Voir mes réservations" })).toHaveAttribute(
+      "href",
+      "/reservations",
+    );
   });
 
   it.each([
-    [
-      409,
-      "too_many_active_reservations",
-      "Vous avez déjà le nombre maximal de réservations en cours.",
-    ],
-    [400, "quantity_over_listing_limit", "C'est plus qu'un foyer peut réserver pour cette offre."],
-    [404, "listing_not_available", "Cette offre n'est plus disponible."],
-    [403, "household_not_approved", "Seuls les foyers approuvés peuvent réserver."],
-    [503, "reservations_unavailable", "La réservation n'est pas disponible pour le moment."],
-    [500, "something_else", "La réservation n'a pas pu être faite. Réessayez."],
-  ])("shows its own message for a %i %s refusal", async (status, code, message) => {
+    [400, "quantity_over_listing_limit"],
+    [404, "listing_not_available"],
+    [503, "reservations_unavailable"],
+  ])("reports a %i %s refusal and lets the household try again", async (status, code) => {
     mockApi(() => refused(status, code));
-    renderButton();
+    const { onRefused } = renderButton();
 
     await userEvent.click(reserveButton());
 
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(message);
-    expect(alert).not.toHaveTextContent("server text");
-    await waitFor(() => expect(reserveButton()).toBeEnabled());
+    await waitFor(() => expect(onRefused).toHaveBeenCalledWith(code));
+    expect(reserveButton()).toBeEnabled();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("reports a lost connection as a generic refusal", async () => {
+    mockApi(() => {
+      throw new TypeError("Failed to fetch");
+    });
+    const { onRefused } = renderButton();
+
+    await userEvent.click(reserveButton());
+
+    await waitFor(() => expect(onRefused).toHaveBeenCalledWith("request_refused"));
+    expect(reserveButton()).toBeEnabled();
   });
 });
