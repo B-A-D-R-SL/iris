@@ -165,6 +165,32 @@ def _insert(
     raise ReservationRefused(PICKUP_CODE_UNAVAILABLE)
 
 
+def _check_request(
+    household_id: UUID, listing_id: UUID, quantity: int, moment: datetime
+) -> None:
+    """Every refusal that needs no change: rules, listing, limits and stock.
+
+    Runs after the household lock and before any write, so a refusal leaves
+    nothing to undo. The order sets which reason the household hears first.
+    """
+    max_active = _max_active(moment)
+    listing = listing_queries.reservable_listing(household_id, listing_id, moment)
+    if listing is None:
+        raise ReservationRefused(LISTING_NOT_AVAILABLE)
+    if listing["units_left"] == 0:
+        raise ReservationRefused(SOLD_OUT)
+    reasons = limits.refusals(
+        quantity,
+        _holding(household_id, listing_id),
+        max_per_household=listing["max_per_household"],
+        max_active=max_active,
+    )
+    if reasons:
+        raise ReservationRefused(reasons[0])
+    if quantity > listing["units_left"]:
+        raise ReservationRefused(NOT_ENOUGH_UNITS)
+
+
 @transaction.atomic
 def reserve(
     user: Any,
@@ -194,23 +220,8 @@ def reserve(
         raise ReservationRefused(HOUSEHOLD_NOT_APPROVED)
     # TODO(strikes story): refuse a household blocked by strikes here.
 
-    # 2. Read everything the checks need. Nothing has been changed yet.
-    max_active = _max_active(moment)
-    listing = listing_queries.reservable_listing(household_id, listing_id, moment)
-    if listing is None:
-        raise ReservationRefused(LISTING_NOT_AVAILABLE)
-    if listing["units_left"] == 0:
-        raise ReservationRefused(SOLD_OUT)
-    reasons = limits.refusals(
-        quantity,
-        _holding(household_id, listing_id),
-        max_per_household=listing["max_per_household"],
-        max_active=max_active,
-    )
-    if reasons:
-        raise ReservationRefused(reasons[0])
-    if quantity > listing["units_left"]:
-        raise ReservationRefused(NOT_ENOUGH_UNITS)
+    # 2. Every check that needs no change. Nothing has been changed yet.
+    _check_request(household_id, listing_id, quantity, moment)
 
     # 3. Take the units and save the reservation together.
     if not listing_services.take_units(listing_id, quantity, now=moment):
