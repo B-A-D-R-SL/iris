@@ -490,3 +490,11 @@ AI-assisted files for this entry:
   - The translation files are now merged with a shallow spread (FIX-10), so new `listing.*` keys in `household.json` would have replaced the store's `listing.*` keys; the new keys are under `household.browse` and `household.listingDetail` instead.
   - Server errors were first retried with back-off, which delayed the error screen by seconds; a server answer now shows at once with « Réessayer », and only a lost connection is retried.
   - Running Prettier on whole folders converted the line endings of teammates' files; those files were restored, leaving only the intended changes.
+
+### FIX-05 Request and email failure diagnostics (#631)
+
+- **Tool and contribution level:** OpenAI Codex; 50% or more AI-generated. Implemented safe exception/reason diagnostics, typed SMTP failures and INFO-level signed-out session checks across Iris, Django and runserver.
+- **AI-assisted files:** `backend/iris/observability.py`, `backend/iris/settings/base.py`, `backend/adapters/mailer/base.py`, `backend/adapters/mailer/smtp.py`, `backend/tests/test_failure_logging.py`, `backend/tests/test_mailer.py`, `docs/guides/observability.md`, `AI_USAGE.md`.
+- **Verification:** 1,967 backend tests passed across two isolated regression groups and the separate load check (5 skipped; slow-expiry excluded); focused suite 97 passed with 98.77% observability/mailer coverage. Ruff, mypy (401 files), four import contracts, Django/migration checks and 36 PR-policy tests pass.
+- **Corrections:** covered Django-converted exceptions and duplicate framework/runserver warnings; rejected exception strings and unregistered reasons to protect personal data; corrected an SMTP fixture to protocol bytes. The load check missed its target in a combined run but passed independently on both unchanged main and FIX-05, with no threshold changes.
+- **Owner review, commits, push and PR:** Reviewed by owner and made sure all is good and aligned then pushed
