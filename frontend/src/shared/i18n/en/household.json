@@ -167,7 +167,8 @@
       "unit": "unit {{unit}}",
       "goneTitle": "This listing is no longer available",
       "goneDescription": "It may have been fully reserved, or its pickup has ended.",
-      "backToListings": "See listings"
+      "backToListings": "See listings",
+      "maxPerHousehold": "up to {{max}} per household"
     }
   },
   "reservation": {
@@ -191,16 +192,20 @@
     "reserve": {
       "button": "Reserve",
       "quantity": "Quantity",
-      "quantityHelp": "Up to {{max}} for your household.",
-      "done": "Reserved",
-      "doneDetail": "{{title}}, quantity {{quantity}}, is set aside for you.",
-      "showCode": "Show this code at the store when you pick up.",
+      "quantityHelp": "Up to {{max}} for your household",
+      "done": "Reserved!",
+      "showCode": "Show this code at the store during the pickup window.",
       "codeSpelled": "Pickup code: {{code}}",
-      "soldOutTitle": "Sold out",
-      "soldOut": "Sorry, this listing is sold out.",
+      "summary": "{{title}} × {{quantity}}",
+      "myReservations": "See my reservations",
+      "otherListings": "See other listings",
+      "soldOutButton": "Sold out",
+      "soldOutTitle": "This listing was just fully reserved",
+      "soldOut": "Someone reserved the last items just before you. New listings arrive every day.",
+      "tooManyActiveTitle": "You already have the most active reservations allowed",
+      "tooManyActive": "Pick up or cancel a reservation to make a new one.",
       "notEnough": "There are not enough left. Choose a smaller quantity.",
       "overListingLimit": "That is more than one household can reserve for this listing.",
-      "tooManyActive": "You already have the most reservations allowed at one time. Pick one up or cancel one first.",
       "notAvailable": "This listing is no longer available.",
       "notApproved": "Only approved households can reserve.",
       "tryAgain": "Reserving is not available right now. Try again later.",
