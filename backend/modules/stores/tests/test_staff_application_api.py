@@ -237,6 +237,7 @@ def test_approve_creates_store_invitation_audit_and_email(
     assert "https://iris.example/invitation/" in mail.outbox[0].body
 
 
+@pytest.mark.usefixtures("frontend_url")
 def test_approving_twice_answers_409(admin_client: APIClient) -> None:
     """A decided application cannot be decided again."""
     application = _decided(ApplicationStatus.APPROVED)

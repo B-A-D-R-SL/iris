@@ -42,6 +42,28 @@ lead to them, within the Iris modular monolith.
 
 - `services.approve_application(application, admin, *, mailer=None)`: creates a store and store-manager invitation in one transaction, records the decision, and sends the invitation after commit. Configure `FRONTEND_URL` as the public frontend origin. The application’s free-text hours are preserved in `opening_hours.notes` until a structured schedule is provided.
 - `services.reject_application(application, admin, reason, *, mailer=None)`: requires a non-blank reason of at most 500 characters, records the decision, and emails the applicant after commit. Both functions require an active admin and raise `ApplicationAlreadyDecided` if the application is no longer submitted. Mail delivery failures are logged without personal data and do not undo the decision.
+- `services.resend_approval_invitation(application, admin, *, mailer=None)`: recovery for an approved application. Requires an active admin, expires previous unaccepted manager invitations, issues a fresh token, and sends the invitation only after commit. It refuses existing accounts and never repeats the approval or its audit event. Failed issuance rolls back the expiry changes.
+
+## Recovering a lost approval email
+
+Approval and recovery email failures emit the structured event
+`partner_application_decision_email_failed` with an opaque `application_id`.
+No email address, token, message body or provider exception is logged.
+An operator with backend access can use that UUID and an active admin UUID:
+
+```sh
+python manage.py resend_partner_invitation APPLICATION_UUID --admin-id ADMIN_UUID
+```
+
+The command never prints the recipient or invitation token. Check the failure
+events after the command: email is attempted after commit, and a delivery failure
+keeps the new invitation committed so the command can be retried. Every successful
+reissue expires previous links, including links from earlier failed sends.
+An accepted invitation or an existing account cannot be reissued.
+
+Approval and recovery require `FRONTEND_URL` to be an HTTP(S) origin without a
+path, query, fragment or credentials. Invalid configuration raises
+`ImproperlyConfigured` before the application row is locked, after authorization.
 
 ## Endpoints
 

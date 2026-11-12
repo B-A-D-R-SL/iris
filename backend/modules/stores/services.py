@@ -6,8 +6,16 @@
 import logging
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import urlsplit
+from uuid import UUID
 
-from django.core.exceptions import ValidationError
+from django.conf import settings
+from django.core.exceptions import (
+    ImproperlyConfigured,
+    PermissionDenied,
+    ValidationError,
+)
+from django.core.validators import URLValidator
 from django.db import IntegrityError, transaction
 from django.utils import translation
 from django.utils.translation import gettext
@@ -145,11 +153,8 @@ class ApplicationAlreadyDecided(Exception):
     """The application is no longer awaiting a decision."""
 
 
-def _locked_application(
-    application: PartnerApplication, admin: Any
-) -> PartnerApplication:
-    from django.core.exceptions import PermissionDenied
-
+def _require_active_admin(admin: Any) -> None:
+    """Authorize before inspecting deployment configuration or taking locks."""
     if (
         not admin
         or not admin.is_authenticated
@@ -157,17 +162,72 @@ def _locked_application(
         or admin.role != "admin"
     ):
         raise PermissionDenied("An active admin is required.")
+
+
+def _frontend_origin() -> str:
+    """Fail explicitly on deployment mistakes before acquiring an application lock."""
+    value = settings.FRONTEND_URL
+    try:
+        if not isinstance(value, str):
+            raise ValidationError("Invalid origin")
+        value = value.rstrip("/")
+        URLValidator(schemes=["https", "http"])(value)
+        parts = urlsplit(value)
+        if (
+            parts.path
+            or "?" in value
+            or "#" in value
+            or parts.username
+            or parts.password
+        ):
+            raise ValidationError("Invalid origin")
+    except (ValidationError, ValueError) as exc:
+        raise ImproperlyConfigured(
+            "FRONTEND_URL must be configured as an http(s) origin."
+        ) from exc
+    return value
+
+
+def _locked_application(
+    application: PartnerApplication, admin: Any
+) -> PartnerApplication:
+    _require_active_admin(admin)
     locked = PartnerApplication.objects.select_for_update().get(pk=application.pk)
     if locked.status != ApplicationStatus.SUBMITTED:
         raise ApplicationAlreadyDecided
     return locked
 
 
-def _send_decision(mailer: Mailer, email: str, subject: str, body: str) -> None:
+def _send_decision(
+    mailer: Mailer, email: str, subject: str, body: str, application_id: UUID
+) -> None:
+    """Keep committed decisions intact and identify failures without contact data."""
     try:
         mailer.send([email], subject, text=body)
     except Exception:  # noqa: BLE001 - decision must remain committed.
-        logger.error("partner_application_decision_email_failed")
+        logger.error(
+            "partner_application_decision_email_failed",
+            extra={
+                "event": "partner_application_decision_email_failed",
+                "application_id": str(application_id),
+            },
+        )
+
+
+def _approval_email(
+    application: PartnerApplication, base_url: str, token: str
+) -> tuple[str, str]:
+    """Use the same localized invitation for initial approval and recovery."""
+    link = f"{base_url}/invitation/{token}"
+    if application.language == ApplicationLanguage.FRENCH:
+        return (
+            "Votre demande de partenariat a été approuvée",
+            f"Bonjour,\n\nVotre demande de partenariat a été approuvée. Créez votre compte :\n{link}\n\nL’équipe Iris",
+        )
+    return (
+        "Your partner application has been approved",
+        f"Hello,\n\nYour partner application has been approved. Create your account:\n{link}\n\nThe Iris team",
+    )
 
 
 @transaction.atomic
@@ -175,16 +235,14 @@ def approve_application(
     application: PartnerApplication, admin: Any, *, mailer: Mailer | None = None
 ) -> PartnerApplication:
     """Create the store and manager invitation atomically, then email after commit."""
-    from django.conf import settings
-    from django.core.validators import URLValidator
     from django.utils import timezone
 
     from modules.accounts import services as account_services
     from modules.audit import services as audit_services
 
+    _require_active_admin(admin)
+    base_url = _frontend_origin()
     application = _locked_application(application, admin)
-    base_url = settings.FRONTEND_URL.rstrip("/")
-    URLValidator(schemes=["https", "http"])(base_url)
     store = Store(
         name=application.business_name,
         street_number=application.street_number,
@@ -221,18 +279,45 @@ def approve_application(
         application.pk,
         {"outcome": "approved"},
     )
-    link = f"{base_url}/invitation/{token}"
-    if application.language == ApplicationLanguage.FRENCH:
-        subject = "Votre demande de partenariat a été approuvée"
-        body = f"Bonjour,\n\nVotre demande de partenariat a été approuvée. Créez votre compte :\n{link}\n\nL’équipe Iris"
-    else:
-        subject = "Your partner application has been approved"
-        body = f"Hello,\n\nYour partner application has been approved. Create your account:\n{link}\n\nThe Iris team"
+    subject, body = _approval_email(application, base_url, token)
     sender = mailer if mailer is not None else SmtpMailer()
     transaction.on_commit(
-        lambda: _send_decision(sender, application.contact_email, subject, body)
+        lambda: _send_decision(
+            sender, application.contact_email, subject, body, application.pk
+        )
     )
     return application
+
+
+@transaction.atomic
+def resend_approval_invitation(
+    application: PartnerApplication, admin: Any, *, mailer: Mailer | None = None
+) -> None:
+    """Reissue an approved application's invitation; send only after commit."""
+    from modules.accounts import services as account_services
+
+    _require_active_admin(admin)
+    base_url = _frontend_origin()
+    application = PartnerApplication.objects.select_for_update().get(pk=application.pk)
+    if application.status != ApplicationStatus.APPROVED:
+        raise ValidationError(
+            "Only approved applications can have invitations reissued."
+        )
+    store = Store.objects.get(application=application)
+    token = account_services.reissue_store_manager_invitation(
+        email=application.contact_email,
+        first_name=application.contact_first_name,
+        last_name=application.contact_last_name,
+        store=store,
+        invited_by=admin,
+    )
+    subject, body = _approval_email(application, base_url, token)
+    sender = mailer if mailer is not None else SmtpMailer()
+    transaction.on_commit(
+        lambda: _send_decision(
+            sender, application.contact_email, subject, body, application.pk
+        )
+    )
 
 
 @transaction.atomic
@@ -276,6 +361,8 @@ def reject_application(
         body = f"Hello,\n\nYour partner application has been declined.\nReason: {reason}\n\nThe Iris team"
     sender = mailer if mailer is not None else SmtpMailer()
     transaction.on_commit(
-        lambda: _send_decision(sender, application.contact_email, subject, body)
+        lambda: _send_decision(
+            sender, application.contact_email, subject, body, application.pk
+        )
     )
     return application

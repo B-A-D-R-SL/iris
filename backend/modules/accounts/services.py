@@ -93,6 +93,35 @@ def create_invitation(
     return token
 
 
+@transaction.atomic
+def reissue_store_manager_invitation(
+    *, email: str, first_name: str, last_name: str, store: Any, invited_by: User
+) -> str:
+    """Expire previous links under lock, then issue a fresh manager invitation.
+
+    The calling stores service locks the application to serialize reissues.
+    Locking invitations also serializes against concurrent acceptance. A failed
+    issuance rolls back expiry changes, preserving the previous usable link.
+    """
+    if not invited_by.is_active or invited_by.role != User.Role.ADMIN:
+        from django.core.exceptions import PermissionDenied
+
+        raise PermissionDenied("An active admin is required.")
+    previous = list(
+        Invitation.objects.select_for_update().filter(
+            store=store, email__iexact=email, role=User.Role.STORE_MANAGER
+        )
+    )
+    if not previous or any(item.accepted_at is not None for item in previous):
+        raise ValidationError("No unaccepted store-manager invitation exists.")
+    Invitation.objects.filter(pk__in=[item.pk for item in previous]).update(
+        expires_at=timezone.now()
+    )
+    return create_invitation(
+        email, first_name, last_name, User.Role.STORE_MANAGER, store, invited_by
+    )
+
+
 def _locked_invitation(token: str) -> Invitation:
     """Resolve only correctly shaped URL-safe tokens while holding the row lock."""
     if not isinstance(token, str) or not _TOKEN_PATTERN.fullmatch(token):

@@ -13,7 +13,7 @@ import time
 from collections.abc import Callable
 from contextvars import ContextVar
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from django.http import HttpRequest, HttpResponseBase
 
@@ -37,6 +37,21 @@ class JsonLogFormatter(logging.Formatter):
         request_id = _request_id.get()
         if request_id:
             payload["request_id"] = request_id
+
+        # Only this event may identify an application for operator recovery.
+        # Parse the opaque UUID; never serialize arbitrary identifiers or text.
+        if (
+            record.name == "iris.stores"
+            and event == "partner_application_decision_email_failed"
+        ):
+            application_id: UUID | None
+            try:
+                application_id = UUID(str(getattr(record, "application_id", "")))
+            except ValueError:
+                # Discard invalid diagnostics; logging here would recurse.
+                application_id = None
+            if application_id is not None:
+                payload["application_id"] = str(application_id)
 
         for field in ("method", "route", "status_code", "duration_ms"):
             value = getattr(record, field, None)
