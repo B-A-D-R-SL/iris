@@ -69,9 +69,12 @@ export function useNewListingMutation(
         const { errors, other } = serverErrors(error.fields);
         form.setErrors(errors);
         feedback.setTried(true);
-        feedback.setOutcome(
-          other.length > 0 ? { type: "refused", message: other.join(" ") } : null,
-        );
+        // Nothing to show under a field or on top: still say it was refused.
+        const unexplained = other.length === 0 && Object.keys(errors).length === 0;
+        const message = unexplained
+          ? error.message || t("store.newListing.serverError")
+          : other.join(" ");
+        feedback.setOutcome(message ? { type: "refused", message } : null);
       } else {
         const message =
           error instanceof PostingFailed

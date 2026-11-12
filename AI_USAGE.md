@@ -500,3 +500,4 @@ AI-assisted files for this entry:
 - **Problems found and corrections:**
   - The React Compiler lint rule treated reading the feedback state as reading a ref, because the hook returned the scroll target inside the same object; the ref is now returned separately.
   - On a loaded machine the first posting test sometimes exceeds Testing Library's 1-second wait for the form to appear. Timing it alone showed the same range on `main` and on this branch (about 0.7 to 1 s), so the tests were left unchanged as the issue requires.
+  - CodeRabbit found that a 400 naming no field (or with no JSON body) showed no notice at all, a gap already on `main`. It now shows the server's message, or "Réessayez dans quelques minutes." when there is none, with 2 new tests. A second CodeRabbit suggestion, to follow an API display order instead of food first, was declined: the spec asks for food first and the API has no display order.

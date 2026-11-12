@@ -293,6 +293,34 @@ describe("Post a listing (US-33)", () => {
     );
   });
 
+  it("still explains a 400 that names no field", async () => {
+    mockApi({
+      post: () =>
+        Response.json(
+          { code: "validation_error", message: "Vérifiez les champs indiqués.", fields: {} },
+          { status: 400 },
+        ),
+    });
+    await renderForm();
+    await fillRequiredFields();
+    await publish();
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("L'offre n'a pas été publiée");
+    expect(notice).toHaveTextContent("Vérifiez les champs indiqués.");
+  });
+
+  it("asks to try again after a 400 with no message at all", async () => {
+    mockApi({ post: () => new Response("Bad Request", { status: 400 }) });
+    await renderForm();
+    await fillRequiredFields();
+    await publish();
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("L'offre n'a pas été publiée");
+    expect(notice).toHaveTextContent("Réessayez dans quelques minutes.");
+  });
+
   it("asks to retry when the categories cannot be loaded", async () => {
     mockApi({ categories: () => new Response(null, { status: 503 }) });
     renderWithProviders(<App />, { route: "/store/listings/new" });
