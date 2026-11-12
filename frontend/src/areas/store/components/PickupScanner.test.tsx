@@ -32,7 +32,10 @@ vi.mock("../../../shared/logger", () => ({
 }));
 
 class FakeMediaStream {
-  constructor(private readonly tracks: { stop: () => void }[]) {}
+  tracks: { stop: () => void }[];
+  constructor(tracks: { stop: () => void }[]) {
+    this.tracks = tracks;
+  }
   getTracks() {
     return this.tracks;
   }
