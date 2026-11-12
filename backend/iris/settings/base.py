@@ -307,6 +307,11 @@ if MAILER_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "expected_session_check": {
+            "()": "iris.observability.ExpectedSessionCheckFilter"
+        }
+    },
     "formatters": {"iris_json": {"()": "iris.observability.JsonLogFormatter"}},
     "handlers": {
         "console": {
@@ -320,10 +325,16 @@ LOGGING = {
         "modules.reservations.services": {"level": "INFO"},
         "django.request": {
             "handlers": ["console"],
+            "filters": ["expected_session_check"],
             "level": "WARNING",
             "propagate": False,
         },
-        "django.server": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "django.server": {
+            "handlers": ["console"],
+            "filters": ["expected_session_check"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
     "root": {"handlers": ["console"], "level": "WARNING"},
 }
