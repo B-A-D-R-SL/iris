@@ -284,7 +284,9 @@ Errors use `{code, message, fields}`: 400 `validation_error` or
 ended, unknown, or not visible to the household); 409 `sold_out`,
 `not_enough_units` or `too_many_active_reservations`; 503
 `reservations_unavailable` (no `reservations` rule in effect) or
-`pickup_code_unavailable`. Rules BR-RES-006 to BR-RES-010.
+`pickup_code_unavailable`. Rules BR-RES-006 to BR-RES-010. US-41 also adds
+`max_per_household` to each `GET /api/listings/` card, so the listing screen can
+show the household limit and the quantity picker.
 
 | Method   | Path                                       | Who                  | Purpose                                          | Status  |
 | -------- | ------------------------------------------ | -------------------- | ------------------------------------------------ | ------- |

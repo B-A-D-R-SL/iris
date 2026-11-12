@@ -34,6 +34,7 @@ LISTING_CARD_FIELDS = (
     "best_before",
     "store_id",
     "photo_ref",
+    "max_per_household",  # US-41: the Reserve button's quantity limit
 )
 LISTING_CARD_EXPRESSIONS = {
     "units_left": F("quantity_total") - F("quantity_reserved"),
