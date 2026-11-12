@@ -5,6 +5,10 @@ from collections.abc import Sequence
 from typing import Protocol
 
 
+class MailerError(RuntimeError):
+    """An email transport failed to deliver a message."""
+
+
 class Mailer(Protocol):
     def send(
         self,
