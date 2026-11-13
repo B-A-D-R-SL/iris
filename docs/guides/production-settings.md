@@ -33,6 +33,7 @@ real credentials in the repository or command examples.
 | `AZURE_EMAIL_SEND_TIMEOUT_SECONDS` | Positive finite send/polling timeout; default `30` seconds |
 | `EMAIL_BACKEND` | When selecting SMTP, use a real delivery backend; console, dummy, file-based and in-memory backends are refused |
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` | SMTP-provider configuration; independent of the ACS adapter |
+| `SMTP_TIMEOUT` | Positive finite SMTP transport timeout; default `10` seconds |
 | `DRF_ANON_THROTTLE_RATE` | Anonymous client limit; default `60/min` |
 | `DRF_USER_THROTTLE_RATE` | Authenticated account limit; default `300/min` |
 | `DRF_NUM_PROXIES` | Verified number of trusted reverse proxies; default `0` ignores forwarded client IPs |
@@ -60,6 +61,14 @@ captured recipient language and sends the message. Run migrations and seed the
 `notifications` RuleSet before enabling producers. The deployed worker must use
 the same production settings, database, adapter, sender and public origin as the
 web process; a running web process alone does not send queued email.
+
+Partner receipt, approval, rejection and operator reissue all use this shared
+pipeline. Invitation links use `PUBLIC_APP_ORIGIN`, as do the other email
+templates; no separate `FRONTEND_URL` is required. A successful reissue queues a
+new link and invalidates older unaccepted invitations. Worker preflight refuses
+already invalid invitation jobs before transport, while an in-flight message
+cannot be recalled. Inspect EmailLog for outcomes rather than the former inline
+partner-decision email-failure event.
 
 The supplied staging resources are `iris-stg-email-ar1` and its
 `AzureManagedDomain`, plus `iris-stg-acs-ar1`. User-provided screenshots show

@@ -7,6 +7,7 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
+from django.db import DatabaseError
 from django.utils import translation
 
 from adapters.mailer.base import MailerError
@@ -177,3 +178,53 @@ def test_final_native_job_attempt_fails_even_when_provider_attempts_are_fewer(
     pending_log.refresh_from_db()
     assert pending_log.status == EmailLog.Status.FAILED
     assert pending_log.attempts == 2
+
+
+def test_unavailable_invitation_stops_retry_without_erasing_previous_attempts(
+    pending_log: EmailLog, settings: Any
+) -> None:
+    """A no-longer-usable link must not create a new provider call."""
+    pending_log.template_key = "partner_application_approved"
+    pending_log.status = EmailLog.Status.RETRYING
+    pending_log.attempts = 1
+    pending_log.save(update_fields=["template_key", "status", "attempts"])
+    send_email(
+        DIRECT_CONTEXT,
+        str(pending_log.pk),
+        {"invitation_url": f"{settings.PUBLIC_APP_ORIGIN}/invitation/{'A' * 43}"},
+        DELAYS,
+    )
+    pending_log.refresh_from_db()
+    assert pending_log.status == EmailLog.Status.FAILED
+    assert pending_log.error == "invitation_unavailable"
+    assert pending_log.attempts == 1
+    assert pending_log.sent_at is None
+    assert get_fake_mailer().sent == []
+
+
+def test_invitation_preflight_database_outage_is_retryable_and_sanitized(
+    pending_log: EmailLog, settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from modules.notifications import tasks
+
+    pending_log.template_key = "partner_application_approved"
+    pending_log.save(update_fields=["template_key"])
+
+    def unavailable(token: str, email: str) -> bool:
+        raise DatabaseError(f"private query: {token} {email}")
+
+    monkeypatch.setattr(tasks.account_queries, "invitation_is_usable", unavailable)
+    with pytest.raises(DeliveryFailure, match="^delivery_unavailable$") as caught:
+        send_email(
+            DIRECT_CONTEXT,
+            str(pending_log.pk),
+            {"invitation_url": f"{settings.PUBLIC_APP_ORIGIN}/invitation/{'A' * 43}"},
+            DELAYS,
+        )
+    assert caught.value.retryable
+    assert caught.value.__suppress_context__
+    pending_log.refresh_from_db()
+    assert pending_log.status == EmailLog.Status.RETRYING
+    assert pending_log.attempts == 0
+    assert pending_log.error == "delivery_unavailable"
+    assert get_fake_mailer().sent == []

@@ -51,6 +51,8 @@ def _public_origin() -> Iterator[None]:
 def _context(template_key: str) -> dict[str, str]:
     if template_key == "partner_application_received":
         return {"business_name": "Commerce Exemple"}
+    if template_key == "partner_application_rejected":
+        return {"reason": "Outside our current service area"}
     for key, field, url in LINK_CONTEXTS:
         if key == template_key:
             return {field: url}
@@ -97,6 +99,40 @@ def test_business_name_is_plain_text_and_escaped_in_html() -> None:
     assert "&amp; associés" in message.html
     assert "&amp;lt;script&amp;gt;" not in message.html
     assert name not in message.subject
+
+
+@pytest.mark.parametrize("language", ["fr", "en"])
+def test_partner_rejection_includes_its_bounded_reason_and_escapes_html(
+    language: str,
+) -> None:
+    reason = 'Service area <script>alert("x")</script> & capacity'
+    message = render("partner_application_rejected", language, {"reason": reason})
+    assert reason in message.text
+    assert "<script>" not in message.html
+    assert "&lt;script&gt;" in message.html
+    assert "&amp; capacity" in message.html
+    assert "&amp;lt;script&amp;gt;" not in message.html
+    assert reason not in message.subject
+
+
+@pytest.mark.parametrize(
+    "reason", [None, 12, "", "  ", "x" * 501, "bad\x00reason", "bad\ud800reason"]
+)
+def test_partner_rejection_reason_must_match_the_existing_field_contract(
+    reason: object,
+) -> None:
+    with pytest.raises(ValueError, match="Invalid email context value"):
+        validate_context("partner_application_rejected", {"reason": reason})
+
+
+def test_partner_rejection_requires_a_reason_and_retains_the_500_character_bound() -> (
+    None
+):
+    with pytest.raises(ValueError, match="Invalid email context fields"):
+        validate_context("partner_application_rejected", {})
+    assert validate_context(
+        "partner_application_rejected", {"reason": "  " + "x" * 500 + "  "}
+    ) == {"reason": "x" * 500}
 
 
 @pytest.mark.parametrize("space", ["\u00a0", "\u202f", "\u2009"])

@@ -47,6 +47,16 @@ Invitation services:
   from the invitation and records `accepted_at`. Existing active or inactive
   accounts with the same email are refused case-insensitively, without changes
   to them. Acceptance does not sign in or switch the browser session.
+- `reissue_store_manager_invitation(...)` expires prior unaccepted manager
+  invitations under lock and creates a new token. The active-admin caller in
+  stores locks the approved application; failed issuance rolls back old-link
+  expiry. The caller queues the new link through notifications.
+
+`queries.invitation_is_usable(token, email)` exposes a public boolean for the
+notification worker's invitation preflight. Accounts checks the recipient,
+token, expiry, acceptance and absence of an existing account. A token valid at
+preflight can still change state before an in-flight email reaches its recipient;
+expired/reissued links remain invalid in Iris.
 
 `POST /api/invitations/accept/` is public to anonymous callers and all signed-in
 roles with a valid token. It accepts only `token` and `password`, returning
@@ -102,9 +112,10 @@ allauth mail types rather than sending outside the queue. Signup remains closed.
 US-02/US-03 must configure the frontend action URLs and any additional allauth
 mail types before enabling their workflows.
 
-Staff and store-team invitation screens and endpoints, invitation issuance,
-partner approval and household linking remain in US-05, US-06, US-13 and US-18.
-Their callers build `/invitation/<token>` links from the token returned by
+US-13 partner approval and operator reissue now build and queue manager
+invitations through the shared service. Staff/store-team issuing screens and
+endpoints and household linking remain in US-05, US-06 and US-18. Their callers
+build `/invitation/<token>` links from the token returned by
 `create_invitation` and `PUBLIC_APP_ORIGIN`, then use
 [the notification service](../notifications/README.md). Acceptance does not issue
 or send a fresh invitation.

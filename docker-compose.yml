@@ -48,7 +48,7 @@ services:
       DJANGO_DEV_ADMIN_PASSWORD: ${DJANGO_DEV_ADMIN_PASSWORD:-iris_local_admin_password}
       EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
       MAILER_ADAPTER: smtp
-      PUBLIC_APP_ORIGIN: http://localhost:${IRIS_FRONTEND_PORT:-5174}
+      PUBLIC_APP_ORIGIN: ${PUBLIC_APP_ORIGIN:-http://localhost:${IRIS_FRONTEND_PORT:-5174}}
       EMAIL_HOST: mailpit
       EMAIL_PORT: "1025"
       EMAIL_HOST_USER: ""
@@ -122,7 +122,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-iris}:${POSTGRES_PASSWORD:-iris_local_dev_password}@db:5432/${POSTGRES_DB:-iris}
       EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
       MAILER_ADAPTER: smtp
-      PUBLIC_APP_ORIGIN: http://localhost:${IRIS_FRONTEND_PORT:-5174}
+      PUBLIC_APP_ORIGIN: ${PUBLIC_APP_ORIGIN:-http://localhost:${IRIS_FRONTEND_PORT:-5174}}
       EMAIL_HOST: mailpit
       EMAIL_PORT: "1025"
       EMAIL_HOST_USER: ""

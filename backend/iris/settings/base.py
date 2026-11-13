@@ -37,7 +37,6 @@ DEBUG = False
 
 ALLOWED_HOSTS: list[str] = []
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -340,6 +339,14 @@ MAILERS: dict[str, dict[str, Any]] = {
     }
 }
 
+# Transport deadline, not a business-rule threshold: never block a request indefinitely.
+try:
+    SMTP_TIMEOUT = float(env("SMTP_TIMEOUT", default="10"))
+except (TypeError, ValueError) as exc:
+    raise ImproperlyConfigured("SMTP_TIMEOUT must be finite and positive.") from exc
+if not isfinite(SMTP_TIMEOUT) or SMTP_TIMEOUT <= 0:
+    raise ImproperlyConfigured("SMTP_TIMEOUT must be finite and positive.")
+
 if MAILER_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
     MAILERS["default"]["OPTIONS"] = {
         "host": env("EMAIL_HOST", default="localhost"),
@@ -347,7 +354,7 @@ if MAILER_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
         "username": env("EMAIL_HOST_USER", default=""),
         "password": env("EMAIL_HOST_PASSWORD", default=""),
         "use_tls": env.bool("EMAIL_USE_TLS", default=False),
-        "timeout": AZURE_EMAIL_SEND_TIMEOUT_SECONDS,
+        "timeout": SMTP_TIMEOUT,
     }
 
 # JSON events with an allowlist of safe fields. Never include arbitrary messages,

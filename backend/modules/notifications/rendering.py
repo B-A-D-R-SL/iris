@@ -39,7 +39,7 @@ _TEMPLATES = {
     "partner_application_approved": _Template(
         frozenset({"invitation_url"}), "invitation_url"
     ),
-    "partner_application_rejected": _Template(default_path="/"),
+    "partner_application_rejected": _Template(frozenset({"reason"}), default_path="/"),
     "file_approved": _Template(),
     "file_in_review": _Template(),
     "file_invited_in_person": _Template(),
@@ -55,6 +55,11 @@ _TEMPLATES = {
     "household_reactivated": _Template(),
 }
 TEMPLATE_KEYS = frozenset(_TEMPLATES)
+INVITATION_TEMPLATE_KEYS = frozenset(
+    key
+    for key, template in _TEMPLATES.items()
+    if template.action_field == "invitation_url"
+)
 _INVITATION_PATH = re.compile(r"/invitation/[A-Za-z0-9_-]{43}\Z")
 _INVALID_URL_CHARACTERS = re.compile(r"[\s\\\x00-\x1f\x7f]")
 
@@ -135,8 +140,9 @@ def validate_context(
     """Copy only reviewed scalar fields; errors never contain caller values.
 
     ``language`` is reserved for recipient resolution by the send service and is
-    removed before durable queueing. Case notes, reasons, and recipient details
-    are deliberately absent from every template's allowed context. Generic
+    removed before durable queueing. Only the partner rejection template accepts
+    its recipient-facing decision reason. Case notes and recipient details are
+    absent from every template's allowed context. Generic
     notices link only to the public landing/sign-in pages; one-use links belong
     to their dedicated account templates.
     """
@@ -167,6 +173,13 @@ def validate_context(
                 for character in value
             ):
                 raise ValueError("Invalid email context value")
+        elif key == "reason":
+            if len(value.strip()) > 500 or any(
+                character == "\x00" or unicodedata.category(character) == "Cs"
+                for character in value
+            ):
+                raise ValueError("Invalid email context value")
+            value = value.strip()
         elif len(value) > 2048:
             raise ValueError("Invalid email context value")
         else:

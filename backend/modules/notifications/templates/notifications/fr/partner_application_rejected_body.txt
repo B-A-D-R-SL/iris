@@ -1,2 +1,6 @@
 {# AI contribution: 50% or more AI-generated #}
-{% autoescape off %}B.A.D.R. n’a pas approuvé votre demande de partenariat. Communiquez avec l’équipe si vous avez des questions.{% endautoescape %}
+{% autoescape off %}B.A.D.R. n’a pas approuvé votre demande de partenariat.
+
+Motif : {{ reason }}
+
+Communiquez avec l’équipe si vous avez des questions.{% endautoescape %}

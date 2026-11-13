@@ -58,6 +58,37 @@ the names in `backend/modules/households/domain/names.py`, and the window in
 
 ## Partner applications (US-12)
 
+### BR-PARTNER-05: Recovery of unaccepted manager invitations
+
+Only an active admin may reissue the invitation for an approved application, via
+`resend_partner_invitation APPLICATION_UUID --admin-id ADMIN_UUID`. Expire prior
+unaccepted manager links and create a fresh invitation atomically; retain the
+application decision and its audit event. Refuse accepted invitations and existing
+accounts. Failed issuance rolls back expiry changes; send the new email only
+after commit, and permit another recovery if delivery fails. The shared worker
+checks invitation usability before transport: obsolete/expired/accepted/missing
+invitations mark EmailLog failed with `invitation_unavailable`, without a new
+transport attempt or retry. This does not recall a message already in flight;
+the superseded link remains invalid when used.
+
+### BR-PARTNER-03: Atomic administrator decisions
+
+Only active administrators may decide submitted applications. Approval creates the
+store and manager invitation, decision fields and audit event atomically. Already
+decided applications cannot be decided again. Receipt, approval, rejection and
+reissue emails use the shared notifications service, which queues after commit
+and records transport outcomes in EmailLog.
+
+### BR-PARTNER-04: Required rejection reason and storage limit
+
+A rejection needs a nonblank reason, trimmed before saving, with at most **500
+characters**. This is the existing `PartnerApplication.decision_reason` storage
+and API contract, not an administrator-configurable threshold. Raising it requires
+a coordinated model/schema/API change; invitation expiry remains RuleSet data.
+The dedicated `partner_application_rejected` email preserves this stored reason
+without changing its content, escaping it for HTML. No other email template
+accepts a reason; the value is absent from EmailLog and application logs.
+
 ### BR-PARTNER-01: One open application per contact email
 
 A contact email may have at most one application with status `submitted`, regardless
@@ -129,7 +160,7 @@ exclude a file.
 | --- | --- |
 | BR-NOTIF-001 | Retry transient delivery failures using exactly three positive delays from the active `notifications.retry_delays_seconds` RuleSet: defaults **60, 300 and 900 seconds** *(setting)* after successive failures. The initial attempt plus these retries gives at most four attempts. Capture the delay list for each queued send; later rule versions affect new sends. Confirmed permanent failures stop immediately. |
 | BR-NOTIF-002 | Queue delivery after the originating transaction commits. A rollback creates no surviving delivery log or job. Delivery and post-commit enqueue failures do not undo a committed business action. There is no atomic-outbox or exactly-once guarantee across the commit/enqueue/provider boundaries. |
-| BR-NOTIF-003 | Use a User's persisted preferred language; for a raw recipient use the caller's saved `fr`/`en` preference, defaulting to French. Render only reviewed context fields, with links on the configured application origin. Never include income, identity/document information, arbitrary case notes or status reasons. Record delivery metadata without subject/body/context/token content; application logs also exclude recipient addresses. |
+| BR-NOTIF-003 | Use a User's persisted preferred language; for a raw recipient use the caller's saved `fr`/`en` preference, defaulting to French. Render only reviewed context fields, with links on the configured application origin. Income and identity/document fields, arbitrary case notes and household/status reasons are excluded. The dedicated partner rejection template alone accepts US-13's stored reason of at most 500 trimmed characters (BR-PARTNER-04); HTML escapes it once. Record delivery metadata without subject/body/context/reason/token content; application logs also exclude recipient addresses. |
 | BR-NOTIF-004 | Delete terminal email-queue job payloads once older than `notifications.job_retention_hours`, default **24 hours** *(setting)*. Cleanup runs hourly, so normal removal is approximately 24–25 hours after the terminal event while the worker is healthy. Pending/running/retrying jobs remain. EmailLog metadata is retained; this cleanup does not implement general EmailLog retention. Legacy jobs on their original default queue require targeted rollout cleanup. |
 
 The new `notifications` RuleSet validates exactly three integer delays from

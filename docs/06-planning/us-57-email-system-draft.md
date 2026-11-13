@@ -9,6 +9,11 @@ describes the current contracts and operational limits. Business producers owned
 by later stories and live Azure verification remain separate. The planning
 wording below is preserved for traceability.
 
+The later merge of US-13 adds partner approval, rejection and operator invitation
+reissue to the shared queue. Its existing bounded rejection-reason email contract
+is preserved only in the dedicated partner rejection template; that exception
+supersedes the proposal's generic reason-exclusion wording below.
+
 Build one shared, bilingual email delivery service using the existing PostgreSQL-backed Procrastinate queue. Use Azure Communication Services (ACS) in staging, SMTP through Mailpit locally, and a reusable fake in tests. Migrate the email paths that already exist, and provide templates and calling contracts for workflows delivered by other stories.
 
 The proposal was based on checkout commit `2b389ed`, the documentation under `docs/`, [US-57 #538](https://github.com/B-A-D-R-SL/iris/issues/538), and all three child tasks. Azure details below come from the supplied inventory; resource connectivity, permissions, sender identity and delivery have not been inspected in Azure. Writing the original draft involved no application changes or Azure operations.

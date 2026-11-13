@@ -116,6 +116,23 @@ def _add_eligibility_fields(
         payload["rule_version"] = rule_version
 
 
+def _add_partner_application(
+    payload: dict[str, str | int], record: logging.LogRecord, event: str
+) -> None:
+    """Permit an opaque recovery reference only on the stores email-failure event."""
+    if (
+        record.name != "iris.stores"
+        or event != "partner_application_decision_email_failed"
+    ):
+        return
+    try:
+        application_id = UUID(str(getattr(record, "application_id", "")))
+    except ValueError:
+        # Invalid diagnostic fields are discarded without recursive logging.
+        return
+    payload["application_id"] = str(application_id)
+
+
 class JsonLogFormatter(logging.Formatter):
     """Serialize an allowlist of fields instead of arbitrary log message text."""
 
@@ -136,6 +153,7 @@ class JsonLogFormatter(logging.Formatter):
         _add_request_fields(payload, record)
         _add_photo_reference(payload, record, event)
         _add_eligibility_fields(payload, record, event)
+        _add_partner_application(payload, record, event)
         return json.dumps(payload, separators=(",", ":"))
 
 

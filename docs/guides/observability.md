@@ -25,7 +25,8 @@ Application log events must use static event names, never personal information. 
 US-57 notification events use the static names `email_sent`,
 `email_retry_scheduled`, `email_send_failed`, `email_queue_failed`,
 `email_configuration_failed`, `email_outcome_unavailable` and
-`email_cleanup_failed`. No recipient, message
+`email_cleanup_failed`, plus `email_invitation_unavailable` for stale invitation
+preflight. No recipient, message
 content, rendering context, one-use link or provider exception is attached.
 Worker exceptions contain bounded internal error codes with the provider
 exception chain suppressed. SMTP/Azure calls stay behind adapters; HTTP diagnostic
@@ -36,7 +37,10 @@ stdout logs. It retains recipient, optional user, template key, language, status
 attempts, a bounded error code and timestamps. It excludes subjects, bodies,
 rendering context and tokens. `sent` means transport/provider acceptance, not
 inbox receipt. Temporary one-use links belong only in the restricted queue
-payload needed for asynchronous delivery. An hourly cleanup removes terminal
+payload needed for asynchronous delivery. The bounded US-13 partner rejection
+reason is likewise restricted to its temporary payload/email and is absent from
+EmailLog and stdout; other template families do not accept reasons or case notes.
+An hourly cleanup removes terminal
 email jobs after the active retention threshold (24 hours by default), normally
 within 24–25 hours with a healthy worker; pending/retrying jobs remain. Legacy
 jobs on the default queue require the targeted rollout cleanup described in the

@@ -54,7 +54,7 @@ fields, unreviewed context fields and unsafe URLs before queueing.
 | `walk_in_set_password` | `invitation_url` | Supplied invitation link |
 | `partner_application_received` | `business_name` | Public landing page |
 | `partner_application_approved` | `invitation_url` | Supplied invitation link |
-| `partner_application_rejected` | None | Public landing page |
+| `partner_application_rejected` | `reason` | Public landing page |
 | `file_approved` | None | Sign-in |
 | `file_in_review` | None | Sign-in |
 | `file_invited_in_person` | None | Sign-in |
@@ -83,9 +83,14 @@ uses a generic receipt sentence in the recipient's language. Stored application
 names and queued snapshots stay unchanged; controls never reach the email's
 displayed name. Plain text uses the display copy and HTML escapes it once.
 
-Messages contain a reviewed status/next step and a trusted link. No template
-accepts arbitrary body, reason, case notes, income, document values or recipient
-details. Digest/matching selection, consent, visibility and schedulers remain
+Messages contain a reviewed status/next step and a trusted link. The dedicated
+partner rejection template preserves US-13's existing contract: required `reason`
+is the stored, trimmed decision reason, at most 500 characters. It is passed
+unchanged to the text template and escaped once in HTML. No other template accepts
+reasons or case notes; arbitrary bodies, income/document fields and recipient
+details are excluded. The rejection reason belongs only in the restricted
+temporary rendering payload and email, never EmailLog or stdout. Digest/matching
+selection, consent, visibility and schedulers remain
 with their owning features. Reservation details/QR codes remain with their owning
 story. Their templates currently point to Iris for details.
 
@@ -135,6 +140,16 @@ needs a raw link temporarily in its restricted queue context. Protect queue and
 database access; never copy links into EmailLog, application events or raw
 provider exceptions.
 
+The worker uses the accounts public query to check invitation usability for
+`invitation`, `walk_in_set_password` and `partner_application_approved`. If the
+invitation is superseded, expired, accepted or missing, EmailLog becomes `failed`
+with `invitation_unavailable`, and the job finishes without retry or a new
+transport attempt. Never-sent logs
+remain at zero attempts; earlier transport attempts remain counted. Reissue
+atomically invalidates old unaccepted links and queues the fresh link. A token
+can change state after preflight, and an in-flight email cannot be recalled;
+an old link remains invalid in Iris even if that message reaches its recipient.
+
 `notifications.cleanup_email_jobs` runs hourly on `maintenance`. It removes
 terminal `email` jobs using the active `notifications.job_retention_hours` rule
 (default 24), retaining EmailLog metadata. With a healthy worker, payload removal
@@ -157,16 +172,28 @@ docker compose up -d worker mailpit
 docker compose exec -T backend python -m pytest modules/notifications/tests -q
 ```
 
+After configuration changes, recreate both application processes so they share
+the same `PUBLIC_APP_ORIGIN` and provider settings:
+
+```bash
+docker compose up -d --build backend worker
+```
+
+`docker compose restart` retains the old container environment; it does not apply
+changed Compose settings. A web/worker origin mismatch can invalidate queued
+invitation rendering even when both processes individually start successfully.
+
 Local web/worker processes select SMTP through Mailpit. The worker must run to
 send mail and execute cleanup. The `fake` adapter records messages only in the
 test process; reset it between cases. Transport tests mock SMTP/Azure, without
 provider calls.
 
-Implemented producers are partner receipt and household suspension/reactivation.
+Implemented producers are partner receipt, approval, rejection and invitation
+reissue, plus household suspension/reactivation.
 The allauth bridge maps confirmation/reset mail to this service without opening
-signup or implementing those account workflows. Other producers, approval flows
-and reminder/digest/matching schedulers remain with their own stories. Template
-coverage does not establish that their business triggers exist.
+signup or implementing those account workflows. Walk-in approval remains US-18;
+other producers and reminder/digest/matching schedulers remain with their stories.
+Template coverage does not establish that their business triggers exist.
 
 Staging selects `MAILER_ADAPTER=azure`, an ACS connection string and the verified
 domain MailFrom address. See [production email configuration](../../../docs/guides/production-settings.md#email-delivery-us-57).
@@ -174,6 +201,10 @@ A separate synthetic ACS smoke send remains necessary before claiming live Azure
 delivery.
 
 ## PR verification and SET-17 handoff
+
+The results below describe verification before integrating main's US-13 review
+workflows. Subsequent approval/rejection/reissue integration uses the same
+templates, queue, fake and EmailLog; its verification must be recorded separately.
 
 The implementation is ready for code review before App Service and the staging
 worker exist. Local evidence covers the complete database/job/worker/Mailpit path,
@@ -191,6 +222,30 @@ preserving the existing application field contract. The follow-up runs passed
 268 core tests and 155 rendering/partner regressions. After restarting the local
 worker, two additional synthetic Mailpit messages verified normalized names and
 the generic receipt fallback; both logs reached `sent` on their first attempt.
+
+After merging main's US-13 workflows, approval, rejection and operator reissue
+now use the shared template/queue/fake/EmailLog path and `PUBLIC_APP_ORIGIN`.
+The owner chose to preserve the stored rejection reason under the existing
+500-character trimmed limit, only in the dedicated partner rejection email;
+other reasons remain excluded. Invitation preflight stops already invalid links
+without another transport attempt. Targeted merged-tree checks passed **916
+backend tests** (722 core/accounts/configuration/access and 194 store cases) and
+**44 frontend staff/routing tests**. Ruff lint/format passed for 437 files, mypy
+passed for 421 source files, all four import contracts passed, and the migration
+check found no drift. These are targeted integration checks, separate from the
+historical 134-file review and full-run results above.
+
+The first native worker smoke run encountered old containers with different web
+and worker origins (5173 versus 5174); invitation jobs were refused as invalid
+configuration. Rebuilding and recreating both processes applied the matching
+5174 origin and resolved the mismatch. The native PostgreSQL/queue/worker/Mailpit
+rerun delivered three messages covering approval, recovery and rejection, with
+three EmailLog records reaching `sent` on their first transport attempt. An
+initial invitation superseded before delivery was marked `failed` with
+`invitation_unavailable`, zero attempts and no email. Delivered approval/recovery
+tokens were usable, and the French rejection email contained the requested
+stored reason. This is local integration evidence; no deployed Iris-to-ACS
+delivery is claimed.
 
 Ammar reports successful delivery using Azure's portal Try Email. This is
 provider-side evidence; an Iris-to-ACS staging send has not been performed.

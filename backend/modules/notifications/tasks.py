@@ -13,8 +13,9 @@ from procrastinate.jobs import Job
 
 from adapters.mailer.base import Mailer, MailerError
 from adapters.mailer.factory import get_mailer
+from modules.accounts import queries as account_queries
 from modules.notifications.models import EmailLog
-from modules.notifications.rendering import render
+from modules.notifications.rendering import INVITATION_TEMPLATE_KEYS, render
 from modules.rules import queries as rule_queries
 
 logger = logging.getLogger("iris.notifications")
@@ -101,6 +102,22 @@ def _deliver(
             )
             message = None
         if message is not None:
+            if (
+                email_log.template_key in INVITATION_TEMPLATE_KEYS
+                and not account_queries.invitation_is_usable(
+                    context["invitation_url"].rsplit("/", 1)[-1], email_log.to_email
+                )
+            ):
+                EmailLog.objects.filter(pk=email_log.pk).update(
+                    status=EmailLog.Status.FAILED,
+                    error="invitation_unavailable",
+                    updated_at=timezone.now(),
+                )
+                logger.info(
+                    "email_invitation_unavailable",
+                    extra={"event": "email_invitation_unavailable"},
+                )
+                return
             EmailLog.objects.filter(pk=email_log.pk).update(
                 status=EmailLog.Status.SENDING,
                 attempts=F("attempts") + 1,

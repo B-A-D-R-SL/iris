@@ -449,6 +449,7 @@ an Iris account or invitation.
 sequenceDiagram
     actor B as Business applicant
     actor AD as Administrator
+    participant API as Staff applications API
     participant S as Stores service
     participant AC as Accounts service
     participant A as Audit service
@@ -459,9 +460,15 @@ sequenceDiagram
     S->>S: Validate and save submitted application
     S-->>N: Queue confirmation email after commit
 
-    AD->>S: Decide application
+    AD->>API: GET /api/staff/partner-applications/?status=submitted
+    API->>API: Check active admin (else 401 or 403)
+    API->>S: partner_applications(status), oldest first
+    S-->>API: Page of applications
+    API-->>AD: 200 list
 
     alt Approve
+        AD->>API: POST /api/staff/partner-applications/{id}/approve/
+        API->>S: approve_application(application, admin)
         rect rgb(24, 42, 62)
             Note over S,A: One transaction, failure rolls back all approval writes
             S->>S: Create active Store
@@ -470,6 +477,8 @@ sequenceDiagram
             S->>S: Save approved application and decision information
             S->>A: Record approval
         end
+        S-->>API: Approved application (409 if already decided)
+        API-->>AD: 200 application
 
         S-->>N: Queue invitation email after commit
         N-->>M: Deliver invitation link
@@ -479,8 +488,11 @@ sequenceDiagram
         AC->>AC: Create active User with invited identity, role and Store and mark invitation accepted
         AC-->>M: Account ready for sign-in
     else Reject
-        S->>S: Save rejected status and required reason
+        AD->>API: POST /api/staff/partner-applications/{id}/reject/ {reason}
+        API->>S: reject_application(application, admin, reason)
+        S->>S: Save rejected status and required reason (400 if blank or over 500)
         S->>A: Record rejection
+        API-->>AD: 200 application
         S-->>N: Queue decision email after commit
         N-->>M: Notify proposed store manager of rejection
     end
@@ -493,8 +505,12 @@ or change an existing browser session. Issuance stores only the unique SHA-256
 hash of a token generated from 32 random bytes and saves an expiry from the active
 `invitations.expires_after_days` rule (default seven days); later rule versions
 affect only new invitations. The raw token is returned for the calling workflow's
-email. Staff/team issuing screens, partner approval, household linking and email
-delivery remain US-05, US-06, US-13 and US-18; the acceptance page is #431.
+email. US-13 partner approval, rejection and operator invitation reissue now use
+US-57's shared queue/templates/EmailLog; links use `PUBLIC_APP_ORIGIN`. Reissue
+invalidates previous unaccepted links atomically, and the worker checks stale
+invitation jobs before transport without claiming recall of in-flight messages.
+Staff/team issuing screens and household linking remain US-05, US-06 and US-18;
+the acceptance page is #431.
 
 
 
