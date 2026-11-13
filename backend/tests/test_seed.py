@@ -3,6 +3,7 @@
 """manage.py seed loads the agreed dataset and can be run again safely."""
 
 from io import StringIO
+from types import SimpleNamespace
 
 import pytest
 from django.core.management import call_command
@@ -10,9 +11,10 @@ from django.core.management.base import CommandError
 from django.db.models import Sum
 from django.utils import timezone
 
-from iris.management.commands.seed import APPROVAL_AGE, _add_months
+from iris.management.commands import seed as seed_command
 from iris.seedset import HOUSEHOLD_STATUS_COUNTS, RESERVATION_STATUS_COUNTS
 from modules.accounts.models import User
+from modules.households.domain.expiry import add_months
 from modules.households.models import Household, HouseholdStatus
 from modules.listings.models import Listing
 from modules.reservations.models import Reservation, ReservationStatus
@@ -39,8 +41,10 @@ def seeded(seed_password: None) -> None:
 
 @pytest.mark.django_db
 def test_seed_creates_the_agreed_counts_on_an_empty_database(seeded: None) -> None:
-    """One admin, two intake workers, five stores, and the agreed row counts."""
-    assert User.objects.filter(role=User.Role.ADMIN, is_superuser=False).count() == 1
+    """Check the agreed demo counts and the system account for rule publishing."""
+    admins = User.objects.filter(role=User.Role.ADMIN, is_superuser=False)
+    assert admins.exclude(email=SEED_USERNAME).count() == 1
+    assert not admins.get(email=SEED_USERNAME).has_usable_password()
     assert User.objects.filter(role=User.Role.INTAKE_WORKER).count() == 2
     assert (
         User.objects.filter(role=User.Role.STORE_STAFF, store__is_badr=True).count()
@@ -69,12 +73,42 @@ def test_seed_spreads_household_and_reservation_statuses(seeded: None) -> None:
 
 @pytest.mark.django_db
 def test_approved_household_expiry_follows_file_validity(seeded: None) -> None:
-    """Approved files last for file_validity.approved_months, not a fixed year."""
+    """Approved files last file_validity.approved_months from their approval date."""
     household = Household.objects.filter(status=HouseholdStatus.APPROVED).first()
     assert household is not None and household.approved_at is not None
     months = DEFAULT_RULE_VALUES["file_validity"]["approved_months"]
-    moment = household.approved_at + APPROVAL_AGE
-    assert household.expires_at == _add_months(moment, months)
+    approved_at = timezone.localtime(household.approved_at)
+    assert household.expires_at == add_months(approved_at, months)
+
+
+@pytest.mark.django_db
+def test_seed_refuses_households_without_file_validity_rules(
+    seed_password: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No file_validity rule in force: the seed stops instead of guessing an expiry."""
+    monkeypatch.setattr(
+        seed_command, "rule_queries", SimpleNamespace(active=lambda *_a, **_k: None)
+    )
+
+    with pytest.raises(CommandError, match="Seed the file_validity rules"):
+        call_command("seed", stdout=StringIO())
+    assert not Household.objects.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("months", [0, None, "12"])
+def test_seed_refuses_an_approved_month_count_that_is_not_a_positive_integer(
+    seed_password: None, monkeypatch: pytest.MonkeyPatch, months: object
+) -> None:
+    """A broken file_validity.approved_months is reported as such."""
+    rules = SimpleNamespace(values={"approved_months": months})
+    monkeypatch.setattr(
+        seed_command, "rule_queries", SimpleNamespace(active=lambda *_a, **_k: rules)
+    )
+
+    with pytest.raises(CommandError, match="must be a positive integer"):
+        call_command("seed", stdout=StringIO())
+    assert not Household.objects.exists()
 
 
 @pytest.mark.django_db
@@ -179,10 +213,3 @@ def test_seed_refuses_accounts_without_a_password_when_debug_is_off(
 
     with pytest.raises(CommandError, match="SEED_PASSWORD"):
         call_command("seed", stdout=StringIO())
-
-
-def test_add_months_clamps_the_day() -> None:
-    """31 January plus one month lands on the last day of February."""
-    moment = timezone.now().replace(year=2026, month=1, day=31)
-    assert _add_months(moment, 1) == moment.replace(month=2, day=28)
-    assert _add_months(moment, 12).year == 2027

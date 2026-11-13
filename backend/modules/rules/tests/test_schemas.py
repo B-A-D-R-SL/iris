@@ -64,6 +64,11 @@ def test_default_values_satisfy_each_rule_schema(rule_type: str) -> None:
             "minimum of 1",
         ),
         (
+            "household_suspension",
+            {"reason_max_length": 0},
+            "minimum of 1",
+        ),
+        (
             "listing_safety",
             {
                 **DEFAULT_RULE_VALUES["listing_safety"],
@@ -118,3 +123,12 @@ def test_notice_upload_defaults_are_10_mb_and_5_minutes() -> None:
         "max_bytes": 10_485_760,
         "link_minutes": 5,
     }
+
+
+# rule: BR-HH-001
+@pytest.mark.parametrize(
+    "values", [{}, {"max_people": 0}, {"max_people": True}, {"max_people": 1.5}]
+)
+def test_household_size_requires_a_positive_integer(values) -> None:
+    with pytest.raises(RuleValidationError):
+        validate_rule_values("household_size", values)

@@ -2,6 +2,7 @@
 from .base import *
 
 DEBUG = True
+DATABASES["default"]["CONN_MAX_AGE"] = 0
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "backend"]
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@iris.local")
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5174")

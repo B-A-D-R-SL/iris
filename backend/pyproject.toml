@@ -12,6 +12,7 @@ dependencies = [
     "djangorestframework>=3.18.3",
     "drf-spectacular>=0.30.0",
     "jsonschema>=4.26,<5",
+    "pillow>=13.0,<14",
     "procrastinate[django]>=3.10.0",
     "psycopg[binary]>=3.3.6",
     "pyyaml>=6,<7",
@@ -56,10 +57,14 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "iris.settings.test"
 testpaths = ["tests", "modules"]
+markers = ["slow_expiry: real five-minute provider expiry acceptance test"]
 
 [tool.coverage.run]
 source = ["."]
 branch = true
+# Startup/security tests load production settings in fresh Python processes.
+patch = ["subprocess"]
+parallel = true
 omit = [".venv/*", "manage.py", "tests/*", "**/tests/*", "**/migrations/*"]
 
 [tool.coverage.report]
@@ -121,7 +126,22 @@ ignore_imports = [
     "modules.documents.tests.** -> modules.stores.tests.factories",
     "modules.documents.tests.** -> modules.rules.domain.schemas",
     "modules.households.tests.** -> modules.rules.domain.schemas",
+    # US-32 integration tests build reservations and verify their audit records.
+    "modules.households.tests.test_suspension_api -> modules.audit.models",
+    "modules.households.tests.test_suspension_api -> modules.listings.models",
+    "modules.households.tests.test_suspension_api -> modules.listings.tests.factories",
+    "modules.households.tests.test_suspension_api -> modules.reservations.models",
     "modules.stores.tests.test_admin -> modules.accounts.tests.factories",
+    "modules.stores.tests.test_application_decisions -> modules.accounts.models",
+    "modules.stores.tests.test_application_recovery -> modules.accounts.models",
+    "modules.stores.tests.conftest -> modules.accounts.models",
+    "modules.stores.tests.conftest -> modules.rules.models",
+    "modules.stores.tests.test_application_recovery -> modules.audit.models",
+    "modules.stores.tests.test_application_decisions -> modules.audit.models",
+    "modules.stores.tests.test_application_decisions -> modules.rules.models",
+    "modules.stores.tests.test_staff_application_api -> modules.accounts.models",
+    "modules.stores.tests.test_staff_application_api -> modules.audit.models",
+    "modules.stores.tests.test_staff_application_api -> modules.rules.models",
     "modules.categories.tests.test_staff_api -> modules.accounts.tests.factories",
     "modules.categories.tests.test_staff_api -> modules.stores.tests.factories",
     "modules.categories.tests.test_staff_api -> modules.rules.domain.schemas",
@@ -131,10 +151,13 @@ ignore_imports = [
     "modules.** -> modules.rules.queries",
     "modules.** -> modules.notifications.services",
     "modules.** -> modules.notifications.queries",
+    # Accounts owns role groups used by permissions across modules.
+    "modules.** -> modules.accounts.queries",
+    "modules.audit.services -> modules.privacy.services",
+    "modules.households.services -> modules.privacy.services",
 
     # stores -> accounts
     "modules.stores.** -> modules.accounts.services",
-    "modules.stores.** -> modules.accounts.queries",
     # stores tests create users with the accounts test factory (US-12)
     "modules.stores.tests.** -> modules.accounts.tests.factories",
     # stores -> categories: partner applications list active category codes (US-12)
@@ -155,6 +178,8 @@ ignore_imports = [
     "modules.households.** -> modules.priority.queries",
     "modules.households.** -> modules.review.services",
     "modules.households.** -> modules.review.queries",
+    # US-32 coordinates status and reservation cancellation in one transaction.
+    "modules.households.services -> modules.reservations.services",
 
     # eligibility -> households
     "modules.eligibility.** -> modules.households.services",
@@ -176,6 +201,18 @@ ignore_imports = [
     "modules.listings.tests.** -> modules.stores.tests.factories",
     "modules.listings.tests.** -> modules.rules.models",
     "modules.listings.tests.** -> modules.rules.domain.schemas",
+    # FIX-02 API tests inject a fake adapter factory, never a production dependency.
+    "modules.reservations.tests.test_api -> modules.listings.photo_storage",
+
+    # reservations pickup tests (US-44) -> test setup only: saved users, stores,
+    # households with a holder, and listings with an open pickup window.
+    "modules.reservations.tests.** -> modules.accounts.models",
+    "modules.reservations.tests.** -> modules.accounts.tests.factories",
+    "modules.reservations.tests.** -> modules.households.models",
+    "modules.reservations.tests.** -> modules.households.tests.factories",
+    "modules.reservations.tests.** -> modules.listings.models",
+    "modules.reservations.tests.** -> modules.listings.tests.factories",
+    "modules.reservations.tests.** -> modules.stores.tests.factories",
 
     # reservations -> listings, households, priority
     "modules.reservations.** -> modules.listings.services",
@@ -184,6 +221,14 @@ ignore_imports = [
     "modules.reservations.** -> modules.households.queries",
     "modules.reservations.** -> modules.priority.services",
     "modules.reservations.** -> modules.priority.queries",
+
+    # reservations tests -> test setup only: the browse API tests (US-36) build
+    # users, households and listings with the owning modules' factories.
+    "modules.reservations.tests.** -> modules.accounts.tests.factories",
+    "modules.reservations.tests.** -> modules.households.tests.factories",
+    "modules.reservations.tests.** -> modules.listings.tests.factories",
+    "modules.reservations.tests.** -> modules.stores.tests.factories",
+    "modules.reservations.tests.** -> modules.categories.tests.factories",
 
     # priority -> households, eligibility, review
     "modules.priority.** -> modules.households.services",
@@ -233,6 +278,20 @@ forbidden_modules = [
     "modules.*.services",
     "modules.*.queries",
     "modules.*.tasks",
+]
+
+# Contract 4: the seed command is the one place outside the modules that may
+# import their models. The reason is written at the top of seed.py.
+[[tool.importlinter.contracts]]
+name = "Only the seed command imports module models"
+type = "forbidden"
+source_modules = ["iris", "adapters"]
+forbidden_modules = ["modules.*.models"]
+# Services and queries may import their own models. This contract checks the
+# direct import only, and the one allowed direct import is the seed command.
+allow_indirect_imports = true
+ignore_imports = [
+    "iris.management.commands.seed -> modules.*.models",
 ]
 
 [tool.ruff.lint]

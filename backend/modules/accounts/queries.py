@@ -1,16 +1,25 @@
 # AI contribution: 50% or more AI-generated
-"""Public read-only interfaces for accounts."""
+"""Public role groups and account permission checks."""
 
-from modules.accounts.models import User
+from modules.accounts.roles import UserRole
 
-# Roles that manage walk-in household files and notices of assessment.
-INTAKE_STAFF_ROLES = frozenset((User.Role.INTAKE_WORKER, User.Role.ADMIN))
+STORE_ROLES = (UserRole.STORE_STAFF, UserRole.STORE_MANAGER)
+STAFF_ROLES = (UserRole.INTAKE_WORKER, UserRole.ADMIN)
 
 
-def is_intake_staff(user: object) -> bool:
-    """True for a signed-in, active intake worker or admin (deny by default)."""
+def is_admin(user: object) -> bool:
+    """Return whether the user is an active authenticated administrator."""
     return bool(
         getattr(user, "is_authenticated", False)
         and getattr(user, "is_active", False)
-        and getattr(user, "role", None) in INTAKE_STAFF_ROLES
+        and getattr(user, "role", None) == UserRole.ADMIN
+    )
+
+
+def is_intake_staff(user: object) -> bool:
+    """Return whether the user is an active intake worker or administrator."""
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and getattr(user, "is_active", False)
+        and getattr(user, "role", None) in STAFF_ROLES
     )

@@ -2,8 +2,7 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 
-import fr from "./fr.json";
-import en from "./en.json";
+import { resources } from "./resources";
 
 // Keep the HTML document language synchronized with i18next.
 i18n.on("languageChanged", (lng) => {
@@ -11,10 +10,7 @@ i18n.on("languageChanged", (lng) => {
 });
 
 void i18n.use(initReactI18next).init({
-  resources: {
-    fr: { translation: fr },
-    en: { translation: en },
-  },
+  resources,
   lng: "fr",
   fallbackLng: "fr",
   supportedLngs: ["fr", "en"],

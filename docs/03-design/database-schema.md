@@ -1,4 +1,6 @@
-<!-- AI usage: 50% or more AI-generated. -->
+<!-- AI contribution: 50% or more AI-generated -->
+<!-- Size exception: keep the cross-module field definitions beside the complete
+Mermaid ERD so foreign keys and migration ordering can be reviewed together. -->
 # Iris database schema — Release 1 draft
 
 This is a logical design draft based on the documented requirements. Field labels describe the information to store, and types describe logical values. This document does not establish a deployed SQL schema.
@@ -22,7 +24,7 @@ Iris follows an Agile methodology. Small design changes can be made in later spr
 
 Users sign in with email and password through Django/allauth. The User password field stores an encoded password hash and its hashing metadata. Django handles password hashing and verification. Password hashes are excluded from API responses.
 
-Household sign-up uses email verification. An invited staff member accepts a one-use invitation and creates or activates a User record carrying the invited role and optional store assignment. A store can have multiple managers and staff.
+Household sign-up uses email verification. An invited person accepts a one-use invitation to create a new active User carrying the invited role and optional store assignment. Existing active or inactive accounts with the invited email are refused case-insensitively and are not overwritten. A store can have multiple managers and staff.
 
 Sources: [Issue #422](https://github.com/B-A-D-R-SL/iris/issues/422), [Issue #426](https://github.com/B-A-D-R-SL/iris/issues/426), [Issue #428](https://github.com/B-A-D-R-SL/iris/issues/428), [Issue #433](https://github.com/B-A-D-R-SL/iris/issues/433), [Django password storage](https://docs.djangoproject.com/en/stable/topics/auth/passwords/).
 
@@ -68,7 +70,7 @@ Sources: [Issue #424](https://github.com/B-A-D-R-SL/iris/issues/424), [Issue #43
 
 **Owner module:** `accounts`.
 
-An invitation to create or activate an account with an assigned role.
+An invitation to create a new active account with an assigned role. Acceptance does not sign the user in or switch an existing session.
 
 | Field | Logical type | Key | Details |
 | --- | --- | --- | --- |
@@ -77,8 +79,8 @@ An invitation to create or activate an account with an assigned role.
 | last_name | string | — | Recipient last name. |
 | role | string | — | Role assigned on acceptance. |
 | store | reference | Foreign key | Optional store assignment. |
-| token_hash | string | — | SHA-256 hash of the invitation token; not the raw token. |
-| expires_at | datetime | — | Invitation expiration time. |
+| token_hash | string | Unique key | SHA-256 hash of the invitation token; not the raw token. |
+| expires_at | datetime | — | Expiration saved when issued, using the active `invitations.expires_after_days` rule. |
 | accepted_at | datetime | — | Acceptance time; unset before acceptance. |
 | invited_by | reference | — | Person who issued the invitation, when applicable. |
 
@@ -86,8 +88,9 @@ An invitation to create or activate an account with an assigned role.
 
 | Rule | Enforcement |
 | --- | --- |
-| Invitations expire after seven days and can be accepted once. | Invitation acceptance service. |
-| Store the SHA-256 token hash. | Invitation generation service. |
+| Invitations are refused at or after the saved expiry and can be accepted once. The default lifetime is seven days. | Issuance reads the active `invitations.expires_after_days` RuleSet value; later rule versions affect only new invitations. Acceptance checks the saved expiry and marks acceptance atomically with user creation. |
+| Generate a token from 32 random bytes and store only its unique SHA-256 hash. | Invitation generation service and database uniqueness. The raw token is returned to the caller for its invitation email. |
+| Acceptance creates a new user; an existing active or inactive user with the invited email is refused case-insensitively. | Invitation acceptance service and the User email constraint. |
 
 Sources: [Issue #428](https://github.com/B-A-D-R-SL/iris/issues/428), [Issue #430](https://github.com/B-A-D-R-SL/iris/issues/430).
 
@@ -588,8 +591,8 @@ erDiagram
         string last_name "Recipient last name."
         string role "Role assigned on acceptance."
         reference store FK "Optional store assignment."
-        string token_hash "SHA-256 hash of the invitation token; not the raw token."
-        datetime expires_at "Invitation expiration time."
+        string token_hash UK "SHA-256 hash of the invitation token; not the raw token."
+        datetime expires_at "Expiration saved from the active invitations rule when issued."
         datetime accepted_at "Acceptance time; unset before acceptance."
         reference invited_by "Person who issued the invitation, when applicable."
     }
@@ -799,6 +802,16 @@ Each owner maintains its model and migrations and exposes services for writes an
 ## Documented search approach
 
 Staff search uses PostgreSQL pg_trgm, unaccent, and trigram indexes for partial and accent-insensitive matching.
+
+US-63 implements this with stored generated columns on the owning tables:
+`Household.search_email_key`, `search_number_key`, `search_address_key`,
+`search_address_text`, and `Member.search_name_key`. PostgreSQL backfills and
+maintains these derived values. Six GIN indexes cover those keys and the existing
+normalized phone field. The immutable normalization wrapper pins the installed
+unaccent function and dictionary. Existing extension schemas are preserved; new
+extensions use `public`. Dictionary changes require recomputing stored keys.
+These internal columns are excluded from API responses. Name search does not use
+the DOB component of `person_key`.
 
 Source: [Issue #553](https://github.com/B-A-D-R-SL/iris/issues/553).
 

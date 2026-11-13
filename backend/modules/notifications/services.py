@@ -1,5 +1,5 @@
 # AI contribution: 50% or more AI-generated
-"""Set-password email delivery after approval commits."""
+"""Household emails queued after a successful commit: status changes and password setup."""
 
 import logging
 from urllib.parse import urlsplit
@@ -11,6 +11,7 @@ from django.utils.translation import gettext, override
 
 from adapters.mailer.base import Mailer
 from adapters.mailer.smtp import SmtpMailer
+from modules.notifications.tasks import send_household_status_email
 
 logger = logging.getLogger("iris.notifications")
 
@@ -77,3 +78,46 @@ def _default_mailer() -> Mailer:
     }:
         raise ValidationError(gettext("Invitation email delivery is not configured."))
     return SmtpMailer()
+
+
+_MESSAGES = {
+    "en": {
+        "suspended": (
+            "Your Iris household file was suspended",
+            "Your household file was suspended. Reason: {reason}",
+        ),
+        "approved": (
+            "Your Iris household file was reactivated",
+            "Your household file was reactivated. Reason: {reason}",
+        ),
+    },
+    "fr": {
+        "suspended": (
+            "Votre dossier de foyer Iris a été suspendu",
+            "Votre dossier de foyer a été suspendu. Motif : {reason}",
+        ),
+        "approved": (
+            "Votre dossier de foyer Iris a été réactivé",
+            "Votre dossier de foyer a été réactivé. Motif : {reason}",
+        ),
+    },
+}
+
+
+def queue_household_status_email(
+    *,
+    email: str | None,
+    language: str,
+    status: str,
+    reason: str,
+) -> None:
+    """Enqueue a localized notice after commit; files without email are skipped."""
+    if not email:
+        return
+    messages = _MESSAGES["en" if language == "en" else "fr"]
+    subject, body = messages[status]
+    transaction.on_commit(
+        lambda: send_household_status_email.defer(
+            email=email, subject=subject, body=body.format(reason=reason)
+        )
+    )

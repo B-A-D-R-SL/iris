@@ -40,10 +40,16 @@ export function testUser(role: Role, overrides: Partial<CurrentUser> = {}): Curr
   };
 }
 
-/** Fakes GET /api/me/: a user, signed out (401), or a server failure (500). */
+/** Fake account reads and the server's household-search authorization response. */
 export function mockCurrentUser(user: CurrentUser | "signed-out" | "server-error") {
-  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (url === "/api/staff/households/" && init?.method === "HEAD") {
+      if (user === "signed-out") return new Response(null, { status: 401 });
+      if (user === "server-error") return new Response(null, { status: 500 });
+      const allowed = user.role === "intake_worker" || user.role === "admin";
+      return new Response(null, { status: allowed ? 200 : 403 });
+    }
     if (!url.endsWith("/api/me/")) return new Response(null, { status: 404 });
     if (user === "signed-out") return new Response(null, { status: 401 });
     if (user === "server-error") return new Response(null, { status: 500 });
@@ -53,7 +59,7 @@ export function mockCurrentUser(user: CurrentUser | "signed-out" | "server-error
   return fetchMock;
 }
 
-/** WCAG checks with axe (NFR-03). Contrast needs a real browser, so it is checked by hand. */
+/** WCAG checks with axe (NFR-03). Token contrast is tested in app/contrast.test.ts; rendered colours still need browser review. */
 export async function expectNoAxeViolations(container: Element) {
   const results = await axe.run(container, { rules: { "color-contrast": { enabled: false } } });
   expect(results.violations.map((violation) => `${violation.id}: ${violation.help}`)).toEqual([]);

@@ -1,17 +1,32 @@
 /* AI contribution: 50% or more AI-generated */
-/* Figma "Alert": grayscale, the border tells success and error apart. */
-
+/* Icons and text accompany every semantic tone; errors retain the 2 px border. */
 .notice {
-  background-color: var(--mantine-color-gray-0);
-  border: 1px solid var(--mantine-color-default-border);
-  color: var(--mantine-color-text);
+  --notice-strong: var(--iris-info-strong);
+  --notice-light: var(--iris-info-light);
+  background-color: var(--notice-light);
+  border: 1px solid var(--notice-border, var(--notice-strong));
+  color: var(--notice-strong);
 }
 
 .notice[data-type="success"] {
-  border-color: var(--mantine-color-gray-9);
+  --notice-strong: var(--iris-success-strong);
+  --notice-light: var(--iris-success-light);
+}
+
+.notice[data-type="warning"] {
+  --notice-border: var(--iris-warning-border);
+  --notice-strong: var(--iris-warning-strong);
+  --notice-light: var(--iris-warning-light);
 }
 
 .notice[data-type="error"] {
-  background-color: var(--mantine-color-body);
-  border: 2px solid var(--mantine-color-gray-9);
+  --notice-strong: var(--iris-danger-strong);
+  --notice-light: var(--iris-danger-light);
+  border-width: 2px;
+}
+
+.notice :global(.mantine-Alert-icon),
+.notice :global(.mantine-Alert-title),
+.notice :global(.mantine-Alert-message) {
+  color: var(--notice-strong);
 }

@@ -170,7 +170,9 @@ describe("staff area", () => {
   it("shows admins every staff screen and the signed-in name", async () => {
     const { container } = renderApp("/staff/partners", "admin");
 
-    expect(await screen.findByRole("heading", { name: "Partenaires" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Demandes de partenariat" }),
+    ).toBeInTheDocument();
     expect(linkNames(staffNav())).toEqual([
       "Foyers",
       "Vérifications",

@@ -1,0 +1,191 @@
+{
+  "_meta": "AI contribution: 50% or more AI-generated",
+  "app": {
+    "brand": {
+      "byBadr": "par B.A.D.R.",
+      "home": "Iris, accueil"
+    },
+    "language": {
+      "switchTo": "English"
+    },
+    "appBar": {
+      "back": "Retour",
+      "account": "Mon compte"
+    },
+    "mainNav": {
+      "label": "Navigation principale"
+    },
+    "householdNav": {
+      "home": "Accueil",
+      "listings": "Offres",
+      "reservations": "Réservations",
+      "profile": "Profil"
+    },
+    "storeNav": {
+      "today": "Aujourd'hui",
+      "confirm": "Confirmer",
+      "post": "Publier",
+      "myListings": "Mes offres"
+    },
+    "staffBar": {
+      "workspace": "Espace équipe · B.A.D.R.",
+      "openMenu": "Ouvrir le menu",
+      "closeMenu": "Fermer le menu"
+    },
+    "staffNav": {
+      "workspace": "Votre espace",
+      "households": "Foyers",
+      "reviews": "Vérifications",
+      "walkIn": "Inscription en personne",
+      "partners": "Partenaires",
+      "stores": "Commerces",
+      "categories": "Catégories",
+      "auditLog": "Journal d'audit",
+      "accessNotice": "Accès réservé au personnel autorisé"
+    },
+    "placeholder": {
+      "title": "Bientôt disponible",
+      "description": "Cet écran est en construction."
+    },
+    "notFound": {
+      "title": "Page introuvable",
+      "description": "Cette adresse ne correspond à aucune page d'Iris.",
+      "backHome": "Retour à l'accueil"
+    },
+    "crash": {
+      "title": "Une erreur est survenue",
+      "description": "Rechargez la page. Si le problème continue, réessayez plus tard.",
+      "reload": "Recharger la page"
+    }
+  },
+  "category": {
+    "list": {
+      "description": "Catégories actives disponibles pour les dons.",
+      "name": "Nom",
+      "code": "Code",
+      "type": "Type",
+      "defaultValue": "Valeur par défaut",
+      "food": "Alimentaire",
+      "nonFood": "Non alimentaire",
+      "empty": "Aucune catégorie disponible",
+      "emptyDescription": "Il n'y a actuellement aucune catégorie active."
+    },
+    "admin": {
+      "description": "Gérez les catégories des dons. Une catégorie désactivée n'est plus proposée aux commerces; les offres existantes la gardent.",
+      "emptyDescription": "Ajoutez une première catégorie pour classer les dons.",
+      "add": "Ajouter une catégorie",
+      "addTitle": "Ajouter une catégorie",
+      "editTitle": "Modifier la catégorie",
+      "edit": "Modifier",
+      "editName": "Modifier {{name}}",
+      "deactivate": "Désactiver",
+      "deactivateName": "Désactiver {{name}}",
+      "reactivate": "Réactiver",
+      "reactivateName": "Réactiver {{name}}",
+      "status": "Statut",
+      "actions": "Actions",
+      "codeHelp": "Lettres minuscules, chiffres et _, en commençant par une lettre. Il ne pourra plus être modifié.",
+      "codeLocked": "Le code ne peut pas être modifié.",
+      "codeError": "Utilisez des lettres minuscules, des chiffres et _, en commençant par une lettre.",
+      "valueError": "Entrez un montant de 0 ou plus.",
+      "nameFr": "Nom en français",
+      "nameEn": "Nom en anglais",
+      "isFood": "Catégorie alimentaire",
+      "isFoodHelp": "Les offres alimentaires demandent une date « meilleur avant ».",
+      "defaultValueHelp": "Utilisée quand un commerce n'indique pas de valeur estimée.",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "saved": "{{name}} a été enregistrée.",
+      "deactivated": "{{name}} a été désactivée. Les commerces ne peuvent plus l'utiliser.",
+      "reactivated": "{{name}} est de nouveau active.",
+      "done": "C'est fait",
+      "notSaved": "La modification n'a pas été enregistrée",
+      "saveError": "Le serveur a refusé la modification. Réessayez.",
+      "networkError": "Impossible de joindre le serveur. Vérifiez la connexion, puis réessayez.",
+      "confirmTitle": "Désactiver {{name}} ?",
+      "confirmBody": "Les commerces ne pourront plus utiliser cette catégorie. Les offres existantes la gardent, et vous pourrez la réactiver à tout moment."
+    }
+  },
+  "shared": {
+    "form": {
+      "optional": "(facultatif)",
+      "requiredNotice": "Tous les champs sont obligatoires, sauf ceux marqués « facultatif ».",
+      "errorCountOne": "Corrigez {{count}} champ.",
+      "errorCountOther": "Corrigez {{count}} champs."
+    },
+    "validation": {
+      "required": "Remplissez ce champ.",
+      "email": "Entrez un courriel valide.",
+      "textLength": "Entrez de {{min}} à {{max}} caractères.",
+      "textMax": "Entrez au plus {{max}} caractères.",
+      "postalCode": "Entrez un code postal canadien, par exemple H2X 1Y4.",
+      "phone": "Entrez un numéro de 10 chiffres, par exemple (514) 555-0123.",
+      "moneyRange": "Entrez un montant de {{min, currency(currency: CAD; currencyDisplay: narrowSymbol)}} à {{max, currency(currency: CAD; currencyDisplay: narrowSymbol)}}.",
+      "integer": "Entrez un nombre entier.",
+      "date": "Entrez une date au format AAAA-MM-JJ.",
+      "dateMin": "Choisissez le {{date}} ou après.",
+      "dateMax": "Choisissez le {{date}} ou avant.",
+      "fileType": "Choisissez un fichier {{types}}.",
+      "fileSize": "Choisissez un fichier de {{max}} Mo ou moins."
+    },
+    "dateField": {
+      "placeholder": "AAAA-MM-JJ",
+      "clear": "Effacer la date"
+    },
+    "fileUpload": {
+      "choose": "Choisir un fichier",
+      "limits": "{{types}}, {{max}} Mo maximum",
+      "size": "{{size, number(maximumFractionDigits: 1)}} Mo",
+      "change": "Changer",
+      "remove": "Retirer"
+    },
+    "integerField": {
+      "decrease": "Diminuer ({{label}})",
+      "increase": "Augmenter ({{label}})"
+    },
+    "states": {
+      "loading": "Chargement…",
+      "errorTitle": "Impossible d'afficher cette page",
+      "errorDescription": "Vérifiez votre connexion Internet, puis réessayez.",
+      "retry": "Réessayer"
+    },
+    "status": {
+      "household": {
+        "draft": "Brouillon",
+        "submitted": "Demande soumise",
+        "awaiting_visit": "Visite en personne requise",
+        "review_required": "Vérification par l'équipe requise",
+        "renewal_needed": "Renouvellement requis",
+        "approved": "Approuvé",
+        "suspended": "Suspendu",
+        "rejected": "Refusé"
+      },
+      "listing": {
+        "published": "Publiée",
+        "sold_out": "Épuisée",
+        "closed": "Terminée",
+        "cancelled": "Annulée"
+      },
+      "reservation": {
+        "reserved": "Réservée",
+        "picked_up": "Récupérée",
+        "cancelled": "Annulée",
+        "cancelled_by_store": "Annulée par le commerce",
+        "no_show": "Absence"
+      },
+      "partnerApplication": {
+        "submitted": "Demande soumise",
+        "approved": "Approuvée",
+        "rejected": "Refusée"
+      },
+      "store": {
+        "active": "Actif",
+        "deactivated": "Désactivé"
+      },
+      "category": {
+        "active": "Active",
+        "inactive": "Inactive"
+      }
+    }
+  }
+}

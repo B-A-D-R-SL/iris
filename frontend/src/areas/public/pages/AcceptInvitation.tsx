@@ -95,6 +95,7 @@ function passwordError(flow: InvitationFlow) {
   return server || flow.form.errors.password;
 }
 
+/** Apply the shared labels and error descriptions to both password controls. */
 function PasswordFields({ flow }: { flow: InvitationFlow }) {
   const { t } = useTranslation();
   const password = useFieldWrapper({

@@ -26,6 +26,7 @@ _EMAIL_UNIQUE_CONSTRAINTS = frozenset(
 
 
 def _identity_text(value: str, field: str) -> str:
+    """Keep service inputs predictable before Django validates model fields."""
     if not isinstance(value, str):
         raise ValidationError({field: _("Enter a valid value.")})
     return value.strip()
@@ -41,6 +42,7 @@ def _require_new_email(email: str) -> None:
 
 
 def _invitation_expiry(now: datetime) -> datetime:
+    """Resolve the active lifetime without inventing a fallback configuration."""
     rule = rule_queries.active("invitations", at=now)
     days = (
         rule.values.get("expires_after_days")
@@ -91,8 +93,40 @@ def create_invitation(
     return token
 
 
+@transaction.atomic
+def reissue_store_manager_invitation(
+    *, email: str, first_name: str, last_name: str, store: Any, invited_by: User
+) -> str:
+    """Expire previous links under lock, then issue a fresh manager invitation.
+
+    The calling stores service locks the application to serialize reissues.
+    Locking invitations also serializes against concurrent acceptance. A failed
+    issuance rolls back expiry changes, preserving the previous usable link.
+    """
+    if not invited_by.is_active or invited_by.role != User.Role.ADMIN:
+        from django.core.exceptions import PermissionDenied
+
+        raise PermissionDenied(_("An active admin is required."))
+    previous = list(
+        Invitation.objects.select_for_update().filter(
+            store=store, email__iexact=email, role=User.Role.STORE_MANAGER
+        )
+    )
+    if not previous or any(item.accepted_at is not None for item in previous):
+        raise ValidationError(
+            _("No unaccepted store-manager invitation exists."),
+            code="invitation_not_pending",
+        )
+    Invitation.objects.filter(pk__in=[item.pk for item in previous]).update(
+        expires_at=timezone.now()
+    )
+    return create_invitation(
+        email, first_name, last_name, User.Role.STORE_MANAGER, store, invited_by
+    )
+
+
 def _locked_invitation(token: str) -> Invitation:
-    """Hold the token row lock until acceptance commits."""
+    """Resolve only correctly shaped URL-safe tokens while holding the row lock."""
     if not isinstance(token, str) or not _TOKEN_PATTERN.fullmatch(token):
         raise ValidationError(
             _("This invitation link is invalid."), code="invitation_invalid"
@@ -109,7 +143,7 @@ def _locked_invitation(token: str) -> Invitation:
 
 
 def _create_invited_user(invitation: Invitation, password: str) -> User:
-    """Database email uniqueness also protects competing invitations."""
+    """Validate against recipient attributes, then rely on database email uniqueness."""
     values: dict[str, Any] = {
         "email": invitation.email,
         "first_name": invitation.first_name,

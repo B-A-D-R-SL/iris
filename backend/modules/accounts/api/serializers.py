@@ -53,6 +53,8 @@ class InvitationAcceptedSerializer(serializers.Serializer):
 
 
 class InvitationErrorSerializer(serializers.Serializer):
+    """Document the shared error envelope used by invitation acceptance."""
+
     code = serializers.CharField()
     message = serializers.CharField()
     fields = serializers.DictField(

@@ -65,6 +65,21 @@ msgstr "Approuvé"
 msgid "Renewal required"
 msgstr "Renouvellement requis"
 
+msgid "Household size rules need configuration."
+msgstr "Les règles de taille du ménage doivent être configurées."
+
+msgid "Household registration is temporarily unavailable. Please try again."
+msgstr "L'inscription du ménage est temporairement indisponible. Veuillez réessayer."
+
+msgid "Review required"
+msgstr "Vérification par l'équipe requise"
+
+msgid "Awaiting visit"
+msgstr "Visite en personne requise"
+
+msgid "Renewal needed"
+msgstr "Renouvellement requis"
+
 msgid "Suspended"
 msgstr "Suspendu"
 
@@ -118,6 +133,12 @@ msgstr "Ajoutez au plus 14 personnes en plus de la personne responsable."
 # US-17 walk-in registration (#461)
 msgid "A household can have at most 15 people including the holder."
 msgstr "Un foyer peut compter au plus 15 personnes, incluant la personne responsable."
+
+msgid "A household can have at most %(limit)s people including the holder."
+msgstr "Un foyer peut compter au plus %(limit)s personnes, incluant la personne responsable."
+
+msgid "Add at most %(limit)s people besides the holder."
+msgstr "Ajoutez au plus %(limit)s personnes en plus de la personne responsable."
 
 # US-17 walk-in registration (#461)
 msgid "Check the highlighted fields."
@@ -175,3 +196,33 @@ msgstr "Choisissez une personne de ce foyer."
 
 msgid "Notices are recorded for adults only."
 msgstr "Les avis sont enregistrés seulement pour les adultes."
+
+# US-25 duplicate checking (#479)
+msgid "An anonymized file cannot be submitted."
+msgstr "Un dossier anonymisé ne peut pas être soumis."
+
+msgid "Complete the address before submission."
+msgstr "Complétez l'adresse avant de soumettre le dossier."
+
+
+msgid "Only draft household files can be submitted."
+msgstr "Seuls les dossiers en brouillon peuvent être soumis."
+
+# US-32 household suspension (#487)
+msgid "Only suspended household files can be reactivated."
+msgstr "Seuls les dossiers de foyer suspendus peuvent être réactivés."
+
+# US-32 household suspension (#487)
+msgid "Only approved household files can be suspended."
+msgstr "Seuls les dossiers de foyer approuvés peuvent être suspendus."
+
+# US-32 household suspension (#487)
+msgid "An expired file cannot be reactivated."
+msgstr "Un dossier expiré ne peut pas être réactivé."
+
+# US-32 household suspension (#487)
+msgid "Do not include personal or financial information."
+msgstr "N'incluez pas de renseignements personnels ou financiers."
+
+msgid "Enter at most %(limit)s characters."
+msgstr "Entrez au maximum %(limit)s caractères."

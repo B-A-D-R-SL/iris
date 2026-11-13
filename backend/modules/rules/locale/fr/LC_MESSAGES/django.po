@@ -1,0 +1,15 @@
+# AI contribution: 50% or more AI-generated
+# French messages for the rules module (FIX-09).
+msgid ""
+msgstr ""
+"Project-Id-Version: Iris\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "The rules seed account must be a non-login system account."
+msgstr "Le compte de chargement des règles doit être un compte système sans connexion."
+
+msgid "The rules seed account has an unexpected role."
+msgstr "Le compte de chargement des règles possède un rôle inattendu."

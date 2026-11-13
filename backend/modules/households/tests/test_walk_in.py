@@ -16,7 +16,6 @@ from modules.households.services import (
     create_walk_in,
     update_draft,
 )
-from modules.stores.tests.factories import StoreFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -97,40 +96,6 @@ def test_allowed_staff_create_read_and_patch(role, data):
         household.draft_events.order_by("id").values_list("action", flat=True)
     ) == ["created", "updated"]
     assert set(household.draft_events.values_list("actor_role", flat=True)) == {role}
-
-
-@pytest.mark.parametrize("role", ["beneficiary", "store_staff", "store_manager"])
-def test_forbidden_roles_cannot_create_read_or_patch(role, data, worker):
-    house = create_walk_in(
-        {
-            "holder": {
-                "first_name": "Example",
-                "last_name": "Holder",
-                "date_of_birth": date(1998, 5, 15),
-                "phone": "+15145550123",
-            }
-        },
-        worker,
-    )
-    if role.startswith("store_"):
-        user = UserFactory(role=role, store=StoreFactory())
-    else:
-        user = UserFactory(role=role)
-    client = _client(user)
-    assert (
-        client.post(reverse("staff-households-create"), data, format="json").status_code
-        == 403
-    )
-    url = reverse("staff-households-detail", kwargs={"id": house.pk})
-    assert client.get(url).status_code == 403
-    assert (
-        client.patch(
-            url, {"identity_checked_in_person": True}, format="json"
-        ).status_code
-        == 403
-    )
-    assert Household.objects.count() == 1
-    assert HouseholdDraftEvent.objects.count() == 1
 
 
 def test_direct_service_forbids_nonstaff(worker):

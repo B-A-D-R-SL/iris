@@ -54,6 +54,7 @@ def current_user(request: Request) -> Response:
 
 
 def _messages(value: Any) -> list[str]:
+    """Flatten serializer field errors into the API's list-of-strings format."""
     if isinstance(value, dict):
         return [message for item in value.values() for message in _messages(item)]
     if isinstance(value, list):
@@ -161,6 +162,7 @@ class AcceptInvitationView(GenericAPIView):
         },
     )
     def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Validate HTTP input and leave every account decision to the service."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         services.accept_invitation(**serializer.validated_data)

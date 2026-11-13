@@ -1,5 +1,10 @@
 # AI contribution: 50% or more AI-generated
-"""Future API routes for reservations.
+"""Household routes under /api/: browsing now, reserving with US-41."""
 
-TODO: Define routes when module endpoints are implemented.
-"""
+from django.urls import path
+
+from modules.reservations.api.views import BrowseListingsView
+
+urlpatterns = [
+    path("listings/", BrowseListingsView.as_view(), name="listings-browse"),
+]

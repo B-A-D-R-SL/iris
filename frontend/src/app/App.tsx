@@ -10,10 +10,15 @@ import { WelcomePage } from "../areas/public/WelcomePage";
 import { SignIn } from "../areas/public/pages/SignIn";
 import { AcceptInvitation } from "../areas/public/pages/AcceptInvitation";
 import { PartnerApply } from "../areas/public/pages/PartnerApply";
+import { PartnerApplications } from "../areas/staff/pages/PartnerApplications";
 import { Audit } from "../areas/staff/pages/Audit";
 import { Notices } from "../areas/staff/pages/WalkIn/Notices";
+import { Search } from "../areas/staff/pages/Search";
+import { Household } from "../areas/staff/pages/Household";
 import { WalkIn } from "../areas/staff/pages/WalkIn/WalkIn";
 import { NewListing } from "../areas/store/pages/NewListing";
+import { ListingDetail } from "../areas/household/pages/ListingDetail";
+import { Listings } from "../areas/household/pages/Listings";
 import { MobileAreaLayout } from "./layouts/MobileAreaLayout";
 import { PublicLayout } from "./layouts/PublicLayout";
 import { StaffLayout } from "./layouts/StaffLayout";
@@ -21,9 +26,11 @@ import { AREA_ROLES } from "./navigation";
 import { NotFoundPage } from "./NotFoundPage";
 import { PlaceholderScreen } from "./PlaceholderScreen";
 import { RequireRole } from "./RequireRole";
+import { RequireHouseholdSearch } from "./RequireHouseholdSearch";
 import { CategoriesPage } from "../features/categories/CategoriesPage";
 
-// React Router requires Route children here; keep layout and role nesting together.
+// Size exception: React Router inspects Route children directly. Keep this
+// declarative route tree together so layout and role-guard nesting stays explicit.
 export default function App() {
   return (
     <Routes>
@@ -53,16 +60,8 @@ export default function App() {
             path="home"
             element={<PlaceholderScreen titleKey="app.householdNav.home" appBar />}
           />
-          <Route
-            path="listings"
-            element={<PlaceholderScreen titleKey="app.householdNav.listings" appBar />}
-          />
-          <Route
-            path="listings/:id"
-            element={
-              <PlaceholderScreen titleKey="listing.common.listing" appBar backTo="/listings" />
-            }
-          />
+          <Route path="listings" element={<Listings />} />
+          <Route path="listings/:id" element={<ListingDetail />} />
           <Route
             path="reservations"
             element={<PlaceholderScreen titleKey="app.householdNav.reservations" appBar />}
@@ -92,13 +91,16 @@ export default function App() {
         </Route>
       </Route>
 
+      <Route element={<RequireHouseholdSearch />}>
+        <Route element={<StaffLayout />}>
+          <Route path="staff/households" element={<Search />} />
+          <Route path="staff/households/:id" element={<Household />} />
+        </Route>
+      </Route>
+
       <Route element={<RequireRole roles={AREA_ROLES.staff} />}>
         <Route element={<StaffLayout />}>
           <Route path="staff" element={<Navigate to="/staff/households" replace />} />
-          <Route
-            path="staff/households"
-            element={<PlaceholderScreen titleKey="app.staffNav.households" />}
-          />
           <Route path="staff/walk-in" element={<WalkIn />} />
           <Route path="staff/walk-in/:id" element={<WalkIn />} />
           <Route path="staff/walk-in/:id/notices" element={<Notices />} />
@@ -107,10 +109,7 @@ export default function App() {
               path="staff/review"
               element={<PlaceholderScreen titleKey="app.staffNav.reviews" />}
             />
-            <Route
-              path="staff/partners"
-              element={<PlaceholderScreen titleKey="app.staffNav.partners" />}
-            />
+            <Route path="staff/partners" element={<PartnerApplications />} />
             <Route
               path="staff/stores"
               element={<PlaceholderScreen titleKey="app.staffNav.stores" />}

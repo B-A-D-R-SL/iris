@@ -38,7 +38,7 @@ class WalkInNoticeView(WalkInErrorHandlingMixin, GenericAPIView):
         summary="List the current notice of each member of a walk-in file",
     )
     def get(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
-        notices = queries.walk_in_notices(id)
+        notices = queries.walk_in_notices(id, request.user)
         if notices is None:
             raise Http404
         return Response(WalkInNoticeReadSerializer(notices, many=True).data)

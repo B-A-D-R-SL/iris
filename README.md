@@ -1,3 +1,4 @@
+<!-- AI contribution: 50% or more AI-generated -->
 # Iris
 
 Iris is a solidarity redistribution platform for sharing food and goods across communities, developed for **Concordia University's SOEN 490 capstone**.
@@ -100,6 +101,15 @@ PostgreSQL uses port `55433` on the host to avoid conflicts with existing local 
 
 **PostgreSQL is required.** Django does not fall back to SQLite. For manual execution, set `DATABASE_URL` to a PostgreSQL connection string.
 
+### Production settings
+
+WSGI and ASGI default to `iris.settings.production`, which rejects unsafe secret
+keys and non-delivery email backends, enables HTTPS protections, restricts
+API documentation to active Iris admins, and rate-limits DRF requests.
+`manage.py` and Docker Compose continue to select local settings for development.
+See [production configuration and checks](docs/guides/production-settings.md)
+for environment variables, trusted proxy requirements and the HSTS preload decision.
+
 ## Development and Testing
 
 ### Commit hooks
@@ -138,7 +148,7 @@ Backend source code is mounted directly into its container, allowing Django to r
 ### Backend Checks
 
 ```bash
-docker compose exec backend python -m pytest --cov
+docker compose exec -e DJANGO_SETTINGS_MODULE=iris.settings.test backend python -m pytest --cov
 docker compose exec backend ruff check .
 docker compose exec backend ruff format --check .
 docker compose exec backend mypy .
@@ -188,10 +198,28 @@ changes so the container runs the current version.
 
 ### Continuous Integration
 
-`.github/workflows/ci.yml` runs on every pull request (whatever its target branch) and on every push to `main`. It has two jobs, `backend` and `frontend`, which the `main` ruleset (#381) is to require before a merge:
+`.github/workflows/ci.yml` runs on every pull request (whatever its target branch) and on every push to `main`. The `backend` and `frontend` jobs are the ones the `main` ruleset (#381) is to require before a merge:
 
-- **backend**: ruff lint and format, mypy, import-linter module boundaries, missing migrations, pytest against PostgreSQL 17 with at least 70% total coverage, pip-audit, `pnpm gen:api --check`, and `pnpm test:api`.
+- **backend**: ruff lint and format, mypy, import-linter module boundaries, missing migrations, `check --deploy --fail-level WARNING` with production settings and CI-only values (FIX-17), pytest against PostgreSQL 17 with at least 70% total coverage, pip-audit, `pnpm gen:api --check`, and `pnpm test:api`.
 - **frontend**: ESLint, Prettier, `tsc`, Vitest with coverage, production build, `pnpm audit` (high and critical vulnerabilities fail).
+- **secret-scan** (FIX-17): gitleaks 8.30.1 (exact release, SHA-256 checked) scans the pull request's commits, or the commits pushed to `main`; a manual run (`workflow_dispatch`) scans the whole history. A finding fails the job. Accepted false positives are in `.gitleaks.toml`: Microsoft's public Azurite key, and made-up passwords in test files (provider-specific rules still apply there).
+- **zap-baseline** (FIX-17, SEC-10): starts the backend with production settings over plain HTTP (`iris.settings.ci_scan`), PostgreSQL 17 and the seed data, then runs the OWASP ZAP 2.17.0 baseline scan (image pinned by digest) from the public `/admin/login/` page (`/api/docs/` is admin-only since FIX-04). `.github/scripts/zap_gate.py` fails the job on any High-risk alert not set to `IGNORE` in `.zap/rules.tsv` (each with its reason); lower risks are listed in the log. The HTML and JSON reports are uploaded as the `zap-baseline-report` artifact.
+
+```mermaid
+flowchart LR
+    pr["Pull request<br/>or push to main"] --> be["backend<br/>ruff, mypy, boundaries, migrations, check --deploy,<br/>pytest + coverage, pip-audit, API types"]
+    pr --> fe["frontend<br/>eslint, prettier, tsc,<br/>vitest + coverage, build, pnpm audit"]
+    pr --> gl["secret-scan<br/>gitleaks on the new commits"]
+    pr --> zap["zap-baseline<br/>backend + seed data,<br/>ZAP baseline, High risk fails"]
+    be --> sonar["sonar<br/>SonarQube Cloud quality gate"]
+    fe --> sonar
+    be --> merge{"All green, CodeRabbit<br/>and a teammate approve?"}
+    fe --> merge
+    gl --> merge
+    zap --> merge
+    sonar --> merge
+    merge -- "merge commit (no squash)" --> main["main"]
+```
 
 The commands above are the same checks. After pulling dependency changes, rebuild the images with `docker compose up --build --watch`.
 
@@ -202,6 +230,8 @@ The SonarQube Cloud job in `.github/workflows/ci.yml` imports backend Cobertura 
 ### Email Testing
 
 Mailpit captures outgoing development emails without delivering them to real recipients.
+The Compose `worker` service processes Procrastinate jobs, including household
+status notices, so SMTP work never blocks the request that changed the file.
 
 Send a test email:
 

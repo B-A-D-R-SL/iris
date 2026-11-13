@@ -1,4 +1,4 @@
-<!-- AI contribution: Below 50% AI-generated -->
+<!-- AI contribution: 50% or more AI-generated -->
 # Business rules
 
 Every rule Iris applies, with its default value. Values marked *(setting)* are stored in the rule settings module (`rules`) and can be changed by an admin without a developer; changing one creates a new version, so past decisions stay reproducible. Code never hard-codes these values: business-rule functions in `domain/` receive them as arguments.
@@ -7,18 +7,78 @@ Decisions taken where B.A.D.R. had not specified anything are marked **Default**
 
 Each owner publishes their section of this document in their own pull request. This version contains the listing categories and the prohibited items (SET-12), and partner applications (US-12); the other sections (roles, eligibility, reservations, priority, strikes, notifications, retention) are added by their owners.
 
+## Shared household access (US-63)
+
+Mark confirmed this scope for US-63: intake workers and administrators share
+household files across staff; the registering staff member does not own the file.
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-HH-ACCESS-001 | Active intake workers and administrators can search all non-anonymized households, including files created by another staff member and unassigned files. Other roles, inactive users and anonymous callers are refused. `created_by` records provenance and never restricts staff search scope. |
+| BR-HH-ACCESS-002 | Anonymized households are excluded before counting and pagination and cannot be read, edited or offered for resuming through the walk-in endpoints. |
+| BR-HH-AUDIT-001 | Search results disclose household details. Persist a view event for each returned household before disclosing the response; an audit failure prevents disclosure. Events contain household IDs and empty metadata, never search text or personal details. |
+
+These access and privacy rules have no configurable numeric threshold. The API
+enforces them; the frontend uses the search API's authorization response to decide
+whether to open the search screen. Audit retention and any change to disclosure
+logging belong to an agreed audit/privacy policy.
+
 ## Invitations (US-04)
 
 | Rule ID | Business rule |
 | --- | --- |
-| BR-INV-001 | Set expiry from `invitations.expires_after_days` (seed default **7 days**). The saved expiry is exclusive; later rule versions affect only new invitations. Missing or invalid configuration prevents issuing a link. |
-| BR-INV-002 | Accept an invitation once, creating the user and consuming the token atomically. Failed validation leaves the token unused. |
-| BR-INV-003 | Create new accounts only. Refuse email addresses already registered to active or inactive users, case-insensitively, when issuing and accepting. Identity, role and store come from the invitation. |
+| BR-INV-001 | Set an invitation's expiry from the active `invitations.expires_after_days` RuleSet, initially **7 days** *(setting)*. The saved expiry is exclusive and later rule versions affect only newly created invitations. Missing or unusable configuration prevents invitation creation. |
+| BR-INV-002 | A valid invitation can be accepted once. Create the user and record acceptance atomically; failed validation does not consume the token. Concurrent acceptance cannot create or overwrite multiple accounts. |
+| BR-INV-003 | Invitations create new active accounts only. Refuse an email already registered to any active or inactive account, case-insensitively, both when issuing and when accepting. The invitation supplies the new account's identity, role and optional store. |
 
-These are the US-04 rules already implemented on `main` (#430). Only a token's
-SHA-256 hash is stored. Acceptance does not change the browser session.
+Sources: [US-04 #428](https://github.com/B-A-D-R-SL/iris/issues/428),
+[task #430](https://github.com/B-A-D-R-SL/iris/issues/430), and Leon's
+new-account-only scope decision recorded in `AI_USAGE.md`.
+Tokens contain 32 random bytes; store only their SHA-256 hash. The public
+acceptance endpoint sets the password and leaves the browser session unchanged.
+Issuing screens and invitation emails belong to the calling workflows.
+
+## Pickups (US-44)
+
+The following rule IDs are introduced for review with US-44 (#520).
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-RES-001 | Only an active `store_staff` or `store_manager` account assigned to a store can look up or confirm a pickup, and only for reservations on that store's listings. A code that belongs to another store's live reservation is answered "picked up somewhere else", naming no store and no household; any other code is unknown. |
+| BR-RES-002 | A pickup is confirmed only while the reservation is `reserved` and the time is within the listing's pickup window, both ends included. The store, status and window are checked again under a row lock when confirming, so the pickup is recorded once, with the confirming staff member and the time. Late confirmation of a no-show is US-45. |
+| BR-RES-003 | Before confirming, staff see the household holder's and the alternate's first name and last initial, the listing title, the unit and the quantity. No contact detail or full name is sent. An anonymized household is treated as an unknown code. |
+| BR-RES-004 | Pickup codes are unique per listing, not per store. If two `reserved` reservations at the same store share the typed code, the lookup is refused and staff find the person in today's pickups instead. A finished reservation with the same code never hides a live one. |
+| BR-RES-005 | **Default:** Confirming a pickup does not change listing stock: the units stay counted as taken so they are not offered again. |
+
+Codes are compared after removing spaces and changing to uppercase; the length
+comes from the reservation's `pickup_code` column (6). BR-RES-001 to BR-RES-005
+are checked in `backend/modules/reservations/queries.py` and `services.py`,
+the names in `backend/modules/households/domain/names.py`, and the window in
+`backend/modules/reservations/domain/pickup.py`.
 
 ## Partner applications (US-12)
+
+### BR-PARTNER-05: Recovery of unaccepted manager invitations
+
+Only an active admin may reissue the invitation for an approved application, via
+`resend_partner_invitation APPLICATION_UUID --admin-id ADMIN_UUID`. Expire prior
+unaccepted manager links and create a fresh invitation atomically; retain the
+application decision and its audit event. Refuse accepted invitations and existing
+accounts. Failed issuance rolls back expiry changes; send the new email only
+after commit, and permit another recovery if delivery fails.
+
+### BR-PARTNER-03: Atomic administrator decisions
+
+Only active administrators may decide submitted applications. Approval creates the
+store and manager invitation, decision fields and audit event atomically. Already
+decided applications cannot be decided again. Emails are attempted after commit.
+
+### BR-PARTNER-04: Required rejection reason and storage limit
+
+A rejection needs a nonblank reason, trimmed before saving, with at most **500
+characters**. This is the existing `PartnerApplication.decision_reason` storage
+and API contract, not an administrator-configurable threshold. Raising it requires
+a coordinated model/schema/API change; invitation expiry remains RuleSet data.
 
 ### BR-PARTNER-01: One open application per contact email
 
@@ -55,6 +115,35 @@ The eligibility owner and reviewers must confirm them before merge.
 
 Threshold values come from the versioned `lico_thresholds` RuleSet,
 not from hardcoded values.
+
+## Household size
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-HH-001 | Drafts and submissions use the active `household_size.max_people` RuleSet limit, including the holder. Approved seed default: 15 people (14 additional members). Missing configuration prevents size validation; there is no runtime fallback. |
+
+## Duplicate households (US-25)
+
+Approved rules for #479 and #478.
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-DUP-001 | The same address and unit, or a member with the same names and birth date, in another open file is a possible duplicate. Suspended files count. Ignore draft, rejected and anonymized files, and files whose `expires_at` is in the past. |
+| BR-DUP-002 | Save possible duplicates as review_required with reason POSSIBLE_DUPLICATE. Keep both files. A clean file becomes submitted. Approval is a separate step. |
+| BR-DUP-003 | Submissions sharing an address or person wait on PostgreSQL advisory locks. Take locks in a fixed order before the search and hold them until the outer transaction ends. |
+
+Open statuses: `submitted`, `review_required`, `awaiting_visit`,
+`approved`, `renewal_needed`, and `suspended`. A missing or future expiry does not
+exclude a file.
+
+## Household suspension (US-32)
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-HH-SUSPEND-001 | Only an active administrator can suspend an approved file or reactivate a suspended file. Both actions require a reason and an audit event. |
+| BR-HH-SUSPEND-002 | Suspension preserves the approval expiry, cancels every reserved reservation without a strike, and returns its units to the listing. Reactivation is refused after expiry. |
+| BR-HH-SUSPEND-003 | A localized status email is queued after commit when the household has an email. A counter-only file without email can still change status. Delivery failure does not undo the change. |
+| BR-HH-SUSPEND-004 | A status reason is limited by the active `household_suspension.reason_max_length` RuleSet value (default 500). Reasons containing personal, identity, document or financial information are refused before an audit event or email job is created. |
 
 ## Notices of assessment (US-18)
 
@@ -174,3 +263,16 @@ The listings owner and reviewers must confirm them before merge.
 The margin and the prohibited list come from the versioned `listing_safety`
 RuleSet, not from hardcoded values. The rules are checked in
 `backend/modules/listings/domain/safety.py`.
+
+### Browsing rules (US-36)
+
+The following rule IDs are introduced for review with US-36 (#504).
+The listings owner and reviewers must confirm them before merge.
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-LIST-004 | An approved household (status `approved` and not expired) sees a listing when it is published, has units left and its pickup has not ended. Until tiers exist (US-51), every approved household sees every such listing. |
+| BR-LIST-005 | The "pickup today" filter keeps visible listings whose pickup starts before the next midnight, Montreal time, including a window that started the day before. |
+
+Visibility is decided only in `listings.queries.visible_listings`; the end of
+the day comes from `backend/modules/listings/domain/browsing.py`.

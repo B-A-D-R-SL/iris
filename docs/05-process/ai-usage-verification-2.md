@@ -1,0 +1,330 @@
+<!-- AI contribution: 50% or more AI-generated -->
+
+# AI verification history, part 2
+
+[Contribution inventory and declaration rules](../../AI_USAGE.md).
+
+### T-00.08.1 Official LICO table (#394)
+
+- **What the AI produced:** a draft of `docs/04-data/lico-thresholds.md` recording the official table, selection criteria, retrieval date, and seven threshold values.
+- **Leon's contribution:** Leon stopped the initial implementation to request a plan, asked for a comparison with `Iris-Requirements.md` and a rewrite, then approved the revised scope before implementation. He reviewed the resulting documentation and committed it as `5e3baad`.
+- **How we verified it:** the published document records Statistics Canada table 11-10-0241-01, the before-tax series for communities of 500,000 and over, reference year 2024, retrieval on October 18, 2026, and the seven values for family sizes 1 through 7 or more. It includes the selected-table link so a teammate can check the figures against the source.
+- **Problems found and corrections:** the first implementation preceded Leon's review. At his request, the work returned to a reviewable plan and was narrowed to fetching and documenting the official values; the CSV and rule seeding were left for T-00.08.2.
+
+### T-00.08.2 LICO threshold seed
+
+- **What the AI produced:** the reviewed 2024 LICO CSV, a seed loader for its source and retrieval metadata, and focused seed tests.
+- **Leon's contribution:** Leon requested a comparison of the draft with `Iris-Requirements.md`, approved the resulting plan, and ran `seed_rules` in his local Docker environment. He inspected the stored `lico_thresholds` version 1 values and metadata and asked for confirmation that the unit test covers all seven family sizes and cent amounts.
+- **How we verified it:** the default seed path publishes version 1 with all seven exact cent amounts from the SET-08.1 source document, the Statistics Canada link, and the recorded retrieval date. Six focused tests passed, including idempotence and rejection of missing or duplicate data and missing retrieval metadata. Ruff lint, Ruff formatting, and mypy passed on the changed Python files. Teammate review remains pending.
+- **Problems found and corrections:** the earlier seed loader used the date when the command ran as `retrieved_on`, which could misstate when the data was obtained. Source and retrieval metadata now travel with the CSV, and the loader validates them before publishing.
+
+### T-02.11.1 B.A.D.R. first store tests (#439)
+
+- **What the AI produced:** tests covering the Store fields and one-B.A.D.R. constraint, an idempotent seed, and Django admin access. `test_api.py` records only a comment for the later US-14 Store REST endpoint tests.
+- **Leon's direction:** use the documented local administrator credentials for the admin test, with an isolated PostgreSQL test database. Keep this task limited to US-11 tests; the Store model, seed command, admin registration, migration, and app setup belong to the build tasks.
+- **How we verified it:** the original model, seed, and admin tests passed against a temporary Store implementation, which was removed at Leon's request. With the #441 model in place, nine focused model and admin tests passed against PostgreSQL with 96% Store-module coverage. The seed test passes with #442; teammate review remains pending.
+- **Problems found and corrections:** the initial work included production code beyond T-02.11.1. It was removed, and the local demo migration and seed were reversed. The seed test now checks the exact placeholder address from issue #442. At Leon's request, the admin HTTP-to-database integration test was replaced by direct admin form tests. REST endpoint tests were later reduced to a US-14 comment after reviewing the team requirements and architecture.
+
+### T-02.11.2 Store model and migration (#441)
+
+- **What the AI produced:** a PostgreSQL-backed Store model with UUID ID, the partial one-B.A.D.R. constraint, case-insensitive `citext` email, Django admin registration routed through `stores.services`, an initial migration, app configuration, and a reusable `StoreFactory`.
+- **Leon's contribution:** Leon supplied the #441 task scope, checked the proposed work against `Iris-Requirements.md` and the team architecture, database, and API documents, and kept the REST endpoint out of this model task. He requested a revised plan, reviewed the staged partner-application foreign key and service-layer admin writes, and approved implementation.
+- **How we verified it:** the Store migration applied cleanly to local PostgreSQL; `makemigrations --check --dry-run` found no changes; nine focused tests passed, including validation, the database uniqueness constraint, admin permissions, and case-insensitive email. Focused coverage was 96%; Ruff and mypy passed on the Store module. A teammate's review is still needed.
+- **Problems found and corrections:** Django's `ModelAdmin` cannot be subscripted at runtime, so its annotation was removed before generating the migration. The generated migration needed a `CITextExtension` operation before creating the table. The nullable `application_id` foreign key is staged for the PartnerApplication model rather than represented as an unvalidated UUID in #441.
+- **PR review follow-up:** Leon brought a CodeRabbit finding about untranslated Django admin text and approved a minimal localization fix. The Store app name and postal-code validation message use lazy translation with a compiled French catalog; Django selects French by default and English from the request. That focused fix passed seven admin tests and all 63 backend tests, plus Ruff and mypy. Leon then requested the remaining Store admin labels in both languages. The Store field and model names now use lazy translation with Store-specific message context so project wording such as “Courriel” takes precedence over Django's generic translation. A label-only migration records the changes; bilingual admin form tests cover the approved labels. The first test run caught Django's generic “Adresse e-mail” translation, which was fixed with Store-specific context. The final run passed all 65 backend tests, Ruff, mypy, and the migration check. CI then found an import-order error in the generated migration; Leon reported it, and repository-wide Ruff lint and format checks passed after the migration was sorted and formatted.
+- **PR CI follow-up:** Leon reported that a teammate's CodeRabbit suggestion made `is_badr` read-only in Django admin. The AI updated the bilingual admin test to verify the translated read-only label while checking that `is_badr` cannot be edited through the form. All 65 backend tests passed with 84.90% coverage; repository-wide Ruff lint and format, mypy, and migration checks passed. The suggestion commit's original subject failed the project's commit policy. With Leon's approval, its subject was reworded to follow the policy while preserving the teammate's author, code change, and a separate follow-up commit for the test correction.
+- **Generated API types:** The next CI run found that narrowing Django's supported languages to English and French changed the OpenAPI `lang` enum. The AI exported the schema with test settings, ran the pinned `pnpm gen:api` generator in an isolated frontend container copy, and updated `frontend/src/shared/api/generated.d.ts`. The generator's check, frontend type check, and Prettier check passed.
+
+### T-02.11.3 B.A.D.R. seed (#442)
+
+- **What the AI produced:** a `seed_badr_store` management command, a Store service that creates only a missing B.A.D.R. row, and tests for the exact placeholder address, repeat runs, retained administrator edits, and an unaffected partner store.
+- **Leon's contribution:** Leon requested a plan based on the team requirements, architecture, database, and API documents, then reviewed and approved the plan before implementation. The real store details remain for B.A.D.R. to confirm.
+- **How we verified it:** eleven focused Store tests passed against PostgreSQL, including both seed tests. Focused Store-module coverage was 96.59%; Ruff lint and formatting and mypy passed on the changed Python files. A teammate's review is still needed.
+- **Problems found and corrections:** Ruff found an import ordering issue and mypy treated the test factory instance as a factory rather than a Store. Both were corrected before the final checks.
+
+### SET-12 Listing categories and safety lists (#403)
+
+- **What the AI produced:** with Claude Code, the Listings section of `docs/02-requirements/business-rules.md` (16 categories with code, French and English names, food or not and default value; the prohibited items list; how food categories, default values and the "safe and allowed" confirmation are used) and the seed file `backend/modules/categories/data/categories.yaml`, from the team draft and the owner's decisions (publish only the SET-12 section, keep the draft's 16 categories and 8 prohibited items, use the column names of the `categories_category` table).
+- **How we verified it:** compared the category table with the team draft line by line (identical); a script checked that every YAML entry matches the document row in the same order (code, both names, food flag, value in cents, active) and that the French and English names match the SET-13 `categories` keys in `fr.json` and `en.json`. TODO: list agreed with the team on 2026-10-16.
+- **Problems found and corrections:**
+  - The AI first added French wording for the prohibited items that was not in the team draft. Removed: the list stays as in the draft until the French wording is agreed with the glossary owner (SET-13).
+  - The team draft contradicts itself: the business rules say prohibited items have no category, but US-34 says "categories on the prohibited list cannot be selected". The document follows the business rules; US-34 is to be reworded or confirmed by the team.
+  - The YAML keys first followed the team draft schema, including `sort_order`, while the SET-05 branch used other names (`french_label`, `food_indicator`, `active_indicator`) and no sort order. Agreed with the SET-05 owner: keep `name_fr`, `name_en`, `is_food`, `is_active` (consistent with `is_active` and `is_badr` on other tables) and drop `sort_order`.
+  - The sentence on the `listing_safety` setting (`prohibited_category_codes`, empty by default) comes from the unmerged SET-07 branch, not the team draft; to be confirmed with the SET-07 owner.
+
+
+### T-05.33.3 Posting service/API and T-05.33.1 tests (#494, #492)
+
+- **What the AI produced:** with OpenAI Codex, the independent listing-posting
+  backend and tests (50% or more AI-generated): validation, role/store permission
+  checks, database operations, safety/photo integration interfaces, the POST
+  endpoint, translated errors, generated API types, and documentation. Mark
+  required compliance with the repository architecture and testing without
+  integrating Vlad's account code or implementing Ryan's safety checker.
+
+- **How we verified it:** Codex ran the checks under Mark's direction against
+  local PostgreSQL. All 228 backend tests passed with 90.01% coverage, exceeding
+  the 70% gate. Ruff lint and formatting, mypy across 91 files, the existing
+  import-linter contract, Django system checks, and missing-migration checks
+  passed. OpenAPI validation and generated-type drift checks passed; API
+  generator tests recorded seven passes and one expected Python-only skip.
+  All 11 frontend tests, TypeScript checking, production build, ESLint,
+  generated-declaration formatting, and Git whitespace checking passed.
+  Tests cover validation boundaries, permissions, server-controlled fields,
+  database writes, rule versions, safety refusals, upload checks, cleanup,
+  translated responses, and CSRF enforcement. all implemented files have been reviewed.
+
+- **Problems found and corrections:**
+  - Mark requested explanations of every changed file and questioned the
+    dependencies, database requirements, injection protection, and backend
+    translations. The decisions and remaining integration boundaries were
+    explained against the repository documentation.
+  - Mark identified a leading blank line that failed formatting. Removed it
+    using Ruff and reran the static checks.
+  - Mark requested removal of the private photo-storage reference from
+    responses. Removed it, updated schema assertions, and regenerated API types.
+  - Mark requested checking actual JPEG/PNG signatures instead of trusting
+    only the declared content type. Added signature checks and mismatch tests,
+    and updated existing photo fixtures.
+  - Mark requested controlled handling of missing or unexpected posting-rule
+    keys. These now return HTTP 503, with service tests and English/French API
+    tests confirming that no listing is saved.
+
+### SET-16 Design system, translations and app shell (#407)
+
+- **What the AI produced:** with Claude Code, under Anthony Monaco's direction: the Mantine theme built from the Figma Components page of the owner's SET-11 wireframes, layouts for the public, household, store and staff areas with role-based navigation and route guards, the six shared form fields (`TextField`, `DateField`, `PostalCodeField`, `PhoneField`, `MoneyField`, `FileUpload`) with French and English validation messages, loading, empty and error states, the welcome page, the web app manifest and icons, tests and `docs/guides/design-system.md`.
+- **Owner's decisions:** keep the grayscale look of the wireframes; read the signed-in user from US-01's `GET /api/me/` with a hand-written type until US-01 merges, rather than building on the unmerged US-01 branch; add `@tabler/icons-react`, `@mantine/dates` and `dayjs`, `@mantine/form`, `@fontsource/inter` and an accessibility checker; deliver all of SET-16 in one change, left uncommitted for review.
+- **How we verified it:** Anthony read through all of the generated code to check its structure, naming and fit with the architecture (`app/`, `areas/`, `features/`, `shared/`) and that he can explain it. 158 Vitest tests pass (94.3% coverage), including axe accessibility checks on forms and pages and tests of every role's menu and redirects; TypeScript, ESLint, Prettier, the production build, `pnpm test:api` and `pnpm gen:api --check` pass. Each area was screenshotted with phone emulation at 360 px and at 1024 px: no page scrolls sideways.
+- **Problems found and corrections:**
+  - Found by Anthony during his review: the date rule accepted impossible dates such as `2026-02-31`, because JavaScript's `Date.parse` rolls them into the next month. Confirmed with a test, fixed by checking that the year, month and day survive a round trip, and covered by regression tests (`2026-02-31`, `2026-02-29` and `2026-04-31` refused; `2028-02-29` accepted).
+  - Inputs and buttons first rendered at Mantine's default `sm` size (36 px, 14 px text) instead of the Figma 44 px inputs and 48 px buttons with 16 px text; `md` became the default size, tuned to the Figma values, and a theme test now checks them.
+  - The fields first required `value`, so the standard `{...form.getInputProps("…")}` pattern did not compile; `value` is now optional with an empty default.
+  - `MoneyField` returned `null` while an amount was being typed; it now reads the parsed number from `onValueChange`.
+  - The 360 px screenshots showed the staff header cutting off the language switch and a long side-nav label overflowing its row; both layouts were fixed and checked again.
+  - `vitest-axe` (last released in 2022) was replaced by `axe-core`, which it only wraps.
+  - The placeholder colour is darker than in the wireframes (`#6c757d` instead of `#868e96`) to meet the 4.5:1 contrast of NFR-03.
+
+### T-05.33.4 Posting form (#495)
+
+- **What the AI produced:** with Claude Code, under Anthony Monaco's direction: the one-screen, phone-first posting form at `/store/listings/new` following his SET-11 "Store - Post a listing" flow (bottom-sheet category picker with food first, − / + steppers, day chips, unit switch, best-before date for food only, error summary, publish bar that stays above the tab bar), the API client with CSRF and `Accept-Language`, a shared `IntegerField`, French and English texts, and tests. Before the form, `main` was merged into `US-33-post-a-listing` to bring in SET-16 and SET-14.
+- **Owner's decisions:** change the posting API to take the category **code**, because `GET /api/categories/` deliberately exposes no database IDs; add test-only import-linter exceptions for the listings tests rather than loosen SET-14's contract for every module; show "L'adresse de votre commerce" instead of the real address until a store endpoint exists; leave everything uncommitted for review.
+- **How we verified it:** 32 new Vitest tests (form rules, payload, API client and the whole screen through the router, including axe checks) and all 204 frontend tests pass; TypeScript, ESLint, Prettier and the production build pass. Backend: 255 tests pass (90.3% coverage); Ruff, mypy, import-linter, `manage.py check` and `makemigrations --check` pass; API types regenerated and the drift check passes. Anthony reviewed the code before committing it and checked the screen in his browser through the preview API; the one-hand check is part of T-05.33.5's sessions.
+- **Problems found and corrections:**
+  - The 7-days-ahead check first added calendar days, which is one hour off from the server's elapsed-time rule across a daylight-saving change (1 November 2026); it now adds 168 hours, and the tests use a week without a change so they pass in any time zone.
+  - The best-before date picker first had a minimum date, so an earlier date was silently dropped and the field said "Remplissez ce champ."; without it the date stays visible with its explanation, as in the SET-11 error state.
+  - ESLint's React Compiler rules refused reading a ref inside the submit handler; scrolling to the notices now happens in an effect, after they render.
+  - The merge with `main` registered the categories app twice and broke the listings tests against SET-14's new rules; the duplicates were removed and the tests adapted (`RuleValidationError`, constraint name).
+
+### T-05.33.5 Time-to-post check (#496)
+
+- **What the AI produced:** with Claude Code, under Anthony Monaco's direction: the study plan in `docs/usability/time-to-post.md` (set-up, French scenario card, procedure, results and fixes templates, limitations) and the tools in `frontend/scripts/usability/`: a preview API that answers as a store worker until US-01, times each participant from the form appearing to the accepted post, checks the post against the scenario and prints the median, plus a report script and 18 unit tests.
+- **Owner's decisions:** time runs automatically in the preview (stopwatch as backup); run the sessions in the browser's phone view on a PC rather than on phones; one food listing for everyone; commit the tools with tests so the team can rerun the study.
+- **How we verified it:** the 18 tool tests pass with the 204 existing frontend tests. End to end, a page opened in headless Edge as `?participant=P1` started P1's clock through Vite's proxy, a post was timed and matched the scenario, and the report printed the table. Anthony reviewed the code and ran a practice session with the preview. The sessions themselves, and so the times, are his to run.
+- **Problems found and corrections:**
+  - The categories are refetched when the tab becomes visible again, so "first request after the page loads" could have started a clock early; each participant now has their own clock, started by their page's first load and keyed by the code in the page address.
+  - Anthony's practice run showed a new clock starting when he came back to the browser, and pressing F5 did not restart it; a page reload (its `/api/me/` request) now drops the running clock, and the preview prints it.
+  - Vitest's Node environment cannot load the shared test set-up (it needs `document`); the tool tests run in the default jsdom environment, where Node's `http` still works.
+
+### T-03.17.2 and T-03.17.3 Walk-in household registration (#463, #464; US-17)
+
+- **Developer direction and AI assistance:** The owner requested implementation of the two assigned backend tasks for US-17 and chose a shared `US-17` branch. ChatGPT consulted the project proposal, team reference ZIPs, repository conventions and issue acceptance criteria, then drafted a ZIP-based implementation, two follow-up quality-fix scripts and an OpenAPI enum fix. The owner applied the files locally, executed all commands, investigated failures with ChatGPT, and retained responsibility for review, commits and integration. No pull request or merge has been completed.
+- **What the AI produced:** A Django `Household`/`Member` schema and AI-drafted initial migration, address and person normalization, reusable test factories, staff-restricted `create_walk_in` / `update_draft` services, POST/GET/PATCH household endpoints, permission and draft audit-event tests, API serializers, routes, and module documentation. Supporting changes registered the routes, accommodated test-only factory imports, named the shared preferred-language enum for OpenAPI, and regenerated TypeScript API declarations. The implementation stores an in-person identity-check flag, not identification-document content.
+- **Verification performed by the owner:** 28/28 focused household tests passed. The complete backend suite passed **327/327** tests at **90.36%** coverage (required minimum 70%) after the final schema changes. Ruff lint/format, mypy (270 source files), all three import-linter contracts, Django system checks and migration-drift checks passed. OpenAPI generation with validation and `--fail-on-warn`, generated API-type drift checks, and frontend TypeScript checks passed. The full frontend suite passed **259/259** tests across 21 files with **92.53% statement coverage**; ESLint and the production build also passed.
+- **Problems found and corrections:**
+  - A previously reused local PostgreSQL volume had an inconsistent `account` / `accounts` migration history and caused backend restart loops. The owner created a separate `iris_us17` development database instead of deleting the existing database; migrations then applied. This was a local environment issue, not a household schema test failure.
+  - Initial Ruff failures (imports, formatting, a string-join recommendation and magic numbers) were corrected; four mypy errors were resolved by using the concrete user model type. A forbidden direct import from `modules.households.api.views` into the accounts authentication module was removed in favor of the existing project-wide DRF authentication configuration.
+  - An earlier AI fix script failed because its exact-text replacement did not match Ruff-formatted source; the script was revised and successfully applied without changing unrelated code.
+  - OpenAPI's `preferred_language` choice sets produced two warnings and blocked generated API types. The labeled choices were aligned and an explicit enum name was configured; schema validation, generated declarations and TypeScript checks then passed.
+  - The default `pnpm format:check` flagged 100 frontend files on the Windows checkout. Re-running the same check with `--end-of-line auto` passed, indicating a line-ending mismatch; unrelated frontend files were not reformatted. GitHub CI's default formatting check is still to be verified.
+- **Remaining review/integration:** The household draft currently has a local `HouseholdDraftEvent` audit trail; the team must decide how to integrate it with the central US-62 audit service before merging. The staff registration UI belongs to a separate task (#465), not these backend tasks. Peer review, security/dependency-audit CI results and final merge remain pending.
+
+### T-03.17.4 Walk-in form screens and T-03.17.1 tests (#465, #462; US-17)
+
+- **What the AI produced:** with Claude Code, under Ammar Ranko's direction: the staff walk-in screens at `/staff/walk-in` and `/staff/walk-in/:id` (steps holder, address, members, review; "Save draft" and the "Draft saved" screen from Figma W3), the API client for the T-03.17.3 endpoints, the form rules and API mapping, a local select field, French and English texts, and the Vitest tests.
+- **Developer direction and review:** Ammar provided the requirements the AI worked from (the acceptance criteria of user story #461, tasks #462 and #465, and the Figma W3 wireframes) and required the work to follow them and the repository's existing conventions. He stopped the work mid-way to check its direction, had each file explained, reviewed the changes, and had them committed as one commit per file so each part can be reviewed separately. He restructured `HolderStep.tsx` and `AddressStep.tsx` himself (a separate props type, field lists rendered with `map`, a shared translation prefix), and `MembersStep.tsx` and `ReviewStep.tsx` were then aligned to that structure.
+- **Owner's decisions:** follow the Figma W3 look but the fields of user story #461 and the T-03.17.3 API, because the wireframe's counts, income and needs fields are not in the story's acceptance criteria; document the walk-in form in the requirements so later stories (US-18, US-19) use the same fields; use four steps as in #465 instead of the wireframe's single page; rather than send a field the API refuses, store the walk-in consent on the household for now (time given and text version), Ammar offered to add it in the backend as well and the T-03.17.3 owner agreed; work directly on the shared `US-17` branch.
+- **How we verified it:** 48 new Vitest tests (33 for form rules, payload, server-error mapping and resume logic, table-driven at the 18-year and 120-year boundaries; 15 for the screen through the router: create, resume, add a member, server and network errors, French/English, every role allowed or refused, axe checks). All 307 frontend tests pass; coverage of the new code is 94% of statements. TypeScript, ESLint, Prettier (new files, `--end-of-line auto` on Windows) and the production build pass. Ammar then tested the screens by hand in the browser against the running backend (Docker Compose): validation messages, the 18-year rule, saving and resuming a draft, the address and members steps, the review and "Draft saved" screens, English, an unknown draft, and the saved data read back from the API. Everything behaved as expected.
+- **Problems found and corrections:**
+  - The first save must be a POST that creates the draft, and the page then moves to `/staff/walk-in/:id`; the saved draft is put in the query cache and the next step is passed in the navigation state, so the form does not reload or lose its step.
+  - Mantine's select is labelled twice (input and option list), so the tests find it by its `combobox` role.
+  - Translation keys must have three parts, so every new text is under `staff.walkIn`; the field labels reuse `household.registration*`.
+- **Consent follow-up:** with Claude Code: two `Household` fields (`consent_data_processing_at`, `consent_text_version`) with migration `0002_household_consent`, the API field `consent_data_processing` (sending it again keeps the first time; `false` clears it), five backend tests, regenerated API types, the holder-step checkbox (required to continue, may wait in a draft), the review line, French/English texts, frontend tests, and the schema, ERD, walk-in sequence and module README updates. Verified: 33 household backend tests, Ruff, mypy, import-linter and `makemigrations --check` pass; all 308 frontend tests pass.
+- **Households migration conflict (SET-18 / US-17):** following the decision on #461 (proposed by Dani, agreed by Firas; Ammar took on the fix), with Claude Code: `main` merged into `US-17`, SET-18's `0001_initial` kept, a new `0002_walk_in_registration` generated and edited by hand to convert seeded rows (channel `walk-in` to `walk_in`, NULL `unit` to empty, with `SET CONSTRAINTS ALL IMMEDIATE` so PostgreSQL allows the table changes), the consent migration renumbered to `0003`, `HouseholdStatus`/`HouseholdChannel` kept as aliases for the seed, and two small seed fixes (channel value, and `identity_checked_in_person` set for verified files). Two migration tests (upgrade of a seeded row and reverse) were added; the first run of those tests found the PostgreSQL 'pending trigger events' failure, which was then fixed. Verified: 348 backend tests (91.2% coverage), Ruff, mypy, import-linter, `makemigrations --check`, API-type drift check, and 308 frontend tests pass. Adding a holder `Member` to seeded households stays with the SET-18 owner.
+- **Remaining:** the set-password email (acceptance criterion 4) depends on US-18 and US-57; staff can only reopen a draft from its link until search (US-63) exists. Peer review and CI remain pending.
+
+### SET-19 AI reading spike (#410)
+
+- **Feature or task:** SET-19 (#410), compare Azure AI Document Intelligence and Gemini on Vertex AI (Montréal) for reading notices of assessment.
+- **What the AI produced:** with Claude Code, the benchmark harness in `tools/notice_reading_spike/` (reader interface, scorer, run loop, both service readers, the layout parser, tests), the runbook, the draft ADR 0005, and the wiki pages Notice Reading, Notice Reading – Results and Notice Reading – Law 25 Evidence. The work is in the `feature/SET-19` commits from `a2d8b4b` onwards; the commits that fixed problems are named below.
+- **How we verified it:** 173 offline pytest tests in `tools/notice_reading_spike/tests/`: the two service readers run through fake clients (request contents, error wrapping, timeouts, cost, deletion of the analyze result, strict validation of model output), and `test_score.py` checks the scoring rules (exact cents, name and street normalization, confident-and-wrong counts, held-out and dev columns). Ruff lint (complexity limit 15) and format checks pass. A run of the truth reader over all 50 mock notices checks the run loop and file handling; the truth reader returns the truth, so 100% is expected there and says nothing about the scoring rules. Each commit got an AI review (Claude Code) against its task's requirements before the next task started, and a final AI review covered the whole branch. The owner ran the live measurements (two full runs per reader on the 50 mock notices, then the real-notice conditions), copied the provider pages and screenshots that the Law 25 evidence quotes, and chose the model settings. A teammate's pull-request review is still to come.
+- **Problems found and corrections:**
+  - Law 25 evidence (`fe1226c`): two Azure rows were marked "Meets" while the document's own "still unknown" table said they could not be confirmed, one row relied on a sentence with no source, a legal reading was not marked for legal review, and the s. 18.3 breach-notice and verification duties were cited to the wrong subparagraph. All corrected; statuses now follow the quoted sources only.
+  - Gemini reader (`c5a5acf`): `httpx` and `google-auth` were imported directly but not declared as dependencies; an error message said "Law 25 allows no other region", which is wrong (the Canadian-region rule is the team's own requirement); the prompt's example amount was a real mock notice's value, which could bias that file's measurement. All corrected.
+  - Document Intelligence reader (`93fa674`): the SDK's behaviour was checked in the installed package instead of assumed, which showed that `poller.result(timeout=...)` returns None on timeout instead of raising; the reader now treats that as a timeout.
+  - Final branch review (`a305a42`, `517dcb9` and the evidence fix): the unit was scored unfairly against Gemini ("app. 106" against "106"), the summary columns did not match the pass criteria, runs recorded no settings or freeze rule, one unexpected error could end a paid run, and some document claims were unsourced or overstated. All corrected; the unit rule now lives in one shared function.
+  - Live dev runs (`a7620ca`): the AI-written layout parser missed fields on real Azure output: watermark text inside the income cell, one misread postal-code character that lost the whole envelope block, and a notice number after the first date label. Fixed and tested on the recorded responses. Look-alike character correction was rejected, because on notice 033 it would have produced a wrong postal code.
+  - Model settings (`00cccd7`): the AI had set temperature 0, which Google's Gemini 3.x guidance says not to set; the reader now sends no sampling parameters.
+  - Law 25 evidence: the AI first wrote that Gemini would keep notices in Québec. Google's data residency page commits the Montréal endpoint's processing only to Canada, so the evidence and the ADR were corrected.
+  - Rejected: the AI's first idea of testing on a team member's own real notice, because the team's rules allow generated data only.
+
+### US-34 Listing safety checks (#497: #498, #499, #500)
+
+- **Feature or task:** US-34 (#497), the safety rules every listing must pass before it is published: the safe-and-allowed tick (stored with who and when), a best-before date for food on or after the pickup end date plus a margin, and no category on the prohibited list. Tasks T-05.34.1 tests (#498), T-05.34.2 safety rule (#499) and T-05.34.3 form messages (#500).
+- **What the AI produced:** with Claude Code, from a plan the owner reviewed and decided on first: the pure rule `listings/domain/safety.py`, optional `params` on `Refusal` and the Montreal pickup date in `safety_payload`, the new messages and their French translations, the store-only `GET /api/store/listings/categories/` endpoint (active categories minus prohibited ones), the form's switch to that endpoint, placeholder "See the list of prohibited items" links, the tests, the regenerated API types, and the documentation. The owner's decisions: hide prohibited categories in the form (the server still refuses them); show the minimum date in the best-before message, as the spec and the SET-11 mockup do; ignore a best-before date on non-food; repeat the tick check inside the safety rule; keep the prohibited-items list as a placeholder link only; and the wording of the two messages no spec defines (prohibited category, missing best-before date).
+- **How we verified it:** 68 new backend tests (32 pure rule tests, 11 service tests and 25 API tests, all with the real rule and PostgreSQL) and 7 new frontend tests. The full backend suite passed (381 tests, 92.75% coverage; `safety.py` and `queries.py` fully covered). Ruff lint and format, mypy, the three import-linter contracts, Django checks and the missing-migration check passed. The full frontend suite passed (266 tests, 92.62% coverage), and ESLint, TypeScript checking, the production build and the generated-type drift check passed. The French catalog was compiled with a stdlib script that first reproduced the committed `.mo` exactly from the old `.po`. The rendered messages were checked in both languages against the mockup ("Choisissez le 10 oct. 2026 ou après (fin de la cueillette).").
+- **Problems found and corrections:**
+  - The AI first planned a long month in the best-before date ("14 novembre 2026"); the SET-11 mockup shows a short month ("10 oct. 2026"), so the format was changed.
+  - The AI's first explanations of the story were too dense for the owner to follow; they were rewritten in plain language before any decision was taken.
+  - The AI first treated the prohibited-items link as minor and left it out; after checking the mockup it reported the link as part of the design, and the owner chose a placeholder.
+  - `SafetyRulesInvalid` was placed in `domain/posting.py`, not `safety.py`, so the service can catch it without importing the safety module eagerly and US-33's "missing checker" path keeps working.
+  - Test mistakes caught on the first runs: `Refusal` equality includes `params`; the API client's saved `Accept-Language` header overrode the per-request one in the French cases; published rule versions cannot be deleted, so "no rule in effect" is simulated by patching the rule lookup. Ruff also flagged naive test datetimes and mypy two loose test types; all fixed.
+  - Some frontend tests (US-33's posting form and US-01's sign-in) time out at random under coverage in the local Docker container. The unchanged `main` code times out the same way, so this is not caused by US-34; with a longer test timeout every test passes.
+
+### T-05.35.2 Category admin API and screen and T-05.35.1 tests (#503, #502; US-35)
+
+- **What the AI produced:** with Claude Code, under Ammar Ranko's direction: the admin endpoints `GET`/`POST /api/staff/categories/` and `PATCH /api/staff/categories/{code}/`, the admin-only `create_category` and `update_category` services (built on the existing `save_category()`), a pure `validate_default_value` rule, two read-only queries, the French catalog for the categories module, the extended `/staff/categories` page (status column, add and edit dialog, deactivate with confirmation, reactivate), French and English texts, the backend and frontend tests, and the documentation updates.
+- **Developer direction and review:** Ammar provided the requirements (user story #501, task #503, the Release 1 plan and the category business rules), asked for a written plan with request and screen examples before any code, and approved it. He then took over the US-35 tests task (T-05.35.1) from Ryan. Before committing, he had every file explained by following one request through each layer (page, form, API client, view, serializer, service, pure rule, database), checked that he could explain the design choices below, and had the changes committed as one commit per file so each part can be reviewed separately.
+- **Owner's decisions:**
+  - Endpoints: list and add on `/api/staff/categories/`, change by code on `/api/staff/categories/{code}/`, settling the "team decision pending" note in `api.md`. The code identifies a category because the public API exposes no database IDs.
+  - No delete at all, only deactivate and reactivate: listings refer to their category, so deleting one would break their history. Deactivating hides it from the posting and partner forms, and existing listings keep it. Deactivating asks for confirmation; reactivating does not.
+  - The code cannot change after creation, because other modules and the seed data use it as a stable identifier.
+  - The default value follows the business rules' listing value limit and is read from the `listing_posting` rule setting rather than hard-coded, so there is one place to change it. The pure rule receives the limit as an argument, as the team's `domain/` rule requires. The screen checks only formats and required fields; the server gives the limit message. On an edit, the value is checked only when it changes, so a later, lower limit does not block renaming or deactivating an older category.
+  - The admin role is checked in the view and again in the service, so a later caller cannot skip it. Unknown fields are refused rather than ignored.
+  - The existing `/staff/categories` page is extended rather than duplicated. The admin endpoints and calls are in new files (`staff_views.py`, `adminApi.ts`), so the public endpoint and `api.ts` (also changed by US-34) stay untouched.
+  - No audit of category changes: when the AI proposed one, he asked what the story and the code actually require. US-35 does not require it, and the US-62 audit log covers household views and decisions only.
+  - The test split with Ryan (T-05.35.1), later taken over, and the branch `user_story/US-35`.
+- **How we verified it:** 34 new backend tests in `test_staff_api.py` (the main path through the API and the database, every field and its refusals, the value limit from the rule setting at and above the limit, duplicate and unchangeable codes, unknown fields, no delete (405), deactivation hidden from the public list and reactivation, every role refused, signed-out 401, French and English messages, the pure rule), 3 tests in `listings/tests/test_category_admin.py` (a category used by a listing is deactivated, not deleted, and keeps the listing's link; posting with a deactivated category is refused; reactivation makes it usable again) and 30 frontend tests in the new `categoryForm.test.ts` and the rewritten `CategoriesPage.test.tsx` (form rules, payloads, the page: list, add, edit, deactivate with confirmation, reactivate, server and network errors, French and English, admin-only route, axe check). Backend: 425 tests pass at 92.1% coverage (the categories module at 93%, its `domain/` at 93%); Ruff, mypy, import-linter (3 of 3 kept), `makemigrations --check` and the API type check pass. Frontend: all tests pass with 94% coverage on the categories feature; TypeScript, ESLint, Prettier and the build pass.
+- **Problems found and corrections:**
+  - Checking the generated API types showed `default_value_cents` was optional while the create service read it directly, so a request without it would have failed with a 500. The field is now required, with a test.
+  - Re-running import-linter on its own found the new test importing the rule defaults (`rules.domain.schemas`), which the module contract forbids; a narrow, test-only exception was added, following the existing listings test exception.
+  - `CategoryForm.tsx` and `categoryForm.ts` differed only in letter case, which Windows treats as the same file; the dialog was renamed `CategoryDialog.tsx`, following the team's `NewListing.tsx` / `newListingForm.ts` pattern.
+  - The admin calls live in a new `adminApi.ts` so that `api.ts`, also changed by US-34 (#624), is untouched.
+  - CodeRabbit's review of #649 found four issues, each checked against the code and fixed in its own commit with a regression test that fails without the fix:
+    - The edit form sends the default value on every save, so the service checked it even when it had not changed; renaming an older category after the value limit was lowered was refused (and failed with 503 without the listing rules). This contradicted the decision above; the value is now checked only when it changes.
+    - Two admins adding the same code at the same moment got a 500 from the database's unique rule; `create_category` now returns "This category code already exists" for that case only and lets other database errors through. (Found first in our final read-through and listed as a follow-up.)
+    - Every Reactivate button showed as loading while one category was being reactivated; only that row's button does now. (Also listed as a follow-up.)
+    - The category rules had no `BR-` IDs, which review rule 6 requires in tests; BR-CAT-001 to BR-CAT-003 were added to `docs/02-requirements/business-rules.md` for the reviewers to confirm, and the tests name them.
+  - Two CodeRabbit checks were answered without changes: categories are shared reference data, so there is no per-category ownership beyond the admin role; and the lower bound `0` is "no negative value", not a setting (the listings rule uses the same `0`).
+  - While checking the fixes, we found that the `frontend` Docker container keeps the code copied at build time, so frontend checks run with `docker compose exec frontend` used stale files. The frontend checks were re-run in a container with the working folder mounted: 359 tests pass at 93% coverage (categories feature 94%). Backend after the fixes: 727 tests pass at 93% coverage.
+- **Remaining:**
+  - Peer review and CI.
+
+### SET-34 Colour tokens and status badge (#652, #653, #654)
+
+- **Tool and level:** Codex (OpenAI), 50% or more AI-generated.
+- **Developer direction:** Reuven requested SET-34 from current `main`, initially
+  authorized placeholder colours, then requested integration and completion after
+  SET-33 merged. The working branch is `SET-34-apply-colour-palette-and-status-badges`.
+- **What changed:** colour tokens and Mantine aliases; bilingual status badges with
+  generated enum coverage where available, shared notice icons and scoped unknown-status
+  logging; semantic colours across built screens, including the newly merged household
+  search; accessible control boundaries, inline errors, destructive actions, selected
+  controls and primary hover/pressed states; WCAG contrast tests and review rule 11.
+- **SET-33 integration (November 9, 2026):** PR #668 merged at `fd73186` and closed #651.
+  The earlier #664 draft was not the delivery. Existing local work was backed up before
+  fast-forwarding to `origin/main`; the design guide conflict was resolved by keeping
+  SET-33's token/status tables and adding the implementation guidance. All 70 original
+  palette shades match the Foundations export's swatches exactly. Neutral status,
+  input-border, placeholder, hover and pressed values come from its component-token note.
+  The decorative border is kept separate from the accessible input border.
+- **Verification:** 529 frontend tests passed across 32 files, with 94.72% line coverage.
+  TypeScript, ESLint, Prettier, production build and the required colour-literal scans
+  passed. Contrast checks include all semantic pairs, primary button states, destructive
+  text, placeholders, both control backgrounds, and black/white/self edge cases. Badge
+  tests cover every status in both languages, hidden icons, unknown/inherited-property
+  values, logging and axe; search integration checks success/danger badges.
+- **Browser review:** 76 French/English before-and-after captures at 360 px and staff
+  also at 1024 px, using fictional responses and no backend writes. No page errors or
+  page-level horizontal overflow; status labels do not clip. Primary normal/hover/pressed
+  colours passed live computed-style checks. Existing business flows/layouts were retained.
+  The evidence and available-prototype comparisons are in the local SET-34 handoff report.
+- **Pull request:** [#671](https://github.com/B-A-D-R-SL/iris/pull/671).
+- **Delivery:** screenshot evidence is committed under
+  `docs/03-design/verification/SET-34/`. CI, CodeRabbit, teammate review, merge and the
+  post-merge team announcement remain tracked in the pull request; local checks do not
+  substitute for those external steps.
+
+- **Review follow-up:** added success/warning contrast checks on the page surface,
+  clarified the neutral-token reference and replaced the tone-key cast with a type guard.
+  Added function documentation and split the enlarged test suites. Historical verification
+  entries moved into two linked files below 500 lines, retaining root feature anchors;
+  historical wording is unchanged and one relative link was adjusted for its new folder.
+  The pre-existing category-page/table structure remains intact for this colour task.
+
+- **Main integration:** retained main's split translation catalogs and all translation-file
+  checks, moving shared status labels into each language's common catalog and removing
+  the obsolete monolithic catalogs. Adapted the new household suspension detail screen
+  to shared status badges/notices and semantic action colours, preserving its server-led
+  permissions and transitions. Retained both logger event sets and all main AI records.
+  Merge verification: all 610 frontend tests pass across 33 files, with 95.09% line
+  coverage. TypeScript, lint, formatting and production build pass. Main translation
+  values and all 50 AI verification entries were checked for preservation.
+- **Ammar review follow-up:** removed the duplicate household/category status labels and
+  the household label map; search now validates the shared status map against both API
+  status types. Added filled/light/default hover tokens and contrasting light-hover text,
+  keeping all 70 Foundations swatches unchanged. Added a complete route/override inventory,
+  supplemental fictional-data browser captures, and regression/contrast coverage.
+  Verification: 578 frontend tests pass (94.72% line coverage), plus TypeScript, lint,
+  formatting and production build. Browser checks cover 32 route captures, two control
+  matrices and 42 hover measurements, with no page errors/overflow. Disabled controls
+  stay unchanged; filled/light hover text meets 4.5:1. No GitHub review reply was posted.
+
+AI-assisted files for this entry:
+
+- `frontend/src/areas/staff/pages/Household.tsx`
+- `frontend/src/areas/staff/pages/Household.test.tsx`
+- `frontend/src/shared/i18n/en/common.json`
+- `frontend/src/shared/i18n/en/household.json`
+- `frontend/src/shared/i18n/fr/common.json`
+- `frontend/src/shared/i18n/fr/household.json`
+
+- `frontend/src/features/households/searchApi.test.ts`
+- `frontend/src/features/households/searchApi.ts`
+- `docs/03-design/verification/SET-34/ammar-review.zip`
+- `docs/03-design/verification/SET-34/affected-screens.md`
+- `AI_USAGE.md`
+- `docs/03-design/verification/SET-34/README.md`
+- `docs/03-design/verification/SET-34/categories-before-after.png`
+- `docs/03-design/verification/SET-34/screenshots.zip`
+- `docs/03-design/verification/SET-34/sign-in-validation-before-after.png`
+- `docs/05-process/ai-usage-verification-1.md`
+- `docs/05-process/ai-usage-verification-2.md`
+- `docs/05-process/review-rules.md`
+- `docs/guides/design-system.md`
+- `frontend/src/app/contrast.test.ts`
+- `frontend/src/app/contrast.ts`
+- `frontend/src/app/layouts/Wordmark.tsx`
+- `frontend/src/app/layouts/layouts.module.css`
+- `frontend/src/app/theme.module.css`
+- `frontend/src/app/theme.test.tsx`
+- `frontend/src/app/theme.ts`
+- `frontend/src/app/tokens.ts`
+- `frontend/src/areas/public/pages/PartnerApply.tsx`
+- `frontend/src/areas/staff/pages/Search.module.css`
+- `frontend/src/areas/staff/pages/Search.test.tsx`
+- `frontend/src/areas/staff/pages/SearchResults.tsx`
+- `frontend/src/areas/staff/pages/WalkIn/DraftSaved.tsx`
+- `frontend/src/areas/staff/pages/WalkIn/MembersStep.tsx`
+- `frontend/src/areas/staff/pages/WalkIn/ReviewStep.tsx`
+- `frontend/src/areas/staff/pages/WalkIn/WalkIn.module.css`
+- `frontend/src/areas/staff/pages/WalkIn/WalkIn.tsx`
+- `frontend/src/areas/store/components/CategoryPicker.tsx`
+- `frontend/src/areas/store/pages/NewListing.tsx`
+- `frontend/src/features/categories/CategoriesPage.tsx`
+- `frontend/src/shared/auth/SignOutButton.tsx`
+- `frontend/src/shared/forms/FileUpload.tsx`
+- `frontend/src/shared/forms/fields.module.css`
+- `frontend/src/shared/logger.test.ts`
+- `frontend/src/shared/logger.ts`
+- `frontend/src/shared/ui/EmptyState.tsx`
+- `frontend/src/shared/ui/ErrorState.tsx`
+- `frontend/src/shared/ui/LoadingState.tsx`
+- `frontend/src/shared/ui/Notice.module.css`
+- `frontend/src/shared/ui/Notice.tsx`
+- `frontend/src/shared/ui/StatusBadge.test.tsx`
+- `frontend/src/shared/ui/StatusBadge.tsx`
+- `frontend/src/shared/ui/index.ts`
+- `frontend/src/shared/ui/statusTones.ts`
+- `frontend/src/shared/ui/toneIcons.ts`
+- `frontend/src/test/i18n.test.ts`
+- `frontend/src/test/render.tsx`

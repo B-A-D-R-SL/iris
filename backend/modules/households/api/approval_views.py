@@ -53,7 +53,7 @@ class WalkInApproveView(WalkInErrorHandlingMixin, GenericAPIView):
     )
     def post(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
         """Ask for the decision on one walk-in file."""
-        household = queries.walk_in_for_staff(id)
+        household = queries.walk_in_for_staff(id, request.user)
         if household is None:
             raise Http404
         try:

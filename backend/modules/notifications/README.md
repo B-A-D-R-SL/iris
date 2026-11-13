@@ -2,7 +2,7 @@
 # Notifications module
 
 **Owner pair:** Platform & setup
-**Status:** US-18 set-password email implemented; other workflows pending
+**Status:** Implemented for household status notices and the US-18 set-password email
 
 ## Responsibility
 
@@ -20,7 +20,11 @@ Own the notifications feature boundary within the Iris modular monolith.
 
 ## Public functions
 
-`services.queue_set_password_email(email=..., token=..., language=..., mailer=None)`
+- `queue_household_status_email`: after the caller commits, enqueue a localized
+  suspend or reactivate notice. Files without email are skipped.
+- `send_household_status_email`: Procrastinate worker task that delivers through
+  the mail adapter and records a privacy-safe failure event.
+- `queue_set_password_email(email=..., token=..., language=..., mailer=None)`:
 prepares a French or English setup email and registers delivery after the caller's
 transaction commits. It uses `FRONTEND_URL` to reach `/invitation/:token`.
 The SMTP adapter handles delivery; tests use a fake or Django's local-memory mailer.
@@ -33,6 +37,8 @@ because they would save the secret link in logs or files; use SMTP/Mailpit local
 
 Other modules must communicate through public services or queries.
 Do not import another module's models or internal domain code.
+
+The Compose `worker` service runs queued jobs separately from HTTP requests.
 
 ## Future implementation
 

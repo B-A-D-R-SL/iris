@@ -23,13 +23,13 @@ export function DraftSaved({ values, onResume, householdId }: DraftSavedProps) {
       <IconInfoCircle size={48} stroke={1.5} aria-hidden />
       <div>
         <Title order={1}>{t("staff.walkIn.draftSaved")}</Title>
-        <Text c="gray.7">{t("staff.walkIn.draftSavedDescription", { name })}</Text>
+        <Text c="dimmed">{t("staff.walkIn.draftSavedDescription", { name })}</Text>
       </div>
       <section className={classes.card} aria-labelledby="still-to-complete">
         <Title order={2} id="still-to-complete" className={classes.memberTitle} mb="xs">
           {t("staff.walkIn.stillToComplete")}
         </Title>
-        <List c="gray.7">
+        <List c="dimmed">
           {stillToComplete(values).map((key) => (
             <List.Item key={key}>{t(key)}</List.Item>
           ))}

@@ -5,11 +5,20 @@
 
 import logging
 from collections.abc import Mapping
-from typing import Any
+from ipaddress import ip_address
+from typing import Any, cast
+from urllib.parse import urlsplit
+from uuid import UUID
 
-from django.core.exceptions import ValidationError
+from django.conf import settings
+from django.core.exceptions import (
+    ImproperlyConfigured,
+    PermissionDenied,
+    ValidationError,
+)
+from django.core.validators import URLValidator
 from django.db import IntegrityError, transaction
-from django.utils import translation
+from django.utils import timezone, translation
 from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 
@@ -138,4 +147,245 @@ def submit_application(
         if _has_open_application(email):
             raise ApplicationAlreadyOpen(email) from None
         raise
+    return application
+
+
+class ApplicationAlreadyDecided(Exception):
+    """The application is no longer awaiting a decision."""
+
+
+def _require_active_admin(admin: Any) -> None:
+    """Authorize before inspecting deployment configuration or taking locks."""
+    if (
+        not admin
+        or not admin.is_authenticated
+        or not admin.is_active
+        or admin.role != "admin"
+    ):
+        raise PermissionDenied("An active admin is required.")
+
+
+def can_decide_application(application: PartnerApplication, admin: Any) -> bool:
+    """Decision availability for both API presentation and service enforcement."""
+    try:
+        _require_active_admin(admin)
+    except PermissionDenied:
+        return False
+    return application.status == ApplicationStatus.SUBMITTED
+
+
+def _loopback_host(host: str | None) -> bool:
+    """Permit plaintext links only on explicit development loopback hosts."""
+    if host == "localhost":
+        return True
+    try:
+        return ip_address(host or "").is_loopback
+    except ValueError:
+        return False
+
+
+def _frontend_origin() -> str:
+    """Fail explicitly on deployment mistakes before acquiring an application lock."""
+    value = settings.FRONTEND_URL
+    try:
+        if not isinstance(value, str):
+            raise ValidationError("Invalid origin")
+        value = value.rstrip("/")
+        URLValidator(schemes=["https", "http"])(value)
+        parts = urlsplit(value)
+        if (
+            parts.path
+            or "?" in value
+            or "#" in value
+            or parts.username
+            or parts.password
+            or (parts.scheme == "http" and not _loopback_host(parts.hostname))
+        ):
+            raise ValidationError("Invalid origin")
+    except (ValidationError, ValueError) as exc:
+        raise ImproperlyConfigured(
+            "FRONTEND_URL must be an HTTPS origin; HTTP is allowed only for loopback development."
+        ) from exc
+    return value
+
+
+def _locked_application(
+    application: PartnerApplication, admin: Any
+) -> PartnerApplication:
+    _require_active_admin(admin)
+    locked = PartnerApplication.objects.select_for_update().get(pk=application.pk)
+    if not can_decide_application(locked, admin):
+        raise ApplicationAlreadyDecided
+    return locked
+
+
+def _send_decision(
+    mailer: Mailer, email: str, subject: str, body: str, application_id: UUID
+) -> None:
+    """Keep committed decisions intact and identify failures without contact data."""
+    try:
+        mailer.send([email], subject, text=body)
+    except Exception:  # noqa: BLE001 - decision must remain committed.
+        logger.error(
+            "partner_application_decision_email_failed",
+            extra={
+                "event": "partner_application_decision_email_failed",
+                "application_id": str(application_id),
+            },
+        )
+
+
+def _approval_email(
+    application: PartnerApplication, base_url: str, token: str
+) -> tuple[str, str]:
+    """Translate initial and replacement invitations in the applicant's language."""
+    with translation.override(application.language):
+        subject = gettext("Your partner application has been approved")
+        body = gettext(
+            "Hello,\n\nYour partner application has been approved. Create your account:\n"
+            "%(link)s\n\nThe Iris team"
+        ) % {"link": f"{base_url}/invitation/{token}"}
+    return subject, body
+
+
+def _rejection_email(application: PartnerApplication, reason: str) -> tuple[str, str]:
+    """Translate the refusal while leaving the admin's supplied reason unchanged."""
+    with translation.override(application.language):
+        subject = gettext("Your partner application has been declined")
+        body = gettext(
+            "Hello,\n\nYour partner application has been declined.\n"
+            "Reason: %(reason)s\n\nThe Iris team"
+        ) % {"reason": reason}
+    return subject, body
+
+
+def _record_decision(application: PartnerApplication, admin: Any) -> None:
+    """Persist the decision and audit atomically; log success only after commit."""
+    from modules.audit import services as audit_services
+
+    application.decided_by = admin
+    application.decided_at = timezone.now()
+    application.save(
+        update_fields=["status", "decided_by", "decided_at", "decision_reason"]
+    )
+    audit_services.record(
+        admin,
+        "decision",
+        "partner_application",
+        application.pk,
+        {"outcome": application.status},
+    )
+    event = f"partner_application_{application.status}"
+    transaction.on_commit(lambda: logger.info(event, extra={"event": event}))
+
+
+@transaction.atomic
+def approve_application(
+    application: PartnerApplication, admin: Any, *, mailer: Mailer | None = None
+) -> PartnerApplication:
+    """Create the store and manager invitation atomically, then email after commit."""
+    from modules.accounts import services as account_services
+
+    _require_active_admin(admin)
+    base_url = _frontend_origin()
+    application = _locked_application(application, admin)
+    store = Store(
+        name=application.business_name,
+        street_number=application.street_number,
+        street_name=application.street_name,
+        unit=application.unit,
+        city=application.city,
+        postal_code=application.postal_code,
+        phone=application.contact_phone,
+        email=application.contact_email,
+        opening_hours={"notes": application.opening_hours},
+        application=application,
+    )
+    store.full_clean()
+    store.save()
+    token = account_services.create_invitation(
+        email=application.contact_email,
+        first_name=application.contact_first_name,
+        last_name=application.contact_last_name,
+        role="store_manager",
+        store=store,
+        invited_by=admin,
+    )
+    application.status = ApplicationStatus.APPROVED
+    application.decision_reason = None
+    _record_decision(application, admin)
+    subject, body = _approval_email(application, base_url, token)
+    sender = mailer if mailer is not None else SmtpMailer()
+    transaction.on_commit(
+        lambda: _send_decision(
+            sender, application.contact_email, subject, body, application.pk
+        )
+    )
+    return application
+
+
+@transaction.atomic
+def resend_approval_invitation(
+    application: PartnerApplication, admin: Any, *, mailer: Mailer | None = None
+) -> None:
+    """Reissue an approved application's invitation; send only after commit."""
+    from modules.accounts import services as account_services
+
+    _require_active_admin(admin)
+    base_url = _frontend_origin()
+    application = PartnerApplication.objects.select_for_update().get(pk=application.pk)
+    if application.status != ApplicationStatus.APPROVED:
+        raise ValidationError(
+            "Only approved applications can have invitations reissued."
+        )
+    store = Store.objects.get(application=application)
+    token = account_services.reissue_store_manager_invitation(
+        email=application.contact_email,
+        first_name=application.contact_first_name,
+        last_name=application.contact_last_name,
+        store=store,
+        invited_by=admin,
+    )
+    subject, body = _approval_email(application, base_url, token)
+    sender = mailer if mailer is not None else SmtpMailer()
+    transaction.on_commit(
+        lambda: _send_decision(
+            sender, application.contact_email, subject, body, application.pk
+        )
+    )
+
+
+@transaction.atomic
+def reject_application(
+    application: PartnerApplication,
+    admin: Any,
+    reason: str,
+    *,
+    mailer: Mailer | None = None,
+) -> PartnerApplication:
+    """Record a rejection and notify the applicant after the transaction commits."""
+    application = _locked_application(application, admin)
+    # BR-PARTNER-04: derive the fixed API/storage bound from its model field.
+    reason_limit = cast(
+        int, PartnerApplication._meta.get_field("decision_reason").max_length
+    )
+    if (
+        not isinstance(reason, str)
+        or not reason.strip()
+        or len(reason.strip()) > reason_limit
+    ):
+        raise ValidationError(
+            {"reason": _("Enter a reason of at most 500 characters.")}
+        )
+    reason = reason.strip()
+    application.status = ApplicationStatus.REJECTED
+    application.decision_reason = reason
+    _record_decision(application, admin)
+    subject, body = _rejection_email(application, reason)
+    sender = mailer if mailer is not None else SmtpMailer()
+    transaction.on_commit(
+        lambda: _send_decision(
+            sender, application.contact_email, subject, body, application.pk
+        )
+    )
     return application
