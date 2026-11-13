@@ -208,3 +208,158 @@
   - While checking the fixes, we found that the `frontend` Docker container keeps the code copied at build time, so frontend checks run with `docker compose exec frontend` used stale files. The frontend checks were re-run in a container with the working folder mounted: 359 tests pass at 93% coverage (categories feature 94%). Backend after the fixes: 727 tests pass at 93% coverage.
 - **Remaining:**
   - Peer review and CI.
+
+### SET-34 Colour tokens and status badge (#652, #653, #654)
+
+- **Tool and level:** Codex (OpenAI), 50% or more AI-generated.
+- **Developer direction:** Reuven requested SET-34 from current `main`, initially
+  authorized placeholder colours, then requested integration and completion after
+  SET-33 merged. The working branch is `SET-34-apply-colour-palette-and-status-badges`.
+- **What changed:** colour tokens and Mantine aliases; bilingual status badges with
+  generated enum coverage where available, shared notice icons and scoped unknown-status
+  logging; semantic colours across built screens, including the newly merged household
+  search; accessible control boundaries, inline errors, destructive actions, selected
+  controls and primary hover/pressed states; WCAG contrast tests and review rule 11.
+- **SET-33 integration (November 9, 2026):** PR #668 merged at `fd73186` and closed #651.
+  The earlier #664 draft was not the delivery. Existing local work was backed up before
+  fast-forwarding to `origin/main`; the design guide conflict was resolved by keeping
+  SET-33's token/status tables and adding the implementation guidance. All 70 original
+  palette shades match the Foundations export's swatches exactly. Neutral status,
+  input-border, placeholder, hover and pressed values come from its component-token note.
+  The decorative border is kept separate from the accessible input border.
+- **Verification:** 529 frontend tests passed across 32 files, with 94.72% line coverage.
+  TypeScript, ESLint, Prettier, production build and the required colour-literal scans
+  passed. Contrast checks include all semantic pairs, primary button states, destructive
+  text, placeholders, both control backgrounds, and black/white/self edge cases. Badge
+  tests cover every status in both languages, hidden icons, unknown/inherited-property
+  values, logging and axe; search integration checks success/danger badges.
+- **Browser review:** 76 French/English before-and-after captures at 360 px and staff
+  also at 1024 px, using fictional responses and no backend writes. No page errors or
+  page-level horizontal overflow; status labels do not clip. Primary normal/hover/pressed
+  colours passed live computed-style checks. Existing business flows/layouts were retained.
+  The evidence and available-prototype comparisons are in the local SET-34 handoff report.
+- **Pull request:** [#671](https://github.com/B-A-D-R-SL/iris/pull/671).
+- **Delivery:** screenshot evidence is committed under
+  `docs/03-design/verification/SET-34/`. CI, CodeRabbit, teammate review, merge and the
+  post-merge team announcement remain tracked in the pull request; local checks do not
+  substitute for those external steps.
+
+- **Review follow-up:** added success/warning contrast checks on the page surface,
+  clarified the neutral-token reference and replaced the tone-key cast with a type guard.
+  Added function documentation and split the enlarged test suites. Historical verification
+  entries moved into two linked files below 500 lines, retaining root feature anchors;
+  historical wording is unchanged and one relative link was adjusted for its new folder.
+  The pre-existing category-page/table structure remains intact for this colour task.
+
+- **Main integration:** retained main's split translation catalogs and all translation-file
+  checks, moving shared status labels into each language's common catalog and removing
+  the obsolete monolithic catalogs. Adapted the new household suspension detail screen
+  to shared status badges/notices and semantic action colours, preserving its server-led
+  permissions and transitions. Retained both logger event sets and all main AI records.
+  Merge verification: all 610 frontend tests pass across 33 files, with 95.09% line
+  coverage. TypeScript, lint, formatting and production build pass. Main translation
+  values and all 50 AI verification entries were checked for preservation.
+- **Ammar review follow-up:** removed the duplicate household/category status labels and
+  the household label map; search now validates the shared status map against both API
+  status types. Added filled/light/default hover tokens and contrasting light-hover text,
+  keeping all 70 Foundations swatches unchanged. Added a complete route/override inventory,
+  supplemental fictional-data browser captures, and regression/contrast coverage.
+  Verification: 578 frontend tests pass (94.72% line coverage), plus TypeScript, lint,
+  formatting and production build. Browser checks cover 32 route captures, two control
+  matrices and 42 hover measurements, with no page errors/overflow. Disabled controls
+  stay unchanged; filled/light hover text meets 4.5:1. No GitHub review reply was posted.
+
+AI-assisted files for this entry:
+
+- `frontend/src/areas/staff/pages/Household.tsx`
+- `frontend/src/areas/staff/pages/Household.test.tsx`
+- `frontend/src/shared/i18n/en/common.json`
+- `frontend/src/shared/i18n/en/household.json`
+- `frontend/src/shared/i18n/fr/common.json`
+- `frontend/src/shared/i18n/fr/household.json`
+
+- `frontend/src/features/households/searchApi.test.ts`
+- `frontend/src/features/households/searchApi.ts`
+- `docs/03-design/verification/SET-34/ammar-review.zip`
+- `docs/03-design/verification/SET-34/affected-screens.md`
+- `AI_USAGE.md`
+- `docs/03-design/verification/SET-34/README.md`
+- `docs/03-design/verification/SET-34/categories-before-after.png`
+- `docs/03-design/verification/SET-34/screenshots.zip`
+- `docs/03-design/verification/SET-34/sign-in-validation-before-after.png`
+- `docs/05-process/ai-usage-verification-1.md`
+- `docs/05-process/ai-usage-verification-2.md`
+- `docs/05-process/review-rules.md`
+- `docs/guides/design-system.md`
+- `frontend/src/app/contrast.test.ts`
+- `frontend/src/app/contrast.ts`
+- `frontend/src/app/layouts/Wordmark.tsx`
+- `frontend/src/app/layouts/layouts.module.css`
+- `frontend/src/app/theme.module.css`
+- `frontend/src/app/theme.test.tsx`
+- `frontend/src/app/theme.ts`
+- `frontend/src/app/tokens.ts`
+- `frontend/src/areas/public/pages/PartnerApply.tsx`
+- `frontend/src/areas/staff/pages/Search.module.css`
+- `frontend/src/areas/staff/pages/Search.test.tsx`
+- `frontend/src/areas/staff/pages/SearchResults.tsx`
+- `frontend/src/areas/staff/pages/WalkIn/DraftSaved.tsx`
+- `frontend/src/areas/staff/pages/WalkIn/MembersStep.tsx`
+- `frontend/src/areas/staff/pages/WalkIn/ReviewStep.tsx`
+- `frontend/src/areas/staff/pages/WalkIn/WalkIn.module.css`
+- `frontend/src/areas/staff/pages/WalkIn/WalkIn.tsx`
+- `frontend/src/areas/store/components/CategoryPicker.tsx`
+- `frontend/src/areas/store/pages/NewListing.tsx`
+- `frontend/src/features/categories/CategoriesPage.tsx`
+- `frontend/src/shared/auth/SignOutButton.tsx`
+- `frontend/src/shared/forms/FileUpload.tsx`
+- `frontend/src/shared/forms/fields.module.css`
+- `frontend/src/shared/logger.test.ts`
+- `frontend/src/shared/logger.ts`
+- `frontend/src/shared/ui/EmptyState.tsx`
+- `frontend/src/shared/ui/ErrorState.tsx`
+- `frontend/src/shared/ui/LoadingState.tsx`
+- `frontend/src/shared/ui/Notice.module.css`
+- `frontend/src/shared/ui/Notice.tsx`
+- `frontend/src/shared/ui/StatusBadge.test.tsx`
+- `frontend/src/shared/ui/StatusBadge.tsx`
+- `frontend/src/shared/ui/index.ts`
+- `frontend/src/shared/ui/statusTones.ts`
+- `frontend/src/shared/ui/toneIcons.ts`
+- `frontend/src/test/i18n.test.ts`
+- `frontend/src/test/render.tsx`
+
+### FIX-16 One best-before rule for listings (#642)
+
+- **Tool and level:** Claude Code, 50% or more AI-generated.
+- **What the AI produced:** removal of the unused `validate_best_before_date` and
+  `BestBeforeDateError` from `categories/domain/rules.py` and of their tests in
+  `categories/tests/test_rules.py`; named test cases in `listings/tests/test_safety.py`
+  (same day, exact margin, one day short, non-food) plus one new case carried over from
+  the deleted tests (a date before the pickup end with a margin above 0); and the
+  reference-module guide now pointing at `listings/domain/safety.py`.
+- **Developer direction:** Ryan chose to keep the US-34 rule in `listings/domain/safety.py`,
+  which posting already uses and which also checks rule values and date types, and to
+  delete the categories copy. He reviewed the written plan, set the branch name
+  (`fix/FIX-16-one-best-before-rule`) and asked to review the changes before committing.
+- **How we verified it:** every deleted test case was matched to an existing or new case in
+  `test_safety.py` (food without a date, same day, exact margin, one day short, before the
+  pickup end, non-food with and without a date, negative margin through `read_settings`).
+  A search finds no remaining reference to the deleted names. In the local Docker
+  backend: Ruff lint and format, mypy, the four import-linter contracts and the
+  missing-migration check pass; the safety and categories tests pass (104); the full
+  suite passes 2,022 tests at 95.65% coverage. One unrelated test,
+  `test_wsgi_reuses_database_connection_between_http_requests`, fails locally because
+  `settings/local.py` sets `CONN_MAX_AGE = 0`; this change touches neither settings nor
+  households, and CI runs it with the test settings.
+- **Problems found and corrections:** the first plan named the branch after the bare
+  `FIX-xx-name` branches on the remote instead of the team pack's `fix/` prefix; Ryan
+  corrected it before the branch was created.
+
+AI-assisted files for this entry:
+
+- `backend/modules/categories/domain/rules.py`
+- `backend/modules/categories/tests/test_rules.py` (deleted)
+- `backend/modules/listings/tests/test_safety.py`
+- `docs/guides/reference-module.md`
+- `docs/05-process/ai-usage-verification-2.md`

@@ -63,6 +63,7 @@ urlpatterns = [path("failure/", _failing_view)]
         ("reason", "smtp_error", "smtp_error"),
         ("reason", "connection_error", "connection_error"),
         ("reason", "unhandled_exception", "unhandled_exception"),
+        ("reason", "transport_error", "transport_error"),
     ],
 )
 def test_formatter_allows_only_the_safe_diagnostic_value(field, value, expected):
@@ -175,6 +176,7 @@ def test_django_caught_failure_still_has_exception_type(client, request_logs):
     assert failure["logger"] == "django.request"
     assert failure["level"] == "ERROR"
     assert failure["exc_type"] == "ValueError"
+    assert failure["reason"] == "unhandled_exception"
     assert failure["request_id"] == response["X-Request-ID"]
     assert "private@example.test" not in request_logs.getvalue()
     assert "secret-subject" not in request_logs.getvalue()
@@ -231,3 +233,35 @@ def test_runserver_does_not_add_a_duplicate_session_warning(
     assert event["status_code"] == int(status)
     assert "private@example.test" not in request_logs.getvalue()
     assert "HTTP/1.1" not in request_logs.getvalue()
+
+
+@pytest.mark.parametrize("code", [451, 554])
+def test_smtp_failure_response_code_is_an_integer_only(code):
+    payload = _payload(name="iris.mailer", event="email_send_failed", smtp_code=code)
+    assert payload == {
+        "timestamp": payload["timestamp"],
+        "level": "ERROR",
+        "logger": "iris.mailer",
+        "event": "email_send_failed",
+        "smtp_code": code,
+    }
+
+
+@pytest.mark.parametrize(
+    ("logger", "event", "code"),
+    [
+        ("iris.mailer", "email_send_failed", True),
+        ("iris.mailer", "email_send_failed", "451"),
+        ("iris.mailer", "email_send_failed", PRIVATE),
+        ("iris.mailer", "email_send_failed", None),
+        ("iris.mailer", "email_send_failed", 399),
+        ("iris.mailer", "email_send_failed", 600),
+        ("iris.notifications", "email_send_failed", 451),
+        ("iris.mailer", "email_sent", 451),
+    ],
+)
+def test_smtp_codes_cannot_leak_text_or_escape_the_mail_adapter_event(
+    logger, event, code
+):
+    payload = _payload(name=logger, event=event, smtp_code=code)
+    assert set(payload) == {"timestamp", "level", "logger", "event"}

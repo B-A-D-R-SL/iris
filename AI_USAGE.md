@@ -23,6 +23,8 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | ChatGPT (OpenAI) | Implemented production configuration validation, secure entry-point defaults, admin-only API documentation, request throttling, tests and deployment guidance from Leon's approved FIX-04 plan. | Leon Kojakian (#630) |
 | ChatGPT (OpenAI) | Implemented and reviewed the Categories reference module (#377), Django module scaffolding, import-boundary checks, documentation, and tests for SET-14 (#405). | Owner of #377 and #405 |
 | ChatGPT (OpenAI) | The user provided architecture-aligned skeleton code and pseudocode as the foundation for US-17. ChatGPT assisted in generating approximately 50% of the remaining implementation, including walk-in registration models, normalization, services, staff API, tests, migrations, and documentation. ChatGPT also assisted with debugging Docker/PostgreSQL migrations, Ruff, mypy, import-linter, OpenAPI, and frontend API types. The user directed the implementation and performed local verification. | Owner of #463 and #464 (US-17) |
+| ChatGPT (OpenAI) | Implemented the US-13 staff review screen, translations, tests, and local invitation URL configuration; independently audited story coverage. | Reuven Minciotti (#448, #451) |
+| ChatGPT (OpenAI) | Implemented the partner application decision service, tests, configuration and documentation for T-02.13.2 under Reuven’s direction. | Reuven Minciotti (#449) |
 | Claude Code (Anthropic) | Analyzed US-12 against the team pack, then implemented the PartnerApplication model, Store link, submission service, public API, Django admin, translations and tests from Ryan's approved T-02.12.2/T-02.12.1 plan. | Ryan Cheung (#444, #445) |
 
 ## How we declare AI-generated code
@@ -37,7 +39,16 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| US-57 Email system and core emails (#538; tests #539, adapters #540, templates/jobs #541) | `backend/adapters/mailer/`, `backend/modules/notifications/`, account/store integrations including merged main/US-13 approval, rejection and reissue, affected household tests, rules/audit policy registration, settings/configuration/tests, environment examples, Compose, documentation and `AI_USAGE.md`. The owner chose to preserve US-13's bounded stored rejection reason in its dedicated email. PR #697 review fixes contain known-template email validation failures, preserve the producer-validated US-32 suspension/reactivation reason with a 2,000-character queued capture ceiling, and skip unsupported allauth prefixes with static logging. The CodeRabbit follow-up adds central-reference size justifications, safe invalid Azure Retry-After diagnostics, and existing BR-ID traceability in tests (BR-PARTNER-05 for recovery/invitation preflight). The later FIX-17 merge adds CI compatibility through synthetic SMTP/public sender/HTTPS origin configuration and invalid ZAP-report rejection, preserving runtime guards and upstream verification history. Merging FIX-12 also requires conditional forwarding of supplied blur/focus handlers in `frontend/src/shared/forms/fieldProps.ts`, preserving invitation password validation; `frontend/src/areas/public/pages/AcceptInvitation.test.tsx` adds the blur regression. [Verification and corrections](backend/modules/notifications/README.md#pr-verification-and-set-17-handoff) distinguish historical results, passing targeted checks and the successful native worker/Mailpit rerun from deployed Azure verification owned by SET-17. | 50% or more AI-generated (OpenAI Codex; generated migration and lockfile exempt) | [#697](https://github.com/B-A-D-R-SL/iris/pull/697) |
+| FIX-13 App shell: routes per area, layer rule, no placeholder routes (#639) | `frontend/eslint.config.js`, `frontend/src/app/{App,App.test,navigation,navigation.test,PlaceholderScreen,RequireRole,RequireHouseholdSearch}.ts(x)`, `frontend/src/app/routes/*.tsx`, `frontend/src/app/layouts/{StaffLayout,MobileAreaLayout}.tsx`, `frontend/src/shared/auth/{roles,roles.test,currentUser,currentUser.test,authContext,AuthProvider}.ts(x)`, `frontend/src/shared/ui/{AppBar.tsx,AppBar.module.css,index.ts}`, `frontend/src/shared/forms/{validators.ts,validators.test.tsx}`, `frontend/src/test/{lintRules.test.ts,render.tsx}`, `docs/guides/design-system.md` | 50% or more AI-generated | [#695](https://github.com/B-A-D-R-SL/iris/pull/695) |
+| FIX-12 Split the listing posting screen and log posting failures (#638) | `frontend/src/areas/store/pages/{NewListing.tsx,useNewListingMutation.ts,NewListing.test.tsx}`, `frontend/src/areas/store/components/{NewListingSections.tsx,CategoryPicker.tsx}`, `frontend/src/shared/forms/{fieldProps.ts,TextField.tsx,IntegerField.tsx,FileUpload.tsx}`, `frontend/src/shared/{logger.ts,logger.test.ts}`, `frontend/src/features/listings/{api.ts,api.test.ts}` | 50% or more AI-generated | [#689](https://github.com/B-A-D-R-SL/iris/pull/689) |
+| FIX-17 CI security gates: gitleaks and ZAP baseline (#643) | `.github/workflows/ci.yml`, `.github/scripts/{zap_gate,test_zap_gate}.py`, `.gitleaks.toml`, `.zap/rules.tsv`, `backend/iris/settings/ci_scan.py`, `backend/tests/test_ci_scan_settings.py`, `README.md`, `AI_USAGE.md` | 50% or more AI-generated | [#676](https://github.com/B-A-D-R-SL/iris/pull/676) |
+| T-02.13.4 Partner review screens (#451) | `frontend/src/areas/staff/pages/PartnerApplications{,.test}.tsx`, `frontend/src/app/App{,.test}.tsx`, `frontend/src/shared/i18n/{en,fr}/store.json`, `frontend/src/shared/logger.ts`, `.env.example`, `docker-compose.yml`, `AI_USAGE.md` | 50% or more AI-generated | [#665](https://github.com/B-A-D-R-SL/iris/pull/665) |
+| T-02.13.3 Partner applications staff API (#450) | `backend/modules/stores/{queries.py,README.md,api/serializers.py,api/staff_views.py,api/staff_urls.py,tests/test_staff_application_api.py,locale/fr/LC_MESSAGES/django.po}`, `backend/iris/urls.py`, `backend/pyproject.toml`, `docs/03-design/api.md`, `docs/04-architecture/architecture.md`, generated API types, `AI_USAGE.md` | 50% or more AI-generated; compiled catalog and generated API declarations exempt | [#665](https://github.com/B-A-D-R-SL/iris/pull/665) |
+| T-02.13.1 Partner application review tests (#448) | `backend/modules/stores/tests/{conftest,test_application_decisions,test_application_recovery,test_staff_application_api}.py`, `AI_USAGE.md` | 50% or more AI-generated | [#665](https://github.com/B-A-D-R-SL/iris/pull/665) |
+| T-02.13.2 Partner application decision service (#449) | `backend/modules/stores/{services.py,management/commands/resend_partner_invitation.py,tests/test_application_decisions.py,README.md}`, `backend/modules/accounts/services.py`, `backend/iris/{settings/base.py,observability.py}`, `backend/tests/test_observability.py`, `backend/.env.example`, `backend/pyproject.toml`, `AI_USAGE.md` | 50% or more AI-generated | [#665](https://github.com/B-A-D-R-SL/iris/pull/665) |
 | T-05.36.3 Browse and detail screens (#507) and T-05.36.1 tests (#505) | `frontend/src/areas/household/` (`pages/{Listings,ListingDetail}.tsx` and their CSS and tests, `components/`, `browseFilters.ts`, `listingFormat.ts`, `useListingText.ts`, `household.module.css`, tests), `frontend/src/features/listings/browse.ts` and its tests, `frontend/src/app/App.tsx`, `frontend/src/shared/i18n/{fr,en}/household.json` | 50% or more AI-generated | Not yet opened (`US-36-browse-and-detail-screens` branch) |
+| T-06.44.3 Scan screen (#523), part of US-44 (#520) | `frontend/src/areas/store/pages/{Confirm,ConfirmSteps,useConfirmPickup,usePickupClock,confirmCode,confirmFormat,confirmFacts,confirmMessages}.*`, `frontend/src/areas/store/components/PickupScanner.*`, `frontend/src/features/reservations/pickupApi.ts` and tests, `frontend/src/app/App.tsx`, `frontend/src/shared/{i18n/{en,fr}/household.json,logger.ts}`, `frontend/{package.json,vite.config.ts}`, `frontend/pnpm-lock.yaml`, `backend/iris/settings/local.py`, `docker-compose.yml`, `.env.example`, `AI_USAGE.md` | 50% or more AI-generated; lockfile exempt | [#686](https://github.com/B-A-D-R-SL/iris/pull/686) |
 | T-06.44.2 Confirm pickup service and API, with T-06.44.1 tests (#522, #521) | `backend/modules/reservations/{queries.py,services.py,permissions.py,domain/pickup.py,README.md}`, `backend/modules/reservations/api/{pickup_serializers,pickup_views,store_permissions,store_urls}.py`, `backend/modules/reservations/locale/fr/LC_MESSAGES/django.po`, `backend/modules/reservations/tests/{conftest,test_pickup_domain,test_pickup_service,test_pickup_api}.py`, `backend/modules/households/{queries.py,domain/names.py,tests/test_pickup_names.py,README.md}`, `backend/modules/listings/{queries.py,README.md}`, `backend/iris/{urls.py,settings/base.py}`, `backend/pyproject.toml`, `docs/02-requirements/business-rules.md`, `docs/03-design/api.md`, `frontend/src/shared/api/generated.d.ts`, `AI_USAGE.md` | 50% or more AI-generated (compiled catalog `django.mo` and generated API declarations exempt) | Not yet opened (`US-44-confirm-pickup` branch) |
 | FIX-11 Shared role groups and authentication events (#637) | `backend/modules/accounts/{roles,queries,models,apps,signals}.py`, account role/event tests, accounts README, permission checks in listings/eligibility/audit/households, `backend/iris/{settings/base,observability}.py`, route/logging tests, `backend/pyproject.toml`, `docs/guides/observability.md`, `AI_USAGE.md` | 50% or more AI-generated | [#681](https://github.com/B-A-D-R-SL/iris/pull/681) |
 | FIX-04 Production settings and entry points (#630) | `backend/iris/{settings/base.py,settings/production.py,wsgi.py,asgi.py,api.py,throttling.py}`, `backend/tests/{__init__,security_helpers,test_backend_config,test_production_settings,test_api,test_api_errors,test_endpoint_access}.py`, `backend/modules/accounts/tests/test_accounts.py`, `backend/modules/households/tests/{search_load_client,test_search_load,test_search_load_client}.py`, `backend/{.env.example,pyproject.toml}`, `frontend/src/shared/auth/api.test.ts`, `README.md`, `docs/03-design/api.md`, `docs/04-architecture/architecture.md`, `docs/guides/{production-settings,auth-routing,household-search}.md`, `AI_USAGE.md` | 50% or more AI-generated | [#683](https://github.com/B-A-D-R-SL/iris/pull/683) |
@@ -96,8 +107,25 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 ## Examples, verification and corrections
 
-Historical examples are preserved in the linked verification records.
-The headings remain here so existing feature anchors continue to resolve.
+Historical examples are preserved in the linked verification records. The headings remain here so existing feature anchors continue to resolve.
+
+The US-13 records below describe PR #665's original implementation and verification. Later US-57 queue/template integration is recorded in the [notification runbook](backend/modules/notifications/README.md); earlier test counts are historical, not results for the merged integration.
+
+### T-02.13.1 Partner application review tests (#448)
+
+- **What the AI produced:** Additional decision-service tests for each non-admin role, the rejection reason length boundary, audit failure rollback, and privacy-safe handling of email failure. PR review fixes add frontend-origin validation, invitation recovery and command tests, and structured logging privacy checks. Staff API and listing tests are included in `test_staff_application_api.py` (#450).
+- **Verification:** On 2026-11-11, all 939 backend tests passed against an isolated native PostgreSQL 17 instance, including all 37 decision/configuration/recovery cases. Ruff and all four import-linter contracts passed. Coverage was not measured in this run. Changes are committed in [PR #665](https://github.com/B-A-D-R-SL/iris/pull/665).
+
+### T-02.13.2 Partner application decision service (#449)
+
+- **What the AI produced:** Under Reuven’s direction, ChatGPT implemented approval and rejection services with locked decisions, store and invitation creation, audit records, after-commit emails, frontend URL configuration, tests and module documentation. The free-text application hours are retained in the store’s `opening_hours.notes`. PR review fixes add explicit frontend-origin configuration errors before application locking and an operator recovery command that expires old invitation links and sends a fresh one after commit. Recovery does not repeat the application decision or expose contact details or tokens in logs.
+- **Verification:** On 2026-11-11, all 939 backend tests passed on PostgreSQL 17, including 37 decision/configuration/recovery cases. Ruff, mypy for the four changed production Python files, Django system checks, and all four import-linter contracts passed. Coverage was not measured in this run. The implementation and review fixes are committed in [PR #665](https://github.com/B-A-D-R-SL/iris/pull/665).
+
+### PR #665: review follow-up for the staff screen and API tests
+
+- **What the AI produced:** An API test proving that unavailable invitation rules return 400 and roll back the store, invitation, decision and audit writes; French/English API tests for existing-account refusal; translated business-type/frequency lookups and value assertions; cookie cleanup; public API error-message rendering with generic server/network fallbacks and privacy-safe diagnostic events. Compose invitation URLs now default to the configured frontend port, while explicit URL overrides are preserved.
+- **Owner's decisions:** Retain the rejection validation order. A later instruction authorizes server-owned `can_decide` availability in place of status-based button visibility. An early existing-account check on public application submission remains a product discussion; it is not part of these fixes.
+- **Verification (2026-11-11):** All **942 backend tests** passed on native PostgreSQL 17 and all **413 frontend tests across 29 files** passed, including 14 partner-review screen cases. The frontend suite required localhost access for its preview-server tests. Ruff, mypy for the changed API test file, ESLint, TypeScript checks, the production frontend build, and formatting checks for the changed files passed. Compose YAML and the documented Bash-compatible nested-default expression were checked for the default port, a changed port, an explicit URL, and an empty URL; the Docker Compose executable was unavailable, so `docker compose config` was not run. Coverage was not measured.
 ### FIX-02 Private listing-photo processing and storage (#628)
 
 - **What the AI produced:** under Mark’s (@markantoun0) direction, Codex implemented JPEG/PNG validation, Pillow resizing, EXIF orientation correction, metadata removal, private blob storage, five-minute read-only links, listing integration, failure cleanup, tests and documentation. Mark  requested sharing one storage loader between posting and browsing, moving shared result/error types out of the Azure adapter, and checking container privacy once per browse page instead of once per photo. He also provided SonarQube findings for correction, and directed that unrelated UI and backend issues remain outside the task’s scope.
@@ -112,6 +140,11 @@ The headings remain here so existing feature anchors continue to resolve.
 ### US-63 Household search and tests (#552, #553, #554)
 
 [Verification and corrections](docs/05-process/ai-usage-verification-1.md#us-63-household-search-and-tests-552-553-554).
+
+### PR #665: server-owned availability and main conflict resolution
+
+- **What changed:** Per the owner's follow-up, the staff API returns `can_decide` using the same active-admin/submitted-state predicate as write enforcement; the UI renders that flag. Main's split translation catalogs and structured logging helpers are preserved during conflict resolution, and the new endpoints are registered in its global access matrix. Remaining valid review checks add translated email/recovery text, HTTPS outside loopback, a finite SMTP timeout and after-commit decision logs. The duplicate beneficiary test was removed, recovery tests/fixtures were separated, and fixed rejection storage semantics are documented as BR-PARTNER-04.
+- **Verification (2026-11-11):** 2030 backend tests passed on PostgreSQL 17 (5 optional integration skips, one CI-excluded slow-expiry case); 658 frontend tests passed. Combined backend coverage is 95.66%, added backend executable-line coverage is 98.17%, and domain line coverage is 99.35%. Full lint, formatting, type, import, schema/generator, migration, build and dependency-audit checks passed. See `docs/03-design/verification/US-13-review-checks.md` for scope, counts and reproduction. GitHub checks are verified after publishing.
 
 ### T-01.04.3 Invitation password page (#431)
 
@@ -181,6 +214,13 @@ The headings remain here so existing feature anchors continue to resolve.
 ### SET-18 Seed data generator (#409)
 
 [Verification and corrections](docs/05-process/ai-usage-verification-1.md#set-18-seed-data-generator-409).
+
+### T-06.44.3 Scan screen (#523)
+
+- **Firas's direction:** implement the store Confirm screen for US-44 after the pickup API (#522) landed on main: camera scan with `@zxing/browser`, typed-code fallback, review of holder/alternate/quantity, one-tap confirm, and clear refusal messages, without changing backend behaviour or conflicting with main.
+- **What the AI produced:** `/store/confirm` wired to `Confirm.tsx`; `PickupScanner` (rear-camera QR decode, safe stop on leave); typed 6-character code path; lookup then confirm clients; French/English copy for every refusal code; unit tests with a mocked scanner (camera-denied still leaves typing working).
+- **How we verified it:** frontend unit tests for the screen, code helpers, API client and i18n catalogs; typecheck and lint on the touched files.
+- **Problems found and corrections:** the QR payload format (US-42) is still open, so a scan sends the decoded text the same way as a typed code (`{code}`), extracting a six-character token when the payload is longer; late confirmation of a no-show stays US-45.
 
 ### T-06.44.2 Confirm pickup service and API, with T-06.44.1 tests (#522, #521)
 
@@ -341,123 +381,9 @@ The headings remain here so existing feature anchors continue to resolve.
 
 ### SET-34 Colour tokens and status badge (#652, #653, #654)
 
-- **Tool and level:** Codex (OpenAI), 50% or more AI-generated.
-- **Developer direction:** Reuven requested SET-34 from current `main`, initially
-  authorized placeholder colours, then requested integration and completion after
-  SET-33 merged. The working branch is `SET-34-apply-colour-palette-and-status-badges`.
-- **What changed:** colour tokens and Mantine aliases; bilingual status badges with
-  generated enum coverage where available, shared notice icons and scoped unknown-status
-  logging; semantic colours across built screens, including the newly merged household
-  search; accessible control boundaries, inline errors, destructive actions, selected
-  controls and primary hover/pressed states; WCAG contrast tests and review rule 11.
-- **SET-33 integration (November 9, 2026):** PR #668 merged at `fd73186` and closed #651.
-  The earlier #664 draft was not the delivery. Existing local work was backed up before
-  fast-forwarding to `origin/main`; the design guide conflict was resolved by keeping
-  SET-33's token/status tables and adding the implementation guidance. All 70 original
-  palette shades match the Foundations export's swatches exactly. Neutral status,
-  input-border, placeholder, hover and pressed values come from its component-token note.
-  The decorative border is kept separate from the accessible input border.
-- **Verification:** 529 frontend tests passed across 32 files, with 94.72% line coverage.
-  TypeScript, ESLint, Prettier, production build and the required colour-literal scans
-  passed. Contrast checks include all semantic pairs, primary button states, destructive
-  text, placeholders, both control backgrounds, and black/white/self edge cases. Badge
-  tests cover every status in both languages, hidden icons, unknown/inherited-property
-  values, logging and axe; search integration checks success/danger badges.
-- **Browser review:** 76 French/English before-and-after captures at 360 px and staff
-  also at 1024 px, using fictional responses and no backend writes. No page errors or
-  page-level horizontal overflow; status labels do not clip. Primary normal/hover/pressed
-  colours passed live computed-style checks. Existing business flows/layouts were retained.
-  The evidence and available-prototype comparisons are in the local SET-34 handoff report.
-- **Pull request:** [#671](https://github.com/B-A-D-R-SL/iris/pull/671).
-- **Delivery:** screenshot evidence is committed under
-  `docs/03-design/verification/SET-34/`. CI, CodeRabbit, teammate review, merge and the
-  post-merge team announcement remain tracked in the pull request; local checks do not
-  substitute for those external steps.
-
-- **Review follow-up:** added success/warning contrast checks on the page surface,
-  clarified the neutral-token reference and replaced the tone-key cast with a type guard.
-  Added function documentation and split the enlarged test suites. Historical verification
-  entries moved into two linked files below 500 lines, retaining root feature anchors;
-  historical wording is unchanged and one relative link was adjusted for its new folder.
-  The pre-existing category-page/table structure remains intact for this colour task.
-
-- **Main integration:** retained main's split translation catalogs and all translation-file
-  checks, moving shared status labels into each language's common catalog and removing
-  the obsolete monolithic catalogs. Adapted the new household suspension detail screen
-  to shared status badges/notices and semantic action colours, preserving its server-led
-  permissions and transitions. Retained both logger event sets and all main AI records.
-  Merge verification: all 610 frontend tests pass across 33 files, with 95.09% line
-  coverage. TypeScript, lint, formatting and production build pass. Main translation
-  values and all 50 AI verification entries were checked for preservation.
-- **Ammar review follow-up:** removed the duplicate household/category status labels and
-  the household label map; search now validates the shared status map against both API
-  status types. Added filled/light/default hover tokens and contrasting light-hover text,
-  keeping all 70 Foundations swatches unchanged. Added a complete route/override inventory,
-  supplemental fictional-data browser captures, and regression/contrast coverage.
-  Verification: 578 frontend tests pass (94.72% line coverage), plus TypeScript, lint,
-  formatting and production build. Browser checks cover 32 route captures, two control
-  matrices and 42 hover measurements, with no page errors/overflow. Disabled controls
-  stay unchanged; filled/light hover text meets 4.5:1. No GitHub review reply was posted.
-
-AI-assisted files for this entry:
-
-- `frontend/src/areas/staff/pages/Household.tsx`
-- `frontend/src/areas/staff/pages/Household.test.tsx`
-- `frontend/src/shared/i18n/en/common.json`
-- `frontend/src/shared/i18n/en/household.json`
-- `frontend/src/shared/i18n/fr/common.json`
-- `frontend/src/shared/i18n/fr/household.json`
-
-- `frontend/src/features/households/searchApi.test.ts`
-- `frontend/src/features/households/searchApi.ts`
-- `docs/03-design/verification/SET-34/ammar-review.zip`
-- `docs/03-design/verification/SET-34/affected-screens.md`
-- `AI_USAGE.md`
-- `docs/03-design/verification/SET-34/README.md`
-- `docs/03-design/verification/SET-34/categories-before-after.png`
-- `docs/03-design/verification/SET-34/screenshots.zip`
-- `docs/03-design/verification/SET-34/sign-in-validation-before-after.png`
-- `docs/05-process/ai-usage-verification-1.md`
-- `docs/05-process/ai-usage-verification-2.md`
-- `docs/05-process/review-rules.md`
-- `docs/guides/design-system.md`
-- `frontend/src/app/contrast.test.ts`
-- `frontend/src/app/contrast.ts`
-- `frontend/src/app/layouts/Wordmark.tsx`
-- `frontend/src/app/layouts/layouts.module.css`
-- `frontend/src/app/theme.module.css`
-- `frontend/src/app/theme.test.tsx`
-- `frontend/src/app/theme.ts`
-- `frontend/src/app/tokens.ts`
-- `frontend/src/areas/public/pages/PartnerApply.tsx`
-- `frontend/src/areas/staff/pages/Search.module.css`
-- `frontend/src/areas/staff/pages/Search.test.tsx`
-- `frontend/src/areas/staff/pages/SearchResults.tsx`
-- `frontend/src/areas/staff/pages/WalkIn/DraftSaved.tsx`
-- `frontend/src/areas/staff/pages/WalkIn/MembersStep.tsx`
-- `frontend/src/areas/staff/pages/WalkIn/ReviewStep.tsx`
-- `frontend/src/areas/staff/pages/WalkIn/WalkIn.module.css`
-- `frontend/src/areas/staff/pages/WalkIn/WalkIn.tsx`
-- `frontend/src/areas/store/components/CategoryPicker.tsx`
-- `frontend/src/areas/store/pages/NewListing.tsx`
-- `frontend/src/features/categories/CategoriesPage.tsx`
-- `frontend/src/shared/auth/SignOutButton.tsx`
-- `frontend/src/shared/forms/FileUpload.tsx`
-- `frontend/src/shared/forms/fields.module.css`
-- `frontend/src/shared/logger.test.ts`
-- `frontend/src/shared/logger.ts`
-- `frontend/src/shared/ui/EmptyState.tsx`
-- `frontend/src/shared/ui/ErrorState.tsx`
-- `frontend/src/shared/ui/LoadingState.tsx`
-- `frontend/src/shared/ui/Notice.module.css`
-- `frontend/src/shared/ui/Notice.tsx`
-- `frontend/src/shared/ui/StatusBadge.test.tsx`
-- `frontend/src/shared/ui/StatusBadge.tsx`
-- `frontend/src/shared/ui/index.ts`
-- `frontend/src/shared/ui/statusTones.ts`
-- `frontend/src/shared/ui/toneIcons.ts`
-- `frontend/src/test/i18n.test.ts`
-- `frontend/src/test/render.tsx`
+Detailed colour implementation, review history, changed-file declarations and
+verification evidence are preserved in
+[the historical verification ledger](docs/05-process/ai-usage-verification-2.md#set-34-colour-tokens-and-status-badge-652-653-654).
 
 ### FIX-07 Deny-by-default endpoint access test (#633)
 
@@ -495,6 +421,33 @@ AI-assisted files for this entry:
 
 - **Tool and contribution level:** OpenAI Codex; 50% or more AI-generated. Implemented safe exception/reason diagnostics, typed SMTP failures and INFO-level signed-out session checks across Iris, Django and runserver.
 - **AI-assisted files:** `backend/iris/observability.py`, `backend/iris/settings/base.py`, `backend/adapters/mailer/base.py`, `backend/adapters/mailer/smtp.py`, `backend/tests/test_failure_logging.py`, `backend/tests/test_mailer.py`, `docs/guides/observability.md`, `AI_USAGE.md`.
-- **Verification:** 1,967 backend tests passed across two isolated regression groups and the separate load check (5 skipped; slow-expiry excluded); focused suite 97 passed with 98.77% observability/mailer coverage. Ruff, mypy (401 files), four import contracts, Django/migration checks and 36 PR-policy tests pass.
+- **Initial verification:** 1,967 backend tests passed across two isolated regression groups and the separate load check (5 skipped; slow-expiry excluded); focused suite 97 passed with 98.77% observability/mailer coverage. Ruff, mypy (401 files), four import contracts, Django/migration checks and 36 PR-policy tests pass.
 - **Corrections:** covered Django-converted exceptions and duplicate framework/runserver warnings; rejected exception strings and unregistered reasons to protect personal data; corrected an SMTP fixture to protocol bytes. The load check missed its target in a combined run but passed independently on both unchanged main and FIX-05, with no threshold changes.
 - **Owner review, commits, push and PR:** Reviewed by owner and made sure all is good and aligned then pushed
+
+- **PR #688 merge/review validation:** preserved US-57 sanitized retryable errors, queue privacy, Azure logging restrictions and FIX-03 event fields; added the requested Django default reason and strict numeric SMTP codes. On main `35892e5`, 2,446 regression tests and 438 focused tests pass (96.33% focused coverage); Ruff, mypy (424 files), four import contracts, Django checks and 46 policy-script tests pass. The isolated search-load test misses 500 ms on both unchanged main (880 ms) and the merged branch (601 ms); its threshold remains unchanged. Existing development-database migration history is inconsistent; validation used isolated databases without modifying that data.
+
+### FIX-12 Split the listing posting screen and log posting failures (#638)
+
+- **What the AI produced:** with Claude Code, under Anthony Monaco's direction: `NewListingForm` (244 lines) split into a `useNewListingMutation` hook, a `usePostingFeedback` hook and section components (notices, photo, details, pickup window, final checks); `CategoryPicker` (97) split into a grouping hook, the sheet and its parts; `FileUpload` (90) into the chosen-file row and the drop zone; `IntegerField` (57) and `TextField` (55) shortened by moving the props every field forwards into the shared `useFieldWrapper`; a `listing_post_failed` logger event carrying only the status code, with tests.
+- **Owner's decisions:** log 4xx failures as warnings and 5xx or a lost connection as errors, like the backend's request logs; a lost connection is logged with `status_code: null`; only the fields named in the issue adopt the shared wrapper.
+- **How we verified it:** every component in these files is 50 lines or fewer (ESLint `max-lines-per-function`); the 15 existing posting tests, axe checks included, pass without any change to them, with 3 new tests for the log event (503, 400, lost connection) and 1 logger test; all 647 frontend tests, TypeScript, ESLint, Prettier and the production build pass. Anthony's review is still to do.
+- **Problems found and corrections:**
+  - The React Compiler lint rule treated reading the feedback state as reading a ref, because the hook returned the scroll target inside the same object; the ref is now returned separately.
+  - On a loaded machine the first posting test sometimes exceeds Testing Library's 1-second wait for the form to appear. Timing it alone showed the same range on `main` and on this branch (about 0.7 to 1 s), so the tests were left unchanged as the issue requires.
+  - CodeRabbit found that a 400 naming no field (or with no JSON body) showed no notice at all, a gap already on `main`. It now shows the server's message, or "Réessayez dans quelques minutes." when there is none, with 2 new tests. A second CodeRabbit suggestion, to follow an API display order instead of food first, was declined: the spec asks for food first and the API has no display order. A teammate's review found that a 201 with an unreadable body was logged with `status_code: null`, like a lost connection; it now keeps 201 and is logged as an error, with 2 new tests.
+
+### FIX-03 Eligibility decision refactor and application logging (#629)
+
+- **Tool and contribution level:** OpenAI Codex; 50% or more AI-generated. Extracted evidence validation and staff authorization, renamed the public exception to `EligibilityEvidenceUnavailableError`, and added post-commit `eligibility_decided` logging with an event-specific JSON allowlist. Income amounts, names and evidence stay out of the event.
+- **AI-assisted files:** `backend/modules/eligibility/services.py`, `backend/modules/eligibility/tests/test_decision_service.py`, `backend/iris/observability.py`, `backend/tests/test_observability.py`, `backend/modules/eligibility/README.md`, `docs/guides/observability.md`, `AI_USAGE.md`.
+- **Verification:** existing eligibility assertions retained with renamed exception references; new caplog/JSON tests cover staff/automatic decisions, both outcomes, per-decision snapshots, invalid evidence, rollback, failed inserts and privacy filtering. Full PostgreSQL run: 1,936 passed, 5 skipped, slow-expiry deselected, 95.54% coverage. Focused run: 114 passed, 91.72% coverage. Ruff, mypy (399 files), four import contracts, Django/migration checks, pip-audit and 36 PR-policy tests pass.
+- **Corrections and review follow-up:** logging extras required a matching formatter allowlist. Windows-mounted startup/load timing failures cleared in a byte-verified native Linux copy, with thresholds unchanged. A full tracked-repository search for the retired exception name found no remaining references, including imports outside the eligibility module.
+- **Owner review and pull request:** owner reviewed, committed and pushed [PR #687](https://github.com/B-A-D-R-SL/iris/pull/687); Codex did not commit or push. The review-status wording and typo were corrected, and this entry was condensed without removing verification history to respect the 500-line file limit.
+
+### FIX-13 App shell: routes per area, frontend layer rule, no placeholder routes (#639)
+
+- **What the AI produced:** with Claude Code, under Anthony Monaco's direction: routes in one module per area (`app/routes/`), so `App` and `StaffLayout` are under 50 lines; the placeholder routes and their tabs removed; the layer rule (app, areas, features, shared; never upward) written in `docs/guides/design-system.md` and enforced with ESLint `no-restricted-imports`; `CurrentUser` and the roles moved to `shared/auth`, `AppBar` to `shared/ui`; role groups and `homePathFor` built from the generated API `Role` type; phone and postal-code rules that ignore case and spacing and use the backend's Canada Post letters; ESLint limits of 50 lines per function and complexity 15 for `src/`, with tests that check the rules.
+- **Owner's decisions:** beneficiaries land on `/listings` and store workers on `/store/listings/new` until their home screens exist; `/privacy` stays as the one placeholder, because the partner form's consent text links to it, and the other links to unbuilt screens are removed; the size limits are errors now, with files already over them held at today's size in a named list; the phone and postal-code checks follow forms-and-fields.md now rather than waiting for FIX-14.
+- **How we verified it:** TypeScript, ESLint (with the new rules on all of `src/`), Prettier on the changed files and the production build pass; all 721 frontend tests pass, including 16 that run ESLint on sample code to prove the layer and size rules fire. Anthony's review is still to do.
+- **Problems found and corrections:** route modules must sit in `app`, because they use its layouts and guards; jsdom replaces `URL`, so the lint test runs ESLint from `frontend/` instead of building a path; the landing screens show their own error state in tests, so the failed sign-out test now looks for its alert inside the account menu. CodeRabbit found that `no-restricted-imports` skips dynamic `import()`, so an upward `React.lazy` import would pass; a `no-restricted-syntax` selector now applies the same pattern, with 6 new lint tests.

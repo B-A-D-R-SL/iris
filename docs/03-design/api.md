@@ -1,4 +1,8 @@
 <!-- AI contribution: 50% or more AI-generated -->
+<!-- File-length exception: keep authentication conventions, the cross-module
+endpoint catalog with role/status columns, and implementation-gap notes together
+so routing, access rules and generated-schema coverage can be reviewed against
+one contract. Existing module guides link to its stable endpoint-section anchors. -->
 
 # API
 
@@ -135,20 +139,51 @@ The public `/invitation/:token` page (#431) submits the token and password;
 password confirmation remains in the form. Anonymous success opens `/sign-in`.
 Signed-in visitors see completion guidance and keep their session until they
 explicitly sign out using the existing public header control.
-Invitation-issuing endpoints, email delivery, partner approval and household
-linking belong to US-05, US-06, US-13 and US-18.
+US-13 partner approval/reissue now calls account issuance and the US-57 queued
+notification service. Other staff/store-team issuing endpoints and household
+linking remain with US-05, US-06 and US-18. Invitation acceptance does not send
+another invitation.
 
 ### Stores and partners
 
 | Method    | Path                                            | Who           | Purpose                                       | Status  |
 | --------- | ----------------------------------------------- | ------------- | --------------------------------------------- | ------- |
 | POST      | `/api/partner-applications/`                    | Anyone        | Submit a partner application                  | Implemented (US-12) |
-| GET       | `/api/staff/partner-applications/?status=`      | Admin         | List applications                             | Planned |
-| POST      | `/api/staff/partner-applications/{id}/approve/` | Admin         | Approve: store + manager invitation           | Planned |
-| POST      | `/api/staff/partner-applications/{id}/reject/`  | Admin         | Reject with `reason`                          | Planned |
+| GET       | `/api/staff/partner-applications/?status=`      | Admin         | List applications                             | Implemented (US-13) |
+| POST      | `/api/staff/partner-applications/{id}/approve/` | Admin         | Approve: store + manager invitation           | Implemented (US-13) |
+| POST      | `/api/staff/partner-applications/{id}/reject/`  | Admin         | Reject with `reason`                          | Implemented (US-13) |
 | GET/PATCH | `/api/staff/stores/`, `/api/staff/stores/{id}/` | Admin         | List and edit stores                          | Planned |
 | POST      | `/api/staff/stores/{id}/deactivate/`            | Admin         | Deactivate; cancels open listings             | Planned |
 | GET/PATCH | `/api/store/profile/`                           | Store manager | Own store's phone, email, hours, instructions | Planned |
+
+#### Staff review of partner applications (US-13)
+
+Admin only: an active account with the `admin` role. Anonymous requests get 401;
+every other role, and inactive admins, get 403. Errors use the
+`{ "code", "message", "fields" }` envelope.
+
+| Request | Success | Errors |
+| --- | --- | --- |
+| `GET /api/staff/partner-applications/?status=submitted&page=1&page_size=20` | 200 page of applications, oldest first; without `status`, every status | 400 `validation_error` for an unknown `status` |
+| `POST /api/staff/partner-applications/{id}/approve/` (no body) | 200 application with `status: "approved"`; store, store-manager invitation and audit event saved in one transaction, shared approval email queued after commit | 404 unknown ID; 409 `application_already_decided` |
+| `POST /api/staff/partner-applications/{id}/reject/` `{ "reason": "..." }` | 200 application with `status: "rejected"` and the trimmed `decision_reason`; audit event saved, stored reason included in the shared rejection email queued after commit | 400 `validation_error` on `reason` (missing, blank or over 500 characters); 404; 409 `application_already_decided` |
+
+Both emails use the applicant's saved language and US-57 delivery metadata/retry
+handling. Invitation URLs use `PUBLIC_APP_ORIGIN`; no separate frontend-origin
+setting is required. A successful decision response does not establish provider
+acceptance or inbox delivery. Operator reissue retains the original decision and
+queues a new invitation; stale queued links are checked before transport as
+described in [the notification runbook](../../backend/modules/notifications/README.md#one-use-links-and-cleanup).
+
+Each application returns `id`, `status`, `can_decide`, the business fields (`business_name`,
+`business_type`, `neq`, `website`, address fields), the contact fields
+(`contact_first_name`, `contact_last_name`, `contact_role`, `contact_email`,
+`contact_phone`), `goods_categories`, `expected_frequency`, `opening_hours`,
+`message`, `language`, `decision_reason`, `decided_at` and `created_at` (UTC).
+`can_decide` is computed by the backend from active-admin access and submitted
+state. Clients render this flag; services recheck the same rule under the lock.
+The decisions are made by `services.approve_application` and
+`services.reject_application`; see the [stores module](../../backend/modules/stores/README.md).
 
 #### `POST /api/partner-applications/` (US-12)
 
@@ -225,6 +260,18 @@ US-13 staff screens exist.
 | GET        | `/api/staff/notices/{id}/file/`                         | Intake worker, admin | Signed URL valid 5 minutes (audited)              | Planned |
 | POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`; preserves expiry                    | Implemented (US-32) |
 | GET/POST   | `/api/staff/households/{id}/notes/`                     | Intake worker, admin | Staff notes                                       | Planned |
+
+US-32 suspension/reactivation emails include the reason after household-service
+whitespace normalization, active RuleSet length validation and sensitive-data
+refusal. The default limit is 500 characters; the schema permits up to 2,000.
+The existing 500-character model bound still applies when suspension stores the
+status reason; this email change does not enlarge that field. Reactivation clears
+the stored field and can retain a longer validated reason in its audit/email.
+The shared notification templates preserve the accepted text with HTML escaping,
+without copying it into EmailLog or application logs. Households without email
+still change status normally. Known-template email validation/configuration
+problems are recorded as delivery failures and do not undo a valid status
+change; household authorization and reason validation remain enforced.
 
 Active intake workers and admins may read, edit and submit shared,
 non-anonymized walk-in files, including another worker's and unassigned files.

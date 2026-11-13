@@ -4,28 +4,19 @@ import { IconTools } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
 import { EmptyState } from "../shared/ui";
-import { AppBar } from "./layouts/AppBar";
 
-interface PlaceholderScreenProps {
-  titleKey: string;
-  /** Household and store screens have an app bar; staff and public screens a heading. */
-  appBar?: boolean;
-  backTo?: string;
-}
-
-/** Stands in for a screen its story has not built yet; replace it in App.tsx. */
-export function PlaceholderScreen({ titleKey, appBar = false, backTo }: PlaceholderScreenProps) {
+/**
+ * Only for /privacy (FIX-13): the partner application's consent text and the
+ * welcome page link to the privacy policy, whose text does not exist yet. Every
+ * other screen gets its route when its story builds it.
+ */
+export function PlaceholderScreen({ titleKey }: { titleKey: string }) {
   const { t } = useTranslation();
-  const title = t(titleKey);
   return (
     <>
-      {appBar ? (
-        <AppBar title={title} backTo={backTo} />
-      ) : (
-        <Title order={1} mb="md">
-          {title}
-        </Title>
-      )}
+      <Title order={1} mb="md">
+        {t(titleKey)}
+      </Title>
       <EmptyState
         icon={IconTools}
         title={t("app.placeholder.title")}

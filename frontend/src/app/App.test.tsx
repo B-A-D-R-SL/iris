@@ -3,7 +3,7 @@ import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import type { Role } from "../features/accounts/currentUser";
+import type { Role } from "../shared/auth/roles";
 import i18n from "../shared/i18n";
 import {
   expectNoAxeViolations,
@@ -26,19 +26,21 @@ const linkNames = (nav: HTMLElement) =>
     .map((link) => link.textContent);
 
 describe("public area", () => {
-  it("welcomes visitors with sign in, register and become a partner", async () => {
+  it("welcomes visitors with sign in, become a partner and the privacy policy", async () => {
     const { container } = renderApp("/", "signed-out");
 
     expect(await screen.findByRole("heading", { name: "Bienvenue sur Iris" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Connexion" })).toHaveAttribute("href", "/sign-in");
-    expect(screen.getByRole("link", { name: "Inscrire mon foyer" })).toHaveAttribute(
-      "href",
-      "/sign-up",
-    );
     expect(screen.getByRole("link", { name: "Devenir partenaire" })).toHaveAttribute(
       "href",
       "/partner/apply",
     );
+    expect(screen.getByRole("link", { name: "Politique de confidentialité" })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
+    // Online sign-up adds its button with its screen (FIX-13).
+    expect(screen.queryByRole("link", { name: "Inscrire mon foyer" })).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 
@@ -50,9 +52,9 @@ describe("public area", () => {
   });
 
   it.each([
-    ["beneficiary", "Accueil"],
-    ["store_staff", "Aujourd'hui"],
-    ["store_manager", "Aujourd'hui"],
+    ["beneficiary", "Offres"],
+    ["store_staff", "Publier une offre"],
+    ["store_manager", "Publier une offre"],
     ["intake_worker", "Foyers"],
     ["admin", "Foyers"],
   ] as const)(
@@ -68,10 +70,34 @@ describe("public area", () => {
     expect(await screen.findByRole("heading", { name: "Page introuvable" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Retour à l'accueil" })).toHaveAttribute("href", "/");
   });
+
+  it("keeps the privacy page the partner form links to", async () => {
+    renderApp("/privacy", "signed-out");
+    expect(
+      await screen.findByRole("heading", { name: "Politique de confidentialité" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("screens not built yet have no route (FIX-13)", () => {
+  it.each([
+    ["/forgot-password", "signed-out"],
+    ["/sign-up", "signed-out"],
+    ["/home", "beneficiary"],
+    ["/reservations", "beneficiary"],
+    ["/profile", "beneficiary"],
+    ["/store", "store_staff"],
+    ["/store/listings", "store_manager"],
+    ["/staff/review", "admin"],
+    ["/staff/stores", "admin"],
+  ] as const)("shows %s as not found", async (route, user) => {
+    renderApp(route, user);
+    expect(await screen.findByRole("heading", { name: "Page introuvable" })).toBeInTheDocument();
+  });
 });
 
 describe("guards (deny by default)", () => {
-  it.each(["/home", "/store/listings/new", "/staff/households"])(
+  it.each(["/listings", "/store/listings/new", "/staff/households"])(
     "sends a signed-out visitor from %s to sign-in",
     async (route) => {
       renderApp(route, "signed-out");
@@ -80,41 +106,38 @@ describe("guards (deny by default)", () => {
   );
 
   it.each([
-    ["beneficiary", "/store/listings/new", "Accueil"],
-    ["beneficiary", "/staff/partners", "Accueil"],
-    ["store_staff", "/listings", "Aujourd'hui"],
-    ["store_manager", "/staff/households", "Aujourd'hui"],
-    ["intake_worker", "/store", "Foyers"],
-    ["admin", "/reservations", "Foyers"],
+    ["beneficiary", "/store/listings/new", "Offres"],
+    ["beneficiary", "/staff/partners", "Offres"],
+    ["store_staff", "/listings", "Publier une offre"],
+    ["store_manager", "/staff/households", "Publier une offre"],
+    ["intake_worker", "/store/listings/new", "Foyers"],
+    ["admin", "/listings", "Foyers"],
   ] as const)("sends %s away from %s to their home (%s)", async (role, route, home) => {
     renderApp(route, role);
     expect(await screen.findByRole("heading", { name: home })).toBeInTheDocument();
   });
 
-  it.each([
-    "/staff/review",
-    "/staff/partners",
-    "/staff/stores",
-    "/staff/categories",
-    "/staff/audit",
-  ])("keeps admin-only %s from intake workers", async (route) => {
-    renderApp(route, "intake_worker");
-    expect(await screen.findByRole("heading", { name: "Foyers" })).toBeInTheDocument();
-  });
+  it.each(["/staff/partners", "/staff/categories", "/staff/audit"])(
+    "keeps admin-only %s from intake workers",
+    async (route) => {
+      renderApp(route, "intake_worker");
+      expect(await screen.findByRole("heading", { name: "Foyers" })).toBeInTheDocument();
+    },
+  );
 
   it("shows an error with retry when the user cannot be loaded", async () => {
-    renderApp("/home", "server-error");
+    renderApp("/listings", "server-error");
     expect(await screen.findByRole("alert")).toHaveTextContent("Impossible d'afficher cette page");
     expect(screen.getByRole("button", { name: "Réessayer" })).toBeInTheDocument();
   });
 });
 
 describe("household area", () => {
-  it("shows the four household tabs with the current one marked", async () => {
+  it("shows the household tab marked on a listing detail", async () => {
     const { container } = renderApp("/listings/42", "beneficiary");
 
     expect(await screen.findByRole("heading", { name: "Offre" })).toBeInTheDocument();
-    expect(linkNames(mainNav())).toEqual(["Accueil", "Offres", "Réservations", "Profil"]);
+    expect(linkNames(mainNav())).toEqual(["Offres"]);
     expect(within(mainNav()).getByRole("link", { name: "Offres" })).toHaveAttribute(
       "aria-current",
       "page",
@@ -124,36 +147,33 @@ describe("household area", () => {
   });
 
   it("translates the tabs when the language changes", async () => {
-    renderApp("/home", "beneficiary");
-    await screen.findByRole("heading", { name: "Accueil" });
+    renderApp("/listings", "beneficiary");
+    await screen.findByRole("heading", { name: "Offres" });
     await act(() => i18n.changeLanguage("en"));
     const nav = screen.getByRole("navigation", { name: "Main navigation" });
-    expect(linkNames(nav)).toEqual(["Home", "Listings", "Reservations", "Profile"]);
+    expect(linkNames(nav)).toEqual(["Listings"]);
   });
 });
 
 describe("store area", () => {
-  it("shows the four store tabs and highlights Publier on the posting screen", async () => {
+  it("shows the store tab and highlights Publier on the posting screen", async () => {
     const { container } = renderApp("/store/listings/new", "store_staff");
 
     expect(await screen.findByRole("heading", { name: "Publier une offre" })).toBeInTheDocument();
-    expect(linkNames(mainNav())).toEqual(["Aujourd'hui", "Confirmer", "Publier", "Mes offres"]);
+    expect(linkNames(mainNav())).toEqual(["Confirmer", "Publier"]);
     expect(within(mainNav()).getByRole("link", { name: "Publier" })).toHaveAttribute(
       "aria-current",
       "page",
-    );
-    expect(within(mainNav()).getByRole("link", { name: "Mes offres" })).not.toHaveAttribute(
-      "aria-current",
     );
     await expectNoAxeViolations(container);
   });
 
   it("offers the language switch in the account menu", async () => {
-    renderApp("/store", "store_manager");
+    renderApp("/store/listings/new", "store_manager");
     await userEvent.click(await screen.findByRole("button", { name: "Mon compte" }));
     expect(await screen.findByText("Camille R.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("menuitem", { name: "English" }));
-    expect(await screen.findByRole("heading", { name: "Today" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Post a listing" })).toBeInTheDocument();
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 });
@@ -170,13 +190,13 @@ describe("staff area", () => {
   it("shows admins every staff screen and the signed-in name", async () => {
     const { container } = renderApp("/staff/partners", "admin");
 
-    expect(await screen.findByRole("heading", { name: "Partenaires" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Demandes de partenariat" }),
+    ).toBeInTheDocument();
     expect(linkNames(staffNav())).toEqual([
       "Foyers",
-      "Vérifications",
       "Inscription en personne",
       "Partenaires",
-      "Commerces",
       "Catégories",
       "Journal d'audit",
     ]);
@@ -186,5 +206,16 @@ describe("staff area", () => {
     );
     expect(screen.getByText("Camille R.")).toBeInTheDocument();
     await expectNoAxeViolations(container);
+  });
+
+  it("closes the side menu after choosing a screen", async () => {
+    renderApp("/staff/households", "intake_worker");
+    await screen.findByRole("heading", { name: "Foyers" });
+    await userEvent.click(screen.getByRole("button", { name: "Ouvrir le menu" }));
+    expect(screen.getByRole("button", { name: "Fermer le menu" })).toBeInTheDocument();
+    await userEvent.click(
+      within(staffNav()).getByRole("link", { name: "Inscription en personne" }),
+    );
+    expect(await screen.findByRole("button", { name: "Ouvrir le menu" })).toBeInTheDocument();
   });
 });

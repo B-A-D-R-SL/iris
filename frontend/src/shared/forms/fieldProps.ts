@@ -26,8 +26,12 @@ export interface BaseFieldProps {
   onFocus?: () => void;
 }
 
-/** Label, helper and error wiring shared by the fields, following forms-and-fields.md. */
-export function useFieldWrapper({ label, optional, description, error }: BaseFieldProps) {
+/**
+ * The wrapper every shared field uses: label, helper and error wiring following
+ * forms-and-fields.md, plus the props each field passes straight to its input.
+ */
+export function useFieldWrapper(props: BaseFieldProps) {
+  const { label, optional, description, error } = props;
   const { t } = useTranslation();
   return {
     label: optional ? `${label} ${t("shared.form.optional")}` : label,
@@ -37,5 +41,11 @@ export function useFieldWrapper({ label, optional, description, error }: BaseFie
     withAsterisk: false,
     inputWrapperOrder: INPUT_WRAPPER_ORDER,
     "aria-required": optional ? undefined : true,
+    disabled: props.disabled,
+    name: props.name,
+    id: props.id,
+    // Wrappers used just for labels must preserve existing form handlers.
+    ...(props.onBlur === undefined ? {} : { onBlur: props.onBlur }),
+    ...(props.onFocus === undefined ? {} : { onFocus: props.onFocus }),
   };
 }

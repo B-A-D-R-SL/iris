@@ -11,8 +11,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+from math import isfinite
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import environ
 from django.core.exceptions import ImproperlyConfigured
@@ -34,7 +36,6 @@ DEBUG = False
 
 
 ALLOWED_HOSTS: list[str] = []
-
 
 # Application definition
 
@@ -282,9 +283,54 @@ STATIC_URL = "static/"
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
+MAILER_ADAPTER = env("MAILER_ADAPTER", default="smtp")
+if MAILER_ADAPTER not in {"smtp", "azure", "fake"}:
+    raise ImproperlyConfigured("MAILER_ADAPTER must be smtp, azure or fake.")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@iris.local")
+AZURE_COMMUNICATION_CONNECTION_STRING = env(
+    "AZURE_COMMUNICATION_CONNECTION_STRING", default=""
+).strip()
+try:
+    AZURE_EMAIL_SEND_TIMEOUT_SECONDS = float(
+        env("AZURE_EMAIL_SEND_TIMEOUT_SECONDS", default="30")
+    )
+except ValueError:
+    raise ImproperlyConfigured(
+        "AZURE_EMAIL_SEND_TIMEOUT_SECONDS must be positive."
+    ) from None
+if (
+    not isfinite(AZURE_EMAIL_SEND_TIMEOUT_SECONDS)
+    or AZURE_EMAIL_SEND_TIMEOUT_SECONDS <= 0
+):
+    raise ImproperlyConfigured("AZURE_EMAIL_SEND_TIMEOUT_SECONDS must be positive.")
+
+PUBLIC_APP_ORIGIN = env("PUBLIC_APP_ORIGIN", default="http://localhost:5173")
+try:
+    _public_origin = urlsplit(PUBLIC_APP_ORIGIN)
+    _public_port = _public_origin.port
+    if (
+        _public_origin.scheme not in {"http", "https"}
+        or not _public_origin.hostname
+        or _public_origin.username is not None
+        or _public_origin.password is not None
+        or _public_origin.path not in {"", "/"}
+        or _public_origin.query
+        or _public_origin.fragment
+        or "?" in PUBLIC_APP_ORIGIN
+        or "#" in PUBLIC_APP_ORIGIN
+        or "\\" in PUBLIC_APP_ORIGIN
+        or any(character.isspace() for character in PUBLIC_APP_ORIGIN)
+    ):
+        raise ValueError
+except ValueError:
+    raise ImproperlyConfigured(
+        "PUBLIC_APP_ORIGIN must be an HTTP(S) origin without credentials, path or query."
+    ) from None
+PUBLIC_APP_ORIGIN = PUBLIC_APP_ORIGIN.rstrip("/")
+
 MAILER_BACKEND = env(
     "EMAIL_BACKEND",
-    default="django.core.mail.backends.console.EmailBackend",
+    default="django.core.mail.backends.smtp.EmailBackend",
 )
 
 MAILERS: dict[str, dict[str, Any]] = {
@@ -293,6 +339,14 @@ MAILERS: dict[str, dict[str, Any]] = {
     }
 }
 
+# Transport deadline, not a business-rule threshold: never block a request indefinitely.
+try:
+    SMTP_TIMEOUT = float(env("SMTP_TIMEOUT", default="10"))
+except (TypeError, ValueError) as exc:
+    raise ImproperlyConfigured("SMTP_TIMEOUT must be finite and positive.") from exc
+if not isfinite(SMTP_TIMEOUT) or SMTP_TIMEOUT <= 0:
+    raise ImproperlyConfigured("SMTP_TIMEOUT must be finite and positive.")
+
 if MAILER_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
     MAILERS["default"]["OPTIONS"] = {
         "host": env("EMAIL_HOST", default="localhost"),
@@ -300,6 +354,7 @@ if MAILER_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
         "username": env("EMAIL_HOST_USER", default=""),
         "password": env("EMAIL_HOST_PASSWORD", default=""),
         "use_tls": env.bool("EMAIL_USE_TLS", default=False),
+        "timeout": SMTP_TIMEOUT,
     }
 
 # JSON events with an allowlist of safe fields. Never include arbitrary messages,
@@ -307,19 +362,44 @@ if MAILER_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {"iris_json": {"()": "iris.observability.JsonLogFormatter"}},
     "filters": {
+        "queue_privacy": {"()": "iris.observability.QueueLogPrivacyFilter"},
         "expected_session_check": {
             "()": "iris.observability.ExpectedSessionCheckFilter"
-        }
+        },
     },
-    "formatters": {"iris_json": {"()": "iris.observability.JsonLogFormatter"}},
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "iris_json",
+            "filters": ["queue_privacy"],
         }
     },
     "loggers": {
+        # Logger filters run before attached/propagated handlers receive records.
+        # This is every logger used by the locked Procrastinate version; the
+        # console filter also covers new library loggers after an upgrade.
+        **{
+            name: {"filters": ["queue_privacy"]}
+            for name in (
+                "procrastinate",
+                "procrastinate.app",
+                "procrastinate.blueprints",
+                "procrastinate.cli",
+                "procrastinate.jobs",
+                "procrastinate.manager",
+                "procrastinate.periodic",
+                "procrastinate.psycopg_connector",
+                "procrastinate.signals",
+                "procrastinate.sync_psycopg_connector",
+                "procrastinate.tasks",
+                "procrastinate.utils",
+                "procrastinate.worker",
+                "procrastinate.contrib.aiopg.aiopg_connector",
+                "procrastinate.contrib.psycopg2.psycopg2_connector",
+            )
+        },
         "iris": {"handlers": ["console"], "level": "INFO", "propagate": False},
         # Pickup success events use the root's privacy-filtered console handler.
         "modules.reservations.services": {"level": "INFO"},
@@ -333,6 +413,12 @@ LOGGING = {
             "handlers": ["console"],
             "filters": ["expected_session_check"],
             "level": "INFO",
+            "propagate": False,
+        },
+        # HTTP diagnostics can contain recipient addresses and message content.
+        "azure.communication.email": {"level": "CRITICAL", "propagate": False},
+        "azure.core.pipeline.policies.http_logging_policy": {
+            "level": "CRITICAL",
             "propagate": False,
         },
     },

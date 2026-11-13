@@ -1,6 +1,9 @@
 <!-- AI contribution: 50% or more AI-generated -->
-<!-- Size exception: keep the cross-module field definitions beside the complete
-Mermaid ERD so foreign keys and migration ordering can be reviewed together. -->
+<!-- File-length exception: the model field/nullability/constraint tables, complete
+Mermaid ERD and module migration order form one cross-module schema contract.
+Keep them together so changes such as EmailLog's User foreign key or the required
+store assignment for store roles can be checked against all three representations
+in the same review. -->
 # Iris database schema — Release 1 draft
 
 This is a logical design draft based on the documented requirements. Field labels describe the information to store, and types describe logical values. This document does not establish a deployed SQL schema.
@@ -504,21 +507,32 @@ Email-delivery status without retained email content.
 
 | Field | Logical type | Key | Details |
 | --- | --- | --- | --- |
-| to_email | string | — | Recipient address. |
-| user | reference | — | Associated user, when applicable. |
+| id | UUID | Primary key | One delivery's stable identifier across retries. |
+| to_email | string | — | Recipient address. A failed validation record may retain a database-safe malformed address; empty when the input cannot be represented safely in this field. |
+| user | reference | Foreign key | Optional account; `SET_NULL` preserves delivery metadata when the user is deleted. |
 | template_key | string | — | Template used. |
-| language | string | — | Template language. |
-| status | string | — | Delivery status. |
-| attempts | integer | — | Delivery attempts. |
-| error | string | — | Delivery error. |
-| sent_at | datetime | — | Sending time. |
+| language | string | — | Captured recipient preference, `fr` or `en`. |
+| status | string | — | `pending`, `sending`, `retrying`, `sent` or `failed`. |
+| attempts | integer | — | Transport attempts started by the worker, initially zero; distinct from the queue's execution count. |
+| error | string | — | Bounded internal error code; no provider exception text. |
+| sent_at | datetime | — | Set after transport/provider acceptance; unset for other statuses. This is not inbox-delivery confirmation. |
+| created_at | datetime | — | Delivery record creation time. |
+| updated_at | datetime | — | Last delivery-state update. |
 
 **Documented constraints and business rules**
 
 | Rule | Enforcement |
 | --- | --- |
-| Record delivery information without storing email content. | Notification service. |
+| Record delivery information without subject, body, rendering context or token fields. | Notification service. |
 | Send after the originating transaction commits; use the documented retry schedule. | Background notification jobs. |
+| Only `fr` or `en`; sent records have `sent_at`, other statuses do not. | Database CHECK constraints. |
+| Filter delivery outcomes by status and creation time. | Index `notifications_status_created` on (`status`, `created_at`). |
+
+The protected EmailLog table may retain a recipient address; application stdout
+logs may not. Restricted queue payloads temporarily hold only the rendering
+context needed for delivery and the captured retry list. Hourly terminal-job
+cleanup preserves EmailLog metadata; general log retention and the staff failed
+email interface remain separate work. See [notification rules](../02-requirements/business-rules.md#notifications-us-57).
 
 Sources: [Issue #538](https://github.com/B-A-D-R-SL/iris/issues/538), [Issue #541](https://github.com/B-A-D-R-SL/iris/issues/541).
 
@@ -769,14 +783,17 @@ erDiagram
     }
 
     EmailLog {
+        uuid id PK "Stable delivery identifier."
         string to_email "Recipient address."
-        reference user "Associated user, when applicable."
+        reference user FK "Optional account; SET_NULL."
         string template_key "Template used."
         string language "Template language."
         string status "Delivery status."
         integer attempts "Delivery attempts."
-        string error "Delivery error."
-        datetime sent_at "Sending time."
+        string error "Safe internal error code."
+        datetime sent_at "Provider acceptance time; not inbox delivery."
+        datetime created_at "Record creation time."
+        datetime updated_at "Last state update."
     }
 ```
 

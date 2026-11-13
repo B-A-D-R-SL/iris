@@ -18,12 +18,16 @@ from uuid import UUID, uuid4
 
 from django.http import HttpRequest, HttpResponseBase
 
+_STANDARD_LOG_FIELDS = frozenset(logging.LogRecord("", 0, "", 0, "", (), None).__dict__)
+
 _request_id: ContextVar[str | None] = ContextVar("iris_request_id", default=None)
 _AUTH_USER_EVENTS = frozenset({"sign_in_succeeded", "signed_out"})
 _HTTP_METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"})
 _PHOTO_REFERENCE = re.compile(r"listing-photos/[0-9a-f]{32}\.(?:jpg|png)")
 _EXCEPTION_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,127}")
-_REASON_CODES = frozenset({"unhandled_exception", "smtp_error", "connection_error"})
+_REASON_CODES = frozenset(
+    {"unhandled_exception", "smtp_error", "connection_error", "transport_error"}
+)
 _SESSION_CHECK_PATH = "/api/auth/browser/v1/auth/session"
 _SESSION_REQUEST_LINE = re.compile(
     rf"GET {re.escape(_SESSION_CHECK_PATH)}(?:\?[^ ]*)? HTTP/1\.[01]"
@@ -31,7 +35,7 @@ _SESSION_REQUEST_LINE = re.compile(
 
 
 def _add_diagnostic_fields(
-    payload: dict[str, str | int], record: logging.LogRecord
+    payload: dict[str, str | int], record: logging.LogRecord, event: str
 ) -> None:
     """Serialize exception types and registered codes, never free-form details."""
     exc_type = getattr(record, "exc_type", None)
@@ -44,8 +48,28 @@ def _add_diagnostic_fields(
     ):
         payload["exc_type"] = exc_type.__name__
     reason = getattr(record, "reason", None)
+    if (
+        reason is None
+        and record.name == "django.request"
+        and event == "http_request_failed"
+    ):
+        reason = "unhandled_exception"
     if isinstance(reason, str) and reason in _REASON_CODES:
         payload["reason"] = reason
+
+
+def _add_smtp_code(
+    payload: dict[str, str | int], record: logging.LogRecord, event: str
+) -> None:
+    """Allow only an SMTP failure response code on the mail adapter's event."""
+    code = getattr(record, "smtp_code", None)
+    if (
+        record.name == "iris.mailer"
+        and event == "email_send_failed"
+        and type(code) is int
+        and 400 <= code <= 599
+    ):
+        payload["smtp_code"] = code
 
 
 def _is_expected_session_check(request: object, status: object) -> bool:
@@ -91,6 +115,23 @@ class ExpectedSessionCheckFilter(logging.Filter):
         ):
             record.levelno = logging.INFO
             record.levelname = "INFO"
+        return True
+
+
+class QueueLogPrivacyFilter(logging.Filter):
+    """Remove queue arguments before handlers can retain a library log record."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.name == "procrastinate" or record.name.startswith("procrastinate."):
+            for field in tuple(record.__dict__):
+                if field not in _STANDARD_LOG_FIELDS:
+                    del record.__dict__[field]
+            record.msg = "background_job_event"
+            record.args = ()
+            record.exc_info = None
+            record.exc_text = None
+            record.stack_info = None
+            record.event = "background_job_event"
         return True
 
 
@@ -154,6 +195,44 @@ def _add_photo_reference(
         payload["photo_ref"] = photo_ref
 
 
+def _add_eligibility_fields(
+    payload: dict[str, str | int], record: logging.LogRecord, event: str
+) -> None:
+    """Allow only opaque decision references, a fixed outcome and rule version."""
+    if record.name != "iris.eligibility" or event != "eligibility_decided":
+        return
+
+    for field in ("decision_id", "household_id"):
+        value = getattr(record, field, None)
+        if isinstance(value, UUID):
+            payload[field] = str(value)
+
+    outcome = getattr(record, "outcome", None)
+    if isinstance(outcome, str) and outcome in {"eligible", "ineligible"}:
+        payload["outcome"] = outcome
+
+    rule_version = getattr(record, "rule_version", None)
+    if type(rule_version) is int and rule_version > 0:
+        payload["rule_version"] = rule_version
+
+
+def _add_partner_application(
+    payload: dict[str, str | int], record: logging.LogRecord, event: str
+) -> None:
+    """Permit an opaque recovery reference only on the stores email-failure event."""
+    if (
+        record.name != "iris.stores"
+        or event != "partner_application_decision_email_failed"
+    ):
+        return
+    try:
+        application_id = UUID(str(getattr(record, "application_id", "")))
+    except ValueError:
+        # Invalid diagnostic fields are discarded without recursive logging.
+        return
+    payload["application_id"] = str(application_id)
+
+
 class JsonLogFormatter(logging.Formatter):
     """Serialize an allowlist of fields instead of arbitrary log message text."""
 
@@ -170,10 +249,13 @@ class JsonLogFormatter(logging.Formatter):
         if request_id:
             payload["request_id"] = request_id
 
-        _add_diagnostic_fields(payload, record)
+        _add_diagnostic_fields(payload, record, event)
         _add_auth_user(payload, record, event)
         _add_request_fields(payload, record)
         _add_photo_reference(payload, record, event)
+        _add_smtp_code(payload, record, event)
+        _add_eligibility_fields(payload, record, event)
+        _add_partner_application(payload, record, event)
         return json.dumps(payload, separators=(",", ":"))
 
 

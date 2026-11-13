@@ -5,17 +5,16 @@
 
 import logging
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, cast
 
-from django.core.exceptions import ValidationError
+from django.conf import settings
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
-from django.utils import translation
-from django.utils.translation import gettext
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from adapters.mailer.base import Mailer
-from adapters.mailer.smtp import SmtpMailer
 from modules.categories import queries as category_queries
+from modules.notifications import services as notification_services
 from modules.stores.models import (
     ApplicationLanguage,
     ApplicationStatus,
@@ -76,36 +75,8 @@ def _check_categories(codes: list[str]) -> None:
         raise ValidationError({"goods_categories": [UNKNOWN_CATEGORY_MESSAGE]})
 
 
-def _confirmation_email(application: PartnerApplication) -> tuple[str, str]:
-    """Render the partner_application_received email in the contact's language."""
-    with translation.override(application.language):
-        subject = gettext("We received your partner application")
-        lines = [
-            gettext("Hello,"),
-            gettext(
-                "Thank you for applying to become a B.A.D.R. partner store with "
-                "Iris. We received the application for %(business)s."
-            )
-            % {"business": application.business_name},
-            gettext(
-                "B.A.D.R. will review it and write to you at this address. "
-                "You have nothing else to do for now."
-            ),
-            gettext("The Iris team"),
-        ]
-    return subject, "\n\n".join(lines)
-
-
-def _send_confirmation(mailer: Mailer, to: str, subject: str, body: str) -> None:
-    try:
-        mailer.send([to], subject, text=body)
-    except Exception:  # noqa: BLE001 - the saved application must not be lost.
-        # No address, names or provider error text: logs never hold personal data.
-        logger.error("partner_application_email_failed")
-
-
 def submit_application(
-    values: Mapping[str, Any], *, language: str, mailer: Mailer | None = None
+    values: Mapping[str, Any], *, language: str
 ) -> PartnerApplication:
     """Save a submitted application, then email the contact after the commit.
 
@@ -129,13 +100,184 @@ def submit_application(
     try:
         with transaction.atomic():
             application.save()
-            subject, body = _confirmation_email(application)
-            sender = mailer if mailer is not None else SmtpMailer()
-            transaction.on_commit(
-                lambda: _send_confirmation(sender, email, subject, body)
+            notification_services.send(
+                email,
+                "partner_application_received",
+                {
+                    "language": application.language,
+                    "business_name": application.business_name,
+                },
             )
     except IntegrityError:
         if _has_open_application(email):
             raise ApplicationAlreadyOpen(email) from None
         raise
+    return application
+
+
+class ApplicationAlreadyDecided(Exception):
+    """The application is no longer awaiting a decision."""
+
+
+def _require_active_admin(admin: Any) -> None:
+    """Authorize before inspecting deployment configuration or taking locks."""
+    if (
+        not admin
+        or not admin.is_authenticated
+        or not admin.is_active
+        or admin.role != "admin"
+    ):
+        raise PermissionDenied("An active admin is required.")
+
+
+def can_decide_application(application: PartnerApplication, admin: Any) -> bool:
+    """Decision availability for both API presentation and service enforcement."""
+    try:
+        _require_active_admin(admin)
+    except PermissionDenied:
+        return False
+    return application.status == ApplicationStatus.SUBMITTED
+
+
+def _invitation_url(token: str) -> str | None:
+    """Let notification validation record email configuration failures separately."""
+    origin = getattr(settings, "PUBLIC_APP_ORIGIN", None)
+    return (
+        f"{origin.rstrip('/')}/invitation/{token}" if isinstance(origin, str) else None
+    )
+
+
+def _locked_application(
+    application: PartnerApplication, admin: Any
+) -> PartnerApplication:
+    _require_active_admin(admin)
+    locked = PartnerApplication.objects.select_for_update().get(pk=application.pk)
+    if not can_decide_application(locked, admin):
+        raise ApplicationAlreadyDecided
+    return locked
+
+
+def _record_decision(application: PartnerApplication, admin: Any) -> None:
+    """Persist the decision and audit atomically; log success only after commit."""
+    from modules.audit import services as audit_services
+
+    application.decided_by = admin
+    application.decided_at = timezone.now()
+    application.save(
+        update_fields=["status", "decided_by", "decided_at", "decision_reason"]
+    )
+    audit_services.record(
+        admin,
+        "decision",
+        "partner_application",
+        application.pk,
+        {"outcome": application.status},
+    )
+    event = f"partner_application_{application.status}"
+    transaction.on_commit(lambda: logger.info(event, extra={"event": event}))
+
+
+@transaction.atomic
+def approve_application(
+    application: PartnerApplication, admin: Any
+) -> PartnerApplication:
+    """Create the store and manager invitation atomically, then queue email after commit."""
+    from modules.accounts import services as account_services
+
+    _require_active_admin(admin)
+    application = _locked_application(application, admin)
+    store = Store(
+        name=application.business_name,
+        street_number=application.street_number,
+        street_name=application.street_name,
+        unit=application.unit,
+        city=application.city,
+        postal_code=application.postal_code,
+        phone=application.contact_phone,
+        email=application.contact_email,
+        opening_hours={"notes": application.opening_hours},
+        application=application,
+    )
+    store.full_clean()
+    store.save()
+    token = account_services.create_invitation(
+        email=application.contact_email,
+        first_name=application.contact_first_name,
+        last_name=application.contact_last_name,
+        role="store_manager",
+        store=store,
+        invited_by=admin,
+    )
+    application.status = ApplicationStatus.APPROVED
+    application.decision_reason = None
+    _record_decision(application, admin)
+    notification_services.send(
+        application.contact_email,
+        "partner_application_approved",
+        {
+            "language": application.language,
+            "invitation_url": _invitation_url(token),
+        },
+    )
+    return application
+
+
+@transaction.atomic
+def resend_approval_invitation(application: PartnerApplication, admin: Any) -> None:
+    """Reissue an approved application's invitation; send only after commit."""
+    from modules.accounts import services as account_services
+
+    _require_active_admin(admin)
+    application = PartnerApplication.objects.select_for_update().get(pk=application.pk)
+    if application.status != ApplicationStatus.APPROVED:
+        raise ValidationError(
+            "Only approved applications can have invitations reissued."
+        )
+    store = Store.objects.get(application=application)
+    token = account_services.reissue_store_manager_invitation(
+        email=application.contact_email,
+        first_name=application.contact_first_name,
+        last_name=application.contact_last_name,
+        store=store,
+        invited_by=admin,
+    )
+    notification_services.send(
+        application.contact_email,
+        "partner_application_approved",
+        {
+            "language": application.language,
+            "invitation_url": _invitation_url(token),
+        },
+    )
+
+
+@transaction.atomic
+def reject_application(
+    application: PartnerApplication,
+    admin: Any,
+    reason: str,
+) -> PartnerApplication:
+    """Record a rejection and notify the applicant after the transaction commits."""
+    application = _locked_application(application, admin)
+    # BR-PARTNER-04: derive the fixed API/storage bound from its model field.
+    reason_limit = cast(
+        int, PartnerApplication._meta.get_field("decision_reason").max_length
+    )
+    if (
+        not isinstance(reason, str)
+        or not reason.strip()
+        or len(reason.strip()) > reason_limit
+    ):
+        raise ValidationError(
+            {"reason": _("Enter a reason of at most 500 characters.")}
+        )
+    reason = reason.strip()
+    application.status = ApplicationStatus.REJECTED
+    application.decision_reason = reason
+    _record_decision(application, admin)
+    notification_services.send(
+        application.contact_email,
+        "partner_application_rejected",
+        {"language": application.language, "reason": reason},
+    )
     return application

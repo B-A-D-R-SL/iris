@@ -56,6 +56,37 @@ describe("rules accept valid and empty values", () => {
   });
 });
 
+describe("phone and postal code follow the backend rule, whatever the case and spacing (FIX-13)", () => {
+  it.each(["H2X 1Y4", "h2x 1y4", "H2X1Y4", "h2x1y4", " H2X  1Y4 "])(
+    "accepts the postal code %j",
+    (value) => {
+      expect(isPostalCode()(value)).toBeNull();
+    },
+  );
+
+  // Canada Post never uses D, F, I, O, Q or U, nor W or Z in first place.
+  it.each(["D2X 1Y4", "H2O 1Y4", "H2X 1U4", "W2X 1Y4", "Z2X 1Y4", "H2X 1Y45", "H2X-1Y4"])(
+    "refuses the postal code %j",
+    (value) => {
+      expect(isPostalCode()(value)).not.toBeNull();
+    },
+  );
+
+  it.each(["+15145550123", "(514) 555-0123", "514 555 0123", "514-555-0123", "+1 514 555 0123"])(
+    "accepts the phone number %j",
+    (value) => {
+      expect(isPhone()(value)).toBeNull();
+    },
+  );
+
+  it.each(["+447911123456", "+1 014 555 0123", "514 555 01234", "555-0123", "514.555.012a"])(
+    "refuses the phone number %j",
+    (value) => {
+      expect(isPhone()(value)).not.toBeNull();
+    },
+  );
+});
+
 describe("rules explain the problem in French by default", () => {
   it.each([
     [isRequired(), "   ", "Remplissez ce champ."],

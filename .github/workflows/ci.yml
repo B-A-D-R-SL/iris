@@ -86,6 +86,18 @@ jobs:
       - name: Missing migrations
         run: python manage.py makemigrations --check --dry-run
 
+      # FIX-17 (#643): fail when the production settings (FIX-04) regress.
+      - name: Production deployment check
+        env:
+          # Synthetic values satisfy production startup guards; no provider is used.
+          DJANGO_SECRET_KEY: iris-ci-deploy-check-only-not-a-secret-0123456789abcdef
+          DJANGO_ALLOWED_HOSTS: iris.example.org
+          EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+          MAILER_ADAPTER: smtp
+          DEFAULT_FROM_EMAIL: noreply@iris.example.org
+          PUBLIC_APP_ORIGIN: https://iris.example.org
+        run: python manage.py check --settings=iris.settings.production --deploy --fail-level WARNING
+
       - name: Tests with coverage (minimum 70%)
         run: pytest -m "not slow_expiry" --cov --cov-report=term --cov-report=xml:coverage.xml
 
@@ -221,6 +233,151 @@ jobs:
           name: frontend-coverage
           path: frontend/coverage/lcov.info
           if-no-files-found: error
+
+  secret-scan:
+    # FIX-17 (#643): Code Quality Rubric 5.1, no committed secrets.
+    name: Secret scanning (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # gitleaks-action needs a licence for organisations, so the CLI is used:
+      # an exact release, checked against its published SHA-256.
+      GITLEAKS_VERSION: "8.30.1"
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install gitleaks
+        run: |
+          base="https://github.com/gitleaks/gitleaks/releases/download"
+          # HTTPS only, including redirects (GitHub sends release downloads to its CDN).
+          curl --proto '=https' --proto-redir '=https' --tlsv1.2 -sSfL -o gitleaks.tar.gz \
+            "${base}/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum --check
+          tar -xzf gitleaks.tar.gz gitleaks
+          rm gitleaks.tar.gz
+
+      # Pull requests: their own commits. Pushes to main: the pushed commits.
+      # Manual run (workflow_dispatch): the whole history.
+      - name: Scan commits
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.sha }}
+        run: |
+          range=""
+          if [ "$EVENT" = "pull_request" ]; then
+            range="${PR_BASE}..${PR_HEAD}"
+          elif [ "$EVENT" = "push" ] && [ -n "$PUSH_BEFORE" ] && [ "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            range="${PUSH_BEFORE}..${PUSH_AFTER}"
+          fi
+          # git log -p shows no diff for merge commits, so a secret added while
+          # resolving a conflict would be missed: compare merges to their first
+          # parent. --log-opts replaces gitleaks' defaults, so the full-history
+          # scan restates them (--full-history --all --diff-filter=tuxdb).
+          merges="--diff-merges=first-parent"
+          if [ -n "$range" ]; then
+            ./gitleaks git --config .gitleaks.toml --redact --no-banner --log-opts="$merges $range" .
+          else
+            ./gitleaks git --config .gitleaks.toml --redact --no-banner               --log-opts="--full-history --all --diff-filter=tuxdb $merges" .
+          fi
+
+  zap-baseline:
+    # FIX-17 (#643): SEC-10, OWASP ZAP baseline scan of the running backend.
+    name: ZAP baseline scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: iris
+          POSTGRES_USER: iris
+          POSTGRES_PASSWORD: iris_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U iris -d iris"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      # CI-only values; nothing here is a real secret.
+      DJANGO_SETTINGS_MODULE: iris.settings.ci_scan
+      DJANGO_SECRET_KEY: iris-ci-zap-scan-only-not-a-secret-0123456789abcdefghij
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      DATABASE_URL: postgresql://iris:iris_ci_password@localhost:5432/iris
+      # Synthetic mail settings satisfy production guards; no worker is started.
+      EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+      MAILER_ADAPTER: smtp
+      DEFAULT_FROM_EMAIL: noreply@iris.example.org
+      PUBLIC_APP_ORIGIN: https://iris.example.org
+      SEED_PASSWORD: iris-ci-scan-seed-password
+      # ZAP 2.17.0 ("stable" on 2026-11-03), pinned by digest like the actions.
+      ZAP_IMAGE: ghcr.io/zaproxy/zaproxy@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.12.23"
+          python-version: "3.13"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install, migrate and seed the backend
+        working-directory: backend
+        run: |
+          uv sync --locked --no-build --no-dev
+          .venv/bin/python manage.py migrate --noinput
+          .venv/bin/python manage.py seed
+
+      - name: Start the backend (production settings, plain HTTP)
+        working-directory: backend
+        run: |
+          nohup .venv/bin/python manage.py runserver 127.0.0.1:8000 --noreload > ../backend-server.log 2>&1 &
+          for _ in $(seq 1 90); do
+            curl -sf http://localhost:8000/api/health/ && exit 0
+            sleep 2
+          done
+          cat ../backend-server.log
+          exit 1
+
+      # zap-baseline.py exits 1 or 2 for warnings; the gate below decides.
+      # Exit code 3 means ZAP itself failed, which fails the job.
+      - name: Run the ZAP baseline scan
+        run: |
+          mkdir -p zap
+          cp .zap/rules.tsv zap/rules.tsv
+          # ZAP runs as uid 1000 inside its image: give it this folder, not everyone.
+          sudo chown -R 1000:1000 zap
+          status=0
+          # /api/docs/ is admin-only since FIX-04: start from the public admin sign-in page.
+          scan="zap-baseline.py -t http://localhost:8000/admin/login/ -c rules.tsv"
+          scan="$scan -J zap-report.json -r zap-report.html -I"
+          docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" "$ZAP_IMAGE" $scan || status=$?
+          if [ "$status" -ge 3 ]; then exit "$status"; fi
+          test -s zap/zap-report.json
+
+      - name: Fail on High-risk alerts
+        run: python3 .github/scripts/zap_gate.py
+
+      - name: Upload the ZAP report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: zap-baseline-report
+          path: |
+            zap/zap-report.html
+            zap/zap-report.json
+          if-no-files-found: warn
 
   sonar:
     name: SonarQube Cloud

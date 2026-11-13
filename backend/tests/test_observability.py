@@ -10,8 +10,17 @@ import pytest
 from django.http import HttpRequest, HttpResponse
 from django.test import Client
 from django.urls import get_resolver
+from procrastinate.contrib.django import app
+from procrastinate.job_context import JobContext, JobResult
+from procrastinate.jobs import Job, Status
+from procrastinate.worker import Worker
 
-from iris.observability import JsonLogFormatter, RequestIdMiddleware
+from adapters.mailer.base import MailerError
+from iris.observability import (
+    JsonLogFormatter,
+    QueueLogPrivacyFilter,
+    RequestIdMiddleware,
+)
 
 
 def test_health_response_has_server_generated_request_id(client: Client) -> None:
@@ -61,6 +70,113 @@ def test_formatter_discards_arbitrary_message_and_exceptions() -> None:
     encoded = JsonLogFormatter().format(record)
     assert json.loads(encoded)["event"] == "safe_failure"
     assert "private@example.org" not in encoded
+
+
+def test_queue_filter_removes_payloads_before_a_record_can_be_retained() -> None:
+    failure = MailerError("provider_rejected", retryable=False)
+    record = logging.makeLogRecord(
+        {
+            "name": "procrastinate.future_logger",
+            "levelname": "ERROR",
+            "msg": "Job %s failed",
+            "args": ("private@example.test token=one-use-secret",),
+            "job": {"task_kwargs": {"context": {"action_url": "secret-link"}}},
+            "kwargs": {"body": "private email body"},
+            "exception": "private provider response",
+            "exc_info": (type(failure), failure, None),
+            "exc_text": "private traceback",
+            "stack_info": "private stack",
+            "message": "already formatted private body",
+            "event": "private-event",
+        }
+    )
+
+    assert QueueLogPrivacyFilter().filter(record)
+
+    assert record.getMessage() == "background_job_event"
+    assert record.args == ()
+    assert record.exc_info is None and record.exc_text is None
+    assert record.stack_info is None
+    assert getattr(record, "event", None) == "background_job_event"
+    assert not {"job", "kwargs", "exception", "message"} & record.__dict__.keys()
+    assert "private" not in repr(record.__dict__)
+    assert "secret" not in JsonLogFormatter().format(record)
+
+
+# Size exception: the native Worker._log_job_outcome call and temporary raw
+# handler share one try/finally. Its pre-propagation snapshot and pytest's retained
+# record must be checked together to prove that neither handler retains the token
+# before formatting, while restoring the real logger after the library call.
+def test_native_worker_failure_record_is_safe_before_propagation(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Exercise the library method that normally formats every job argument."""
+    secret = "one-use-secret-token"
+    worker = Worker(app=app, install_signal_handlers=False)
+    job = Job(
+        id=1,
+        queue="email",
+        lock=None,
+        queueing_lock=None,
+        task_name="notifications.send_email",
+        task_kwargs={
+            "email_log_id": "synthetic-log-id",
+            "context": {"action_url": f"https://iris.example/invitation/{secret}"},
+        },
+    )
+    context = JobContext(
+        app=app,
+        job=job,
+        start_timestamp=1,
+        abort_reason=lambda: None,
+    )
+    captured_before_propagation: list[dict[str, object]] = []
+
+    class CaptureHandler(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            captured_before_propagation.append(record.__dict__.copy())
+
+    handler = CaptureHandler()
+    logger = logging.getLogger("procrastinate.worker")
+    logger.addHandler(handler)
+    try:
+        with caplog.at_level(logging.ERROR, logger="procrastinate.worker"):
+            worker._log_job_outcome(
+                status=Status.FAILED,
+                context=context,
+                job_result=JobResult(
+                    start_timestamp=1, end_timestamp=2, result="private email body"
+                ),
+                job_retry=None,
+                exc_info=MailerError("provider_rejected", retryable=False),
+            )
+    finally:
+        logger.removeHandler(handler)
+        handler.close()
+
+    [raw] = captured_before_propagation
+    assert raw["msg"] == "background_job_event"
+    assert raw["exc_info"] is None and raw["args"] == ()
+    assert "job" not in raw and "worker" not in raw
+    assert secret not in repr(raw)
+    assert "private email body" not in repr(raw)
+    [record] = [item for item in caplog.records if item.name == "procrastinate.worker"]
+    assert record.getMessage() == "background_job_event"
+    assert secret not in repr(record.__dict__)
+
+
+def test_queue_filter_does_not_change_application_events() -> None:
+    record = logging.makeLogRecord(
+        {
+            "name": "iris.auth",
+            "msg": "Sign-in failed",
+            "event": "sign_in_failed",
+            "request_id": "opaque-request-id",
+        }
+    )
+    original = record.__dict__.copy()
+    assert QueueLogPrivacyFilter().filter(record)
+    assert record.__dict__ == original
 
 
 @pytest.mark.parametrize("event", ["sign_in_succeeded", "signed_out"])
@@ -164,6 +280,23 @@ def test_headless_auth_routes_are_mounted_under_api_auth() -> None:
     assert "_allauth/" not in routes
 
 
+def test_application_recovery_identifier_is_a_restricted_uuid() -> None:
+    """Only stores email failures may include a valid application UUID."""
+    record = logging.LogRecord("iris.stores", logging.ERROR, __file__, 1, "", (), None)
+    record.event = "partner_application_decision_email_failed"
+    application_id = "00000000-0000-4000-8000-000000000001"
+    record.application_id = application_id
+    assert (
+        json.loads(JsonLogFormatter().format(record))["application_id"]
+        == application_id
+    )
+    record.application_id = "private@example.test"
+    assert "private@example.test" not in JsonLogFormatter().format(record)
+    record.application_id = "00000000-0000-4000-8000-000000000001"
+    record.name = "some.library"
+    assert "application_id" not in json.loads(JsonLogFormatter().format(record))
+
+
 def test_http_request_uses_warning_and_error_levels() -> None:
     output = StringIO()
     handler = logging.StreamHandler(output)
@@ -187,3 +320,80 @@ def test_http_request_uses_warning_and_error_levels() -> None:
     events = [json.loads(line) for line in output.getvalue().splitlines()]
     assert [event["level"] for event in events] == ["WARNING", "ERROR"]
     assert [event["status_code"] for event in events] == [404, 503]
+
+
+@pytest.mark.parametrize("outcome", ["eligible", "ineligible"])
+def test_eligibility_event_discards_personal_and_financial_details(outcome):
+    record = logging.makeLogRecord(
+        {
+            "name": "iris.eligibility",
+            "levelname": "INFO",
+            "event": "eligibility_decided",
+            "decision_id": UUID(int=12),
+            "household_id": UUID(int=13),
+            "outcome": outcome,
+            "rule_version": 2,
+            "adult_incomes_cents": [12_345, 20_000],
+            "household_income_cents": 32_345,
+            "threshold_cents": 36_527,
+            "name_of_holder": "Private Person",
+            "email": "private@example.test",
+            "msg": "Private Person earns 32345",
+        }
+    )
+
+    payload = json.loads(JsonLogFormatter().format(record))
+
+    assert payload == {
+        "timestamp": payload["timestamp"],
+        "level": "INFO",
+        "logger": "iris.eligibility",
+        "event": "eligibility_decided",
+        "decision_id": str(UUID(int=12)),
+        "household_id": str(UUID(int=13)),
+        "outcome": outcome,
+        "rule_version": 2,
+    }
+
+
+@pytest.mark.parametrize(
+    ("logger_name", "event"),
+    [("iris.http", "eligibility_decided"), ("iris.eligibility", "decision_failed")],
+)
+def test_other_events_cannot_expose_eligibility_fields(logger_name, event):
+    record = logging.makeLogRecord(
+        {
+            "name": logger_name,
+            "event": event,
+            "decision_id": UUID(int=12),
+            "household_id": UUID(int=13),
+            "outcome": "eligible",
+            "rule_version": 2,
+        }
+    )
+
+    payload = json.loads(JsonLogFormatter().format(record))
+
+    assert set(payload) == {"timestamp", "level", "logger", "event"}
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("decision_id", "private@example.test"),
+        ("household_id", "Private Person"),
+        ("outcome", "Private Person is eligible"),
+        ("outcome", ["eligible"]),
+        ("rule_version", "private@example.test"),
+        ("rule_version", True),
+        ("rule_version", 0),
+    ],
+)
+def test_eligibility_fields_reject_values_outside_the_allowlist(field, value):
+    record = logging.makeLogRecord(
+        {"name": "iris.eligibility", "event": "eligibility_decided", field: value}
+    )
+
+    payload = json.loads(JsonLogFormatter().format(record))
+
+    assert set(payload) == {"timestamp", "level", "logger", "event"}

@@ -20,10 +20,9 @@ import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams } from "react-router";
 
-import { AppBar } from "../../../app/layouts/AppBar";
 import { getCategories } from "../../../features/categories/api";
 import { BrowseFailed, NOT_APPROVED, useListingCard } from "../../../features/listings/browse";
-import { EmptyState, ErrorState, LoadingState } from "../../../shared/ui";
+import { AppBar, EmptyState, ErrorState, LoadingState } from "../../../shared/ui";
 import { ListingPhoto } from "../components/ListingPhoto";
 import { NotApproved } from "../components/NotApproved";
 import household from "../household.module.css";
