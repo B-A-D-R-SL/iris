@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}The store has cancelled your reservation. Sign in to Iris to see your reservations and available listings.{% endautoescape %}

@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}Vous êtes invité·e à créer un compte Iris. Utilisez le lien ci-dessous pour choisir votre mot de passe.{% endautoescape %}

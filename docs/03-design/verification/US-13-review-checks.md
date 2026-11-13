@@ -3,6 +3,14 @@
 
 Verified on November 11, 2026 after merging main (`2b389ed`) into PR #665.
 
+This is historical evidence for PR #665, before integration with US-57. The
+original SMTP-callback behavior, origin configuration and recorded test results
+below are retained for traceability. Current approval/rejection/reissue delivery
+uses the shared queue, templates and EmailLog described in the
+[notification runbook](../../../backend/modules/notifications/README.md).
+Integration verification is recorded separately; these counts are not a claim
+that the later merged tree has passed the same run.
+
 | Local check | Result |
 | --- | --- |
 | Backend suite, native PostgreSQL 17 | 2030 passed, 5 skipped, 1 slow-expiry case deselected (same exclusion as CI) |

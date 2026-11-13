@@ -48,17 +48,43 @@ def ignored_plugins(rules_text: str) -> set[str]:
     return ignored
 
 
+# Complexity exception: nested report/site/alert guards stay beside conversion so
+# any malformed site aborts the complete report before the gate can pass a scan.
+# Short-circuit guards protect dictionary access and reject bool-as-int fields;
+# a scanned site with a valid empty alert list must still remain acceptable.
 def alerts(report: dict) -> list[Alert]:
     """Every alert in a ZAP JSON report (-J), across all scanned sites."""
+    if (
+        not isinstance(report, dict)
+        or not isinstance(report.get("site"), list)
+        or not report["site"]
+    ):
+        raise ValueError("Invalid ZAP report structure")
     found = []
-    for site in report.get("site", []):
-        for alert in site.get("alerts", []):
+    for site in report["site"]:
+        if not isinstance(site, dict) or not isinstance(site.get("alerts"), list):
+            raise TypeError("Invalid ZAP report structure")
+        for alert in site["alerts"]:
+            if not isinstance(alert, dict):
+                raise TypeError("Invalid ZAP alert structure")
+            plugin_id = alert.get("pluginid")
+            risk = alert.get("riskcode")
+            instances = alert.get("instances", [])
+            if (
+                not isinstance(plugin_id, (str, int))
+                or isinstance(plugin_id, bool)
+                or not str(plugin_id).strip()
+                or not isinstance(risk, (str, int))
+                or isinstance(risk, bool)
+                or not isinstance(instances, list)
+            ):
+                raise ValueError("Invalid ZAP alert structure")
             found.append(
                 Alert(
-                    plugin_id=str(alert.get("pluginid", "")),
+                    plugin_id=str(plugin_id),
                     name=str(alert.get("name") or alert.get("alert", "")),
-                    risk=int(alert.get("riskcode", 0)),
-                    instances=len(alert.get("instances", [])),
+                    risk=int(risk),
+                    instances=len(instances),
                 )
             )
     return found
@@ -71,12 +97,16 @@ def blocking(found: list[Alert], ignored: set[str]) -> list[Alert]:
 
 def main(report_path: Path = REPORT, rules_path: Path = RULES) -> int:
     """Print every alert and return 1 if any High-risk alert is not accepted."""
-    if not report_path.is_file():
-        print(f"::error::ZAP report {report_path} is missing.", file=sys.stderr)
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        found = alerts(report)
+        ignored = ignored_plugins(rules_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError, TypeError):
+        print(
+            "::error::ZAP report or rules are missing, unreadable, or malformed.",
+            file=sys.stderr,
+        )
         return 2
-    report = json.loads(report_path.read_text(encoding="utf-8"))
-    ignored = ignored_plugins(rules_path.read_text(encoding="utf-8"))
-    found = alerts(report)
 
     for alert in sorted(found, key=lambda a: -a.risk):
         state = " (accepted in rules.tsv)" if alert.plugin_id in ignored else ""

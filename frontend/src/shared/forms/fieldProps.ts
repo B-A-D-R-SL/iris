@@ -44,7 +44,8 @@ export function useFieldWrapper(props: BaseFieldProps) {
     disabled: props.disabled,
     name: props.name,
     id: props.id,
-    onBlur: props.onBlur,
-    onFocus: props.onFocus,
+    // Wrappers used just for labels must preserve existing form handlers.
+    ...(props.onBlur === undefined ? {} : { onBlur: props.onBlur }),
+    ...(props.onFocus === undefined ? {} : { onFocus: props.onFocus }),
   };
 }

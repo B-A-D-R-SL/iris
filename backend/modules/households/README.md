@@ -179,9 +179,12 @@ transaction as the household change. The central audit service currently accepts
 view and decision actions, so registration actions remain in the household history.
 
 The walk-in screens (T-03.17.4) are in `frontend/src/areas/staff/pages/WalkIn/`.
-Approval, income notices, approval/rejection transitions and the set-password
-email belong to US-18 and US-57; they are not implemented here. US-25 adds only
-submission and duplicate-review routing.
+Walk-in approval, income notices, approval/rejection transitions and producing
+the set-password email remain US-18 work. US-57 now supplies the bilingual
+`walk_in_set_password` template and shared queued delivery through
+[the notification service](../notifications/README.md); the approval workflow
+does not yet issue that email. US-25 adds only submission and duplicate-review
+routing.
 
 ## Staff search (US-63, #553 and #554)
 
@@ -225,3 +228,20 @@ cancels every reserved reservation without a late-cancellation strike and return
 the units to its listing in the same transaction. Both actions are audited with
 the reason. A localized holder email is queued after commit; counter-only files
 without email still change status.
+
+The suspension/reactivation email includes the same normalized, privacy-validated
+reason recorded by this workflow, preserving US-32's existing behavior. Household
+`_status_reason` remains authoritative: it normalizes whitespace, applies the
+active `household_suspension.reason_max_length` (default 500; schema maximum
+2,000), and refuses personal, identity, document or financial details before
+audit or queueing. Model validation still limits a suspended file's stored
+`status_reason` to 500 characters; the larger RuleSet ceiling does not change
+that column. Reactivation clears the stored status reason and can carry a longer
+validated email/audit reason when permitted by the active rule. The notification
+template captures the accepted text up to
+the schema ceiling rather than reapplying a later RuleSet version. Plain text
+preserves the captured reason and HTML escapes it once. EmailLog and stdout do
+not retain it. This decision is recorded in the US-57 PR #697 review follow-up.
+Known-template email validation/configuration failures become failed delivery
+records and do not undo a valid suspension/reactivation. The household's own
+reason, privacy and authorization checks still refuse invalid business actions.

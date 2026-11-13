@@ -22,6 +22,24 @@ _request_id: ContextVar[str | None] = ContextVar("iris_request_id", default=None
 _AUTH_USER_EVENTS = frozenset({"sign_in_succeeded", "signed_out"})
 _HTTP_METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"})
 _PHOTO_REFERENCE = re.compile(r"listing-photos/[0-9a-f]{32}\.(?:jpg|png)")
+_STANDARD_LOG_FIELDS = frozenset(logging.LogRecord("", 0, "", 0, "", (), None).__dict__)
+
+
+class QueueLogPrivacyFilter(logging.Filter):
+    """Remove queue arguments before handlers can retain a library log record."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.name == "procrastinate" or record.name.startswith("procrastinate."):
+            for field in tuple(record.__dict__):
+                if field not in _STANDARD_LOG_FIELDS:
+                    del record.__dict__[field]
+            record.msg = "background_job_event"
+            record.args = ()
+            record.exc_info = None
+            record.exc_text = None
+            record.stack_info = None
+            record.event = "background_job_event"
+        return True
 
 
 def _event_name(record: logging.LogRecord) -> str:

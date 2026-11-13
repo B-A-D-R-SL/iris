@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}B.A.D.R. invites you to an in-person visit to continue your application. Sign in to Iris to see the next steps.{% endautoescape %}

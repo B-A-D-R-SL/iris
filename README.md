@@ -13,7 +13,7 @@ Iris is a solidarity redistribution platform for sharing food and goods across c
 - **Backend:** Django 6.1 (Python 3.13), REST API, authentication, background jobs.
 - **Local services:** PostgreSQL 17, Azurite (Azure Blob Storage emulator), Mailpit (email testing).
 
-**Development runs with one command.** Docker Compose starts all five services, automatically applies database migrations, and creates a local administrator.
+**Development runs with one command.** Docker Compose starts all six services, automatically applies database migrations, and creates a local administrator.
 
 The development environment uses **Docker Compose Watch** to synchronize frontend code changes automatically. Dependencies are installed during image builds and reused between runs, avoiding unnecessary installations and improving startup performance.
 
@@ -41,7 +41,7 @@ git switch setup
 docker compose up --build --watch
 ```
 
-This builds the application images, installs dependencies, starts all five services, initializes PostgreSQL, and launches the application.
+This builds the application images, installs dependencies, starts all six services, initializes PostgreSQL, and launches the application.
 
 **Subsequent launches:**
 
@@ -205,6 +205,11 @@ changes so the container runs the current version.
 - **secret-scan** (FIX-17): gitleaks 8.30.1 (exact release, SHA-256 checked) scans the pull request's commits, or the commits pushed to `main`; a manual run (`workflow_dispatch`) scans the whole history. A finding fails the job. Accepted false positives are in `.gitleaks.toml`: Microsoft's public Azurite key, and made-up passwords in test files (provider-specific rules still apply there).
 - **zap-baseline** (FIX-17, SEC-10): starts the backend with production settings over plain HTTP (`iris.settings.ci_scan`), PostgreSQL 17 and the seed data, then runs the OWASP ZAP 2.17.0 baseline scan (image pinned by digest) from the public `/admin/login/` page (`/api/docs/` is admin-only since FIX-04). `.github/scripts/zap_gate.py` fails the job on any High-risk alert not set to `IGNORE` in `.zap/rules.tsv` (each with its reason); lower risks are listed in the log. The HTML and JSON reports are uploaded as the `zap-baseline-report` artifact.
 
+The ZAP gate also fails missing or malformed reports and reports with no scanned
+sites; a valid scanned site with zero alerts passes. The production check and
+ZAP jobs supply CI-only SMTP, public sender and HTTPS origin values to satisfy
+US-57's production guards without Azure credentials or weakening those guards.
+
 ```mermaid
 flowchart LR
     pr["Pull request<br/>or push to main"] --> be["backend<br/>ruff, mypy, boundaries, migrations, check --deploy,<br/>pytest + coverage, pip-audit, API types"]
@@ -232,6 +237,11 @@ The SonarQube Cloud job in `.github/workflows/ci.yml` imports backend Cobertura 
 Mailpit captures outgoing development emails without delivering them to real recipients.
 The Compose `worker` service processes Procrastinate jobs, including household
 status notices, so SMTP work never blocks the request that changed the file.
+US-57 provides a shared bilingual template service, metadata-only `EmailLog`,
+ACS and fake adapters, and retries after 1, 5 and 15 minutes. Run `seed_rules`
+after migrating to publish the required notifications policy. Configuration,
+template contracts and deployment checks are in
+[the notifications module guide](backend/modules/notifications/README.md).
 
 Send a test email:
 
