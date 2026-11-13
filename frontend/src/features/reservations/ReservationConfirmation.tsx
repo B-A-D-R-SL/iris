@@ -7,7 +7,7 @@
  * `children`. The "Afficher le code QR" button and the "confirmation sent by
  * email" line are US-42; "Voir mes réservations" leads to US-42/US-43's page.
  */
-import { Button, Stack, Text, Title } from "@mantine/core";
+import { Button, Stack, Text, Title, VisuallyHidden } from "@mantine/core";
 import { IconCircleCheck } from "@tabler/icons-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -34,12 +34,12 @@ export function ReservationConfirmation({ reservation, children }: ReservationCo
       <Text className={classes.muted}>{t("reservation.reserve.showCode")}</Text>
       <div className={classes.codeBox}>
         <Text className={classes.codeLabel}>{t("reservation.confirmation.pickupCode")}</Text>
-        <Text
-          className={classes.code}
-          aria-label={t("reservation.reserve.codeSpelled", { code: spelled })}
-        >
+        {/* A paragraph cannot carry an aria-label, so screen readers get the
+            spelled code as hidden text and skip the large visual one. */}
+        <Text className={classes.code} aria-hidden>
           {reservation.pickup_code}
         </Text>
+        <VisuallyHidden>{t("reservation.reserve.codeSpelled", { code: spelled })}</VisuallyHidden>
       </div>
       {children}
       <Button component={Link} to="/reservations" fullWidth>

@@ -64,7 +64,9 @@ describe("Reserving from the listing page (US-41)", () => {
 
     expect(await screen.findByRole("heading", { name: "C'est réservé!" })).toBeVisible();
     expect(screen.getByText("Réservation")).toBeVisible(); // the app bar title
-    expect(screen.getByText("K7M2QX")).toHaveAccessibleName("Code de cueillette : K 7 M 2 Q X");
+    // Screen readers get the code spelled out; the large code is hidden from them.
+    expect(screen.getByText("Code de cueillette : K 7 M 2 Q X")).toBeInTheDocument();
+    expect(screen.getByText("K7M2QX")).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByText("Pains de la veille × 1")).toBeVisible();
     const summary = within(screen.getByRole("list"));
     expect(summary.getByText("Boulangerie du Coin")).toBeVisible();
