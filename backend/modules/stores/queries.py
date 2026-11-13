@@ -4,7 +4,9 @@
 from typing import Any
 from uuid import UUID
 
-from modules.stores.models import Store
+from django.db.models import QuerySet
+
+from modules.stores.models import PartnerApplication, Store
 
 
 def for_listing_post(store_id: UUID) -> Store | None:
@@ -20,3 +22,16 @@ def address(store_id: UUID) -> dict[str, Any] | None:
         .first()
     )
     return dict(result) if result is not None else None
+
+
+def partner_applications(status: str | None = None) -> QuerySet[PartnerApplication]:
+    """Applications for the admin review list, oldest first (US-13)."""
+    applications = PartnerApplication.objects.order_by("created_at", "id")
+    if status:
+        applications = applications.filter(status=status)
+    return applications
+
+
+def partner_application(application_id: UUID) -> PartnerApplication | None:
+    """One application by ID, or None when it does not exist."""
+    return PartnerApplication.objects.filter(pk=application_id).first()

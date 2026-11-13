@@ -89,3 +89,9 @@ msgstr "Vérifiez les champs indiqués."
 
 msgid "The request was refused."
 msgstr "La demande a été refusée."
+
+msgid "An active admin is required."
+msgstr "Un administrateur actif est requis."
+
+msgid "No unaccepted store-manager invitation exists."
+msgstr "Aucune invitation de gestionnaire de magasin non acceptée n’existe."

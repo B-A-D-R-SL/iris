@@ -23,6 +23,8 @@ How the Iris team uses generative AI, as required by the course rubric. This fil
 | ChatGPT (OpenAI) | Implemented production configuration validation, secure entry-point defaults, admin-only API documentation, request throttling, tests and deployment guidance from Leon's approved FIX-04 plan. | Leon Kojakian (#630) |
 | ChatGPT (OpenAI) | Implemented and reviewed the Categories reference module (#377), Django module scaffolding, import-boundary checks, documentation, and tests for SET-14 (#405). | Owner of #377 and #405 |
 | ChatGPT (OpenAI) | The user provided architecture-aligned skeleton code and pseudocode as the foundation for US-17. ChatGPT assisted in generating approximately 50% of the remaining implementation, including walk-in registration models, normalization, services, staff API, tests, migrations, and documentation. ChatGPT also assisted with debugging Docker/PostgreSQL migrations, Ruff, mypy, import-linter, OpenAPI, and frontend API types. The user directed the implementation and performed local verification. | Owner of #463 and #464 (US-17) |
+| ChatGPT (OpenAI) | Implemented the US-13 staff review screen, translations, tests, and local invitation URL configuration; independently audited story coverage. | Reuven Minciotti (#448, #451) |
+| ChatGPT (OpenAI) | Implemented the partner application decision service, tests, configuration and documentation for T-02.13.2 under Reuven’s direction. | Reuven Minciotti (#449) |
 | Claude Code (Anthropic) | Analyzed US-12 against the team pack, then implemented the PartnerApplication model, Store link, submission service, public API, Django admin, translations and tests from Ryan's approved T-02.12.2/T-02.12.1 plan. | Ryan Cheung (#444, #445) |
 
 ## How we declare AI-generated code
@@ -38,6 +40,10 @@ One row per substantive feature where AI generated a meaningful part of the impl
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
 | FIX-12 Split the listing posting screen and log posting failures (#638) | `frontend/src/areas/store/pages/{NewListing.tsx,useNewListingMutation.ts,NewListing.test.tsx}`, `frontend/src/areas/store/components/{NewListingSections.tsx,CategoryPicker.tsx}`, `frontend/src/shared/forms/{fieldProps.ts,TextField.tsx,IntegerField.tsx,FileUpload.tsx}`, `frontend/src/shared/{logger.ts,logger.test.ts}`, `frontend/src/features/listings/{api.ts,api.test.ts}` | 50% or more AI-generated | Not yet opened (`FIX-12-split-listing-posting-screen` branch) |
+| T-02.13.4 Partner review screens (#451) | `frontend/src/areas/staff/pages/PartnerApplications{,.test}.tsx`, `frontend/src/app/App{,.test}.tsx`, `frontend/src/shared/i18n/{en,fr}/store.json`, `frontend/src/shared/logger.ts`, `.env.example`, `docker-compose.yml`, `AI_USAGE.md` | 50% or more AI-generated | [#665](https://github.com/B-A-D-R-SL/iris/pull/665) |
+| T-02.13.3 Partner applications staff API (#450) | `backend/modules/stores/{queries.py,README.md,api/serializers.py,api/staff_views.py,api/staff_urls.py,tests/test_staff_application_api.py,locale/fr/LC_MESSAGES/django.po}`, `backend/iris/urls.py`, `backend/pyproject.toml`, `docs/03-design/api.md`, `docs/04-architecture/architecture.md`, generated API types, `AI_USAGE.md` | 50% or more AI-generated; compiled catalog and generated API declarations exempt | [#665](https://github.com/B-A-D-R-SL/iris/pull/665) |
+| T-02.13.1 Partner application review tests (#448) | `backend/modules/stores/tests/{conftest,test_application_decisions,test_application_recovery,test_staff_application_api}.py`, `AI_USAGE.md` | 50% or more AI-generated | [#665](https://github.com/B-A-D-R-SL/iris/pull/665) |
+| T-02.13.2 Partner application decision service (#449) | `backend/modules/stores/{services.py,management/commands/resend_partner_invitation.py,tests/test_application_decisions.py,README.md}`, `backend/modules/accounts/services.py`, `backend/iris/{settings/base.py,observability.py}`, `backend/tests/test_observability.py`, `backend/.env.example`, `backend/pyproject.toml`, `AI_USAGE.md` | 50% or more AI-generated | [#665](https://github.com/B-A-D-R-SL/iris/pull/665) |
 | T-05.36.3 Browse and detail screens (#507) and T-05.36.1 tests (#505) | `frontend/src/areas/household/` (`pages/{Listings,ListingDetail}.tsx` and their CSS and tests, `components/`, `browseFilters.ts`, `listingFormat.ts`, `useListingText.ts`, `household.module.css`, tests), `frontend/src/features/listings/browse.ts` and its tests, `frontend/src/app/App.tsx`, `frontend/src/shared/i18n/{fr,en}/household.json` | 50% or more AI-generated | Not yet opened (`US-36-browse-and-detail-screens` branch) |
 | T-06.44.2 Confirm pickup service and API, with T-06.44.1 tests (#522, #521) | `backend/modules/reservations/{queries.py,services.py,permissions.py,domain/pickup.py,README.md}`, `backend/modules/reservations/api/{pickup_serializers,pickup_views,store_permissions,store_urls}.py`, `backend/modules/reservations/locale/fr/LC_MESSAGES/django.po`, `backend/modules/reservations/tests/{conftest,test_pickup_domain,test_pickup_service,test_pickup_api}.py`, `backend/modules/households/{queries.py,domain/names.py,tests/test_pickup_names.py,README.md}`, `backend/modules/listings/{queries.py,README.md}`, `backend/iris/{urls.py,settings/base.py}`, `backend/pyproject.toml`, `docs/02-requirements/business-rules.md`, `docs/03-design/api.md`, `frontend/src/shared/api/generated.d.ts`, `AI_USAGE.md` | 50% or more AI-generated (compiled catalog `django.mo` and generated API declarations exempt) | Not yet opened (`US-44-confirm-pickup` branch) |
 | FIX-11 Shared role groups and authentication events (#637) | `backend/modules/accounts/{roles,queries,models,apps,signals}.py`, account role/event tests, accounts README, permission checks in listings/eligibility/audit/households, `backend/iris/{settings/base,observability}.py`, route/logging tests, `backend/pyproject.toml`, `docs/guides/observability.md`, `AI_USAGE.md` | 50% or more AI-generated | [#681](https://github.com/B-A-D-R-SL/iris/pull/681) |
@@ -97,6 +103,21 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 ## Examples, verification and corrections
 
+### T-02.13.1 Partner application review tests (#448)
+
+- **What the AI produced:** Additional decision-service tests for each non-admin role, the rejection reason length boundary, audit failure rollback, and privacy-safe handling of email failure. PR review fixes add frontend-origin validation, invitation recovery and command tests, and structured logging privacy checks. Staff API and listing tests are included in `test_staff_application_api.py` (#450).
+- **Verification:** On 2026-11-11, all 939 backend tests passed against an isolated native PostgreSQL 17 instance, including all 37 decision/configuration/recovery cases. Ruff and all four import-linter contracts passed. Coverage was not measured in this run. Changes are committed in [PR #665](https://github.com/B-A-D-R-SL/iris/pull/665).
+
+### T-02.13.2 Partner application decision service (#449)
+
+- **What the AI produced:** Under Reuven’s direction, ChatGPT implemented approval and rejection services with locked decisions, store and invitation creation, audit records, after-commit emails, frontend URL configuration, tests and module documentation. The free-text application hours are retained in the store’s `opening_hours.notes`. PR review fixes add explicit frontend-origin configuration errors before application locking and an operator recovery command that expires old invitation links and sends a fresh one after commit. Recovery does not repeat the application decision or expose contact details or tokens in logs.
+- **Verification:** On 2026-11-11, all 939 backend tests passed on PostgreSQL 17, including 37 decision/configuration/recovery cases. Ruff, mypy for the four changed production Python files, Django system checks, and all four import-linter contracts passed. Coverage was not measured in this run. The implementation and review fixes are committed in [PR #665](https://github.com/B-A-D-R-SL/iris/pull/665).
+
+### PR #665: review follow-up for the staff screen and API tests
+
+- **What the AI produced:** An API test proving that unavailable invitation rules return 400 and roll back the store, invitation, decision and audit writes; French/English API tests for existing-account refusal; translated business-type/frequency lookups and value assertions; cookie cleanup; public API error-message rendering with generic server/network fallbacks and privacy-safe diagnostic events. Compose invitation URLs now default to the configured frontend port, while explicit URL overrides are preserved.
+- **Owner's decisions:** Retain the rejection validation order. A later instruction authorizes server-owned `can_decide` availability in place of status-based button visibility. An early existing-account check on public application submission remains a product discussion; it is not part of these fixes.
+- **Verification (2026-11-11):** All **942 backend tests** passed on native PostgreSQL 17 and all **413 frontend tests across 29 files** passed, including 14 partner-review screen cases. The frontend suite required localhost access for its preview-server tests. Ruff, mypy for the changed API test file, ESLint, TypeScript checks, the production frontend build, and formatting checks for the changed files passed. Compose YAML and the documented Bash-compatible nested-default expression were checked for the default port, a changed port, an explicit URL, and an empty URL; the Docker Compose executable was unavailable, so `docker compose config` was not run. Coverage was not measured.
 Historical examples are preserved in the linked verification records.
 The headings remain here so existing feature anchors continue to resolve.
 ### FIX-02 Private listing-photo processing and storage (#628)
@@ -113,6 +134,11 @@ The headings remain here so existing feature anchors continue to resolve.
 ### US-63 Household search and tests (#552, #553, #554)
 
 [Verification and corrections](docs/05-process/ai-usage-verification-1.md#us-63-household-search-and-tests-552-553-554).
+
+### PR #665: server-owned availability and main conflict resolution
+
+- **What changed:** Per the owner's follow-up, the staff API returns `can_decide` using the same active-admin/submitted-state predicate as write enforcement; the UI renders that flag. Main's split translation catalogs and structured logging helpers are preserved during conflict resolution, and the new endpoints are registered in its global access matrix. Remaining valid review checks add translated email/recovery text, HTTPS outside loopback, a finite SMTP timeout and after-commit decision logs. The duplicate beneficiary test was removed, recovery tests/fixtures were separated, and fixed rejection storage semantics are documented as BR-PARTNER-04.
+- **Verification (2026-11-11):** 2030 backend tests passed on PostgreSQL 17 (5 optional integration skips, one CI-excluded slow-expiry case); 658 frontend tests passed. Combined backend coverage is 95.66%, added backend executable-line coverage is 98.17%, and domain line coverage is 99.35%. Full lint, formatting, type, import, schema/generator, migration, build and dependency-audit checks passed. See `docs/03-design/verification/US-13-review-checks.md` for scope, counts and reproduction. GitHub checks are verified after publishing.
 
 ### T-01.04.3 Invitation password page (#431)
 
@@ -342,123 +368,9 @@ The headings remain here so existing feature anchors continue to resolve.
 
 ### SET-34 Colour tokens and status badge (#652, #653, #654)
 
-- **Tool and level:** Codex (OpenAI), 50% or more AI-generated.
-- **Developer direction:** Reuven requested SET-34 from current `main`, initially
-  authorized placeholder colours, then requested integration and completion after
-  SET-33 merged. The working branch is `SET-34-apply-colour-palette-and-status-badges`.
-- **What changed:** colour tokens and Mantine aliases; bilingual status badges with
-  generated enum coverage where available, shared notice icons and scoped unknown-status
-  logging; semantic colours across built screens, including the newly merged household
-  search; accessible control boundaries, inline errors, destructive actions, selected
-  controls and primary hover/pressed states; WCAG contrast tests and review rule 11.
-- **SET-33 integration (November 9, 2026):** PR #668 merged at `fd73186` and closed #651.
-  The earlier #664 draft was not the delivery. Existing local work was backed up before
-  fast-forwarding to `origin/main`; the design guide conflict was resolved by keeping
-  SET-33's token/status tables and adding the implementation guidance. All 70 original
-  palette shades match the Foundations export's swatches exactly. Neutral status,
-  input-border, placeholder, hover and pressed values come from its component-token note.
-  The decorative border is kept separate from the accessible input border.
-- **Verification:** 529 frontend tests passed across 32 files, with 94.72% line coverage.
-  TypeScript, ESLint, Prettier, production build and the required colour-literal scans
-  passed. Contrast checks include all semantic pairs, primary button states, destructive
-  text, placeholders, both control backgrounds, and black/white/self edge cases. Badge
-  tests cover every status in both languages, hidden icons, unknown/inherited-property
-  values, logging and axe; search integration checks success/danger badges.
-- **Browser review:** 76 French/English before-and-after captures at 360 px and staff
-  also at 1024 px, using fictional responses and no backend writes. No page errors or
-  page-level horizontal overflow; status labels do not clip. Primary normal/hover/pressed
-  colours passed live computed-style checks. Existing business flows/layouts were retained.
-  The evidence and available-prototype comparisons are in the local SET-34 handoff report.
-- **Pull request:** [#671](https://github.com/B-A-D-R-SL/iris/pull/671).
-- **Delivery:** screenshot evidence is committed under
-  `docs/03-design/verification/SET-34/`. CI, CodeRabbit, teammate review, merge and the
-  post-merge team announcement remain tracked in the pull request; local checks do not
-  substitute for those external steps.
-
-- **Review follow-up:** added success/warning contrast checks on the page surface,
-  clarified the neutral-token reference and replaced the tone-key cast with a type guard.
-  Added function documentation and split the enlarged test suites. Historical verification
-  entries moved into two linked files below 500 lines, retaining root feature anchors;
-  historical wording is unchanged and one relative link was adjusted for its new folder.
-  The pre-existing category-page/table structure remains intact for this colour task.
-
-- **Main integration:** retained main's split translation catalogs and all translation-file
-  checks, moving shared status labels into each language's common catalog and removing
-  the obsolete monolithic catalogs. Adapted the new household suspension detail screen
-  to shared status badges/notices and semantic action colours, preserving its server-led
-  permissions and transitions. Retained both logger event sets and all main AI records.
-  Merge verification: all 610 frontend tests pass across 33 files, with 95.09% line
-  coverage. TypeScript, lint, formatting and production build pass. Main translation
-  values and all 50 AI verification entries were checked for preservation.
-- **Ammar review follow-up:** removed the duplicate household/category status labels and
-  the household label map; search now validates the shared status map against both API
-  status types. Added filled/light/default hover tokens and contrasting light-hover text,
-  keeping all 70 Foundations swatches unchanged. Added a complete route/override inventory,
-  supplemental fictional-data browser captures, and regression/contrast coverage.
-  Verification: 578 frontend tests pass (94.72% line coverage), plus TypeScript, lint,
-  formatting and production build. Browser checks cover 32 route captures, two control
-  matrices and 42 hover measurements, with no page errors/overflow. Disabled controls
-  stay unchanged; filled/light hover text meets 4.5:1. No GitHub review reply was posted.
-
-AI-assisted files for this entry:
-
-- `frontend/src/areas/staff/pages/Household.tsx`
-- `frontend/src/areas/staff/pages/Household.test.tsx`
-- `frontend/src/shared/i18n/en/common.json`
-- `frontend/src/shared/i18n/en/household.json`
-- `frontend/src/shared/i18n/fr/common.json`
-- `frontend/src/shared/i18n/fr/household.json`
-
-- `frontend/src/features/households/searchApi.test.ts`
-- `frontend/src/features/households/searchApi.ts`
-- `docs/03-design/verification/SET-34/ammar-review.zip`
-- `docs/03-design/verification/SET-34/affected-screens.md`
-- `AI_USAGE.md`
-- `docs/03-design/verification/SET-34/README.md`
-- `docs/03-design/verification/SET-34/categories-before-after.png`
-- `docs/03-design/verification/SET-34/screenshots.zip`
-- `docs/03-design/verification/SET-34/sign-in-validation-before-after.png`
-- `docs/05-process/ai-usage-verification-1.md`
-- `docs/05-process/ai-usage-verification-2.md`
-- `docs/05-process/review-rules.md`
-- `docs/guides/design-system.md`
-- `frontend/src/app/contrast.test.ts`
-- `frontend/src/app/contrast.ts`
-- `frontend/src/app/layouts/Wordmark.tsx`
-- `frontend/src/app/layouts/layouts.module.css`
-- `frontend/src/app/theme.module.css`
-- `frontend/src/app/theme.test.tsx`
-- `frontend/src/app/theme.ts`
-- `frontend/src/app/tokens.ts`
-- `frontend/src/areas/public/pages/PartnerApply.tsx`
-- `frontend/src/areas/staff/pages/Search.module.css`
-- `frontend/src/areas/staff/pages/Search.test.tsx`
-- `frontend/src/areas/staff/pages/SearchResults.tsx`
-- `frontend/src/areas/staff/pages/WalkIn/DraftSaved.tsx`
-- `frontend/src/areas/staff/pages/WalkIn/MembersStep.tsx`
-- `frontend/src/areas/staff/pages/WalkIn/ReviewStep.tsx`
-- `frontend/src/areas/staff/pages/WalkIn/WalkIn.module.css`
-- `frontend/src/areas/staff/pages/WalkIn/WalkIn.tsx`
-- `frontend/src/areas/store/components/CategoryPicker.tsx`
-- `frontend/src/areas/store/pages/NewListing.tsx`
-- `frontend/src/features/categories/CategoriesPage.tsx`
-- `frontend/src/shared/auth/SignOutButton.tsx`
-- `frontend/src/shared/forms/FileUpload.tsx`
-- `frontend/src/shared/forms/fields.module.css`
-- `frontend/src/shared/logger.test.ts`
-- `frontend/src/shared/logger.ts`
-- `frontend/src/shared/ui/EmptyState.tsx`
-- `frontend/src/shared/ui/ErrorState.tsx`
-- `frontend/src/shared/ui/LoadingState.tsx`
-- `frontend/src/shared/ui/Notice.module.css`
-- `frontend/src/shared/ui/Notice.tsx`
-- `frontend/src/shared/ui/StatusBadge.test.tsx`
-- `frontend/src/shared/ui/StatusBadge.tsx`
-- `frontend/src/shared/ui/index.ts`
-- `frontend/src/shared/ui/statusTones.ts`
-- `frontend/src/shared/ui/toneIcons.ts`
-- `frontend/src/test/i18n.test.ts`
-- `frontend/src/test/render.tsx`
+Detailed colour implementation, review history, changed-file declarations and
+verification evidence are preserved in
+[the historical verification ledger](docs/05-process/ai-usage-verification-2.md#set-34-colour-tokens-and-status-badge-652-653-654).
 
 ### FIX-07 Deny-by-default endpoint access test (#633)
 

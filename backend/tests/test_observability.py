@@ -164,6 +164,23 @@ def test_headless_auth_routes_are_mounted_under_api_auth() -> None:
     assert "_allauth/" not in routes
 
 
+def test_application_recovery_identifier_is_a_restricted_uuid() -> None:
+    """Only stores email failures may include a valid application UUID."""
+    record = logging.LogRecord("iris.stores", logging.ERROR, __file__, 1, "", (), None)
+    record.event = "partner_application_decision_email_failed"
+    application_id = "00000000-0000-4000-8000-000000000001"
+    record.application_id = application_id
+    assert (
+        json.loads(JsonLogFormatter().format(record))["application_id"]
+        == application_id
+    )
+    record.application_id = "private@example.test"
+    assert "private@example.test" not in JsonLogFormatter().format(record)
+    record.application_id = "00000000-0000-4000-8000-000000000001"
+    record.name = "some.library"
+    assert "application_id" not in json.loads(JsonLogFormatter().format(record))
+
+
 def test_http_request_uses_warning_and_error_levels() -> None:
     output = StringIO()
     handler = logging.StreamHandler(output)
