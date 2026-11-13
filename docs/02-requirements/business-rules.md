@@ -86,8 +86,9 @@ characters**. This is the existing `PartnerApplication.decision_reason` storage
 and API contract, not an administrator-configurable threshold. Raising it requires
 a coordinated model/schema/API change; invitation expiry remains RuleSet data.
 The dedicated `partner_application_rejected` email preserves this stored reason
-without changing its content, escaping it for HTML. No other email template
-accepts a reason; the value is absent from EmailLog and application logs.
+without changing its content, escaping it for HTML. Household status notices
+separately accept the validated US-32 reason; other templates do not accept
+reasons. These values are absent from EmailLog and application logs.
 
 ### BR-PARTNER-01: One open application per contact email
 
@@ -151,16 +152,16 @@ exclude a file.
 | --- | --- |
 | BR-HH-SUSPEND-001 | Only an active administrator can suspend an approved file or reactivate a suspended file. Both actions require a reason and an audit event. |
 | BR-HH-SUSPEND-002 | Suspension preserves the approval expiry, cancels every reserved reservation without a strike, and returns its units to the listing. Reactivation is refused after expiry. |
-| BR-HH-SUSPEND-003 | A localized status email is queued after commit when the household has an email. A counter-only file without email can still change status. Delivery failure does not undo the change. |
-| BR-HH-SUSPEND-004 | A status reason is limited by the active `household_suspension.reason_max_length` RuleSet value (default 500). Reasons containing personal, identity, document or financial information are refused before an audit event or email job is created. |
+| BR-HH-SUSPEND-003 | A localized status email, including the workflow's normalized and privacy-validated reason, is queued after commit when the household has an email. A counter-only file without email can still change status. Delivery failure does not undo the change. |
+| BR-HH-SUSPEND-004 | A status reason is limited by the active `household_suspension.reason_max_length` RuleSet value (default 500, schema ceiling 2,000). Suspension also retains the existing 500-character `Household.status_reason` model bound; reactivation clears that stored field and may use a longer validated reason under its active rule. Reasons containing personal, identity, document or financial information are refused before an audit event or email job is created. |
 
 ## Notifications (US-57)
 
 | Rule ID | Business rule |
 | --- | --- |
 | BR-NOTIF-001 | Retry transient delivery failures using exactly three positive delays from the active `notifications.retry_delays_seconds` RuleSet: defaults **60, 300 and 900 seconds** *(setting)* after successive failures. The initial attempt plus these retries gives at most four attempts. Capture the delay list for each queued send; later rule versions affect new sends. Confirmed permanent failures stop immediately. |
-| BR-NOTIF-002 | Queue delivery after the originating transaction commits. A rollback creates no surviving delivery log or job. Delivery and post-commit enqueue failures do not undo a committed business action. There is no atomic-outbox or exactly-once guarantee across the commit/enqueue/provider boundaries. |
-| BR-NOTIF-003 | Use a User's persisted preferred language; for a raw recipient use the caller's saved `fr`/`en` preference, defaulting to French. Render only reviewed context fields, with links on the configured application origin. Income and identity/document fields, arbitrary case notes and household/status reasons are excluded. The dedicated partner rejection template alone accepts US-13's stored reason of at most 500 trimmed characters (BR-PARTNER-04); HTML escapes it once. Record delivery metadata without subject/body/context/reason/token content; application logs also exclude recipient addresses. |
+| BR-NOTIF-002 | Queue delivery after the originating transaction commits. A rollback creates no surviving delivery log or job. Known-template address/context/runtime-email-configuration failures record failed EmailLog metadata with zero attempts and no job, without undoing a valid business action. Unknown template keys remain programmer errors. Delivery and post-commit enqueue failures do not undo committed actions. Business authorization and essential issuance rules remain enforced. There is no atomic-outbox or exactly-once guarantee across the commit/enqueue/provider boundaries. |
+| BR-NOTIF-003 | Use a User's persisted preferred language; for a raw recipient use the caller's saved `fr`/`en` preference, defaulting to French. Render only reviewed context fields, with links on the configured application origin. Income and identity/document fields and arbitrary case notes are excluded. Partner rejection accepts US-13's stored reason of at most 500 trimmed characters (BR-PARTNER-04). Household suspension/reactivation accepts the normalized, privacy-validated reason under the producer's active RuleSet (BR-HH-SUSPEND-004); capture supports its 2,000-character schema ceiling so later rule versions do not invalidate pending text. These three templates escape reasons once in HTML; other templates accept none. Record delivery metadata without subject/body/context/reason/token content; application logs also exclude recipient addresses. |
 | BR-NOTIF-004 | Delete terminal email-queue job payloads once older than `notifications.job_retention_hours`, default **24 hours** *(setting)*. Cleanup runs hourly, so normal removal is approximately 24–25 hours after the terminal event while the worker is healthy. Pending/running/retrying jobs remain. EmailLog metadata is retained; this cleanup does not implement general EmailLog retention. Legacy jobs on their original default queue require targeted rollout cleanup. |
 
 The new `notifications` RuleSet validates exactly three integer delays from

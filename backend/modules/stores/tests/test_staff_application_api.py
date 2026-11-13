@@ -318,7 +318,55 @@ def test_unknown_application_answers_404(admin_client: APIClient) -> None:
     assert response.status_code == 404
 
 
+@pytest.mark.usefixtures("invitation_rule")
+def test_approval_succeeds_when_email_origin_is_unavailable(
+    settings,
+    admin_client: APIClient,
+    django_capture_on_commit_callbacks,
+    queued_partner_emails,
+) -> None:
+    """An email configuration problem is a delivery outcome, not an HTTP 500."""
+    settings.PUBLIC_APP_ORIGIN = None
+    application = _application()
+    with django_capture_on_commit_callbacks(execute=True):
+        response = admin_client.post(approve_url(application.pk))
+    assert response.status_code == 200
+    assert response.json()["status"] == "approved"
+    application.refresh_from_db()
+    assert application.status == ApplicationStatus.APPROVED
+    store = Store.objects.get(application=application)
+    assert Invitation.objects.filter(store=store).count() == 1
+    assert AuditEvent.objects.filter(target_id=str(application.pk)).count() == 1
+    log = EmailLog.objects.get(template_key="partner_application_approved")
+    assert log.status == EmailLog.Status.FAILED
+    assert log.error == "email_configuration_invalid" and log.attempts == 0
+    assert not queued_partner_emails and not get_fake_mailer().sent
+
+
 # Reject -----------------------------------------------------------------
+
+
+def test_legacy_invalid_recipient_does_not_roll_back_rejection(
+    admin_client: APIClient, django_capture_on_commit_callbacks, queued_partner_emails
+) -> None:
+    """An old persisted contact can be rejected even when email cannot address it."""
+    application = _application(contact_email="legacy-invalid-recipient")
+    with django_capture_on_commit_callbacks(execute=True):
+        response = admin_client.post(
+            reject_url(application.pk), {"reason": "Outside our area"}, format="json"
+        )
+    assert response.status_code == 200
+    assert response.json()["status"] == "rejected"
+    application.refresh_from_db()
+    assert application.status == ApplicationStatus.REJECTED
+    assert application.decision_reason == "Outside our area"
+    assert AuditEvent.objects.get(target_id=str(application.pk)).metadata == {
+        "outcome": "rejected"
+    }
+    log = EmailLog.objects.get(template_key="partner_application_rejected")
+    assert log.status == EmailLog.Status.FAILED
+    assert log.error == "email_recipient_invalid" and log.attempts == 0
+    assert not queued_partner_emails and not get_fake_mailer().sent
 
 
 # rule: BR-PARTNER-04

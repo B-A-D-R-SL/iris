@@ -45,10 +45,14 @@ class AccountAdapter(DefaultAccountAdapter):
     def send_mail(
         self, template_prefix: str, email: str, context: dict[str, Any]
     ) -> None:
-        """Queue supported authentication mail without retaining allauth objects."""
+        """Queue reviewed authentication mail; skip unsupported templates privately."""
         specification = _NOTIFICATION_TEMPLATES.get(template_prefix)
         if specification is None:
-            raise ValueError("Unsupported authentication email template.")
+            logger.info(
+                "authentication_email_skipped",
+                extra={"event": "authentication_email_skipped"},
+            )
+            return
         template_key, source_url, destination_url = specification
         user = context.get("user")
         recipient = (
@@ -62,8 +66,6 @@ class AccountAdapter(DefaultAccountAdapter):
             requested = getattr(request, "LANGUAGE_CODE", "fr")
             language = "en" if str(requested).lower().split("-")[0] == "en" else "fr"
         url = context.get(source_url)
-        if not isinstance(url, str):
-            raise TypeError("Authentication email requires an action URL.")
         notification_services.send(
             recipient,
             template_key,

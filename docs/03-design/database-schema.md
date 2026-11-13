@@ -505,7 +505,7 @@ Email-delivery status without retained email content.
 | Field | Logical type | Key | Details |
 | --- | --- | --- | --- |
 | id | UUID | Primary key | One delivery's stable identifier across retries. |
-| to_email | string | — | Recipient address. |
+| to_email | string | — | Recipient address. A failed validation record may retain a database-safe malformed address; empty when the input cannot be represented safely in this field. |
 | user | reference | Foreign key | Optional account; `SET_NULL` preserves delivery metadata when the user is deleted. |
 | template_key | string | — | Template used. |
 | language | string | — | Captured recipient preference, `fr` or `en`. |

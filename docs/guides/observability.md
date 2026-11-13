@@ -11,6 +11,11 @@ The `iris.auth` events `sign_in_succeeded` and `signed_out` also allow `user_id`
 validated as a UUID. This is the only account identifier allowed in logs;
 failed sign-ins and lockouts do not identify the account.
 
+Unsupported allauth mail prefixes produce the static INFO event
+`authentication_email_skipped` on `iris.auth`. This event includes no recipient,
+template prefix, context, token or exception information; the adapter returns
+normally without a queue or transport call.
+
 The `iris.eligibility` event `eligibility_decided` also allows exactly four
 business fields: `decision_id` and `household_id` (validated UUIDs), `outcome`
 (`eligible` or `ineligible`), and `rule_version` (the positive integer version
@@ -38,8 +43,9 @@ attempts, a bounded error code and timestamps. It excludes subjects, bodies,
 rendering context and tokens. `sent` means transport/provider acceptance, not
 inbox receipt. Temporary one-use links belong only in the restricted queue
 payload needed for asynchronous delivery. The bounded US-13 partner rejection
-reason is likewise restricted to its temporary payload/email and is absent from
-EmailLog and stdout; other template families do not accept reasons or case notes.
+reason and producer-validated US-32 suspension/reactivation reasons are likewise
+restricted to their temporary payload/email and are absent from EmailLog and
+stdout; other template families do not accept reasons or case notes.
 An hourly cleanup removes terminal
 email jobs after the active retention threshold (24 hours by default), normally
 within 24–25 hours with a healthy worker; pending/retrying jobs remain. Legacy

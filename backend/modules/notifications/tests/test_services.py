@@ -2,11 +2,13 @@
 """Delivery metadata and queueing follow the originating transaction."""
 
 import json
+import logging
+from collections.abc import Iterator
 from typing import Any
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import DatabaseError, transaction
 from procrastinate.contrib.django import app
 
 from adapters.mailer.fake import get_fake_mailer
@@ -25,6 +27,20 @@ def queued(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
     monkeypatch.setattr(send_email, "configure", lambda **kwargs: send_email)
     monkeypatch.setattr(send_email, "defer", lambda **kwargs: jobs.append(kwargs))
     return jobs
+
+
+@pytest.fixture
+def notification_events(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[pytest.LogCaptureFixture]:
+    logger = logging.getLogger("iris.notifications")
+    monkeypatch.setattr(logger, "propagate", False)
+    logger.addHandler(caplog.handler)
+    try:
+        with caplog.at_level(logging.INFO, logger=logger.name):
+            yield caplog
+    finally:
+        logger.removeHandler(caplog.handler)
 
 
 def test_log_and_job_capture_recipient_and_context_before_the_outer_commit(
@@ -118,21 +134,139 @@ def test_queue_failure_is_contained_after_commit_and_persists_a_safe_error(
     assert log.attempts == 0
 
 
-@pytest.mark.parametrize(
-    ("recipient", "key", "context"),
-    [
-        ("invalid-address", "file_approved", {}),
-        ("recipient@example.test", "unknown", {}),
-        ("recipient@example.test", "file_approved", {"reason": "private notes"}),
-    ],
-)
-def test_invalid_requests_never_create_delivery_metadata(
-    recipient: str, key: str, context: dict[str, str], queued: list[dict[str, Any]]
+def test_unknown_template_is_a_programmer_error_without_delivery_metadata(
+    queued: list[dict[str, Any]],
 ) -> None:
-    with pytest.raises((ValidationError, ValueError)):
-        services.send(recipient, key, context)
+    with pytest.raises(ValueError, match="^Unknown email template$"):
+        services.send("recipient@example.test", "unknown", {})
     assert not EmailLog.objects.exists()
     assert queued == []
+
+
+@pytest.mark.parametrize(
+    ("recipient", "snapshot"),
+    [
+        ("legacy-invalid-address", "legacy-invalid-address"),
+        ("", ""),
+        (None, ""),
+        ("a" * 64 + "@" + "b" * 63 + "." + "c" * 63 + "." + "d" * 61 + ".test", ""),
+        ("unsafe\x00@example.test", ""),
+        ("unsafe\ud800@example.test", ""),
+    ],
+)
+def test_invalid_recipient_records_failure_without_queueing_or_private_logs(
+    recipient: Any,
+    snapshot: str,
+    queued: list[dict[str, Any]],
+    django_capture_on_commit_callbacks: Any,
+    notification_events: pytest.LogCaptureFixture,
+) -> None:
+    with django_capture_on_commit_callbacks(execute=True):
+        log = services.send(recipient, "file_approved", {})
+    log.refresh_from_db()
+    assert log.to_email == snapshot
+    assert log.status == EmailLog.Status.FAILED
+    assert log.error == "email_recipient_invalid"
+    assert log.attempts == 0 and log.sent_at is None
+    assert queued == [] and get_fake_mailer().sent == []
+    [record] = notification_events.records
+    assert record.getMessage() == "email_configuration_failed"
+    assert record.args == () and record.exc_info is None
+    if isinstance(recipient, str) and recipient:
+        assert recipient not in str(vars(record))
+
+
+@pytest.mark.parametrize("context", [{"reason": "private-notes-sentinel"}, {}, None])
+@pytest.mark.django_db(transaction=True)
+def test_email_context_failure_does_not_undo_an_actual_business_commit(
+    context: Any,
+    queued: list[dict[str, Any]],
+    notification_events: pytest.LogCaptureFixture,
+) -> None:
+    """Email validation cannot roll back an otherwise valid persisted update."""
+    user: Any = UserFactory(preferred_language="fr")
+    with transaction.atomic():
+        user.preferred_language = "en"
+        user.save(update_fields=["preferred_language"])
+        log = services.send(user, "password_reset", context)
+        assert log.status == EmailLog.Status.FAILED
+        assert notification_events.records == []
+    user.refresh_from_db()
+    log.refresh_from_db()
+    assert user.preferred_language == "en"
+    assert log.language == "en" and log.user_id == user.pk
+    assert log.status == EmailLog.Status.FAILED
+    assert log.error == "email_configuration_invalid" and log.attempts == 0
+    assert queued == [] and get_fake_mailer().sent == []
+    [record] = notification_events.records
+    assert record.getMessage() == "email_configuration_failed"
+    assert record.args == () and record.exc_info is None
+    assert "private-notes-sentinel" not in str(vars(record))
+    assert user.email not in str(vars(record))
+
+
+@pytest.mark.django_db(transaction=True)
+def test_runtime_origin_failure_does_not_undo_an_actual_business_commit(
+    settings: Any,
+    queued: list[dict[str, Any]],
+    notification_events: pytest.LogCaptureFixture,
+) -> None:
+    user: Any = UserFactory(preferred_language="fr")
+    settings.PUBLIC_APP_ORIGIN = "https://invalid-origin.example/path"
+    with transaction.atomic():
+        user.preferred_language = "en"
+        user.save(update_fields=["preferred_language"])
+        log = services.send(user, "file_approved", {})
+    user.refresh_from_db()
+    assert user.preferred_language == "en"
+    assert log.status == EmailLog.Status.FAILED
+    assert log.error == "email_configuration_invalid" and log.attempts == 0
+    assert queued == []
+    assert len(notification_events.records) == 1
+
+
+def test_outer_rollback_discards_failed_email_metadata_and_failure_event(
+    queued: list[dict[str, Any]],
+    django_capture_on_commit_callbacks: Any,
+    notification_events: pytest.LogCaptureFixture,
+) -> None:
+    with (
+        django_capture_on_commit_callbacks(execute=True),
+        pytest.raises(RuntimeError, match="business rollback"),
+        transaction.atomic(),
+    ):
+        services.send("legacy-invalid-address", "file_approved", {})
+        raise RuntimeError("business rollback")
+    assert not EmailLog.objects.exists()
+    assert notification_events.records == []
+    assert queued == []
+
+
+def test_queue_and_metadata_write_failure_are_both_observable_without_raw_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    notification_events: pytest.LogCaptureFixture,
+) -> None:
+    def unavailable(**kwargs: Any) -> None:
+        raise ConnectionError("private-queue-error-sentinel")
+
+    class UnavailableUpdate:
+        def update(self, **kwargs: Any) -> None:
+            raise DatabaseError("private-database-error-sentinel")
+
+    monkeypatch.setattr(send_email, "configure", lambda **kwargs: send_email)
+    monkeypatch.setattr(send_email, "defer", unavailable)
+    monkeypatch.setattr(
+        EmailLog.objects, "filter", lambda **kwargs: UnavailableUpdate()
+    )
+    services._enqueue("00000000-0000-0000-0000-000000000001", {}, [60, 300, 900])
+    assert [record.getMessage() for record in notification_events.records] == [
+        "email_outcome_unavailable",
+        "email_queue_failed",
+    ]
+    for record in notification_events.records:
+        assert record.args == () and record.exc_info is None
+        assert "private-queue-error-sentinel" not in str(vars(record))
+        assert "private-database-error-sentinel" not in str(vars(record))
 
 
 def test_counter_only_files_skip_mail_without_creating_a_log(

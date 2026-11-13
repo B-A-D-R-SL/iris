@@ -257,6 +257,18 @@ US-13 staff screens exist.
 | POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`; preserves expiry                    | Implemented (US-32) |
 | GET/POST   | `/api/staff/households/{id}/notes/`                     | Intake worker, admin | Staff notes                                       | Planned |
 
+US-32 suspension/reactivation emails include the reason after household-service
+whitespace normalization, active RuleSet length validation and sensitive-data
+refusal. The default limit is 500 characters; the schema permits up to 2,000.
+The existing 500-character model bound still applies when suspension stores the
+status reason; this email change does not enlarge that field. Reactivation clears
+the stored field and can retain a longer validated reason in its audit/email.
+The shared notification templates preserve the accepted text with HTML escaping,
+without copying it into EmailLog or application logs. Households without email
+still change status normally. Known-template email validation/configuration
+problems are recorded as delivery failures and do not undo a valid status
+change; household authorization and reason validation remain enforced.
+
 Active intake workers and admins may read, edit and submit shared,
 non-anonymized walk-in files, including another worker's and unassigned files.
 Edits and submissions still require a draft. `created_by` records provenance,

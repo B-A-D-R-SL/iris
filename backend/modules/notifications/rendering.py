@@ -24,6 +24,7 @@ class _Template:
     required: frozenset[str] = frozenset()
     action_field: str = "sign_in_url"
     default_path: str = "/sign-in"
+    reason_max_length: int = 500
 
 
 _TEMPLATES = {
@@ -51,8 +52,10 @@ _TEMPLATES = {
     "strike": _Template(),
     "digest": _Template(),
     "need_match": _Template(),
-    "household_suspended": _Template(),
-    "household_reactivated": _Template(),
+    # Capture the producer-validated reason without rereading mutable rules in
+    # the worker; 2000 is the household RuleSet schema's absolute maximum.
+    "household_suspended": _Template(frozenset({"reason"}), reason_max_length=2000),
+    "household_reactivated": _Template(frozenset({"reason"}), reason_max_length=2000),
 }
 TEMPLATE_KEYS = frozenset(_TEMPLATES)
 INVITATION_TEMPLATE_KEYS = frozenset(
@@ -134,15 +137,44 @@ def _action_link(value: str, field: str, origin: SplitResult) -> None:
         raise ValueError("Invalid email sign-in link")
 
 
+def _bounded_text(value: str, limit: int) -> None:
+    if len(value) > limit or any(
+        character == "\x00" or unicodedata.category(character) == "Cs"
+        for character in value
+    ):
+        raise ValueError("Invalid email context value")
+
+
+def _context_value(
+    key: str, value: object, template: _Template, origin: SplitResult
+) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("Invalid email context value")
+    if key == "business_name":
+        # Keep the form's name contract stable across queueing; display cleanup
+        # happens only while rendering.
+        _bounded_text(value, 150)
+    elif key == "reason":
+        value = value.strip()
+        _bounded_text(value, template.reason_max_length)
+    else:
+        if len(value) > 2048:
+            raise ValueError("Invalid email context value")
+        _action_link(value, key, origin)
+    return value
+
+
 def validate_context(
     template_key: str, context: Mapping[str, object]
 ) -> dict[str, str]:
     """Copy only reviewed scalar fields; errors never contain caller values.
 
     ``language`` is reserved for recipient resolution by the send service and is
-    removed before durable queueing. Only the partner rejection template accepts
-    its recipient-facing decision reason. Case notes and recipient details are
-    absent from every template's allowed context. Generic
+    removed before durable queueing. Partner rejection and household status
+    templates accept their reviewed recipient-facing decision reasons. Household
+    producers apply the active RuleSet limit and privacy checks before capture;
+    workers only enforce the schema's absolute ceiling. Case notes and recipient
+    details are absent from every template's allowed context. Generic
     notices link only to the public landing/sign-in pages; one-use links belong
     to their dedicated account templates.
     """
@@ -163,28 +195,7 @@ def validate_context(
     for key, value in context.items():
         if key == "language":
             continue
-        if not isinstance(value, str) or not value.strip():
-            raise ValueError("Invalid email context value")
-        if key == "business_name":
-            # Match the existing form's name contract; sanitize its display copy
-            # at render time so validation remains stable across queueing.
-            if len(value) > 150 or any(
-                character == "\x00" or unicodedata.category(character) == "Cs"
-                for character in value
-            ):
-                raise ValueError("Invalid email context value")
-        elif key == "reason":
-            if len(value.strip()) > 500 or any(
-                character == "\x00" or unicodedata.category(character) == "Cs"
-                for character in value
-            ):
-                raise ValueError("Invalid email context value")
-            value = value.strip()
-        elif len(value) > 2048:
-            raise ValueError("Invalid email context value")
-        else:
-            _action_link(value, key, origin)
-        cleaned[key] = value
+        cleaned[key] = _context_value(key, value, template, origin)
     return cleaned
 
 

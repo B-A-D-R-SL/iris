@@ -238,3 +238,35 @@ def test_recovery_before_initial_delivery_suppresses_the_obsolete_queued_link(
     [message] = get_fake_mailer().sent
     assert replacement["context"]["invitation_url"] in message["text"]
     assert initial["context"]["invitation_url"] not in message["text"]
+
+
+@pytest.mark.parametrize(
+    "origin", ["", None, "http://iris.example", "https://iris.example/path"]
+)
+@pytest.mark.usefixtures("invitation_rule")
+def test_bad_email_origin_keeps_the_reissued_invitation(
+    settings, admin, origin, django_capture_on_commit_callbacks, queued_partner_emails
+):
+    """A deployment email error cannot roll back successful invitation recovery."""
+    application = PartnerApplicationFactory()
+    with django_capture_on_commit_callbacks(execute=True):
+        services.approve_application(application, admin)
+    previous = Invitation.objects.get(email=application.contact_email)
+    queued_partner_emails.clear()
+    settings.PUBLIC_APP_ORIGIN = origin
+    with django_capture_on_commit_callbacks(execute=True):
+        services.resend_approval_invitation(application, admin)
+    previous.refresh_from_db()
+    assert previous.expires_at <= timezone.now()
+    replacement = Invitation.objects.exclude(pk=previous.pk).get(store=previous.store)
+    assert replacement.token_hash != previous.token_hash
+    assert replacement.expires_at > timezone.now()
+    application.refresh_from_db()
+    assert application.status == ApplicationStatus.APPROVED
+    assert Store.objects.filter(application=application).count() == 1
+    assert AuditEvent.objects.filter(target_id=str(application.pk)).count() == 1
+    log = EmailLog.objects.exclude(status=EmailLog.Status.PENDING).get()
+    assert log.status == EmailLog.Status.FAILED
+    assert log.error == "email_configuration_invalid"
+    assert log.attempts == 0 and log.sent_at is None
+    assert not queued_partner_emails and not get_fake_mailer().sent

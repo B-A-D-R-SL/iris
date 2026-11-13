@@ -6,11 +6,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from django.core.exceptions import (
-    ImproperlyConfigured,
-    PermissionDenied,
-    ValidationError,
-)
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 
 from adapters.mailer.base import MailerError
@@ -283,32 +279,48 @@ def test_rejection_audit_failure_rolls_back_and_sends_no_email(
         "https://iris.example?",
         "https://iris.example#",
         "https://user:pass@iris.example",
+        "http://iris.example",
+        "http://localhost.evil.example",
+        "http://192.168.1.2",
         None,
+        42,
     ],
 )
-def test_bad_frontend_configuration_fails_before_application_lock(
-    settings, admin, origin
+@pytest.mark.usefixtures("invitation_rule")
+def test_bad_email_origin_keeps_the_committed_approval(
+    settings, admin, origin, django_capture_on_commit_callbacks, queued_partner_emails
 ):
-    """Deployment errors are explicit and perform no application lookup or writes."""
+    """Email-only configuration cannot undo the store, invitation or audited decision."""
     settings.PUBLIC_APP_ORIGIN = origin
     application = PartnerApplicationFactory()
-    with (
-        patch("modules.stores.services._locked_application") as locked,
-        pytest.raises(ImproperlyConfigured, match="PUBLIC_APP_ORIGIN"),
-    ):
+    with django_capture_on_commit_callbacks(execute=True):
         services.approve_application(application, admin)
-    locked.assert_not_called()
     application.refresh_from_db()
-    assert application.status == ApplicationStatus.SUBMITTED
-    assert not Store.objects.filter(application=application).exists()
+    assert application.status == ApplicationStatus.APPROVED
+    assert application.decided_by == admin and application.decided_at is not None
+    store = Store.objects.get(application=application)
+    assert Invitation.objects.get(store=store).role == User.Role.STORE_MANAGER
+    assert AuditEvent.objects.get(target_id=str(application.pk)).metadata == {
+        "outcome": "approved"
+    }
+    log = EmailLog.objects.get(template_key="partner_application_approved")
+    assert log.status == EmailLog.Status.FAILED
+    assert log.error == "email_configuration_invalid"
+    assert log.attempts == 0 and log.sent_at is None
+    assert not queued_partner_emails and not get_fake_mailer().sent
 
 
-def test_approval_authorizes_before_reporting_bad_configuration(settings):
-    """Configuration errors do not replace authorization failures."""
+@pytest.mark.parametrize(
+    "operation", ["approve_application", "resend_approval_invitation"]
+)
+def test_invitation_operations_authorize_before_bad_email_configuration(
+    settings, operation
+):
+    """An email problem cannot replace an authorization failure."""
     settings.PUBLIC_APP_ORIGIN = ""
     application = PartnerApplicationFactory()
     with pytest.raises(PermissionDenied):
-        services.approve_application(
+        getattr(services, operation)(
             application, UserFactory(role=User.Role.BENEFICIARY)
         )
 
@@ -332,17 +344,6 @@ def test_decision_logs_only_after_commit(
         f"partner_application_{'approved' if decision == 'approve' else 'rejected'}"
     ]
     assert application.contact_email not in partner_events.text
-
-
-@pytest.mark.parametrize(
-    "origin",
-    ["http://iris.example", "http://localhost.evil.example", "http://192.168.1.2"],
-)
-def test_plaintext_remote_invitation_origin_is_refused(settings, admin, origin):
-    """Invitation bearer tokens are never issued over plaintext remote origins."""
-    settings.PUBLIC_APP_ORIGIN = origin
-    with pytest.raises(ImproperlyConfigured, match="HTTPS"):
-        services.approve_application(PartnerApplicationFactory(), admin)
 
 
 @pytest.mark.parametrize(

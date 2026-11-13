@@ -40,5 +40,5 @@ class Command(BaseCommand):
             raise CommandError(str(exc)) from exc
         self.stdout.write(
             f"Invitation reissued for application {application.pk}. "
-            "Email queued after commit; check EmailLog for the delivery outcome."
+            "Check EmailLog for the email delivery outcome."
         )

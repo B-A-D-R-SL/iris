@@ -21,12 +21,16 @@ email_log = notifications.send(
 )
 ```
 
-`send(user_or_email, template_key, context)` validates the address and reviewed
-context, creates an `EmailLog`, and registers queue insertion with
-`transaction.on_commit`. Call it inside the business transaction. A rollback
-removes the log and discards the callback. Outside an existing transaction, the
-service commits its own transaction before enqueueing. Provider calls always run
-in the worker.
+`send(user_or_email, template_key, context)` records the known template's delivery
+outcome and registers valid queue insertion with `transaction.on_commit`. Call it
+inside the business transaction. A rollback removes the log and discards the
+callback. Outside an existing transaction, the service commits its own
+transaction before enqueueing. Provider calls always run in the worker.
+
+Known-template recipient, context and runtime email-configuration problems return
+a failed EmailLog with zero attempts and no job, preserving the business
+transaction. An unknown template key remains a programmer error and raises
+`ValueError`. Essential business validation and authorization remain with callers.
 
 A User supplies the persisted preferred language. Raw addresses use reserved
 `context["language"]` (`fr` or `en`), defaulting to French. The chosen language is
@@ -36,8 +40,9 @@ User, request or allauth context object.
 
 `queue_household_status_email(...)` remains the US-32 compatibility wrapper.
 It skips files without email and maps suspension/reactivation to the shared
-service. Reasons stay in Iris rather than in email. Household validation and
-audit requirements remain with the household workflow.
+service, including the normalized, privacy-validated reason. The household
+workflow's `_status_reason` remains responsible for the active RuleSet limit
+and sensitive-data validation before audit or email queueing.
 
 ## Template catalog
 
@@ -45,6 +50,8 @@ Every key has French and English subject/plain-text files under
 `templates/notifications/{fr,en}/`. A shared HTML wrapper escapes the body and
 action link. Context validation rejects unknown templates, missing required
 fields, unreviewed context fields and unsafe URLs before queueing.
+Final French/English wording remains subject to the sponsor review recorded in
+[PR #697](https://github.com/B-A-D-R-SL/iris/pull/697#pullrequestreview-5886577453).
 
 | Template key | Required context | Default action |
 | --- | --- | --- |
@@ -66,8 +73,8 @@ fields, unreviewed context fields and unsafe URLs before queueing.
 | `strike` | None | Sign-in |
 | `digest` | None | Sign-in |
 | `need_match` | None | Sign-in |
-| `household_suspended` | None | Sign-in |
-| `household_reactivated` | None | Sign-in |
+| `household_suspended` | `reason` | Sign-in |
+| `household_reactivated` | `reason` | Sign-in |
 
 Generic templates optionally accept `sign_in_url`, restricted to the configured
 origin's `/` or `/sign-in`, without query or fragment. All URLs must use
@@ -86,11 +93,19 @@ displayed name. Plain text uses the display copy and HTML escapes it once.
 Messages contain a reviewed status/next step and a trusted link. The dedicated
 partner rejection template preserves US-13's existing contract: required `reason`
 is the stored, trimmed decision reason, at most 500 characters. It is passed
-unchanged to the text template and escaped once in HTML. No other template accepts
-reasons or case notes; arbitrary bodies, income/document fields and recipient
-details are excluded. The rejection reason belongs only in the restricted
-temporary rendering payload and email, never EmailLog or stdout. Digest/matching
-selection, consent, visibility and schedulers remain
+unchanged to the text template and escaped once in HTML. The two household status
+templates preserve US-32's normalized, privacy-validated `reason`; the producer
+checks the active `household_suspension.reason_max_length` (default 500). Their
+queued snapshot supports the RuleSet schema ceiling of 2,000 characters, so a
+later, lower rule does not invalidate a previously accepted reason. This capture
+ceiling does not enlarge the household model's 500-character stored status-reason
+limit; suspension still passes model validation. Reactivation clears that stored
+field and may have a longer validated reason under its active rule. Rendering
+escapes it once for HTML without changing the captured text. These three
+templates are the only reason-bearing families. Case notes, arbitrary bodies,
+income/document fields and recipient details remain excluded. Reasons belong
+only in the restricted temporary payload and email, never EmailLog or stdout.
+Digest/matching selection, consent, visibility and schedulers remain
 with their owning features. Reservation details/QR codes remain with their owning
 story. Their templates currently point to Iris for details.
 
@@ -128,6 +143,16 @@ insertion failure records `queue_unavailable` when the database remains availabl
 Both preserve an already committed business action. A database outage can prevent
 both queue insertion and the failure update.
 
+Validation failures use `email_recipient_invalid` for invalid/unrepresentable
+recipients and `email_configuration_invalid` for rendering context, action URL
+or runtime origin problems. A malformed recipient is retained only if it fits
+the database field safely (string, at most 254 characters, no NUL or surrogate);
+otherwise `to_email` is empty on that failed record. Neither case queues a job.
+Only the static `email_configuration_failed` event is emitted after commit; raw
+recipient/context/error values are absent. A secondary failure to record an
+enqueue outcome emits `email_outcome_unavailable`, without provider/DB details.
+Production startup validation still rejects unsafe deployment configuration.
+
 After-commit queueing leaves a crash window before queue insertion. Per-log queue
 locks and terminal-status checks reduce duplicates, but a crash after provider
 acceptance can still cause a repeat send. This is neither an atomic outbox nor
@@ -156,6 +181,22 @@ terminal `email` jobs using the active `notifications.job_retention_hours` rule
 normally occurs between 24 and 25 hours after the terminal event. A delayed or
 stopped worker can extend that period. Pending/running/retrying jobs remain
 available. This does not implement general EmailLog retention.
+
+Ammar's PR #697 review records retention and duplicate/stuck-send recovery as
+nonblocking follow-ups for the next release. EmailLog has no scheduled deletion
+yet, so its `to_email` persists and the `retention.email_logs_months` setting is
+not applied. Terminal job payloads can retain invitation links and validated
+decision/status reasons until the hourly cleanup threshold. There is no watchdog
+to recover logs left in `pending` or `sending`, nor a guarantee against duplicate
+sends across the provider-acceptance/log-update crash window. These follow-ups
+do not change the current queue cleanup or delivery guarantees.
+
+PR #697's three inline review fixes preserve valid business decisions when a
+known-template email input/configuration fails, restore the validated US-32
+reason in both household status emails, and skip unsupported allauth prefixes
+with a static event. The related regression results are recorded separately from
+earlier merge verification below. Ammar's template/system-file review remains
+pending, and final wording will be confirmed with the sponsor.
 
 The old `notifications.send_household_status_email` task name remains callable
 for previously queued email/subject/body arguments. New workflows never create
@@ -191,7 +232,11 @@ provider calls.
 Implemented producers are partner receipt, approval, rejection and invitation
 reissue, plus household suspension/reactivation.
 The allauth bridge maps confirmation/reset mail to this service without opening
-signup or implementing those account workflows. Walk-in approval remains US-18;
+signup or implementing those account workflows. Unsupported allauth prefixes
+return normally with `authentication_email_skipped`; they do not queue or fall
+back to direct SMTP. Supported prefixes with missing/non-string/invalid action
+URLs use the shared `email_configuration_invalid` failed-log path, without an
+early adapter exception or queue insertion. Walk-in approval remains US-18;
 other producers and reminder/digest/matching schedulers remain with their stories.
 Template coverage does not establish that their business triggers exist.
 
@@ -202,9 +247,9 @@ delivery.
 
 ## PR verification and SET-17 handoff
 
-The results below describe verification before integrating main's US-13 review
-workflows. Subsequent approval/rejection/reissue integration uses the same
-templates, queue, fake and EmailLog; its verification must be recorded separately.
+The initial full-run and 134-file-review records below precede main's US-13
+integration. Later paragraphs record merged-workflow and PR #697 review-fix
+verification separately; historical run counts are not added together.
 
 The implementation is ready for code review before App Service and the staging
 worker exist. Local evidence covers the complete database/job/worker/Mailpit path,
@@ -226,9 +271,11 @@ the generic receipt fallback; both logs reached `sent` on their first attempt.
 After merging main's US-13 workflows, approval, rejection and operator reissue
 now use the shared template/queue/fake/EmailLog path and `PUBLIC_APP_ORIGIN`.
 The owner chose to preserve the stored rejection reason under the existing
-500-character trimmed limit, only in the dedicated partner rejection email;
-other reasons remain excluded. Invitation preflight stops already invalid links
-without another transport attempt. Targeted merged-tree checks passed **916
+500-character trimmed limit in the dedicated partner rejection email. At this
+verification stage, household reasons were still excluded; the PR review
+follow-up restores their validated US-32 behavior. Invitation preflight stops
+already invalid links without another transport attempt. Targeted merged-tree
+checks passed **916
 backend tests** (722 core/accounts/configuration/access and 194 store cases) and
 **44 frontend staff/routing tests**. Ruff lint/format passed for 437 files, mypy
 passed for 421 source files, all four import contracts passed, and the migration
@@ -252,6 +299,23 @@ The strict production deployment check passed, and the CI-scan settings served
 health and admin login with secure cookies retained. Workflow YAML and all 31
 shell steps passed syntax checks. These checks used synthetic email settings;
 full gitleaks and ZAP execution remains part of published CI.
+
+Latest PR #697 review-fix validation passed **735 unique targeted backend tests**:
+447 notification/account/notification-rule cases and 288 store/suspension-API/
+mailer cases, using `-W error --no-cov`. Full Ruff lint/format passed for 438 files,
+mypy passed for 422 source files, all four import contracts passed, and migration
+checks found no drift. This is targeted regression evidence, without a new
+full-suite or coverage claim.
+
+With the worker restarted on the latest code, native PostgreSQL/queue/worker/
+Mailpit verification delivered four household status emails (suspension and
+reactivation, each in French and English), all `sent` on their first attempt.
+The captured reason appeared in text and was escaped once in HTML. Two malformed
+recipient/context cases produced failed logs with zero attempts and no jobs;
+unsupported allauth mail was skipped without an EmailLog. The operator recovery
+command now reports reissue and directs staff to EmailLog without promising
+queue insertion or delivery. Recent worker stdout contained no synthetic reason
+or recipient-address prefixes in the privacy check.
 
 Ammar reports successful delivery using Azure's portal Try Email. This is
 provider-side evidence; an Iris-to-ACS staging send has not been performed.

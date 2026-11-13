@@ -107,8 +107,17 @@ again by the page.
 
 US-57 supplies shared bilingual email templates and queued delivery. The account
 adapter maps allauth confirmation and password-reset messages to that service,
-using the saved user language and a reviewed action URL. It rejects unsupported
-allauth mail types rather than sending outside the queue. Signup remains closed.
+using the saved user language and a reviewed action URL. Unsupported allauth mail
+types are skipped with the static INFO event `authentication_email_skipped` and
+return normally before recipient/context access. They neither queue a message
+nor fall back to the superclass or SMTP transport, and they do not turn a normal
+account request into a server error. No recipient, prefix or context is logged.
+For supported prefixes, missing, non-string or otherwise invalid action URLs are
+handled by the shared notification service: EmailLog records
+`email_configuration_invalid` with zero attempts and no job. The adapter does not
+raise an early URL-type error. Valid supported flows retain their URL/token
+ownership and captured language.
+Signup remains closed.
 US-02/US-03 must configure the frontend action URLs and any additional allauth
 mail types before enabling their workflows.
 

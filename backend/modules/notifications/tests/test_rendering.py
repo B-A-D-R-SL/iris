@@ -51,7 +51,11 @@ def _public_origin() -> Iterator[None]:
 def _context(template_key: str) -> dict[str, str]:
     if template_key == "partner_application_received":
         return {"business_name": "Commerce Exemple"}
-    if template_key == "partner_application_rejected":
+    if template_key in {
+        "partner_application_rejected",
+        "household_suspended",
+        "household_reactivated",
+    }:
         return {"reason": "Outside our current service area"}
     for key, field, url in LINK_CONTEXTS:
         if key == template_key:
@@ -133,6 +137,44 @@ def test_partner_rejection_requires_a_reason_and_retains_the_500_character_bound
     assert validate_context(
         "partner_application_rejected", {"reason": "  " + "x" * 500 + "  "}
     ) == {"reason": "x" * 500}
+
+
+@pytest.mark.parametrize("key", ["household_suspended", "household_reactivated"])
+@pytest.mark.parametrize("language", ["fr", "en"])
+def test_household_status_includes_its_validated_reason_and_escapes_html_once(
+    key: str, language: str
+) -> None:
+    reason = 'Review <script>alert("x")</script> & safety'
+    message = render(key, language, {"reason": reason})
+    assert reason in message.text
+    assert "<script>" not in message.html
+    assert "&lt;script&gt;" in message.html
+    assert "&amp; safety" in message.html
+    assert "&amp;lt;script&amp;gt;" not in message.html
+    assert reason not in message.subject
+    assert ("Motif :" if language == "fr" else "Reason:") in message.text
+
+
+@pytest.mark.parametrize("key", ["household_suspended", "household_reactivated"])
+def test_household_status_requires_a_reason_with_the_schema_absolute_bound(
+    key: str,
+) -> None:
+    with pytest.raises(ValueError, match="Invalid email context fields"):
+        validate_context(key, {})
+    reason = "x" * 2000
+    assert validate_context(key, {"reason": f"  {reason}  "}) == {"reason": reason}
+    assert reason in render(key, "en", {"reason": reason}).text
+
+
+@pytest.mark.parametrize("key", ["household_suspended", "household_reactivated"])
+@pytest.mark.parametrize(
+    "reason", [None, 12, "", "  ", "x" * 2001, "bad\x00reason", "bad\ud800reason"]
+)
+def test_household_status_refuses_invalid_reason_without_exposing_it(
+    key: str, reason: object
+) -> None:
+    with pytest.raises(ValueError, match="^Invalid email context value$"):
+        validate_context(key, {"reason": reason})
 
 
 @pytest.mark.parametrize("space", ["\u00a0", "\u202f", "\u2009"])

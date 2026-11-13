@@ -1,6 +1,8 @@
 # AI contribution: 50% or more AI-generated
 """Authentication emails enter the shared queue with reviewed scalar context."""
 
+import logging
+from collections.abc import Iterator
 from typing import Any
 
 import pytest
@@ -19,6 +21,37 @@ DIRECT_CONTEXT: Any = None
 
 pytestmark = pytest.mark.django_db
 APP_ORIGIN = "https://iris.example.test"
+
+
+@pytest.fixture
+def authentication_mail_events(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[pytest.LogCaptureFixture]:
+    """Capture raw account-mail events before formatter filtering could hide data."""
+    logger = logging.getLogger("iris.auth")
+    monkeypatch.setattr(logger, "propagate", False)
+    logger.addHandler(caplog.handler)
+    try:
+        with caplog.at_level(logging.INFO, logger=logger.name):
+            yield caplog
+    finally:
+        logger.removeHandler(caplog.handler)
+
+
+def _assert_private_skip_event(
+    record: logging.LogRecord, sensitive_values: tuple[str, ...]
+) -> None:
+    assert record.name == "iris.auth"
+    assert record.levelno == logging.INFO
+    assert record.getMessage() == "authentication_email_skipped"
+    assert vars(record)["event"] == "authentication_email_skipped"
+    assert record.args == ()
+    assert record.exc_info is None
+    assert record.stack_info is None
+    standard = set(logging.makeLogRecord({}).__dict__) | {"message", "asctime"}
+    assert set(vars(record)) - standard == {"event"}
+    for value in sensitive_values:
+        assert value not in str(vars(record))
 
 
 @pytest.mark.parametrize(
@@ -128,38 +161,75 @@ def test_secondary_address_keeps_the_accounts_saved_language(
     ]
 
 
-def test_unknown_authentication_mail_fails_without_inline_delivery(
+@pytest.mark.parametrize(
+    "prefix",
+    [
+        "account/email/unknown_account",
+        "account/email/account_already_exists",
+        "unreviewed-secret-prefix",
+    ],
+)
+def test_unsupported_authentication_mail_is_skipped_without_delivery(
     monkeypatch: pytest.MonkeyPatch,
+    authentication_mail_events: pytest.LogCaptureFixture,
+    prefix: str,
 ) -> None:
-    """Adding an allauth mail type requires an explicit reviewed mapping."""
+    """Unmapped allauth mail cannot fail its caller or fall back to inline SMTP."""
     queued: list[Any] = []
+    inline: list[Any] = []
     monkeypatch.setattr(
         "modules.accounts.adapter.notification_services.send",
         lambda *args: queued.append(args),
     )
-    with pytest.raises(
-        ValueError, match="^Unsupported authentication email template\\.$"
-    ):
-        AccountAdapter().send_mail("unreviewed-secret", "recipient@example.test", {})
+    monkeypatch.setattr(
+        "allauth.account.adapter.DefaultAccountAdapter.send_mail",
+        lambda *args: inline.append(args),
+    )
+    context = {
+        "key": "reset-token-sentinel",
+        "password": "credential-sentinel",
+        "provider_diagnostic": "provider-detail-sentinel",
+    }
+    recipient = "private-recipient@example.test"
+    AccountAdapter().send_mail(prefix, recipient, context)
     assert queued == []
+    assert inline == []
     assert get_fake_mailer().sent == []
+    assert not EmailLog.objects.exists()
+    [record] = authentication_mail_events.records
+    _assert_private_skip_event(record, (prefix, recipient, *context.values()))
 
 
-def test_missing_action_url_is_rejected_before_queueing(
+@pytest.mark.parametrize(
+    "context",
+    [
+        {},
+        {"password_reset_url": None},
+        {"password_reset_url": 42},
+        {"password_reset_url": {"token": "private-action-sentinel"}},
+    ],
+    ids=["missing", "null", "integer", "object"],
+)
+def test_invalid_action_url_records_failure_without_queueing(
+    settings: Any,
+    django_capture_on_commit_callbacks: Any,
     monkeypatch: pytest.MonkeyPatch,
+    context: dict[str, object],
 ) -> None:
-    queued: list[Any] = []
-    monkeypatch.setattr(
-        "modules.accounts.adapter.notification_services.send",
-        lambda *args: queued.append(args),
-    )
-    with pytest.raises(
-        TypeError, match="^Authentication email requires an action URL\\.$"
-    ):
+    """The real notification service records malformed action data as failed mail."""
+    settings.PUBLIC_APP_ORIGIN = APP_ORIGIN
+    queued: list[dict[str, Any]] = []
+    monkeypatch.setattr(send_email, "configure", lambda **kwargs: send_email)
+    monkeypatch.setattr(send_email, "defer", lambda **kwargs: queued.append(kwargs))
+    with django_capture_on_commit_callbacks(execute=True):
         AccountAdapter().send_mail(
-            "account/email/password_reset_key", "a@example.test", {}
+            "account/email/password_reset_key", "a@example.test", context
         )
-    assert queued == []
+    log = EmailLog.objects.get(template_key="password_reset")
+    assert log.status == EmailLog.Status.FAILED
+    assert log.error == "email_configuration_invalid"
+    assert log.attempts == 0 and log.sent_at is None
+    assert not queued and not get_fake_mailer().sent
 
 
 @pytest.mark.usefixtures("notification_rules")

@@ -57,8 +57,9 @@ UUIDs:
 python manage.py resend_partner_invitation APPLICATION_UUID --admin-id ADMIN_UUID
 ```
 
-The command reports queueing, without printing the recipient or token. Check
-EmailLog and the worker outcome after the command; queued does not mean delivered.
+The command reports invitation reissue without printing the recipient or token.
+It directs the operator to EmailLog without promising queue insertion or delivery.
+Check the log and worker outcome after the command.
 Delivery failure keeps the new invitation committed, so recovery can be retried.
 Every successful reissue expires previous links, including links from earlier
 failed sends. Accepted invitations and existing accounts cannot be reissued.
@@ -73,8 +74,11 @@ still invalidates its old link in Iris.
 
 Approval and recovery use the shared `PUBLIC_APP_ORIGIN`, an HTTPS origin (HTTP
 only for localhost/loopback development) without a path, query, fragment or
-credentials. Invalid configuration raises
-`ImproperlyConfigured` before the application row is locked, after authorization.
+credentials. Production startup keeps its origin/sender guards. A known-template
+runtime delivery-input or origin problem becomes a failed EmailLog and does not
+undo approval/reissue; there is no separate inline mail-configuration precheck.
+Active-admin authorization, application-state checks and essential invitation
+issuance rules remain enforced before a decision can complete.
 
 ## Endpoints
 
@@ -103,8 +107,9 @@ Do not import another module's models or internal domain code.
 Approval and rejection record a `decision` on `partner_application`, with only the outcome in metadata.
 
 The worker renders the applicant's captured language from the shared French and
-English templates. Partner rejection alone accepts the stored bounded decision
-reason; it is escaped in HTML and is absent from EmailLog and stdout. Other
-template families do not accept arbitrary reasons or notes. SMTP has a finite
+English templates. Partner rejection accepts the stored bounded decision
+reason; it is escaped in HTML and is absent from EmailLog and stdout. Household
+status notices separately accept their producer-validated US-32 reason; other
+template families do not accept reasons or notes. SMTP has a finite
 `SMTP_TIMEOUT` deadline (10 seconds by default); ACS has its separately configured
 send timeout. Committed decisions retain their privacy-safe audit/log events.

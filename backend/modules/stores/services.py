@@ -5,17 +5,10 @@
 
 import logging
 from collections.abc import Mapping
-from ipaddress import ip_address
 from typing import Any, cast
-from urllib.parse import urlsplit
 
 from django.conf import settings
-from django.core.exceptions import (
-    ImproperlyConfigured,
-    PermissionDenied,
-    ValidationError,
-)
-from django.core.validators import URLValidator
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -146,39 +139,12 @@ def can_decide_application(application: PartnerApplication, admin: Any) -> bool:
     return application.status == ApplicationStatus.SUBMITTED
 
 
-def _loopback_host(host: str | None) -> bool:
-    """Permit plaintext links only on explicit development loopback hosts."""
-    if host == "localhost":
-        return True
-    try:
-        return ip_address(host or "").is_loopback
-    except ValueError:
-        return False
-
-
-def _frontend_origin() -> str:
-    """Fail explicitly on deployment mistakes before acquiring an application lock."""
-    value = settings.PUBLIC_APP_ORIGIN
-    try:
-        if not isinstance(value, str):
-            raise ValidationError("Invalid origin")
-        value = value.rstrip("/")
-        URLValidator(schemes=["https", "http"])(value)
-        parts = urlsplit(value)
-        if (
-            parts.path
-            or "?" in value
-            or "#" in value
-            or parts.username
-            or parts.password
-            or (parts.scheme == "http" and not _loopback_host(parts.hostname))
-        ):
-            raise ValidationError("Invalid origin")
-    except (ValidationError, ValueError) as exc:
-        raise ImproperlyConfigured(
-            "PUBLIC_APP_ORIGIN must be an HTTPS origin; HTTP is allowed only for loopback development."
-        ) from exc
-    return value
+def _invitation_url(token: str) -> str | None:
+    """Let notification validation record email configuration failures separately."""
+    origin = getattr(settings, "PUBLIC_APP_ORIGIN", None)
+    return (
+        f"{origin.rstrip('/')}/invitation/{token}" if isinstance(origin, str) else None
+    )
 
 
 def _locked_application(
@@ -219,7 +185,6 @@ def approve_application(
     from modules.accounts import services as account_services
 
     _require_active_admin(admin)
-    base_url = _frontend_origin()
     application = _locked_application(application, admin)
     store = Store(
         name=application.business_name,
@@ -251,7 +216,7 @@ def approve_application(
         "partner_application_approved",
         {
             "language": application.language,
-            "invitation_url": f"{base_url}/invitation/{token}",
+            "invitation_url": _invitation_url(token),
         },
     )
     return application
@@ -263,7 +228,6 @@ def resend_approval_invitation(application: PartnerApplication, admin: Any) -> N
     from modules.accounts import services as account_services
 
     _require_active_admin(admin)
-    base_url = _frontend_origin()
     application = PartnerApplication.objects.select_for_update().get(pk=application.pk)
     if application.status != ApplicationStatus.APPROVED:
         raise ValidationError(
@@ -282,7 +246,7 @@ def resend_approval_invitation(application: PartnerApplication, admin: Any) -> N
         "partner_application_approved",
         {
             "language": application.language,
-            "invitation_url": f"{base_url}/invitation/{token}",
+            "invitation_url": _invitation_url(token),
         },
     )
 
