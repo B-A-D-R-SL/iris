@@ -19,6 +19,27 @@ describe("privacy-safe frontend logger", () => {
     });
   });
 
+  it("logs only the status code of a failed request, null when no answer came", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    logger.warning("listing_post_failed", { statusCode: 400 });
+    logger.error("listing_post_failed", { statusCode: null });
+
+    expect(JSON.parse(String(warn.mock.calls[0]?.[0]))).toEqual({
+      timestamp: expect.any(String),
+      level: "WARNING",
+      event: "listing_post_failed",
+      status_code: 400,
+    });
+    expect(JSON.parse(String(error.mock.calls[0]?.[0]))).toEqual({
+      timestamp: expect.any(String),
+      level: "ERROR",
+      event: "listing_post_failed",
+      status_code: null,
+    });
+  });
+
   it("emits structured warning events without arbitrary data", () => {
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
