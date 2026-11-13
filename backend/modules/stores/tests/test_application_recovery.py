@@ -36,6 +36,10 @@ pytestmark = [
 
 @pytest.mark.usefixtures("invitation_rule")
 @pytest.mark.parametrize("recovery_fails", [False, True])
+# Size/complexity exception: follow one persisted store and invitation through
+# failed delivery, token replacement, account acceptance and refused reissue.
+# The same lifecycle proves that recovery expires the old token without creating
+# another store or decision audit, including when the replacement delivery fails.
 # rule: BR-PARTNER-05
 def test_approval_email_failure_is_recoverable_with_a_fresh_link(
     admin,
@@ -194,6 +198,7 @@ def test_recovery_command_requires_admin_and_never_prints_contact_or_token(
 @pytest.mark.parametrize(
     "status", [ApplicationStatus.SUBMITTED, ApplicationStatus.REJECTED]
 )
+# rule: BR-PARTNER-05
 def test_reissue_refuses_unapproved_applications(admin, status):
     application = PartnerApplicationFactory(status=status, decision_reason="reason")
     with pytest.raises(ValidationError, match="Only approved"):
@@ -202,6 +207,7 @@ def test_reissue_refuses_unapproved_applications(admin, status):
 
 
 @pytest.mark.usefixtures("invitation_rule")
+# rule: BR-PARTNER-05
 def test_reissue_refuses_existing_account_and_preserves_invitation(admin):
     application = PartnerApplicationFactory()
     services.approve_application(application, admin)
@@ -216,6 +222,7 @@ def test_reissue_refuses_existing_account_and_preserves_invitation(admin):
 
 
 @pytest.mark.usefixtures("invitation_rule")
+# rule: BR-PARTNER-05
 def test_recovery_before_initial_delivery_suppresses_the_obsolete_queued_link(
     admin, django_capture_on_commit_callbacks, queued_partner_emails
 ):
@@ -244,6 +251,7 @@ def test_recovery_before_initial_delivery_suppresses_the_obsolete_queued_link(
     "origin", ["", None, "http://iris.example", "https://iris.example/path"]
 )
 @pytest.mark.usefixtures("invitation_rule")
+# rule: BR-PARTNER-05
 def test_bad_email_origin_keeps_the_reissued_invitation(
     settings, admin, origin, django_capture_on_commit_callbacks, queued_partner_emails
 ):

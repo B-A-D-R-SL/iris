@@ -67,6 +67,7 @@ def test_catalog_covers_every_requested_and_existing_notice() -> None:
     assert TEMPLATE_KEYS == EXPECTED_KEYS
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize("key", sorted(EXPECTED_KEYS))
 @pytest.mark.parametrize("language", ["fr", "en"])
 def test_every_template_has_subject_text_and_html(key: str, language: str) -> None:
@@ -85,6 +86,7 @@ def test_every_template_has_subject_text_and_html(key: str, language: str) -> No
     assert "\n" not in message.subject and "\r" not in message.subject
 
 
+# rule: BR-NOTIF-003
 def test_recipient_locale_overrides_worker_translation_state() -> None:
     with translation.override("fr"):
         english = render("password_reset", "en", {"reset_url": f"{ORIGIN}/reset"})
@@ -94,6 +96,7 @@ def test_recipient_locale_overrides_worker_translation_state() -> None:
     assert french.subject == "Réinitialisez votre mot de passe Iris"
 
 
+# rule: BR-NOTIF-003
 def test_business_name_is_plain_text_and_escaped_in_html() -> None:
     name = 'Commerce <script>alert("x")</script> & associés'
     message = render("partner_application_received", "fr", {"business_name": name})
@@ -105,6 +108,7 @@ def test_business_name_is_plain_text_and_escaped_in_html() -> None:
     assert name not in message.subject
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize("language", ["fr", "en"])
 def test_partner_rejection_includes_its_bounded_reason_and_escapes_html(
     language: str,
@@ -119,6 +123,7 @@ def test_partner_rejection_includes_its_bounded_reason_and_escapes_html(
     assert reason not in message.subject
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize(
     "reason", [None, 12, "", "  ", "x" * 501, "bad\x00reason", "bad\ud800reason"]
 )
@@ -129,6 +134,7 @@ def test_partner_rejection_reason_must_match_the_existing_field_contract(
         validate_context("partner_application_rejected", {"reason": reason})
 
 
+# rule: BR-NOTIF-003
 def test_partner_rejection_requires_a_reason_and_retains_the_500_character_bound() -> (
     None
 ):
@@ -139,6 +145,7 @@ def test_partner_rejection_requires_a_reason_and_retains_the_500_character_bound
     ) == {"reason": "x" * 500}
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize("key", ["household_suspended", "household_reactivated"])
 @pytest.mark.parametrize("language", ["fr", "en"])
 def test_household_status_includes_its_validated_reason_and_escapes_html_once(
@@ -155,6 +162,7 @@ def test_household_status_includes_its_validated_reason_and_escapes_html_once(
     assert ("Motif :" if language == "fr" else "Reason:") in message.text
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize("key", ["household_suspended", "household_reactivated"])
 def test_household_status_requires_a_reason_with_the_schema_absolute_bound(
     key: str,
@@ -166,6 +174,7 @@ def test_household_status_requires_a_reason_with_the_schema_absolute_bound(
     assert reason in render(key, "en", {"reason": reason}).text
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize("key", ["household_suspended", "household_reactivated"])
 @pytest.mark.parametrize(
     "reason", [None, 12, "", "  ", "x" * 2001, "bad\x00reason", "bad\ud800reason"]
@@ -177,6 +186,7 @@ def test_household_status_refuses_invalid_reason_without_exposing_it(
         validate_context(key, {"reason": reason})
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize("space", ["\u00a0", "\u202f", "\u2009"])
 @pytest.mark.parametrize("language", ["fr", "en"])
 def test_business_name_unicode_spaces_are_normalized_only_for_display(
@@ -194,6 +204,7 @@ def test_business_name_unicode_spaces_are_normalized_only_for_display(
     assert context["business_name"] == name
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize(
     ("name", "display"),
     [
@@ -220,6 +231,7 @@ def test_business_name_controls_are_removed_from_the_display_copy(
     assert context["business_name"] == name
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize(
     ("language", "receipt"),
     [
@@ -240,6 +252,7 @@ def test_invisible_business_name_uses_a_generic_receipt(
     assert "pour ." not in message.text
 
 
+# rule: BR-NOTIF-003
 def test_action_link_query_is_escaped_in_html() -> None:
     url = f"{ORIGIN}/reset?token=example&step=choose"
     message = render("password_reset", "en", {"reset_url": url})
@@ -249,6 +262,7 @@ def test_action_link_query_is_escaped_in_html() -> None:
     )
 
 
+# rule: BR-NOTIF-003
 def test_validation_copies_context_and_removes_reserved_language() -> None:
     context = {"business_name": "Commerce Exemple", "language": "en"}
     copied = validate_context("partner_application_received", context)
@@ -257,6 +271,7 @@ def test_validation_copies_context_and_removes_reserved_language() -> None:
     assert context["language"] == "en"
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize("key,field,url", LINK_CONTEXTS)
 def test_security_templates_require_their_specific_link(
     key: str, field: str, url: str
@@ -266,11 +281,13 @@ def test_security_templates_require_their_specific_link(
     assert validate_context(key, {field: url}) == {field: url}
 
 
+# rule: BR-NOTIF-003
 def test_partner_receipt_requires_the_business_name() -> None:
     with pytest.raises(ValueError, match="Invalid email context fields"):
         validate_context("partner_application_received", {})
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize(
     "field", ["reason", "notes", "income", "email", "token", "body", "user"]
 )
@@ -282,11 +299,13 @@ def test_unreviewed_or_sensitive_context_fields_are_refused(field: str) -> None:
     assert str(error.value) == "Invalid email context fields"
 
 
+# rule: BR-NOTIF-003
 def test_security_link_cannot_be_added_to_an_unrelated_template() -> None:
     with pytest.raises(ValueError, match="Invalid email context fields"):
         validate_context("digest", {"reset_url": f"{ORIGIN}/reset"})
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize(
     "value",
     [
@@ -306,29 +325,34 @@ def test_invalid_business_names_are_refused(value: object) -> None:
         validate_context("partner_application_received", {"business_name": value})
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize("value", [None, 12, [], {}, "", "es"])
 def test_invalid_reserved_language_is_refused(value: object) -> None:
     with pytest.raises(ValueError, match="Invalid email language"):
         validate_context("digest", {"language": value})
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize("language", ["", "es", None, []])
 def test_render_requires_a_supported_explicit_language(language: object) -> None:
     with pytest.raises(ValueError, match="Invalid email language"):
         render("digest", language, {})  # type: ignore[arg-type]
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize("key", ["../digest", "missing", "", None, []])
 def test_unknown_template_is_refused_without_path_resolution(key: object) -> None:
     with pytest.raises(ValueError, match="Unknown email template"):
         validate_context(key, {})  # type: ignore[arg-type]
 
 
+# rule: BR-NOTIF-003
 def test_non_mapping_context_is_refused() -> None:
     with pytest.raises(ValueError, match="Invalid email context"):
         validate_context("digest", ["unexpected"])  # type: ignore[arg-type]
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize(
     "url",
     [
@@ -356,6 +380,7 @@ def test_untrusted_or_malformed_action_links_are_refused(url: str) -> None:
     assert url not in str(error.value)
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize(
     "suffix", ["", "short", "A" * 43 + "/", "A" * 43 + "?next=1", "A" * 43 + "#x"]
 )
@@ -366,11 +391,13 @@ def test_invitation_links_use_the_existing_route_and_token_shape(suffix: str) ->
         )
 
 
+# rule: BR-NOTIF-003
 def test_default_https_port_is_the_same_origin() -> None:
     url = "https://iris.example.test:443/reset"
     assert validate_context("password_reset", {"reset_url": url}) == {"reset_url": url}
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize("host", ["localhost", "127.0.0.1", "[::1]"])
 def test_configured_loopback_http_works_with_debug_disabled(host: str) -> None:
     origin = f"http://{host}:5173"
@@ -379,6 +406,7 @@ def test_configured_loopback_http_works_with_debug_disabled(host: str) -> None:
     assert f"{origin}/sign-in" in message.text
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize(
     "origin",
     [
@@ -395,6 +423,7 @@ def test_invalid_public_origin_is_refused(origin: object) -> None:
         render("digest", "en", {})
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize(
     "key", ["partner_application_received", "partner_application_rejected"]
 )
@@ -406,12 +435,14 @@ def test_partner_contacts_without_accounts_use_the_public_landing_page(
     assert "/sign-in" not in message.text
 
 
+# rule: BR-NOTIF-003
 def test_generic_status_link_can_be_overridden_with_a_trusted_page() -> None:
     url = f"{ORIGIN}/sign-in"
     message = render("file_approved", "en", {"sign_in_url": url})
     assert message.text.endswith(url + "\n")
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize(
     "path",
     [

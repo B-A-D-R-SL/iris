@@ -43,6 +43,9 @@ def notification_events(
         logger.removeHandler(caplog.handler)
 
 
+# rule: BR-NOTIF-001
+# rule: BR-NOTIF-002
+# rule: BR-NOTIF-003
 def test_log_and_job_capture_recipient_and_context_before_the_outer_commit(
     queued: list[dict[str, Any]], django_capture_on_commit_callbacks: Any
 ) -> None:
@@ -72,6 +75,7 @@ def test_log_and_job_capture_recipient_and_context_before_the_outer_commit(
     assert get_fake_mailer().sent == []
 
 
+# rule: BR-NOTIF-002
 def test_rollback_removes_metadata_and_discards_delivery_callback(
     queued: list[dict[str, Any]], django_capture_on_commit_callbacks: Any
 ) -> None:
@@ -87,6 +91,7 @@ def test_rollback_removes_metadata_and_discards_delivery_callback(
     assert get_fake_mailer().sent == []
 
 
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize("language", ["fr", "en"])
 def test_email_only_recipients_need_no_account_and_capture_explicit_locale(
     language: str, queued: list[dict[str, Any]], django_capture_on_commit_callbacks: Any
@@ -100,6 +105,7 @@ def test_email_only_recipients_need_no_account_and_capture_explicit_locale(
     assert queued[0]["context"] == {}
 
 
+# rule: BR-NOTIF-002
 def test_missing_rules_records_failure_without_losing_the_business_transaction(
     monkeypatch: pytest.MonkeyPatch,
     queued: list[dict[str, Any]],
@@ -118,6 +124,7 @@ def test_missing_rules_records_failure_without_losing_the_business_transaction(
     assert queued == []
 
 
+# rule: BR-NOTIF-002
 def test_queue_failure_is_contained_after_commit_and_persists_a_safe_error(
     monkeypatch: pytest.MonkeyPatch, django_capture_on_commit_callbacks: Any
 ) -> None:
@@ -134,6 +141,7 @@ def test_queue_failure_is_contained_after_commit_and_persists_a_safe_error(
     assert log.attempts == 0
 
 
+# rule: BR-NOTIF-002
 def test_unknown_template_is_a_programmer_error_without_delivery_metadata(
     queued: list[dict[str, Any]],
 ) -> None:
@@ -143,6 +151,8 @@ def test_unknown_template_is_a_programmer_error_without_delivery_metadata(
     assert queued == []
 
 
+# rule: BR-NOTIF-002
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize(
     ("recipient", "snapshot"),
     [
@@ -176,6 +186,8 @@ def test_invalid_recipient_records_failure_without_queueing_or_private_logs(
         assert recipient not in str(vars(record))
 
 
+# rule: BR-NOTIF-002
+# rule: BR-NOTIF-003
 @pytest.mark.parametrize("context", [{"reason": "private-notes-sentinel"}, {}, None])
 @pytest.mark.django_db(transaction=True)
 def test_email_context_failure_does_not_undo_an_actual_business_commit(
@@ -205,6 +217,7 @@ def test_email_context_failure_does_not_undo_an_actual_business_commit(
     assert user.email not in str(vars(record))
 
 
+# rule: BR-NOTIF-002
 @pytest.mark.django_db(transaction=True)
 def test_runtime_origin_failure_does_not_undo_an_actual_business_commit(
     settings: Any,
@@ -225,6 +238,7 @@ def test_runtime_origin_failure_does_not_undo_an_actual_business_commit(
     assert len(notification_events.records) == 1
 
 
+# rule: BR-NOTIF-002
 def test_outer_rollback_discards_failed_email_metadata_and_failure_event(
     queued: list[dict[str, Any]],
     django_capture_on_commit_callbacks: Any,
@@ -242,6 +256,8 @@ def test_outer_rollback_discards_failed_email_metadata_and_failure_event(
     assert queued == []
 
 
+# rule: BR-NOTIF-002
+# rule: BR-NOTIF-003
 def test_queue_and_metadata_write_failure_are_both_observable_without_raw_errors(
     monkeypatch: pytest.MonkeyPatch,
     notification_events: pytest.LogCaptureFixture,
@@ -279,6 +295,8 @@ def test_counter_only_files_skip_mail_without_creating_a_log(
     assert queued == []
 
 
+# rule: BR-NOTIF-002
+# rule: BR-NOTIF-003
 @pytest.mark.django_db(transaction=True)
 def test_real_database_commit_creates_one_locked_job_with_metadata_only_log() -> None:
     """Use the installed queue connector, including its persistent JSON payload."""

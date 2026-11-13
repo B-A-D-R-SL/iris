@@ -1,6 +1,9 @@
 # AI contribution: 50% or more AI-generated
 """Provider contracts: payloads, acceptance and safe delivery errors."""
 
+import logging
+from collections.abc import Iterator
+
 # Adapter contract tests simulate SMTP failures without network delivery.
 from smtplib import SMTPDataError  # noqa: TID251
 from unittest.mock import MagicMock
@@ -29,6 +32,21 @@ def azure_client(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     )
     client.constructor = constructor
     return client
+
+
+@pytest.fixture
+def mailer_events(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[pytest.LogCaptureFixture]:
+    """Inspect raw adapter records before JSON formatting could remove details."""
+    logger = logging.getLogger("iris.notifications")
+    monkeypatch.setattr(logger, "propagate", False)
+    logger.addHandler(caplog.handler)
+    try:
+        with caplog.at_level(logging.WARNING, logger=logger.name):
+            yield caplog
+    finally:
+        logger.removeHandler(caplog.handler)
 
 
 @override_settings(
@@ -142,6 +160,45 @@ def test_sdk_poller_completes_using_the_bounded_polling_method(
     assert poller.done() and poller.status() == "Succeeded"
     assert poller.continuation_token() == "opaque-sdk-token"
     assert delegate.update_status.call_count == 2
+
+
+# rule: BR-NOTIF-003
+@pytest.mark.parametrize(
+    "header",
+    ["private-token recipient@example.test body", None, {}, "NaN", "inf", "-inf"],
+)
+def test_invalid_retry_after_uses_safe_delay_and_logs_no_provider_details(
+    header: object, mailer_events: pytest.LogCaptureFixture
+) -> None:
+    polling = _DeadlinePolling(deadline=3, request_timeout=3)
+    response = MagicMock()
+    response.http_response.headers = {"retry-after": header}
+    polling._read_delay(response)
+    assert polling.delay == 1.0
+    [record] = mailer_events.records
+    assert record.name == "iris.notifications" and record.levelno == logging.WARNING
+    assert record.getMessage() == "azure_retry_after_invalid"
+    assert record.args == () and record.exc_info is None and record.stack_info is None
+    standard = set(logging.makeLogRecord({}).__dict__) | {"message", "asctime"}
+    assert set(vars(record)) - standard == {"event"}
+    assert vars(record)["event"] == "azure_retry_after_invalid"
+    assert "private-token" not in str(vars(record))
+    assert "recipient@example.test" not in str(vars(record))
+
+
+@pytest.mark.parametrize(
+    ("headers", "delay"),
+    [({}, 1.0), ({"retry-after": "2.5"}, 2.5), ({"retry-after": "0"}, 1.0)],
+)
+def test_valid_or_missing_retry_after_does_not_log_a_fallback(
+    headers: dict[str, str], delay: float, mailer_events: pytest.LogCaptureFixture
+) -> None:
+    polling = _DeadlinePolling(deadline=3, request_timeout=3)
+    response = MagicMock()
+    response.http_response.headers = headers
+    polling._read_delay(response)
+    assert polling.delay == delay
+    assert mailer_events.records == []
 
 
 def test_mailer_error_normalizes_unrecognized_provider_text() -> None:

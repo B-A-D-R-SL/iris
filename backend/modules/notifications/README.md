@@ -153,6 +153,16 @@ recipient/context/error values are absent. A secondary failure to record an
 enqueue outcome emits `email_outcome_unavailable`, without provider/DB details.
 Production startup validation still rejects unsafe deployment configuration.
 
+Invalid or nonfinite Azure `Retry-After` metadata uses a one-second polling
+delay and emits the static warning `azure_retry_after_invalid`, without the
+header value or raw provider formatting arguments. This diagnostic follows the
+same privacy boundary as adapter failures.
+
+Review traceability uses the existing rule catalog: BR-PARTNER-05 covers recovery
+and invitation preflight; BR-PARTNER-02 remains the public application IP throttle.
+The notification policy tests cite BR-NOTIF-001 through BR-NOTIF-004. Rule IDs
+retain their existing meanings.
+
 After-commit queueing leaves a crash window before queue insertion. Per-log queue
 locks and terminal-status checks reduce duplicates, but a crash after provider
 acceptance can still cause a repeat send. This is neither an atomic outbox nor
@@ -316,6 +326,22 @@ unsupported allauth mail was skipped without an EmailLog. The operator recovery
 command now reports reissue and directs staff to EmailLog without promising
 queue insertion or delivery. Recent worker stdout contained no synthetic reason
 or recipient-address prefixes in the privacy check.
+
+The subsequent CodeRabbit follow-up passed **316 targeted backend tests**
+(notifications, rules, recovery, mailers and observability, `-W error --no-cov`)
+and the copied ZAP gate suite's **10 tests with 20 subtests**. Ruff lint/format
+passed for 438 files, mypy for 422 source files, and all four import contracts.
+An independent AST comparison confirmed that 11 other changed Python files had
+comments-only changes. A full PR size scan found adjacent technical rationales
+for all four changed functions above 50 lines and four files above 500 lines;
+the ZAP `alerts` rationale addresses CodeRabbit's reported complexity of 16. A targeted
+Ruff C901 scan of mailer, notification, account, rule, store, observability and
+ZAP code found no issues at a complexity limit of 15.
+
+No new online CodeRabbit result was recorded for this follow-up. Its displayed
+automatic review selection contains 149 files, above the 100-file review limit;
+this does not establish a fresh pass or prevent separate custom-check review.
+Published review/check results still need to be assessed on the updated commit.
 
 Ammar reports successful delivery using Azure's portal Try Email. This is
 provider-side evidence; an Iris-to-ACS staging send has not been performed.

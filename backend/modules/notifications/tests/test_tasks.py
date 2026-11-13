@@ -29,6 +29,7 @@ def job(attempts: int, delays: Any = None) -> Job:
     )
 
 
+# rule: BR-NOTIF-001
 @pytest.mark.parametrize(
     ("attempt", "seconds"), [(0, 60), (1, 300), (2, 900), (3, None)]
 )
@@ -47,6 +48,7 @@ def test_exact_three_retry_delays(attempt: int, seconds: int | None) -> None:
         assert decision.retry_at <= timezone.now() + timedelta(seconds=seconds)
 
 
+# rule: BR-NOTIF-001
 @pytest.mark.parametrize(
     "exception",
     [ValueError("unexpected"), DeliveryFailure("provider_rejected", retryable=False)],
@@ -60,6 +62,7 @@ def test_only_controlled_transient_failures_are_retried(exception: Exception) ->
     )
 
 
+# rule: BR-NOTIF-001
 @pytest.mark.parametrize("delays", ["invalid", [0], [True], [-1]])
 def test_invalid_job_retry_policy_never_schedules_an_unsafe_delay(
     delays: object,
@@ -72,6 +75,7 @@ def test_invalid_job_retry_policy_never_schedules_an_unsafe_delay(
     )
 
 
+# rule: BR-NOTIF-001
 def test_old_job_retry_decision_uses_snapshot_from_its_safe_failure() -> None:
     before = timezone.now()
     decision = EmailRetryStrategy().get_retry_decision(
@@ -98,6 +102,7 @@ def test_legacy_household_job_delivers_through_shared_fake() -> None:
     }
 
 
+# rule: BR-NOTIF-001
 @pytest.mark.usefixtures("notification_rules")
 def test_legacy_task_attaches_policy_for_the_pure_retry_strategy() -> None:
     get_fake_mailer().error = MailerError("transport_unavailable")
@@ -112,6 +117,7 @@ def test_legacy_task_attaches_policy_for_the_pure_retry_strategy() -> None:
     )
 
 
+# rule: BR-NOTIF-001
 @pytest.mark.django_db
 def test_legacy_task_missing_policy_fails_before_transport() -> None:
     with pytest.raises(
@@ -124,6 +130,7 @@ def test_legacy_task_missing_policy_fails_before_transport() -> None:
     assert get_fake_mailer().sent == []
 
 
+# rule: BR-NOTIF-001
 @pytest.mark.parametrize("refused", [False, True])
 def test_legacy_transport_failure_enters_the_same_safe_retry_contract(
     refused: bool,

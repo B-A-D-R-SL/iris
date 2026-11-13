@@ -44,6 +44,7 @@ def notification_events(
         logger.removeHandler(caplog.handler)
 
 
+# rule: BR-NOTIF-003
 def test_delivery_uses_saved_language_and_records_acceptance_once(
     pending_log: EmailLog,
 ) -> None:
@@ -65,6 +66,7 @@ def test_delivery_uses_saved_language_and_records_acceptance_once(
     assert pending_log.sent_at == accepted_at
 
 
+# rule: BR-NOTIF-001
 def test_three_retries_end_in_failure_after_four_transport_attempts(
     pending_log: EmailLog,
 ) -> None:
@@ -83,6 +85,7 @@ def test_three_retries_end_in_failure_after_four_transport_attempts(
     assert get_fake_mailer().sent == []
 
 
+# rule: BR-NOTIF-001
 def test_successful_retry_clears_previous_error(pending_log: EmailLog) -> None:
     get_fake_mailer().error = MailerError("transport_unavailable")
     with pytest.raises(DeliveryFailure):
@@ -95,6 +98,7 @@ def test_successful_retry_clears_previous_error(pending_log: EmailLog) -> None:
     assert pending_log.error == ""
 
 
+# rule: BR-NOTIF-001
 def test_permanent_provider_rejection_fails_without_retry(
     pending_log: EmailLog,
 ) -> None:
@@ -108,6 +112,7 @@ def test_permanent_provider_rejection_fails_without_retry(
     assert pending_log.error == "provider_rejected"
 
 
+# rule: BR-NOTIF-001
 def test_transport_refusing_the_message_is_a_retryable_failure(
     pending_log: EmailLog,
 ) -> None:
@@ -119,6 +124,7 @@ def test_transport_refusing_the_message_is_a_retryable_failure(
     assert pending_log.attempts == 1
 
 
+# rule: BR-NOTIF-003
 def test_unexpected_transport_exception_never_enters_log_records_or_metadata(
     pending_log: EmailLog,
     monkeypatch: pytest.MonkeyPatch,
@@ -145,6 +151,7 @@ def test_unexpected_transport_exception_never_enters_log_records_or_metadata(
         assert "private-secret" not in str(vars(record))
 
 
+# rule: BR-NOTIF-003
 def test_invalid_template_context_stops_before_transport(pending_log: EmailLog) -> None:
     with pytest.raises(DeliveryFailure) as caught:
         send_email(
@@ -166,6 +173,7 @@ def test_missing_delivery_record_is_a_safe_noop() -> None:
     assert get_fake_mailer().sent == []
 
 
+# rule: BR-NOTIF-001
 def test_final_native_job_attempt_fails_even_when_provider_attempts_are_fewer(
     pending_log: EmailLog,
 ) -> None:
@@ -180,6 +188,7 @@ def test_final_native_job_attempt_fails_even_when_provider_attempts_are_fewer(
     assert pending_log.attempts == 2
 
 
+# rule: BR-PARTNER-05
 def test_unavailable_invitation_stops_retry_without_erasing_previous_attempts(
     pending_log: EmailLog, settings: Any
 ) -> None:
@@ -202,6 +211,8 @@ def test_unavailable_invitation_stops_retry_without_erasing_previous_attempts(
     assert get_fake_mailer().sent == []
 
 
+# rule: BR-NOTIF-001
+# rule: BR-NOTIF-003
 def test_invitation_preflight_database_outage_is_retryable_and_sanitized(
     pending_log: EmailLog, settings: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:

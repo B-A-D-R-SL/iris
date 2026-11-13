@@ -1,6 +1,9 @@
 <!-- AI contribution: 50% or more AI-generated -->
-<!-- Size exception: keep the cross-module field definitions beside the complete
-Mermaid ERD so foreign keys and migration ordering can be reviewed together. -->
+<!-- File-length exception: the model field/nullability/constraint tables, complete
+Mermaid ERD and module migration order form one cross-module schema contract.
+Keep them together so changes such as EmailLog's User foreign key or the required
+store assignment for store roles can be checked against all three representations
+in the same review. -->
 # Iris database schema — Release 1 draft
 
 This is a logical design draft based on the documented requirements. Field labels describe the information to store, and types describe logical values. This document does not establish a deployed SQL schema.

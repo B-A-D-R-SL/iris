@@ -103,6 +103,10 @@ def test_queue_filter_removes_payloads_before_a_record_can_be_retained() -> None
     assert "secret" not in JsonLogFormatter().format(record)
 
 
+# Size exception: the native Worker._log_job_outcome call and temporary raw
+# handler share one try/finally. Its pre-propagation snapshot and pytest's retained
+# record must be checked together to prove that neither handler retains the token
+# before formatting, while restoring the real logger after the library call.
 def test_native_worker_failure_record_is_safe_before_propagation(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

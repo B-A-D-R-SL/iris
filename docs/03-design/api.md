@@ -1,4 +1,8 @@
 <!-- AI contribution: 50% or more AI-generated -->
+<!-- File-length exception: keep authentication conventions, the cross-module
+endpoint catalog with role/status columns, and implementation-gap notes together
+so routing, access rules and generated-schema coverage can be reviewed against
+one contract. Existing module guides link to its stable endpoint-section anchors. -->
 
 # API
 

@@ -75,6 +75,10 @@ def _failure(
     logger.warning(event, extra={"event": event})
 
 
+# Size/complexity exception: retain the locked preflight, unlocked provider call
+# and final state transition in one delivery lifecycle. Each outcome must use
+# the same captured EmailLog and native retry count, while the transaction ends
+# before network I/O so transport latency never holds the row lock.
 def _deliver(
     email_log_id: str,
     context: dict[str, str],

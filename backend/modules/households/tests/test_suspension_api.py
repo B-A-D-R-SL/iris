@@ -1,4 +1,8 @@
 # AI contribution: 50% or more AI-generated
+# File-length exception: keep suspension/reactivation and detail-read cases with
+# their shared approved()/post() helpers. The role/status matrices, stock rollback,
+# audits and after-commit reason delivery form one household state-machine contract
+# for BR-HH-SUSPEND-001 through BR-HH-SUSPEND-004 and must be reviewed together.
 """US-32 suspension transitions, reservation cancellation and authorization."""
 
 from datetime import datetime, timedelta

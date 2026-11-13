@@ -1,6 +1,9 @@
 <!-- AI contribution: 50% or more AI-generated -->
-<!-- Size exception: this shared architecture reference keeps module boundaries
-and connected workflow diagrams together for cross-module consistency review. -->
+<!-- File-length exception: the container/module diagrams and walk-in, partner
+onboarding and reservation/pickup sequences share module ownership and transaction
+boundaries. Keep their household/reservation state diagrams beside the sequences
+so reviewers can verify which persisted state authorizes each transition and
+which email work starts only after the business transaction commits. -->
 
 # Iris architecture — Release 1 draft
 

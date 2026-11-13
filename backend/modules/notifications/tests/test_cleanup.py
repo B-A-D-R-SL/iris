@@ -14,6 +14,7 @@ from modules.notifications.models import EmailLog
 from modules.notifications.tasks import DeliveryFailure, cleanup_email_jobs, send_email
 
 
+# rule: BR-NOTIF-004
 @pytest.mark.django_db(transaction=True)
 def test_cleanup_removes_only_old_terminal_email_jobs_br_notif_004(notification_rules):
     log = EmailLog.objects.create(
@@ -57,6 +58,7 @@ def test_cleanup_removes_only_old_terminal_email_jobs_br_notif_004(notification_
     assert EmailLog.objects.filter(pk=log.pk).exists()
 
 
+# rule: BR-NOTIF-004
 @pytest.mark.django_db
 def test_cleanup_missing_policy_raises_only_a_safe_error():
     with pytest.raises(DeliveryFailure, match="^email_cleanup_failed$") as failure:

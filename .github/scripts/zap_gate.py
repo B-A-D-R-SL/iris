@@ -48,6 +48,10 @@ def ignored_plugins(rules_text: str) -> set[str]:
     return ignored
 
 
+# Complexity exception: nested report/site/alert guards stay beside conversion so
+# any malformed site aborts the complete report before the gate can pass a scan.
+# Short-circuit guards protect dictionary access and reject bool-as-int fields;
+# a scanned site with a valid empty alert list must still remain acceptable.
 def alerts(report: dict) -> list[Alert]:
     """Every alert in a ZAP JSON report (-J), across all scanned sites."""
     if (

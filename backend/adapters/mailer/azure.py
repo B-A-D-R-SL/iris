@@ -1,6 +1,7 @@
 # AI contribution: 50% or more AI-generated
 """Azure Communication Services delivery with bounded waits and safe failures."""
 
+import logging
 from collections.abc import Mapping, Sequence
 from math import isfinite
 from threading import Event
@@ -14,6 +15,8 @@ from azure.core.polling.base_polling import LROBasePolling
 from django.conf import settings
 
 from adapters.mailer.base import MailerError
+
+logger = logging.getLogger("iris.notifications")
 
 
 class _DeadlinePolling(PollingMethod[dict[str, Any]]):
@@ -35,9 +38,16 @@ class _DeadlinePolling(PollingMethod[dict[str, Any]]):
     def _read_delay(self, response: Any) -> None:
         try:
             delay = float(response.http_response.headers.get("retry-after", "1"))
-            self.delay = max(1.0, delay) if isfinite(delay) else 1.0
+            if not isfinite(delay):
+                raise ValueError
         except (TypeError, ValueError):
             self.delay = 1.0
+            logger.warning(
+                "azure_retry_after_invalid",
+                extra={"event": "azure_retry_after_invalid"},
+            )
+        else:
+            self.delay = max(1.0, delay)
 
     def initialize(self, client: Any, initial_response: Any, callback: Any) -> None:
         self._read_delay(initial_response)
@@ -67,6 +77,9 @@ class _DeadlinePolling(PollingMethod[dict[str, Any]]):
 
 
 class AzureMailer:
+    # Size/complexity exception: one client lifetime and try boundary apply the
+    # same absolute deadline and sanitized error mapping to client creation,
+    # submission and completion checks; acceptance is counted at one return point.
     def send(
         self,
         to: Sequence[str],
