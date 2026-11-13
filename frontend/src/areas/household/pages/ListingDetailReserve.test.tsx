@@ -1,12 +1,13 @@
 // AI contribution: 50% or more AI-generated
 /** Reserving from the listing page (US-41, mockup H1 steps 4 and 5, 4a and 4b). */
-import { screen, within } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "../../../app/App";
 import { expectNoAxeViolations, renderWithProviders } from "../../../test/render";
-import { card, mockBrowseApi, page } from "./testListings";
+import { card, listingRequests, mockBrowseApi, page } from "./testListings";
 
 const ID = "00000000-0000-4000-8000-000000000101";
 
@@ -75,6 +76,38 @@ describe("Reserving from the listing page (US-41)", () => {
     );
     expect(reserveBody(fetchMock)).toEqual({ listing_id: ID, quantity: 1 });
     await expectNoAxeViolations(container);
+  });
+
+  it.each([
+    ["no longer lists the listing (its last unit was taken)", () => page([])],
+    ["fails", () => new Response(null, { status: 500 })],
+  ])("keeps the code on screen when the listing, reloaded later, %s", async (_case, after) => {
+    let reservedYet = false;
+    const fetchMock = mockBrowseApi(
+      () => (reservedYet ? after() : page([card({ units_left: 1, max_per_household: 1 })])),
+      () => {
+        reservedYet = true;
+        return reserved();
+      },
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    renderWithProviders(<App />, { route: `/listings/${ID}`, queryClient });
+    await userEvent.click(await screen.findByRole("button", { name: "Réserver" }));
+    expect(await screen.findByRole("heading", { name: "C'est réservé!" })).toBeVisible();
+    const before = listingRequests(fetchMock).length;
+
+    // The listing is reloaded later (after a minute, back in the app, on reconnect).
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: ["listing", ID] });
+      // React Query hands the result to the page on a timer; let it render.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    expect(listingRequests(fetchMock).length).toBeGreaterThan(before);
+    expect(screen.getByRole("heading", { name: "C'est réservé!" })).toBeVisible();
+    expect(screen.getByText("K7M2QX")).toBeVisible();
+    expect(screen.getByText("Pains de la veille × 1")).toBeVisible();
+    expect(screen.queryByText("Cette offre n'est plus disponible")).not.toBeInTheDocument();
   });
 
   it("sends the quantity chosen, up to the household maximum", async () => {

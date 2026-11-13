@@ -109,11 +109,17 @@ function ReservedFacts(props: { card: ListingCard; quantity: number; now: Date }
   );
 }
 
+/** A reservation just made, with the listing as it was then (H1.5). */
+interface Confirmed {
+  reservation: Reservation;
+  card: ListingCard;
+}
+
 /** H1.4: the listing, a refusal notice at the top, and the sticky Reserve actions. */
 function ListingView(props: {
   card: ListingCard;
   now: Date;
-  onReserved: (r: Reservation) => void;
+  onReserved: (confirmed: Confirmed) => void;
 }) {
   const { card, now, onReserved } = props;
   const text = useListingText();
@@ -139,7 +145,7 @@ function ListingView(props: {
           listingId={card.id}
           maxPerHousehold={card.max_per_household}
           unitsLeft={card.units_left}
-          onReserved={onReserved}
+          onReserved={(reservation) => onReserved({ reservation, card })}
           onRefused={setRefusal}
         />
       </div>
@@ -151,25 +157,27 @@ interface DetailContentProps {
   listing: ReturnType<typeof useListingCard>;
   backTo: string;
   now: Date;
-  reservation: Reservation | null;
-  onReserved: (reservation: Reservation) => void;
+  confirmed: Confirmed | null;
+  onReserved: (confirmed: Confirmed) => void;
 }
 
-function DetailContent({ listing, backTo, now, reservation, onReserved }: DetailContentProps) {
+function DetailContent({ listing, backTo, now, confirmed, onReserved }: DetailContentProps) {
   const { t } = useTranslation();
   const card = listing.data;
+  // First, from the copy kept when reserving: when the listing is reloaded later
+  // (after a minute, back in the app), it may be gone (its last unit taken) or fail.
+  if (confirmed) {
+    return (
+      <ReservationConfirmation reservation={confirmed.reservation}>
+        <ReservedFacts card={confirmed.card} quantity={confirmed.reservation.quantity} now={now} />
+      </ReservationConfirmation>
+    );
+  }
   if (listing.isPending) return <LoadingState />;
   if (listing.error instanceof BrowseFailed && listing.error.code === NOT_APPROVED) {
     return <NotApproved />;
   }
   if (listing.isError) return <ErrorState onRetry={() => void listing.refetch()} />;
-  if (reservation && card) {
-    return (
-      <ReservationConfirmation reservation={reservation}>
-        <ReservedFacts card={card} quantity={reservation.quantity} now={now} />
-      </ReservationConfirmation>
-    );
-  }
   if (!card) {
     return (
       <EmptyState
@@ -193,29 +201,29 @@ export function ListingDetail() {
   const location = useLocation();
   const client = useQueryClient();
   const [now] = useState(() => new Date());
-  const [reservation, setReservation] = useState<Reservation | null>(null);
+  const [confirmed, setConfirmed] = useState<Confirmed | null>(null);
   const listing = useListingCard(id);
 
   // Back to the list as it was, filters included.
   const search = (location.state as { search?: unknown } | null)?.search;
   const backTo = `/listings${typeof search === "string" ? search : ""}`;
-  const onReserved = (made: Reservation) => {
-    setReservation(made);
-    // The list's "units left" changed; this page keeps its card for the summary.
+  const onReserved = (made: Confirmed) => {
+    setConfirmed(made);
+    // The list's "units left" changed; the confirmation keeps its own copy.
     void client.invalidateQueries({ queryKey: ["listings"] });
   };
 
   return (
     <div className={household.palette}>
       <AppBar
-        title={t(reservation ? "reservation.confirmation.title" : "listing.common.listing")}
+        title={t(confirmed ? "reservation.confirmation.title" : "listing.common.listing")}
         backTo={backTo}
       />
       <DetailContent
         listing={listing}
         backTo={backTo}
         now={now}
-        reservation={reservation}
+        confirmed={confirmed}
         onReserved={onReserved}
       />
     </div>
