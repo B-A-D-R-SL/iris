@@ -1,9 +1,12 @@
 # AI contribution: 50% or more AI-generated
 """ZAP baseline gate (FIX-17, SEC-10): fail on High-risk alerts.
 
-Run by the zap-baseline job in .github/workflows/ci.yml as
+Run from the repository root by the zap-baseline job in .github/workflows/ci.yml:
 
-    python3 .github/scripts/zap_gate.py zap-report.json .zap/rules.tsv
+    python3 .github/scripts/zap_gate.py
+
+It reads the fixed paths zap/zap-report.json and .zap/rules.tsv; it takes no
+path arguments, so nothing outside the workspace can be read through it.
 
 ZAP's own exit code also counts Low and Medium warnings, so the job ignores it
 and this script decides: any High-risk alert whose plugin is not set to IGNORE
@@ -16,6 +19,10 @@ import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+# Fixed paths, relative to the repository root where the CI step runs.
+REPORT = Path("zap/zap-report.json")
+RULES = Path(".zap/rules.tsv")
 
 HIGH = 3
 RISK_NAMES = {0: "Informational", 1: "Low", 2: "Medium", 3: "High"}
@@ -62,13 +69,13 @@ def blocking(found: list[Alert], ignored: set[str]) -> list[Alert]:
     return [a for a in found if a.risk >= HIGH and a.plugin_id not in ignored]
 
 
-def main(argv: list[str]) -> int:
+def main(report_path: Path = REPORT, rules_path: Path = RULES) -> int:
     """Print every alert and return 1 if any High-risk alert is not accepted."""
-    if len(argv) != 3:
-        print("usage: zap_gate.py <zap-report.json> <rules.tsv>", file=sys.stderr)
+    if not report_path.is_file():
+        print(f"::error::ZAP report {report_path} is missing.", file=sys.stderr)
         return 2
-    report = json.loads(Path(argv[1]).read_text(encoding="utf-8"))
-    ignored = ignored_plugins(Path(argv[2]).read_text(encoding="utf-8"))
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    ignored = ignored_plugins(rules_path.read_text(encoding="utf-8"))
     found = alerts(report)
 
     for alert in sorted(found, key=lambda a: -a.risk):
@@ -89,4 +96,4 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    sys.exit(main())

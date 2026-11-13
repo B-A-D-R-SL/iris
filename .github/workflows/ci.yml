@@ -86,6 +86,15 @@ jobs:
       - name: Missing migrations
         run: python manage.py makemigrations --check --dry-run
 
+      # FIX-17 (#643): fail when the production settings (FIX-04) regress.
+      - name: Production deployment check
+        env:
+          # CI-only values that pass FIX-04's startup rules; nothing here is a real secret.
+          DJANGO_SECRET_KEY: iris-ci-deploy-check-only-not-a-secret-0123456789abcdef
+          DJANGO_ALLOWED_HOSTS: iris.example.org
+          EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+        run: python manage.py check --settings=iris.settings.production --deploy --fail-level WARNING
+
       - name: Tests with coverage (minimum 70%)
         run: pytest -m "not slow_expiry" --cov --cov-report=term --cov-report=xml:coverage.xml
 
@@ -241,7 +250,9 @@ jobs:
       - name: Install gitleaks
         run: |
           base="https://github.com/gitleaks/gitleaks/releases/download"
-          curl -sSfL -o gitleaks.tar.gz "${base}/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          # HTTPS only, including redirects (GitHub sends release downloads to its CDN).
+          curl --proto '=https' --proto-redir '=https' --tlsv1.2 -sSfL -o gitleaks.tar.gz \
+            "${base}/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
           echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum --check
           tar -xzf gitleaks.tar.gz gitleaks
           rm gitleaks.tar.gz
@@ -290,9 +301,11 @@ jobs:
     env:
       # CI-only values; nothing here is a real secret.
       DJANGO_SETTINGS_MODULE: iris.settings.ci_scan
-      DJANGO_SECRET_KEY: iris-ci-scan-only-not-a-secret
+      DJANGO_SECRET_KEY: iris-ci-zap-scan-only-not-a-secret-0123456789abcdefghij
       DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
       DATABASE_URL: postgresql://iris:iris_ci_password@localhost:5432/iris
+      # Production refuses console mail; nothing is sent during the scan.
+      EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
       SEED_PASSWORD: iris-ci-scan-seed-password
       # ZAP 2.17.0 ("stable" on 2026-11-03), pinned by digest like the actions.
       ZAP_IMAGE: ghcr.io/zaproxy/zaproxy@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af
@@ -332,16 +345,18 @@ jobs:
         run: |
           mkdir -p zap
           cp .zap/rules.tsv zap/rules.tsv
-          chmod -R a+rwX zap
+          # ZAP runs as uid 1000 inside its image: give it this folder, not everyone.
+          sudo chown -R 1000:1000 zap
           status=0
-          scan="zap-baseline.py -t http://localhost:8000/api/docs/ -c rules.tsv"
+          # /api/docs/ is admin-only since FIX-04: start from the public admin sign-in page.
+          scan="zap-baseline.py -t http://localhost:8000/admin/login/ -c rules.tsv"
           scan="$scan -J zap-report.json -r zap-report.html -I"
           docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" "$ZAP_IMAGE" $scan || status=$?
           if [ "$status" -ge 3 ]; then exit "$status"; fi
           test -s zap/zap-report.json
 
       - name: Fail on High-risk alerts
-        run: python3 .github/scripts/zap_gate.py zap/zap-report.json .zap/rules.tsv
+        run: python3 .github/scripts/zap_gate.py
 
       - name: Upload the ZAP report
         if: always()

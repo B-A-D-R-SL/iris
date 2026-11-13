@@ -55,11 +55,17 @@ class ZapGateTest(unittest.TestCase):
             good = Path(folder, "good.json")
             good.write_text(json.dumps(report(("10020", 1))), encoding="utf-8")
 
-            self.assertEqual(zap_gate.main(["zap_gate.py", str(bad), str(rules)]), 1)
-            self.assertEqual(zap_gate.main(["zap_gate.py", str(good), str(rules)]), 0)
+            self.assertEqual(zap_gate.main(bad, rules), 1)
+            self.assertEqual(zap_gate.main(good, rules), 0)
 
-    def test_main_needs_two_arguments(self):
-        self.assertEqual(zap_gate.main(["zap_gate.py"]), 2)
+    def test_main_fails_when_the_report_is_missing(self):
+        with tempfile.TemporaryDirectory() as folder:
+            missing = Path(folder, "zap-report.json")
+            self.assertEqual(zap_gate.main(missing, Path(folder, "rules.tsv")), 2)
+
+    def test_default_paths_are_inside_the_workspace(self):
+        self.assertEqual(zap_gate.REPORT, Path("zap/zap-report.json"))
+        self.assertEqual(zap_gate.RULES, Path(".zap/rules.tsv"))
 
 
 if __name__ == "__main__":
