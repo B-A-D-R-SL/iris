@@ -164,6 +164,23 @@ def test_headless_auth_routes_are_mounted_under_api_auth() -> None:
     assert "_allauth/" not in routes
 
 
+def test_application_recovery_identifier_is_a_restricted_uuid() -> None:
+    """Only stores email failures may include a valid application UUID."""
+    record = logging.LogRecord("iris.stores", logging.ERROR, __file__, 1, "", (), None)
+    record.event = "partner_application_decision_email_failed"
+    application_id = "00000000-0000-4000-8000-000000000001"
+    record.application_id = application_id
+    assert (
+        json.loads(JsonLogFormatter().format(record))["application_id"]
+        == application_id
+    )
+    record.application_id = "private@example.test"
+    assert "private@example.test" not in JsonLogFormatter().format(record)
+    record.application_id = "00000000-0000-4000-8000-000000000001"
+    record.name = "some.library"
+    assert "application_id" not in json.loads(JsonLogFormatter().format(record))
+
+
 def test_http_request_uses_warning_and_error_levels() -> None:
     output = StringIO()
     handler = logging.StreamHandler(output)
@@ -187,3 +204,80 @@ def test_http_request_uses_warning_and_error_levels() -> None:
     events = [json.loads(line) for line in output.getvalue().splitlines()]
     assert [event["level"] for event in events] == ["WARNING", "ERROR"]
     assert [event["status_code"] for event in events] == [404, 503]
+
+
+@pytest.mark.parametrize("outcome", ["eligible", "ineligible"])
+def test_eligibility_event_discards_personal_and_financial_details(outcome):
+    record = logging.makeLogRecord(
+        {
+            "name": "iris.eligibility",
+            "levelname": "INFO",
+            "event": "eligibility_decided",
+            "decision_id": UUID(int=12),
+            "household_id": UUID(int=13),
+            "outcome": outcome,
+            "rule_version": 2,
+            "adult_incomes_cents": [12_345, 20_000],
+            "household_income_cents": 32_345,
+            "threshold_cents": 36_527,
+            "name_of_holder": "Private Person",
+            "email": "private@example.test",
+            "msg": "Private Person earns 32345",
+        }
+    )
+
+    payload = json.loads(JsonLogFormatter().format(record))
+
+    assert payload == {
+        "timestamp": payload["timestamp"],
+        "level": "INFO",
+        "logger": "iris.eligibility",
+        "event": "eligibility_decided",
+        "decision_id": str(UUID(int=12)),
+        "household_id": str(UUID(int=13)),
+        "outcome": outcome,
+        "rule_version": 2,
+    }
+
+
+@pytest.mark.parametrize(
+    ("logger_name", "event"),
+    [("iris.http", "eligibility_decided"), ("iris.eligibility", "decision_failed")],
+)
+def test_other_events_cannot_expose_eligibility_fields(logger_name, event):
+    record = logging.makeLogRecord(
+        {
+            "name": logger_name,
+            "event": event,
+            "decision_id": UUID(int=12),
+            "household_id": UUID(int=13),
+            "outcome": "eligible",
+            "rule_version": 2,
+        }
+    )
+
+    payload = json.loads(JsonLogFormatter().format(record))
+
+    assert set(payload) == {"timestamp", "level", "logger", "event"}
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("decision_id", "private@example.test"),
+        ("household_id", "Private Person"),
+        ("outcome", "Private Person is eligible"),
+        ("outcome", ["eligible"]),
+        ("rule_version", "private@example.test"),
+        ("rule_version", True),
+        ("rule_version", 0),
+    ],
+)
+def test_eligibility_fields_reject_values_outside_the_allowlist(field, value):
+    record = logging.makeLogRecord(
+        {"name": "iris.eligibility", "event": "eligibility_decided", field: value}
+    )
+
+    payload = json.loads(JsonLogFormatter().format(record))
+
+    assert set(payload) == {"timestamp", "level", "logger", "event"}

@@ -1,6 +1,7 @@
 # AI contribution: 50% or more AI-generated
 """Public service for persistent household eligibility decisions."""
 
+import logging
 from uuid import UUID
 
 from django.contrib.auth import get_user_model
@@ -14,8 +15,10 @@ from modules.eligibility.models import EligibilityDecision
 from modules.households import queries as household_queries
 from modules.rules import queries as rule_queries
 
+logger = logging.getLogger("iris.eligibility")
 
-class EligibilityEvidenceUnavailable(ValueError):
+
+class EligibilityEvidenceUnavailableError(ValueError):
     """Required verified household income evidence is unavailable."""
 
 
@@ -42,25 +45,8 @@ def _validated_thresholds(values: object) -> tuple[int, dict[int, int]]:
     return year, {size: raw[str(size)] for size in range(1, 8)}
 
 
-@transaction.atomic
-def decide_for_household(
-    household_id: UUID,
-    decided_by: object | None,
-) -> EligibilityDecision:
-    """Record a new decision from verified household evidence and active rules.
-
-    The household query contract must return an object containing:
-      household: persisted Household instance
-      household_size: full member count including children
-      adult_count: number of household members aged 18 or more
-      adult_incomes_cents: list of confirmed line-199 amounts, one per adult
-
-    Adult selection, accepted notices, and missing-evidence rejection are
-    the responsibility of the public households query interface.
-    """
-    if not isinstance(household_id, UUID):
-        raise ValidationError("A valid household UUID is required.")
-
+def _validate_decider(decided_by: object | None) -> None:
+    """Allow automatic decisions or a persisted, active staff actor."""
     if decided_by is not None and (
         not isinstance(decided_by, get_user_model())
         or getattr(decided_by, "pk", None) is None
@@ -69,9 +55,12 @@ def decide_for_household(
     ):
         raise PermissionDenied("Only active intake staff may record staff decisions.")
 
+
+def _validated_evidence(household_id: UUID) -> tuple[int, list[int]]:
+    """Read complete verified evidence through the public household query."""
     reader = getattr(household_queries, "eligibility_inputs", None)
     if not callable(reader):
-        raise EligibilityEvidenceUnavailable(
+        raise EligibilityEvidenceUnavailableError(
             "Verified household eligibility evidence is not available."
         )
 
@@ -79,7 +68,7 @@ def decide_for_household(
     household = getattr(snapshot, "household", None)
 
     if household is None or household.pk != household_id:
-        raise EligibilityEvidenceUnavailable("Household evidence is unavailable.")
+        raise EligibilityEvidenceUnavailableError("Household evidence is unavailable.")
 
     household_size = getattr(snapshot, "household_size", None)
     adult_count = getattr(snapshot, "adult_count", None)
@@ -95,9 +84,40 @@ def decide_for_household(
         or len(incomes) != adult_count
         or any(type(value) is not int or value < 0 for value in incomes)
     ):
-        raise EligibilityEvidenceUnavailable(
+        raise EligibilityEvidenceUnavailableError(
             "Complete confirmed adult income evidence is required."
         )
+
+    return household_size, incomes
+
+
+def _log_decision_after_commit(
+    decision: EligibilityDecision, rule_version: int
+) -> None:
+    """Log only committed decisions, capturing safe scalar fields now."""
+    event_fields = {
+        "event": "eligibility_decided",
+        "decision_id": decision.pk,
+        "household_id": decision.household_id,
+        "outcome": "eligible" if decision.eligible else "ineligible",
+        "rule_version": rule_version,
+    }
+    transaction.on_commit(
+        lambda: logger.info("eligibility_decided", extra=event_fields),
+        robust=True,
+    )
+
+
+@transaction.atomic
+def decide_for_household(
+    household_id: UUID,
+    decided_by: object | None,
+) -> EligibilityDecision:
+    """Append a decision from verified adult evidence and the active LICO rule."""
+    if not isinstance(household_id, UUID):
+        raise ValidationError("A valid household UUID is required.")
+    _validate_decider(decided_by)
+    household_size, incomes = _validated_evidence(household_id)
 
     rule = rule_queries.active("lico_thresholds", at=timezone.now())
     if rule is None:
@@ -107,7 +127,7 @@ def decide_for_household(
     result = decide(household_size, incomes, thresholds)
 
     decision = EligibilityDecision(
-        household=household,
+        household_id=household_id,
         household_size=household_size,
         adult_incomes_cents=list(incomes),
         household_income_cents=result.household_income_cents,
@@ -124,4 +144,5 @@ def decide_for_household(
     )
     decision.full_clean()
     decision.save(force_insert=True)
+    _log_decision_after_commit(decision, rule.version)
     return decision
