@@ -247,6 +247,12 @@ tokens were usable, and the French rejection email contained the requested
 stored reason. This is local integration evidence; no deployed Iris-to-ACS
 delivery is claimed.
 
+The later FIX-17 CI merge passed 116 configuration tests and 46 CI-script tests.
+The strict production deployment check passed, and the CI-scan settings served
+health and admin login with secure cookies retained. Workflow YAML and all 31
+shell steps passed syntax checks. These checks used synthetic email settings;
+full gitleaks and ZAP execution remains part of published CI.
+
 Ammar reports successful delivery using Azure's portal Try Email. This is
 provider-side evidence; an Iris-to-ACS staging send has not been performed.
 After SET-17 deploys the application and persistent worker, configure the settings
