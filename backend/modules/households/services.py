@@ -36,6 +36,8 @@ from modules.rules import queries as rule_queries
 
 logger = logging.getLogger("iris.households")
 
+# BR-DUP-002: approval is a separate step after submission (duplicate check).
+APPROVABLE = frozenset({Household.Status.SUBMITTED, Household.Status.REVIEW_REQUIRED})
 
 ADDRESS_FIELDS = frozenset(
     ("street_number", "street_name", "unit", "city", "postal_code")
@@ -141,11 +143,10 @@ def approve_walk_in(household: Household, staff: AbstractBaseUser) -> Household:
         channel=Household.Channel.WALK_IN,
         anonymized_at__isnull=True,
     )
-    if locked.status not in {
-        Household.Status.DRAFT,
-        Household.Status.SUBMITTED,
-        Household.Status.REVIEW_REQUIRED,
-    }:
+    if locked.status == Household.Status.DRAFT:
+        # BR-DUP-002: approval follows submission, which runs the duplicate check.
+        raise ValidationError(_("Submit the file before approving it."))
+    if locked.status not in APPROVABLE:
         raise ValidationError(
             _("This household file cannot be approved in its current status.")
         )

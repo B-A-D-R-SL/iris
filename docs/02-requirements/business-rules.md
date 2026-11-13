@@ -169,6 +169,11 @@ BR-DOC-007 in `backend/modules/households/services.py`.
 
 ### Walk-in approval (#469)
 
+Staff record every adult's notice on the draft (BR-DOC-007), submit the file
+(US-25 duplicate check), then approve it (BR-DUP-002): approval accepts
+`submitted` and `review_required` files and refuses a draft. A
+`POSSIBLE_DUPLICATE` file stays in review when approval runs.
+
 Every adult needs a current notice or a non-filing reason. Approval rechecks the
 notice against the member's current name, ignoring case and accents and allowing
 extra middle names. A mismatch, including a holder name corrected after upload,

@@ -17,6 +17,7 @@ from rest_framework.test import APIClient
 
 from modules.accounts.tests.factories import UserFactory
 from modules.documents.tests.factories import IncomeNoticeFactory
+from modules.households.models import Household
 from modules.households.tests.factories import HouseholdFactory, MemberFactory
 from modules.rules.domain.schemas import DEFAULT_RULE_VALUES
 from modules.rules.services import publish
@@ -72,9 +73,11 @@ def staff_client(staff: Any) -> APIClient:
 
 @pytest.fixture
 def household(staff: Any) -> Any:
-    """A complete, verified walk-in draft with the holder's notice."""
+    """A complete, verified walk-in file, submitted, with the holder's notice."""
     household = HouseholdFactory(
         created_by=staff,
+        status="submitted",
+        submitted_at=NOW,
         identity_checked_in_person=True,
         verified_by=staff,
         verified_at=NOW,
@@ -143,7 +146,7 @@ def test_an_incomplete_file_answers_400(
     assert response.status_code == 400
     assert response.json()["code"] == "validation_error"
     household.refresh_from_db()
-    assert household.status == "draft"
+    assert household.status == "submitted"
 
 
 def test_a_decided_file_cannot_be_approved_again(
@@ -178,7 +181,7 @@ def test_other_roles_get_403(household: Any, role: str) -> None:
 
     assert response.status_code == 403
     household.refresh_from_db()
-    assert household.status == "draft"
+    assert household.status == "submitted"
 
 
 def test_admins_can_decide(household: Any) -> None:
@@ -187,3 +190,16 @@ def test_admins_can_decide(household: Any) -> None:
     client.force_login(UserFactory(role="admin"))
 
     assert client.post(approve_url(household.pk)).status_code == 200
+
+
+# rule: BR-DUP-002
+def test_a_draft_answers_400_until_it_is_submitted(
+    staff_client: APIClient, household: Any
+) -> None:
+    Household.objects.filter(pk=household.pk).update(status="draft", submitted_at=None)
+
+    response = staff_client.post(approve_url(household.pk))
+
+    assert response.status_code == 400
+    household.refresh_from_db()
+    assert household.status == "draft"

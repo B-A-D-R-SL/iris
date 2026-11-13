@@ -14,14 +14,15 @@ const ID = "6f1c2c1e-0000-4000-8000-000000000018";
 const ROUTE = `/staff/walk-in/${ID}/notices`;
 const NOTICES_URL = `/api/staff/households/${ID}/notices/`;
 const APPROVE_URL = `/api/staff/households/${ID}/approve/`;
+const SUBMIT_URL = `/api/staff/households/${ID}/submit/`;
 
 /** A walk-in draft with one adult holder and one child (generated data only). */
-function draft(): WalkInDraft {
+function draft(status = "draft", statusReason = ""): WalkInDraft {
   return {
     id: ID,
     channel: "walk_in",
-    status: "draft",
-    status_reason: "",
+    status,
+    status_reason: statusReason,
     member_number: null,
     expires_at: null,
     allowed_actions: [],
@@ -101,21 +102,43 @@ async function recordDidNotFile() {
   await waitFor(() => expect(within(summary()).getByText("N'a pas produit")).toBeVisible());
 }
 
-/** Fakes /api/me/, the draft read, the notice list and record, and the approve endpoints. */
+/** Fakes /api/me/, the file read, the notice list and record, and the submit and approve endpoints. */
 function mockApi(
   record: () => Response = () => Response.json(recorded(), { status: 201 }),
   approve: () => Response = () => Response.json(decision()),
   saved: RecordedNotice[] = [],
+  file: { status?: string; statusReason?: string; submitTo?: string } = {},
 ) {
+  // The file's status, as the server would report it after a submission.
+  const state = { status: file.status ?? "draft", reason: file.statusReason ?? "" };
+  let stored = [...saved];
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input instanceof Request ? input.url : String(input);
     const method = init?.method ?? "GET";
     if (url.endsWith("/api/me/")) return Response.json(testUser("intake_worker"));
     if (url.endsWith(`/api/staff/households/${ID}/`) && method === "GET") {
-      return Response.json(draft());
+      return Response.json(draft(state.status, state.reason));
     }
-    if (url.endsWith(NOTICES_URL) && method === "GET") return Response.json(saved);
-    if (url.endsWith(NOTICES_URL) && method === "POST") return record();
+    if (url.endsWith(SUBMIT_URL) && method === "POST") {
+      state.status = file.submitTo ?? "submitted";
+      state.reason = state.status === "review_required" ? "POSSIBLE_DUPLICATE" : "";
+      return Response.json({
+        id: ID,
+        status: state.status,
+        status_reason: state.reason,
+        submitted_at: "2026-11-10T14:00:00Z",
+      });
+    }
+    if (url.endsWith(NOTICES_URL) && method === "GET") return Response.json(stored);
+    if (url.endsWith(NOTICES_URL) && method === "POST") {
+      const response = record();
+      // Like the server, keep what was recorded for the next read.
+      if (response.ok) {
+        const notice = (await response.clone().json()) as RecordedNotice;
+        stored = [...stored.filter((entry) => entry.member !== notice.member), notice];
+      }
+      return response;
+    }
     if (url.endsWith(APPROVE_URL) && method === "POST") return approve();
     return new Response(null, { status: 404 });
   });
@@ -133,6 +156,12 @@ function sentForm(fetchMock: ReturnType<typeof mockApi>): FormData {
 
 const card = (name: string) => screen.getByRole("region", { name });
 const summary = () => screen.getByRole("region", { name: "Résumé pour la décision" });
+
+/** Every notice is in: submit the draft (duplicate check) so approval is offered. */
+async function submitFile() {
+  await userEvent.click(screen.getByRole("button", { name: "Soumettre le dossier" }));
+  await screen.findByRole("button", { name: "Approuver le dossier" });
+}
 
 async function openPage() {
   renderWithProviders(<App />, { route: ROUTE });
@@ -259,11 +288,12 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     expect(await nadia.findByText("Le motif est trop court.")).toBeVisible();
     expect(within(summary()).getByText("À enregistrer")).toBeVisible();
   });
-  it("keeps the approve button disabled until every adult has a notice or a reason", async () => {
+  // rule: BR-DOC-007
+  it("keeps Submit disabled until every adult has a notice or a reason", async () => {
     mockApi();
     await openPage();
 
-    expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Soumettre le dossier" })).toBeDisabled();
   });
 
   it("approves the file and says until when", async () => {
@@ -274,8 +304,9 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     await userEvent.type(nadia.getByLabelText("Expliquez pourquoi"), "Aucun revenu en 2025");
     await userEvent.click(nadia.getByRole("button", { name: "Enregistrer l'avis" }));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: "Soumettre le dossier" })).toBeEnabled(),
     );
+    await submitFile();
 
     await userEvent.click(screen.getByRole("button", { name: "Approuver le dossier" }));
 
@@ -303,6 +334,7 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     );
     await openPage();
     await recordDidNotFile();
+    await submitFile();
 
     await userEvent.click(screen.getByRole("button", { name: "Approuver le dossier" }));
 
@@ -327,6 +359,7 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     );
     await openPage();
     await recordDidNotFile();
+    await submitFile();
 
     await userEvent.click(screen.getByRole("button", { name: "Approuver le dossier" }));
 
@@ -350,6 +383,7 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     );
     await openPage();
     await recordDidNotFile();
+    await submitFile();
 
     await userEvent.click(screen.getByRole("button", { name: "Approuver le dossier" }));
 
@@ -358,27 +392,74 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeVisible();
   });
 
-  it("shows the notices saved earlier, so a reloaded file can still be approved", async () => {
+  it("shows the notices saved earlier, so a reloaded file can still be submitted", async () => {
     mockApi(undefined, undefined, [recorded()]);
     await openPage();
 
     expect(within(summary()).getByText("Avis enregistré")).toBeVisible();
     expect(within(card("Nadia Démo")).getByText(/2025/)).toBeVisible();
     expect(screen.getByRole("button", { name: "Remplacer cet avis" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Soumettre le dossier" })).toBeEnabled();
   });
 
-  it("disables approval while a saved notice is being replaced", async () => {
+  it("disables submission while a saved notice is being replaced", async () => {
     mockApi(undefined, undefined, [recorded()]);
     await openPage();
 
     await userEvent.click(screen.getByRole("button", { name: "Remplacer cet avis" }));
 
-    expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Soumettre le dossier" })).toBeDisabled();
     expect(screen.getByText(/en cours de remplacement/)).toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "Annuler" }));
 
+    expect(screen.getByRole("button", { name: "Soumettre le dossier" })).toBeEnabled();
+  });
+
+  // rule: BR-DUP-002
+  it("submits a draft first, then offers approval", async () => {
+    const fetchMock = mockApi(undefined, undefined, [recorded()], { status: "draft" });
+    await openPage();
+
+    expect(screen.queryByRole("button", { name: "Approuver le dossier" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Soumettre le dossier" }));
+
+    expect(await screen.findByRole("button", { name: "Approuver le dossier" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Soumettre le dossier" })).toBeNull();
+    expect(
+      fetchMock.mock.calls.some(
+        ([input, init]) => String(input).endsWith(SUBMIT_URL) && init?.method === "POST",
+      ),
+    ).toBe(true);
+  });
+
+  // rule: BR-DUP-002
+  it("warns when submission finds a possible duplicate", async () => {
+    mockApi(undefined, undefined, [recorded()], { status: "draft", submitTo: "review_required" });
+    await openPage();
+
+    await userEvent.click(screen.getByRole("button", { name: "Soumettre le dossier" }));
+
+    expect(await screen.findByText(/Doublon possible/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeVisible();
+  });
+
+  // rule: BR-DOC-007
+  it("locks the notices once the file is submitted", async () => {
+    mockApi(undefined, undefined, [recorded()], { status: "submitted" });
+    await openPage();
+
+    expect(screen.getByText(/n'est plus un brouillon/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Remplacer cet avis" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Soumettre le dossier" })).toBeNull();
     expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeEnabled();
+  });
+
+  it("offers nothing once the file is decided", async () => {
+    mockApi(undefined, undefined, [recorded()], { status: "approved" });
+    await openPage();
+
+    expect(screen.queryByRole("button", { name: "Soumettre le dossier" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Approuver le dossier" })).toBeNull();
   });
 });

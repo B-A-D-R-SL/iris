@@ -280,10 +280,20 @@ def test_unknown_household_is_404(holder: Any, worker: Any) -> None:
     assert response.status_code == 404
 
 
+# rule: BR-DOC-007
+@pytest.mark.parametrize(
+    "status",
+    [
+        Household.Status.SUBMITTED,
+        Household.Status.REVIEW_REQUIRED,
+        Household.Status.APPROVED,
+        Household.Status.REJECTED,
+    ],
+)
 def test_non_draft_household_is_refused(
-    household: Any, holder: Any, worker: Any
+    household: Any, holder: Any, worker: Any, status: str
 ) -> None:
-    Household.objects.filter(pk=household.pk).update(status=Household.Status.SUBMITTED)
+    Household.objects.filter(pk=household.pk).update(status=status)
 
     response = _post(_client(worker), household, _filed(holder))
 

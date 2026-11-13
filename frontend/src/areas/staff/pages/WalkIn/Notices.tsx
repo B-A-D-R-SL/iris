@@ -5,9 +5,12 @@
  * a file), type the tax year and line-199 income, or record "did not file"
  * with a reason. The summary below shows what each adult has.
  *
+ * Notices are recorded on the draft (BR-DOC-007). Once every adult has one,
+ * "Submit the file" runs the US-25 duplicate check; then
  * "Approve the file" asks the server for the decision (approve_walk_in, #469):
- * eligibility decides between approved, rejected and review. Saved notices are
- * loaded on open, and approval waits while a saved notice is being replaced.
+ * eligibility decides between approved, rejected and review (BR-DUP-002).
+ * Saved notices are loaded on open, and approval waits while a saved notice is
+ * being replaced.
  */
 import {
   Badge,
@@ -30,6 +33,7 @@ import { Link, useParams } from "react-router";
 
 import {
   approveWalkIn,
+  submitWalkIn,
   listNotices,
   noticesQueryKey,
   recordNotice,
@@ -106,6 +110,7 @@ export function Notices() {
 }
 
 const approveMutationKey = (householdId: string) => ["walk-in", householdId, "approve"] as const;
+const submitMutationKey = (householdId: string) => ["walk-in", householdId, "submit"] as const;
 
 function NoticesPage({ draft, saved }: { draft: WalkInDraft; saved: RecordedNotice[] }) {
   const { t } = useTranslation();
@@ -117,7 +122,11 @@ function NoticesPage({ draft, saved }: { draft: WalkInDraft; saved: RecordedNoti
   );
   // Adults whose saved notice is being replaced: approval waits until each is saved or cancelled.
   const [replacing, setReplacing] = useState<ReadonlySet<string>>(new Set());
-  const deciding = useIsMutating({ mutationKey: approveMutationKey(draft.id) }) > 0;
+  const deciding =
+    useIsMutating({ mutationKey: approveMutationKey(draft.id) }) +
+      useIsMutating({ mutationKey: submitMutationKey(draft.id) }) >
+    0;
+  const open = draft.status === "draft";
   const holder = draft.members.find((member) => member.relation === "holder");
 
   const setMemberReplacing = (memberId: string, on: boolean) =>
@@ -144,7 +153,7 @@ function NoticesPage({ draft, saved }: { draft: WalkInDraft; saved: RecordedNoti
         </Text>
       </div>
 
-      {draft.status !== "draft" && <Notice type="info" title={t("staff.walkInNotices.notDraft")} />}
+      {!open && <Notice type="info" title={t("staff.walkInNotices.notDraft")} />}
       {adultMembers.length === 0 && (
         <Notice type="error" title={t("staff.walkInNotices.noAdults")} />
       )}
@@ -157,7 +166,7 @@ function NoticesPage({ draft, saved }: { draft: WalkInDraft; saved: RecordedNoti
           today={today}
           recorded={notices[member.id]}
           editing={!notices[member.id] || replacing.has(member.id)}
-          locked={deciding || draft.status !== "draft"}
+          locked={deciding || !open}
           onEditingChange={(on) => setMemberReplacing(member.id, on)}
           onRecorded={keepNotice}
         />
@@ -165,7 +174,8 @@ function NoticesPage({ draft, saved }: { draft: WalkInDraft; saved: RecordedNoti
 
       <DecisionSummary
         householdId={draft.id}
-        canDecide={draft.status === "draft"}
+        status={draft.status}
+        statusReason={draft.status_reason}
         replacing={replacing.size > 0}
         adultMembers={adultMembers}
         notices={notices}
@@ -425,17 +435,20 @@ function RecordedSummary({ notice }: { notice: RecordedNotice }) {
 
 interface DecisionSummaryProps {
   householdId: string;
-  canDecide: boolean;
+  /** draft: submit first; submitted or review_required: approve; anything else is decided. */
+  status: string;
+  statusReason: string;
   /** A saved notice is being replaced: the old values must not reach the decision. */
   replacing: boolean;
   adultMembers: Member[];
   notices: Record<string, RecordedNotice>;
 }
 
-/** Each adult's state, the approve button, then the decision. */
+/** Each adult's state, the submit or approve button, then the decision. */
 function DecisionSummary({
   householdId,
-  canDecide,
+  status,
+  statusReason,
   replacing,
   adultMembers,
   notices,
@@ -447,6 +460,23 @@ function DecisionSummary({
   const ready = complete && !replacing;
   const review = ready && needsReview(adultMembers.map((member) => notices[member.id]));
   const [problem, setProblem] = useState<string | null>(null);
+  const [submitProblem, setSubmitProblem] = useState<string | null>(null);
+  const failureText = (error: Error) => {
+    if (!(error instanceof WalkInFailed)) return t("staff.walkIn.networkError");
+    const messages = Object.values(error.fields).flat();
+    return messages.length > 0 ? messages.join(" ") : error.message;
+  };
+
+  const submission = useMutation({
+    mutationKey: submitMutationKey(householdId),
+    mutationFn: () => submitWalkIn(householdId, language),
+    onSuccess: () => {
+      setSubmitProblem(null);
+      // Reload the file: its new status unlocks the approve button.
+      void queryClient.invalidateQueries({ queryKey: walkInQueryKey(householdId) });
+    },
+    onError: (error) => setSubmitProblem(failureText(error)),
+  });
 
   const mutation = useMutation({
     mutationKey: approveMutationKey(householdId),
@@ -456,16 +486,11 @@ function DecisionSummary({
       // The file is no longer a draft: reload it so the page says so.
       void queryClient.invalidateQueries({ queryKey: walkInQueryKey(householdId) });
     },
-    onError: (error) => {
-      if (error instanceof WalkInFailed) {
-        const messages = Object.values(error.fields).flat();
-        setProblem(messages.length > 0 ? messages.join(" ") : error.message);
-      } else {
-        setProblem(t("staff.walkIn.networkError"));
-      }
-    },
+    onError: (error) => setProblem(failureText(error)),
   });
   const decision = mutation.data;
+  const possibleDuplicate =
+    status === "review_required" && statusReason.includes("POSSIBLE_DUPLICATE");
 
   return (
     <section className={classes.card} aria-labelledby="decision-summary">
@@ -492,15 +517,36 @@ function DecisionSummary({
       )}
       {review && <Notice type="warning" title={t("staff.walkInNotices.review")} />}
 
+      {submitProblem && (
+        <Notice type="error" title={t("staff.walkInNotices.notSubmitted")}>
+          {submitProblem}
+        </Notice>
+      )}
       {problem && (
         <Notice type="error" title={t("staff.walkInNotices.notDecided")}>
           {problem}
         </Notice>
       )}
+      {!decision && possibleDuplicate && (
+        <Notice type="warning" title={t("staff.walkInNotices.possibleDuplicate")} />
+      )}
       {decision ? (
         <DecisionOutcome decision={decision} />
+      ) : status === "draft" ? (
+        <Stack gap={4} mt="md" align="flex-start">
+          <Button
+            onClick={() => submission.mutate()}
+            loading={submission.isPending}
+            disabled={!ready}
+          >
+            {t("staff.walkInNotices.submit")}
+          </Button>
+          <Text size="sm" c="gray.7">
+            {t("staff.walkInNotices.submitHelp")}
+          </Text>
+        </Stack>
       ) : (
-        canDecide && (
+        (status === "submitted" || status === "review_required") && (
           <Stack gap={4} mt="md" align="flex-start">
             <Button
               onClick={() => mutation.mutate()}
@@ -529,6 +575,7 @@ const REASON_KEYS: Record<string, string> = {
   IDENTITY_NOT_VERIFIED: "staff.walkInNotices.reasonIdentity",
   INCOME_NOT_CONFIRMED: "staff.walkInNotices.reasonIncomeNotConfirmed",
   REVIEW_REQUIRED: "staff.walkInNotices.reasonReview",
+  POSSIBLE_DUPLICATE: "staff.walkInNotices.reasonPossibleDuplicate",
 };
 
 /** Reason codes ("NAME_MISMATCH, NOTICE_NOT_SEEN") as translation keys; unknown codes stay as codes. */

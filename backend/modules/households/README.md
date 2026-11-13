@@ -212,8 +212,9 @@ Income notices are recorded through the endpoint above (T-03.18.2).
 
 ## Walk-in approval (#469)
 
-`approve_walk_in` accepts draft, submitted or review-required walk-ins from an
-active intake worker or admin. It reloads and locks the saved file; it does not
+`approve_walk_in` accepts submitted or review-required walk-ins from an active
+intake worker or admin; a draft is refused with "Submit the file before approving
+it." (BR-DUP-002: the US-25 submission runs the duplicate check first). It reloads and locks the saved file; it does not
 trust unsaved changes on the argument. Anonymized files are hidden. The holder,
 address, phone, consent and every adult's notice or non-filing reason must be
 complete. Missing information raises validation errors without changing the file.

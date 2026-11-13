@@ -438,7 +438,11 @@ sequenceDiagram
         H-->>IW: 201 recorded notice; the decision summary marks the adult
     end
 
-    IW->>H: "Approve the file": POST /api/staff/households/{id}/approve/ → approve_walk_in()
+    IW->>H: "Submit the file" (every adult has a notice or reason): POST /api/staff/households/{id}/submit/ → submit_walk_in()
+    H->>H: Lock duplicate keys and check for a possible duplicate (US-25)
+    H-->>IW: submitted, or review_required with POSSIBLE_DUPLICATE; the screen offers approval
+
+    IW->>H: "Approve the file": POST /api/staff/households/{id}/approve/ → approve_walk_in() (400 while still a draft)
     H->>H: Check completeness, verification and duplicate flags
 
     rect rgb(24, 42, 62)

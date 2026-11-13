@@ -110,13 +110,25 @@ def assert_unapproved(household: Any, status: str) -> None:
     assert not invitations().exists()
 
 
+def submit(household: Any) -> None:
+    """Stand in for the Submit button: approval follows submission (BR-DUP-002)."""
+    Household.objects.filter(pk=household.pk, status="draft").update(
+        status="submitted", submitted_at=NOW
+    )
+
+
+def submit_and_approve(household: Any, actor: Any) -> Any:
+    submit(household)
+    return approve_walk_in(household, actor)
+
+
 @pytest.mark.parametrize("role", ["intake_worker", "admin"])
 def test_eligible_walk_in_is_approved_for_twelve_months(
     household: Any,
     role: str,
 ) -> None:
     actor: Any = UserFactory(role=role, password=None)
-    result = approve_walk_in(household, actor)
+    result = submit_and_approve(household, actor)
     household.refresh_from_db()
     assert result.pk == household.pk
     assert household.status == "approved"
@@ -135,7 +147,7 @@ def test_eligible_walk_in_is_approved_for_twelve_months(
 
 def test_income_above_lico_is_rejected(household: Any, staff: Any) -> None:
     notices(household).update(total_income_cents=3_000_001)
-    approve_walk_in(household, staff)
+    submit_and_approve(household, staff)
     assert_unapproved(household, "rejected")
     assert household.status_reason == "INCOME_ABOVE_LICO"
     assert decisions(household).get().eligible is False
@@ -158,7 +170,7 @@ def test_unverified_notice_requires_review(
     reason: str,
 ) -> None:
     notices(household).update(**changes)
-    approve_walk_in(household, staff)
+    submit_and_approve(household, staff)
     assert_unapproved(household, "review_required")
     assert household.status_reason == reason
     assert not decisions(household).exists()
@@ -170,7 +182,7 @@ def test_corrected_holder_name_is_compared_at_approval(
 ) -> None:
     update_draft(household.pk, {"holder": {"first_name": "Corrected"}}, staff)
     assert notices(household).get().name_on_notice == "Example Person"
-    approve_walk_in(household, staff)
+    submit_and_approve(household, staff)
     assert_unapproved(household, "review_required")
     assert household.status_reason == "NAME_MISMATCH"
 
@@ -187,7 +199,7 @@ def test_case_accents_and_extra_middle_names_match(household: Any, staff: Any) -
         staff,
     )
     notices(household).update(name_on_notice="elodie Marie COTE")
-    assert approve_walk_in(household, staff).status == "approved"
+    assert submit_and_approve(household, staff).status == "approved"
 
 
 def test_each_adult_is_checked_but_children_need_no_notice(
@@ -198,7 +210,7 @@ def test_each_adult_is_checked_but_children_need_no_notice(
     )
     MemberFactory(household=household, date_of_birth="2016-01-01")
     IncomeNoticeFactory(member=adult, recorded_by=staff, name_on_notice="Wrong Person")
-    approve_walk_in(household, staff)
+    submit_and_approve(household, staff)
     assert_unapproved(household, "review_required")
     assert household.status_reason == "NAME_MISMATCH"
 
@@ -210,7 +222,7 @@ def test_non_filer_requires_review_without_assuming_zero(
     IncomeNoticeFactory(member=adult, recorded_by=staff, did_not_file=True)
     with pytest.raises(HouseholdEvidenceUnavailable, match="DID_NOT_FILE"):
         eligibility_inputs(household.pk)
-    approve_walk_in(household, staff)
+    submit_and_approve(household, staff)
     assert_unapproved(household, "review_required")
     assert household.status_reason == "DID_NOT_FILE"
     assert not decisions(household).exists()
@@ -221,11 +233,11 @@ def test_missing_adult_notice_leaves_draft_unchanged(
 ) -> None:
     MemberFactory(household=household, relation="spouse_partner")
     with pytest.raises(ValidationError) as error:
-        approve_walk_in(household, staff)
+        submit_and_approve(household, staff)
     assert error.value.messages == [
         gettext("Record a notice or non-filing reason for every adult.")
     ]
-    assert_unapproved(household, "draft")
+    assert_unapproved(household, "submitted")
     assert not decisions(household).exists()
     assert not audit_events(household).exists()
 
@@ -236,7 +248,7 @@ def test_current_notice_replaces_old_mismatch(household: Any, staff: Any) -> Non
     old.name_on_notice = "Wrong Person"
     old.save()
     IncomeNoticeFactory(member=old.member, recorded_by=staff)
-    assert approve_walk_in(household, staff).status == "approved"
+    assert submit_and_approve(household, staff).status == "approved"
 
 
 def test_income_snapshot_counts_adults_and_all_members(
@@ -245,7 +257,7 @@ def test_income_snapshot_counts_adults_and_all_members(
     adult = MemberFactory(household=household, date_of_birth=date(2008, 11, 8))
     IncomeNoticeFactory(member=adult, recorded_by=staff, total_income_cents=100)
     MemberFactory(household=household, date_of_birth=date(2008, 11, 9))
-    approve_walk_in(household, staff)
+    submit_and_approve(household, staff)
     decision = decisions(household).get()
     assert decision.household_size == 3
     assert sorted(decision.adult_incomes_cents) == [100, 1_234_500]
@@ -261,7 +273,7 @@ def test_existing_review_flag_takes_priority_over_rejection(
         status_reason="DUPLICATE_PERSON",
     )
     notices(household).update(total_income_cents=9_000_000)
-    assert approve_walk_in(household, staff).status_reason == "DUPLICATE_PERSON"
+    assert submit_and_approve(household, staff).status_reason == "DUPLICATE_PERSON"
     assert_unapproved(household, "review_required")
     assert decisions(household).get().eligible is False
 
@@ -272,7 +284,7 @@ def test_unchecked_identity_requires_review(household: Any, staff: Any) -> None:
         verified_by=None,
         verified_at=None,
     )
-    assert approve_walk_in(household, staff).status_reason == "IDENTITY_NOT_VERIFIED"
+    assert submit_and_approve(household, staff).status_reason == "IDENTITY_NOT_VERIFIED"
     assert_unapproved(household, "review_required")
 
 
@@ -289,8 +301,8 @@ def test_incomplete_file_cannot_be_approved(
 ) -> None:
     Household.objects.filter(pk=household.pk).update(**changes)
     with pytest.raises(ValidationError):
-        approve_walk_in(household, staff)
-    assert_unapproved(household, "draft")
+        submit_and_approve(household, staff)
+    assert_unapproved(household, "submitted")
     assert not decisions(household).exists()
 
 
@@ -302,7 +314,7 @@ def test_final_and_unrelated_states_are_not_reprocessed(
 ) -> None:
     Household.objects.filter(pk=household.pk).update(status=status)
     with pytest.raises(ValidationError):
-        approve_walk_in(household, staff)
+        submit_and_approve(household, staff)
     assert not decisions(household).exists()
 
 
@@ -311,8 +323,8 @@ def test_non_intake_roles_are_denied(household: Any, role: str) -> None:
     store = StoreFactory() if role.startswith("store_") else None
     actor: Any = UserFactory(role=role, store=store, password=None)
     with pytest.raises(PermissionDenied):
-        approve_walk_in(household, actor)
-    assert_unapproved(household, "draft")
+        submit_and_approve(household, actor)
+    assert_unapproved(household, "submitted")
 
 
 def test_anonymous_and_inactive_staff_are_denied(household: Any, staff: Any) -> None:
@@ -320,7 +332,7 @@ def test_anonymous_and_inactive_staff_are_denied(household: Any, staff: Any) -> 
     actors: tuple[Any, ...] = (AnonymousUser(), staff)
     for actor in actors:
         with pytest.raises(PermissionDenied):
-            approve_walk_in(household, actor)
+            submit_and_approve(household, actor)
 
 
 @pytest.mark.parametrize("changes", [{"channel": "online"}, {"anonymized_at": NOW}])
@@ -329,13 +341,13 @@ def test_non_walk_in_and_anonymized_files_are_hidden(
 ) -> None:
     Household.objects.filter(pk=household.pk).update(**changes)
     with pytest.raises(Household.DoesNotExist):
-        approve_walk_in(household, staff)
+        submit_and_approve(household, staff)
 
 
 def test_us18_file_validity_uses_active_rule(household: Any, staff: Any) -> None:
     values = deepcopy(DEFAULT_RULE_VALUES["file_validity"]) | {"approved_months": 1}
     publish("file_validity", values, staff, effective_from=NOW)
-    assert approve_walk_in(household, staff).expires_at == datetime(
+    assert submit_and_approve(household, staff).expires_at == datetime(
         2026, 12, 8, 15, tzinfo=UTC
     )
 
@@ -353,8 +365,8 @@ def test_missing_rules_fail_closed(
         lambda kind, **kwargs: None if kind == rule_type else active(kind, **kwargs),
     )
     with pytest.raises(ValidationError):
-        approve_walk_in(household, staff)
-    assert_unapproved(household, "draft")
+        submit_and_approve(household, staff)
+    assert_unapproved(household, "submitted")
     assert not decisions(household).exists()
 
 
@@ -370,7 +382,7 @@ def test_email_is_sent_after_commit_and_accepts_invitation(
         email="holder@example.test", preferred_language="en"
     )
     with django_capture_on_commit_callbacks(execute=True):
-        approve_walk_in(household, staff)
+        submit_and_approve(household, staff)
         assert len(mailoutbox) == 0
         invitation = invitations().get()
         assert invitation.role == "beneficiary"
@@ -389,8 +401,8 @@ def test_email_is_sent_after_commit_and_accepts_invitation(
 def test_invitation_failure_rolls_back_all_writes(household: Any, staff: Any) -> None:
     Household.objects.filter(pk=household.pk).update(email=staff.email)
     with pytest.raises(ValidationError):
-        approve_walk_in(household, staff)
-    assert_unapproved(household, "draft")
+        submit_and_approve(household, staff)
+    assert_unapproved(household, "submitted")
     assert not decisions(household).exists()
     assert not audit_events(household).exists()
 
@@ -403,8 +415,8 @@ def test_audit_failure_rolls_back_all_writes(
 
     monkeypatch.setattr(audit_services, "record", fail)
     with pytest.raises(ValidationError, match="Audit unavailable"):
-        approve_walk_in(household, staff)
-    assert_unapproved(household, "draft")
+        submit_and_approve(household, staff)
+    assert_unapproved(household, "submitted")
     assert not decisions(household).exists()
 
 
@@ -415,6 +427,7 @@ def test_outer_rollback_sends_no_email(
     django_capture_on_commit_callbacks: Any,
 ) -> None:
     Household.objects.filter(pk=household.pk).update(email="holder@example.test")
+    submit(household)
     with (
         django_capture_on_commit_callbacks(execute=True) as callbacks,
         pytest.raises(RuntimeError, match="Cancel"),
@@ -424,7 +437,7 @@ def test_outer_rollback_sends_no_email(
         raise RuntimeError("Cancel")
     assert callbacks == []
     assert mailoutbox == []
-    assert_unapproved(household, "draft")
+    assert_unapproved(household, "submitted")
     assert not decisions(household).exists()
     assert not audit_events(household).exists()
 
@@ -432,9 +445,9 @@ def test_outer_rollback_sends_no_email(
 def test_repeated_stale_request_does_not_duplicate_approval(
     household: Any, staff: Any
 ) -> None:
-    approve_walk_in(household, staff)
+    submit_and_approve(household, staff)
     with pytest.raises(ValidationError):
-        approve_walk_in(household, staff)
+        submit_and_approve(household, staff)
     assert decisions(household).count() == 1
     assert audit_events(household).count() == 1
 
@@ -446,6 +459,7 @@ def test_simultaneous_approvals_create_one_decision_and_invitation(
     mailoutbox: Any,
 ) -> None:
     Household.objects.filter(pk=household.pk).update(email="holder@example.test")
+    submit(household)
     barrier = Barrier(2)
 
     def approve() -> str:
@@ -469,3 +483,23 @@ def test_simultaneous_approvals_create_one_decision_and_invitation(
     assert audit_events(household).count() == 1
     assert invitations().count() == 1
     assert len(mailoutbox) == 1
+
+
+# rule: BR-DUP-002
+def test_a_draft_must_be_submitted_before_approval(household: Any, staff: Any) -> None:
+    with pytest.raises(ValidationError) as refused:
+        approve_walk_in(household, staff)
+    assert refused.value.messages == [gettext("Submit the file before approving it.")]
+    assert_unapproved(household, "draft")
+    assert not decisions(household).exists()
+
+
+# rule: BR-DUP-002
+def test_a_possible_duplicate_stays_in_review(household: Any, staff: Any) -> None:
+    Household.objects.filter(pk=household.pk).update(
+        status="review_required", status_reason="POSSIBLE_DUPLICATE"
+    )
+    decided = approve_walk_in(household, staff)
+    assert decided.status == "review_required"
+    assert "POSSIBLE_DUPLICATE" in decided.status_reason
+    assert decided.approved_at is None

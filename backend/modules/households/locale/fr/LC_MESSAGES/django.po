@@ -191,6 +191,9 @@ msgstr "Impossible de remplacer des membres déjà liés à des avis ou à d'aut
 msgid "Notices can only be added to a draft file."
 msgstr "Les avis ne peuvent être ajoutés qu'à un dossier en brouillon."
 
+msgid "Submit the file before approving it."
+msgstr "Soumettez le dossier avant de l'approuver."
+
 msgid "Choose a person from this household."
 msgstr "Choisissez une personne de ce foyer."
 

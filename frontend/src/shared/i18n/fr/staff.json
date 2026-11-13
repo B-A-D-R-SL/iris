@@ -125,7 +125,12 @@
       "reasonTaxYear": "Un avis porte sur une année d'imposition non acceptée.",
       "reasonIdentity": "La pièce d'identité avec photo n'a pas été vérifiée en personne.",
       "reasonIncomeNotConfirmed": "Un revenu n'a pas été confirmé.",
-      "reasonReview": "Le dossier attendait déjà une révision."
+      "reasonReview": "Le dossier attendait déjà une révision.",
+      "submit": "Soumettre le dossier",
+      "submitHelp": "Iris vérifie si ce foyer est déjà inscrit. Les avis ne peuvent plus être modifiés après la soumission.",
+      "notSubmitted": "Le dossier n'a pas été soumis",
+      "possibleDuplicate": "Doublon possible : un foyer avec la même adresse ou la même personne est déjà inscrit. Le dossier attend une révision.",
+      "reasonPossibleDuplicate": "Un foyer avec la même adresse ou la même personne est déjà inscrit."
     },
     "invitation": {
       "email": "Courriel",

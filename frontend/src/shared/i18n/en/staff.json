@@ -125,7 +125,12 @@
       "reasonTaxYear": "A notice is for a tax year that is not accepted.",
       "reasonIdentity": "Photo ID was not checked in person.",
       "reasonIncomeNotConfirmed": "An income was not confirmed.",
-      "reasonReview": "The file was already waiting for review."
+      "reasonReview": "The file was already waiting for review.",
+      "submit": "Submit the file",
+      "submitHelp": "Iris checks whether this household is already on file. Notices cannot be changed after submitting.",
+      "notSubmitted": "The file was not submitted",
+      "possibleDuplicate": "Possible duplicate: a household with the same address or person is already on file. The file waits for review.",
+      "reasonPossibleDuplicate": "A household with the same address or person is already on file."
     },
     "invitation": {
       "email": "Email address",

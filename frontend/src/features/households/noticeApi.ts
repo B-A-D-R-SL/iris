@@ -96,6 +96,30 @@ export async function recordNotice(
   throw new WalkInFailed(response.status, body?.message ?? "", body?.fields ?? {});
 }
 
+export type WalkInSubmission = components["schemas"]["WalkInSubmissionRead"];
+
+/** Submits the file (US-25 duplicate check): submitted, or review_required with POSSIBLE_DUPLICATE. */
+export async function submitWalkIn(
+  householdId: string,
+  language: "fr" | "en",
+): Promise<WalkInSubmission> {
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "Accept-Language": language,
+  };
+  const token = csrfToken();
+  if (token) headers["X-CSRFToken"] = token;
+  const response = await fetch(`/api/staff/households/${householdId}/submit/`, {
+    method: "POST",
+    headers,
+    credentials: "same-origin",
+  });
+  if (response.ok) return (await response.json()) as WalkInSubmission;
+
+  const body = errorBody(await response.json().catch(() => null));
+  throw new WalkInFailed(response.status, body?.message ?? "", body?.fields ?? {});
+}
+
 export type WalkInDecision = components["schemas"]["WalkInDecision"];
 
 /** Asks for the decision (approved, rejected or review_required); 400 means the file is incomplete. */
