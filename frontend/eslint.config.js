@@ -48,12 +48,6 @@ function layerRule(layer) {
 const OVER_THE_LIMIT = {
   // FIX-06 (#632)
   "src/features/categories/CategoriesPage.tsx": { lines: 225 },
-  // FIX-12 (#638)
-  "src/areas/store/components/CategoryPicker.tsx": { lines: 97 },
-  "src/areas/store/pages/NewListing.tsx": { lines: 244 },
-  "src/shared/forms/FileUpload.tsx": { lines: 90 },
-  "src/shared/forms/IntegerField.tsx": { lines: 57 },
-  "src/shared/forms/TextField.tsx": { lines: 55 },
   // FIX-14 (#640)
   "src/shared/auth/SignOutButton.tsx": { lines: 51 },
   // No issue yet: listed in the FIX-13 pull request.
