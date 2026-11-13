@@ -63,6 +63,9 @@ services:
       LISTING_PHOTO_STORE_BACKEND: modules.listings.photo_storage.configured_store
       # Public Azurite emulator credential.
       AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
+      # Optional exact tunnel host/origin from the root .env (phone testing).
+      IRIS_TUNNEL_HOSTS: "${IRIS_TUNNEL_HOSTS:-}"
+      IRIS_TUNNEL_ORIGINS: "${IRIS_TUNNEL_ORIGINS:-}"
     command: >-
       sh -c 'python manage.py migrate --noinput && python manage.py create_dev_admin && exec python manage.py runserver 0.0.0.0:8000'
     ports:
@@ -83,6 +86,8 @@ services:
     restart: unless-stopped
     environment:
       API_PROXY_TARGET: http://backend:8000
+      # Optional exact tunnel hostname from the root .env (phone testing).
+      IRIS_TUNNEL_HOST: "${IRIS_TUNNEL_HOST:-}"
     command: pnpm dev --host 0.0.0.0
     ports:
       - "127.0.0.1:${IRIS_FRONTEND_PORT:-5174}:5173"

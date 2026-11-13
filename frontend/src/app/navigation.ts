@@ -10,6 +10,7 @@ import {
   IconBuildingStore,
   IconCategory,
   IconCirclePlus,
+  IconClipboardCheck,
   IconClipboardList,
   IconHome,
   IconShoppingBag,
@@ -38,6 +39,12 @@ export const NAVIGATION: Record<Area, readonly NavItem[]> = {
     },
   ],
   store: [
+    {
+      path: "/store/confirm",
+      labelKey: "app.storeNav.confirm",
+      icon: IconClipboardCheck,
+      roles: AREA_ROLES.store,
+    },
     {
       path: "/store/listings/new",
       labelKey: "app.storeNav.post",
