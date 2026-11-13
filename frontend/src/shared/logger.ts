@@ -13,14 +13,14 @@ type FrontendEvent =
   | "invitation_response_invalid"
   | "invitation_request_failed"
   | "household_status_response_invalid"
+  | "partner_application_response_invalid"
+  | "partner_application_request_failed"
   | "pickup_lookup_failed"
   | "pickup_confirm_failed"
   | "pickup_camera_unavailable"
   | "pickup_confirmed"
   | "pickup_response_invalid";
-  | "partner_application_response_invalid"
-  | "partner_application_request_failed"
-  | "household_status_response_invalid";
+
 interface StatusContext {
   record: string;
   status: string;
