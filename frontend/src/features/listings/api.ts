@@ -84,7 +84,12 @@ export async function postListing(
     body: requestBody(listing, photo),
     credentials: "same-origin",
   });
-  if (response.status === 201) return (await response.json()) as PostedListing;
+  if (response.status === 201) {
+    // An unreadable answer keeps its status, so it is not taken for a lost connection.
+    const posted: unknown = await response.json().catch(() => undefined);
+    if (posted !== undefined) return posted as PostedListing;
+    throw new PostingFailed(response.status, "");
+  }
 
   const error: unknown = await response.json().catch(() => null);
   if (isPostingError(error)) {
