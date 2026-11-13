@@ -4,9 +4,17 @@
 The `create-pr` skill (`.claude/skills/create-pr/SKILL.md`) takes your branch to an open pull
 request that passes the PR policy check. It never merges the PR.
 
+> **This skill is not a reviewer.** It won't check whether your story is complete, whether
+> business rules are followed, or whether your code has bugs the tests don't catch. Its
+> summary of the acceptance criteria describes what your branch contains; it doesn't prove
+> they are met. Use it only once you've reviewed your own code and are ready for a teammate
+> to review it.
+
 ## When to use it
 
-When your branch is ready for review, into `main` or a story/epic branch.
+When you've finished and reviewed your own work and the branch is ready for someone else to
+review, into `main` or a story/epic branch. It does the mechanical steps of opening the PR;
+reviewing stays with you, your reviewer and CodeRabbit.
 
 ## How it behaves
 

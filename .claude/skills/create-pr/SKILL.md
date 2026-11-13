@@ -8,6 +8,12 @@ argument-hint: "[target-branch, e.g. main or feat/US-41-reserve-a-unit]"
 
 Take the current working branch to an open pull request that passes the PR policy check.
 
+**Remind the developer that this is not a review.** In the same message as the step 2
+questions (a note, not a question), say in one or two lines: "Reminder: this skill opens the
+PR; it doesn't review your work. It won't confirm the story is complete, that business rules
+are followed, or that there are no bugs the tests miss, so make sure you've reviewed your
+own code first."
+
 **Ask up front, then run.** Every question the skill can ask in advance is asked in steps 2
 and 3, before anything changes. After that, work through to the end without asking again,
 except for the situations in "When to stop anyway" below. The developer should be able to
