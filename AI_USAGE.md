@@ -39,6 +39,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| SET-17 Azure staging setup record (#408) | `docs/guides/azure-staging.md`, the status note in section 5 of `docs/04-architecture/architecture.md`, `AI_USAGE.md` | 50% or more AI-generated | Not yet opened (`setup/SET-17` branch) |
 | T-02.13.4 Partner review screens (#451) | `frontend/src/areas/staff/pages/PartnerApplications{,.test}.tsx`, `frontend/src/app/App{,.test}.tsx`, `frontend/src/shared/i18n/{en,fr}/store.json`, `frontend/src/shared/logger.ts`, `.env.example`, `docker-compose.yml`, `AI_USAGE.md` | 50% or more AI-generated | [#665](https://github.com/B-A-D-R-SL/iris/pull/665) |
 | T-02.13.3 Partner applications staff API (#450) | `backend/modules/stores/{queries.py,README.md,api/serializers.py,api/staff_views.py,api/staff_urls.py,tests/test_staff_application_api.py,locale/fr/LC_MESSAGES/django.po}`, `backend/iris/urls.py`, `backend/pyproject.toml`, `docs/03-design/api.md`, `docs/04-architecture/architecture.md`, generated API types, `AI_USAGE.md` | 50% or more AI-generated; compiled catalog and generated API declarations exempt | [#665](https://github.com/B-A-D-R-SL/iris/pull/665) |
 | T-02.13.1 Partner application review tests (#448) | `backend/modules/stores/tests/{conftest,test_application_decisions,test_application_recovery,test_staff_application_api}.py`, `AI_USAGE.md` | 50% or more AI-generated | [#665](https://github.com/B-A-D-R-SL/iris/pull/665) |

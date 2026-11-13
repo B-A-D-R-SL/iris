@@ -325,6 +325,14 @@ represented as an active Release 1 environment here.
 The diagram specifies the intended deployment. It does not claim that
 CI, resources or worker supervision are already configured.
 
+Status (12 November 2026): the `iris-staging` resource group, Key Vault and
+Communication Services email exist; the database, Blob Storage, App Service and
+deploy workflow do not yet. The student subscription used for staging cannot
+deploy to Canadian regions, so the Key Vault is in West US 2 (keys only) and
+email data is stored in Canada. Staging holds fictional data only, and is
+rebuilt in Canada East on B.A.D.R.'s subscription once its nonprofit grant is
+active. See [Azure staging setup](../guides/azure-staging.md).
+
 ```mermaid
 
 flowchart LR
