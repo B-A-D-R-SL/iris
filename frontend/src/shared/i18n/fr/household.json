@@ -167,7 +167,8 @@
       "unit": "local {{unit}}",
       "goneTitle": "Cette offre n'est plus disponible",
       "goneDescription": "Elle a peut-être été réservée au complet ou sa cueillette est terminée.",
-      "backToListings": "Voir les offres"
+      "backToListings": "Voir les offres",
+      "maxPerHousehold": "{{max}} au maximum par foyer"
     }
   },
   "reservation": {
@@ -187,6 +188,28 @@
       "pickupCode": "Code de cueillette",
       "title": "Réservation",
       "pickupWindow": "Plage de cueillette"
+    },
+    "reserve": {
+      "button": "Réserver",
+      "quantity": "Quantité",
+      "quantityHelp": "{{max}} au maximum pour votre foyer",
+      "done": "C'est réservé!",
+      "showCode": "Présentez ce code au commerce pendant la plage de cueillette.",
+      "codeSpelled": "Code de cueillette : {{code}}",
+      "summary": "{{title}} × {{quantity}}",
+      "myReservations": "Voir mes réservations",
+      "otherListings": "Voir d'autres offres",
+      "soldOutButton": "Épuisée",
+      "soldOutTitle": "Cette offre vient d'être réservée au complet",
+      "soldOut": "Quelqu'un a réservé les derniers articles juste avant vous. D'autres offres arrivent chaque jour.",
+      "tooManyActiveTitle": "Vous avez déjà le nombre maximal de réservations actives",
+      "tooManyActive": "Récupérez ou annulez une réservation pour en faire une nouvelle.",
+      "notEnough": "Il n'en reste pas assez. Choisissez une plus petite quantité.",
+      "overListingLimit": "C'est plus qu'un foyer peut réserver pour cette offre.",
+      "notAvailable": "Cette offre n'est plus disponible.",
+      "notApproved": "Seuls les foyers approuvés peuvent réserver.",
+      "tryAgain": "La réservation n'est pas disponible pour le moment. Réessayez plus tard.",
+      "failed": "La réservation n'a pas pu être faite. Réessayez."
     }
   },
   "privacy": {

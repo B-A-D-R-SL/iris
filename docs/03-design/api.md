@@ -297,6 +297,19 @@ the backend logs a safe event and never substitutes a public URL.
 The view is in reservations, the module
 allowed to read both households and listings.
 
+US-41 adds reserving. `POST /api/reservations/` with `{listing_id, quantity}`
+(quantity 1 to 10, default 1) reserves for the signed-in household and answers
+201 with `{id, listing_id, quantity, pickup_code, status, created_at}`.
+Errors use `{code, message, fields}`: 400 `validation_error` or
+`quantity_over_listing_limit`; 401 signed out; 403 other roles or
+`household_not_approved`; 404 `listing_not_available` (closed, cancelled,
+ended, unknown, or not visible to the household); 409 `sold_out`,
+`not_enough_units` or `too_many_active_reservations`; 503
+`reservations_unavailable` (no `reservations` rule in effect) or
+`pickup_code_unavailable`. Rules BR-RES-006 to BR-RES-010. US-41 also adds
+`max_per_household` to each `GET /api/listings/` card, so the listing screen can
+show the household limit and the quantity picker.
+
 | Method   | Path                                       | Who                  | Purpose                                          | Status  |
 | -------- | ------------------------------------------ | -------------------- | ------------------------------------------------ | ------- |
 | GET      | `/api/listings/?category=&store=&today=`   | Approved beneficiary | Visible listings (tier timing applied)           | Implemented (US-36); tier timing waits for US-51 |
@@ -305,7 +318,7 @@ allowed to read both households and listings.
 | GET      | `/api/store/listings/categories/`          | Store staff          | Categories the store may post in (prohibited ones left out) | Implemented |
 | PATCH    | `/api/store/listings/{id}/`                | Store staff          | Edit (quantity ≥ reserved)                       | Planned |
 | POST     | `/api/store/listings/{id}/cancel/`         | Store staff          | Cancel; reservations cancelled without strikes   | Planned |
-| POST     | `/api/reservations/`                       | Approved beneficiary | `{listing_id, quantity}` → reservation with code | Planned |
+| POST     | `/api/reservations/`                       | Approved beneficiary | `{listing_id, quantity}` → reservation with code | Implemented (US-41) |
 | GET      | `/api/reservations/me/?status=`            | Beneficiary          | My reservations and history                      | Planned |
 | POST     | `/api/reservations/{id}/cancel/`           | Beneficiary          | Cancel                                           | Planned |
 | GET      | `/api/store/pickups/?date=`                | Store staff          | Today's expected pickups                         | Planned |

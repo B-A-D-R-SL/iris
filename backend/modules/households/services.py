@@ -1,10 +1,14 @@
 # AI contribution: 50% or more AI-generated
-"""Create, edit and submit walk-in files for staff."""
+"""Create, edit and submit walk-in files for staff.
+
+Also the household lock that reserving takes first (US-41).
+"""
 
 import hashlib
 import logging
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -404,3 +408,30 @@ def submit_walk_in(household_id: UUID, staff_user: AbstractBaseUser) -> Househol
         event = "household_duplicate_review" if duplicate else "household_submitted"
         transaction.on_commit(lambda: logger.info(event, extra={"event": event}))
     return household
+
+
+def lock_approved_household(household_id: UUID, *, at: datetime) -> bool:
+    """Lock a household's row until the caller's transaction ends (US-41).
+
+    Returns whether the household is approved and not expired at ``at``, the
+    same test as ``queries.approved_household_id``, read under the lock.
+
+    Reserving calls this first, so two reservations for one household (two
+    phones, a double tap) run one after the other: the second counts the
+    first's reservation and the limit of active reservations holds
+    (BR-RES-008). Other households are not slowed down.
+    """
+    if not connection.in_atomic_block:
+        raise RuntimeError("The household lock must be taken inside a transaction.")
+    row = (
+        Household.objects.select_for_update()
+        .filter(pk=household_id)
+        .values("status", "expires_at")
+        .first()
+    )
+    return (
+        row is not None
+        and row["status"] == Household.Status.APPROVED
+        and row["expires_at"] is not None
+        and row["expires_at"] > at
+    )

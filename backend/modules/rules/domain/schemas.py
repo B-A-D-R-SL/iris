@@ -135,7 +135,6 @@ RULE_SCHEMAS: Final[dict[str, JSONSchema]] = {
     "reservations": _object_schema(
         {
             "max_active_per_household": {"type": "integer", "minimum": 1},
-            "pickup_code_length": {"type": "integer", "minimum": 1},
         }
     ),
     "listing_safety": _object_schema(
@@ -233,7 +232,6 @@ DEFAULT_RULE_VALUES: Final[dict[str, dict[str, Any]]] = {
     },
     "reservations": {
         "max_active_per_household": 3,
-        "pickup_code_length": 6,
     },
     "listing_safety": {
         "best_before_margin_days": 0,

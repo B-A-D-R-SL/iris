@@ -91,7 +91,7 @@ uv run --locked python -m pytest -c photos.ini -q
 Real upload, permissions, cleanup and expiry tests use the local services:
 
 ```powershell
-docker compose exec -T backend env DJANGO_SETTINGS_MODULE=iris.settings.test IRIS_TEST_AZURITE=1 python -m pytest tests/test_blob_photos_azurite.py modules/listings/tests/test_photo_storage_live.py modules/listings/tests/test_photo_upload.py modules/reservations/tests/test_api.py -q
+docker compose exec -T backend env DJANGO_SETTINGS_MODULE=iris.settings.test IRIS_TEST_AZURITE=1 python -m pytest tests/test_blob_photos_azurite.py modules/listings/tests/test_photo_storage_live.py modules/listings/tests/test_photo_upload.py modules/reservations/tests/browse/test_photos.py -q
 ```
 
 The real expiry acceptance test intentionally takes five minutes: it reads a

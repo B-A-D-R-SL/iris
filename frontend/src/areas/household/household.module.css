@@ -13,6 +13,8 @@
   --h1-primary-subtle: #def3e0;
   --h1-sand: #eee6e0;
   --h1-sand-strong: #968a81;
+  /* H1.5 "Pickup code" box (US-41). */
+  --h1-peach: #fef3ea;
 
   --mantine-color-text: var(--h1-text);
   --mantine-color-gray-7: var(--h1-muted);

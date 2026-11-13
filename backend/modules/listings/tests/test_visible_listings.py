@@ -203,7 +203,9 @@ class TestBrowseCards:
     def test_a_card_has_the_store_window_units_left_and_best_before(self) -> None:
         """A card has the store window units left and best before."""
         store = cast(Store, StoreFactory(unit="2"))
-        listing = _listing(store=store, quantity_total=10, quantity_reserved=3)
+        listing = _listing(
+            store=store, quantity_total=10, quantity_reserved=3, max_per_household=2
+        )
         assert list(browse_listings(HOUSEHOLD, NOW)) == [
             {
                 "id": listing.id,
@@ -214,6 +216,7 @@ class TestBrowseCards:
                 "best_before": listing.best_before,
                 "store_id": store.pk,
                 "photo_ref": None,
+                "max_per_household": 2,
                 "units_left": 7,
                 "category_code": listing.category.code,
                 "store_name": store.name,

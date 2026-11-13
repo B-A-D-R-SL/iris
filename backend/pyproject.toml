@@ -190,7 +190,7 @@ ignore_imports = [
     "modules.listings.tests.** -> modules.rules.models",
     "modules.listings.tests.** -> modules.rules.domain.schemas",
     # FIX-02 API tests inject a fake adapter factory, never a production dependency.
-    "modules.reservations.tests.test_api -> modules.listings.photo_storage",
+    "modules.reservations.tests.browse.test_photos -> modules.listings.photo_storage",
 
     # reservations pickup tests (US-44) -> test setup only: saved users, stores,
     # households with a holder, and listings with an open pickup window.

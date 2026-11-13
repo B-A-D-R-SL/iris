@@ -46,6 +46,10 @@ class ListingCardSerializer(serializers.Serializer):
     pickup_start = serializers.DateTimeField(default_timezone=UTC, read_only=True)
     pickup_end = serializers.DateTimeField(default_timezone=UTC, read_only=True)
     units_left = serializers.IntegerField(read_only=True)
+    max_per_household = serializers.IntegerField(
+        read_only=True,
+        help_text="Most units one household may hold on this listing (US-41).",
+    )
     unit = serializers.CharField(read_only=True)
     best_before = serializers.DateField(read_only=True, allow_null=True)
     photo_url = serializers.SerializerMethodField(

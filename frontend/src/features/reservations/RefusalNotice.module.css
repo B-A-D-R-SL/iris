@@ -1,0 +1,5 @@
+/* AI contribution: 50% or more AI-generated */
+/* Scrolled into view below the sticky 56 px app bar, not under it. */
+.notice {
+  scroll-margin-top: 72px;
+}
