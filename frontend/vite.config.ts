@@ -5,9 +5,18 @@ import react from "@vitejs/plugin-react";
 // Docker uses the backend service name; host-native development uses localhost.
 const apiTarget = process.env.API_PROXY_TARGET ?? "http://127.0.0.1:8000";
 
+/** Allow only the exact hostname supplied for local phone testing. */
+function tunnelAllowedHosts(): string[] | undefined {
+  const exact = process.env.IRIS_TUNNEL_HOST?.trim();
+  return exact ? [exact] : undefined;
+}
+
+const allowedHosts = tunnelAllowedHosts();
+
 export default defineConfig({
   plugins: [react()],
   server: {
+    ...(allowedHosts ? { allowedHosts } : {}),
     watch: { usePolling: process.env.IRIS_DOCKER === "1" },
     proxy: {
       "/api": {

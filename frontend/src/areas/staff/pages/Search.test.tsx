@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "../../../app/App";
-import type { Role } from "../../../features/accounts/currentUser";
+import type { Role } from "../../../shared/auth/roles";
 import i18n from "../../../shared/i18n";
 import { searchFile, searchPage } from "../../../test/householdSearch";
 import { expectNoAxeViolations, renderWithProviders, testUser } from "../../../test/render";
@@ -284,7 +284,11 @@ describe("staff household search permissions", () => {
       renderWithProviders(<App />, { route: "/staff/households" });
       await screen.findByRole("heading", {
         name:
-          role === "beneficiary" ? "Accueil" : role === "signed-out" ? "Connexion" : "Aujourd'hui",
+          role === "beneficiary"
+            ? "Offres"
+            : role === "signed-out"
+              ? "Connexion"
+              : "Publier une offre",
       });
       expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
       expect(handler).not.toHaveBeenCalled();

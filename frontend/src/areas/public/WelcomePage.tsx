@@ -4,8 +4,8 @@ import { IconBuildingStore, IconHome } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate } from "react-router";
 
-import { homePathFor } from "../../app/navigation";
-import { useCurrentUser } from "../../features/accounts/currentUser";
+import { useCurrentUser } from "../../shared/auth/currentUser";
+import { homePathFor } from "../../shared/auth/roles";
 
 /** "/" — what Iris is, sign in, apply, become a partner (screens.md, SET-16). */
 export function WelcomePage() {
@@ -30,9 +30,7 @@ export function WelcomePage() {
           <IconHome size={24} stroke={2} aria-hidden />
           <Title order={2}>{t("public.welcome.householdTitle")}</Title>
           <Text size="sm">{t("public.welcome.householdText")}</Text>
-          <Button component={Link} to="/sign-up" variant="outline" fullWidth>
-            {t("public.welcome.apply")}
-          </Button>
+          {/* Online sign-up adds its "Inscrire mon foyer" button with its screen. */}
         </Stack>
       </Card>
 

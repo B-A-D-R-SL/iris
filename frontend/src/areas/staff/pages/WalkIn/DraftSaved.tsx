@@ -2,7 +2,7 @@
 import { Button, Group, List, Stack, Text, Title } from "@mantine/core";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router";
+import { Link, useParams } from "react-router";
 
 import classes from "./WalkIn.module.css";
 import { stillToComplete, type WalkInFormValues } from "./walkInForm";
@@ -10,13 +10,13 @@ import { stillToComplete, type WalkInFormValues } from "./walkInForm";
 interface DraftSavedProps {
   values: WalkInFormValues;
   onResume: () => void;
-  /** The saved draft; its notices are recorded on their own page (US-18). */
-  householdId?: string;
 }
 
 /** Figma W3.2a "Draft saved": what is still missing and how to resume. */
-export function DraftSaved({ values, onResume, householdId }: DraftSavedProps) {
+export function DraftSaved({ values, onResume }: DraftSavedProps) {
   const { t } = useTranslation();
+  // Shown at /staff/walk-in/:id once saved; its notices have their own page (US-18).
+  const { id: householdId } = useParams();
   const name = `${values.firstName} ${values.lastName}`.trim();
   return (
     <Stack gap="lg" align="flex-start">

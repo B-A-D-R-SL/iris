@@ -158,7 +158,6 @@ function WalkInForm({ draft }: { draft: WalkInDraft | null }) {
     return (
       <DraftSaved
         values={form.values}
-        householdId={current?.id}
         onResume={() => show({ step: resumeStep(form.values), saved: false })}
       />
     );

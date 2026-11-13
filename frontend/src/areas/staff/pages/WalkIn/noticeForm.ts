@@ -95,18 +95,8 @@ export function noticeErrors(values: NoticeValues, today: string): Record<string
       : isRequired()(null),
   );
 
-  const lastYear = Number(today.slice(0, 4)) - 1;
   const year = values.taxYear === "" ? null : Number(values.taxYear);
-  if (year === null) add("taxYear", isRequired()(""));
-  else if (!Number.isInteger(year) || year < FIRST_TAX_YEAR || year > lastYear) {
-    add(
-      "taxYear",
-      validationMessage("staff.walkInNotices.taxYearRange", {
-        min: FIRST_TAX_YEAR,
-        max: lastYear,
-      }),
-    );
-  }
+  add("taxYear", taxYearError(year, today));
 
   add(
     "totalIncomeCents",
@@ -120,15 +110,33 @@ export function noticeErrors(values: NoticeValues, today: string): Record<string
     values.postalCodeOnNotice.trim() ? isPostalCode()(values.postalCodeOnNotice) : isRequired()(""),
   );
 
-  // BR-DOC-002: after December 31 of the tax year and not after today.
-  const date = values.noticeDate;
-  if (!date) add("noticeDate", isRequired()(null));
-  else if (date > today) {
-    add("noticeDate", validationMessage("shared.validation.dateMax", { date: today }));
-  } else if (year !== null && date <= `${year}-12-31`) {
-    add("noticeDate", validationMessage("staff.walkInNotices.dateAfterYear", { year }));
-  }
+  add("noticeDate", noticeDateError(values.noticeDate, today, year));
   return errors;
+}
+
+/** BR-DOC-002: a tax year from FIRST_TAX_YEAR to last year. */
+function taxYearError(year: number | null, today: string): ReactNode {
+  if (year === null) return isRequired()("");
+  const lastYear = Number(today.slice(0, 4)) - 1;
+  if (Number.isInteger(year) && year >= FIRST_TAX_YEAR && year <= lastYear) return null;
+  return validationMessage("staff.walkInNotices.taxYearRange", {
+    min: FIRST_TAX_YEAR,
+    max: lastYear,
+  });
+}
+
+/** BR-DOC-002: after December 31 of the tax year and not after today. */
+function noticeDateError(
+  date: NoticeValues["noticeDate"],
+  today: string,
+  year: number | null,
+): ReactNode {
+  if (!date) return isRequired()(null);
+  if (date > today) return validationMessage("shared.validation.dateMax", { date: today });
+  if (year !== null && date <= `${year}-12-31`) {
+    return validationMessage("staff.walkInNotices.dateAfterYear", { year });
+  }
+  return null;
 }
 
 /** The API input once the card has no errors. */
