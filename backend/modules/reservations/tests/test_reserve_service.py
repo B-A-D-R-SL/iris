@@ -107,13 +107,43 @@ def test_more_than_the_units_left_is_refused(case: SimpleNamespace) -> None:
     assert _refusal(case, quantity=2) == services.NOT_ENOUGH_UNITS
 
 
+def _changed_meanwhile(
+    case: SimpleNamespace, monkeypatch: pytest.MonkeyPatch, **changes: Any
+) -> None:
+    """The checks pass, then someone changes the listing before the update."""
+
+    def take_units_after_change(*args: Any, **kwargs: Any) -> bool:
+        type(case.listing).objects.filter(pk=case.listing.pk).update(**changes)
+        return False
+
+    monkeypatch.setattr(
+        services.listing_services, "take_units", take_units_after_change
+    )
+
+
 # rule: BR-RES-009
-def test_units_taken_by_someone_else_meanwhile_say_sold_out(
+def test_every_unit_taken_meanwhile_says_sold_out(
     case: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # The listing looked open, but the conditional update found no units.
-    monkeypatch.setattr(services.listing_services, "take_units", lambda *a, **k: False)
-    assert _refusal(case) == services.SOLD_OUT
+    _changed_meanwhile(case, monkeypatch, quantity_reserved=5)
+    assert _refusal(case, quantity=2) == services.SOLD_OUT
+
+
+# rule: BR-RES-009
+def test_some_units_taken_meanwhile_says_not_enough_units(
+    case: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 2 asked, 1 left after the race: the household can still ask for 1.
+    _changed_meanwhile(case, monkeypatch, quantity_reserved=4)
+    assert _refusal(case, quantity=2) == services.NOT_ENOUGH_UNITS
+
+
+# rule: BR-RES-009
+def test_listing_closed_meanwhile_says_not_available(
+    case: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _changed_meanwhile(case, monkeypatch, status="closed")
+    assert _refusal(case) == services.LISTING_NOT_AVAILABLE
 
 
 # --- Acceptance criterion 2: household limits ---------------------------------

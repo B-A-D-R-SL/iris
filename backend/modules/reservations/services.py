@@ -191,6 +191,22 @@ def _check_request(
         raise ReservationRefused(NOT_ENOUGH_UNITS)
 
 
+def _lost_race_refusal(household_id: UUID, listing_id: UUID, moment: datetime) -> str:
+    """Why the conditional update took nothing, read again in this transaction.
+
+    Another reservation, or the store, changed the listing after the checks:
+    "not enough" while units remain, so the household can ask for fewer;
+    "sold out" when none do; "not available" when it closed or its pickup ended.
+    """
+    # rule: BR-RES-009 the refusal says what is left after the race.
+    listing = listing_queries.reservable_listing(household_id, listing_id, moment)
+    if listing is None:
+        return LISTING_NOT_AVAILABLE
+    if listing["units_left"] == 0:
+        return SOLD_OUT
+    return NOT_ENOUGH_UNITS
+
+
 @transaction.atomic
 def reserve(
     user: Any,
@@ -225,8 +241,8 @@ def reserve(
 
     # 3. Take the units and save the reservation together.
     if not listing_services.take_units(listing_id, quantity, now=moment):
-        # Someone else took them between the read above and this update.
-        raise ReservationRefused(SOLD_OUT)
+        # Someone else changed the listing between the read above and this update.
+        raise ReservationRefused(_lost_race_refusal(household_id, listing_id, moment))
     reservation = _insert(user, household_id, listing_id, quantity, choose)
     # No names, codes or IDs in the log line.
     transaction.on_commit(
