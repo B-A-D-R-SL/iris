@@ -48,6 +48,32 @@ describe("layer rule: app > areas > features > shared, never upward", () => {
     },
     30_000,
   );
+
+  it.each([
+    ["src/shared/sample.ts", "../app/navigation"],
+    ["src/features/listings/sample.ts", "../../areas/household/listingFormat"],
+    ["src/areas/store/pages/sample.ts", "../../../app/App"],
+  ])(
+    "refuses %s loading %s with import()",
+    async (filePath, source) => {
+      const code = `export const load = () => import("${source}");\n`;
+      expect(await rulesBroken(filePath, code)).toContain("no-restricted-syntax");
+    },
+    30_000,
+  );
+
+  it.each([
+    ["src/app/sample.ts", "../areas/household/pages/Listings"],
+    ["src/areas/store/pages/sample.ts", "../../../features/listings/api"],
+    ["src/areas/store/pages/sample.ts", "./application"],
+  ])(
+    "lets %s load %s with import()",
+    async (filePath, source) => {
+      const code = `export const load = () => import("${source}");\n`;
+      expect(await rulesBroken(filePath, code)).not.toContain("no-restricted-syntax");
+    },
+    30_000,
+  );
 });
 
 describe("size limits: 50 lines per function, complexity 15, tests excluded", () => {

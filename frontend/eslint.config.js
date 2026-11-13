@@ -18,20 +18,23 @@ const LAYERS = ["app", "areas", "features", "shared"];
 
 function layerRule(layer) {
   const above = LAYERS.slice(0, LAYERS.indexOf(layer));
+  const upward = String.raw`^(\.\.?/)+(.*/)?(${above.join("|")})(/|$)`;
+  const message = `${layer}/ may only import from the layers below it (${LAYERS.join(" > ")}).`;
   return {
     files: [`src/${layer}/**/*.{ts,tsx}`],
     ignores: TESTS,
     rules: {
       "no-restricted-imports": [
         "error",
+        { patterns: [{ regex: upward, caseSensitive: true, message }] },
+      ],
+      // no-restricted-imports skips import(), such as React.lazy(() => import("…")): same
+      // pattern on its source. A selector regex cannot hold "/", so it is written \x2F.
+      "no-restricted-syntax": [
+        "error",
         {
-          patterns: [
-            {
-              regex: `^(\\.\\.?/)+(.*/)?(${above.join("|")})(/|$)`,
-              caseSensitive: true,
-              message: `${layer}/ may only import from the layers below it (${LAYERS.join(" > ")}).`,
-            },
-          ],
+          selector: `ImportExpression[source.value=/${upward.replaceAll("/", String.raw`\x2F`)}/]`,
+          message,
         },
       ],
     },
