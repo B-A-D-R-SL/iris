@@ -8,7 +8,8 @@ import { expect, vi } from "vitest";
 
 import { AppProviders } from "../app/providers";
 import { rootOptions } from "../app/rootOptions";
-import type { CurrentUser, Role } from "../features/accounts/currentUser";
+import type { CurrentUser } from "../shared/auth/currentUser";
+import type { Role } from "../shared/auth/roles";
 
 /** Renders like main.tsx: real providers and root options, and a router at `route`. */
 export function renderWithProviders(

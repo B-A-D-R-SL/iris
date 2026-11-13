@@ -12,29 +12,39 @@ type FrontendEvent =
   | "invitation_accept_failed_unexpectedly"
   | "invitation_response_invalid"
   | "invitation_request_failed"
-  | "household_status_response_invalid"
   | "partner_application_response_invalid"
   | "partner_application_request_failed"
+  | "household_status_response_invalid"
+  | "listing_post_failed"
   | "pickup_lookup_failed"
   | "pickup_confirm_failed"
   | "pickup_camera_unavailable"
   | "pickup_confirmed"
   | "pickup_response_invalid";
-
 interface StatusContext {
   record: string;
   status: string;
 }
 
+/** Events about a failed request: they carry its HTTP status code and nothing else. */
+type HttpEvent = "listing_post_failed";
+interface HttpContext {
+  /** The response's status code, or null when no response arrived (connection lost). */
+  statusCode: number | null;
+}
+
+type PlainEvent = Exclude<FrontendEvent, "unknown_status" | HttpEvent>;
 type Level = "INFO" | "WARNING" | "ERROR";
 
 /** Serialize the allowed event/context fields and route the entry to its severity channel. */
-function emit(level: Level, event: FrontendEvent, context?: StatusContext): void {
+function emit(level: Level, event: FrontendEvent, context?: StatusContext | HttpContext): void {
   const entry = JSON.stringify({
     timestamp: new Date().toISOString(),
     level,
     event,
-    ...(context ? { record: context.record, status: context.status } : {}),
+    ...(context && "record" in context ? { record: context.record, status: context.status } : {}),
+    // Same key as the backend's request logs (docs/guides/observability.md).
+    ...(context && "statusCode" in context ? { status_code: context.statusCode } : {}),
   });
 
   if (level === "ERROR") {
@@ -47,11 +57,13 @@ function emit(level: Level, event: FrontendEvent, context?: StatusContext): void
 }
 
 export const logger = {
-  info: (event: FrontendEvent): void => emit("INFO", event),
+  info: (event: PlainEvent): void => emit("INFO", event),
   warning: (
     ...args:
-      | [event: Exclude<FrontendEvent, "unknown_status">]
+      | [event: PlainEvent]
       | [event: "unknown_status", context: StatusContext]
+      | [event: HttpEvent, context: HttpContext]
   ): void => emit("WARNING", args[0], args[1]),
-  error: (event: FrontendEvent): void => emit("ERROR", event),
+  error: (...args: [event: PlainEvent] | [event: HttpEvent, context: HttpContext]): void =>
+    emit("ERROR", args[0], args[1]),
 };
