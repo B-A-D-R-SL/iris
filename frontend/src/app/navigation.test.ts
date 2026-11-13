@@ -12,9 +12,12 @@ describe("navFor follows the permission matrix (business-rules.md)", () => {
     expect(paths(navFor("household", "beneficiary"))).toEqual(["/listings"]);
   });
 
-  it.each(["store_staff", "store_manager"] as const)("gives %s the posting tab", (role) => {
-    expect(paths(navFor("store", role))).toEqual(["/store/listings/new"]);
-  });
+  it.each(["store_staff", "store_manager"] as const)(
+    "gives %s the confirm and posting tabs",
+    (role) => {
+      expect(paths(navFor("store", role))).toEqual(["/store/confirm", "/store/listings/new"]);
+    },
+  );
 
   it("limits intake workers to households and walk-in registration", () => {
     expect(paths(navFor("staff", "intake_worker"))).toEqual([
@@ -43,7 +46,7 @@ describe("navFor follows the permission matrix (business-rules.md)", () => {
 
   it("has no tab for a screen that is not built (FIX-13)", () => {
     const all = paths(Object.values(NAVIGATION).flat());
-    for (const placeholder of ["/home", "/reservations", "/profile", "/store", "/store/confirm"]) {
+    for (const placeholder of ["/home", "/reservations", "/profile", "/store"]) {
       expect(all).not.toContain(placeholder);
     }
     expect(all).not.toContain("/staff/review");

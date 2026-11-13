@@ -27,6 +27,7 @@
     "@mantine/hooks": "^9.7.1",
     "@tabler/icons-react": "^3.50.0",
     "@tanstack/react-query": "^5.104.1",
+    "@zxing/browser": "^0.2.1",
     "dayjs": "^1.11.23",
     "i18next": "^26.4.2",
     "react": "^19.2.8",
