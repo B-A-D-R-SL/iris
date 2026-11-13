@@ -17,11 +17,13 @@ from modules.households.models import Household
 from modules.households.tests.factories import HouseholdFactory
 from modules.listings.models import Listing
 from modules.listings.tests.factories import ListingFactory
+from modules.notifications.models import EmailLog
+from modules.notifications.tasks import send_email
 from modules.reservations.models import MadeByType, Reservation, ReservationStatus
 from modules.rules.services import publish
 from modules.stores.tests.factories import StoreFactory
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("notification_rules")]
 
 
 def url(household: Household, action: str) -> str:
@@ -224,6 +226,7 @@ def test_counter_only_household_can_be_suspended_br_hh_suspend_003() -> None:
     """A household without email still changes status."""
     household = approved(email=None)
     assert post(UserFactory(role="admin"), household, "suspend").status_code == 200
+    assert not EmailLog.objects.exists()
 
 
 @pytest.mark.parametrize(
@@ -241,17 +244,23 @@ def test_holder_is_emailed_after_commit_br_hh_suspend_003(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A localized holder notice is queued after commit."""
-    queued: list[dict[str, str]] = []
+    queued: list[dict[str, Any]] = []
+    monkeypatch.setattr(send_email, "configure", lambda **kwargs: send_email)
     monkeypatch.setattr(
-        "modules.notifications.services.send_household_status_email.defer",
+        send_email,
+        "defer",
         lambda **kwargs: queued.append(kwargs),
     )
     household = approved(status=status)
     with django_capture_on_commit_callbacks(execute=True):
         assert post(UserFactory(role="admin"), household, action).status_code == 200
+        assert queued == []
     assert len(queued) == 1
-    assert queued[0]["email"] == "holder@example.test"
-    assert subject in queued[0]["subject"]
+    log = EmailLog.objects.get(pk=queued[0]["email_log_id"])
+    assert log.to_email == "holder@example.test"
+    assert log.language == "en"
+    assert log.template_key == "household_" + subject
+    assert queued[0]["context"] == {}
 
 
 def make_reservation(
@@ -454,9 +463,11 @@ def test_sensitive_reason_is_refused_before_audit_or_email_br_hh_suspend_004(
 ) -> None:
     """Sensitive reason text never reaches audit records or notifications."""
     household = approved()
-    queued: list[dict[str, str]] = []
+    queued: list[dict[str, Any]] = []
+    monkeypatch.setattr(send_email, "configure", lambda **kwargs: send_email)
     monkeypatch.setattr(
-        "modules.notifications.services.send_household_status_email.defer",
+        send_email,
+        "defer",
         lambda **kwargs: queued.append(kwargs),
     )
     response = post(UserFactory(role="admin"), household, "suspend", reason)
@@ -465,4 +476,5 @@ def test_sensitive_reason_is_refused_before_audit_or_email_br_hh_suspend_004(
     household.refresh_from_db()
     assert household.status == Household.Status.APPROVED
     assert not AuditEvent.objects.filter(target_id=str(household.pk)).exists()
+    assert not EmailLog.objects.exists()
     assert queued == []

@@ -22,6 +22,26 @@ log does not replace the append-only audit record tracked in FIX-08 (#634).
 
 Application log events must use static event names, never personal information. **Do not log** bodies, query strings, raw URL paths, cookie or authorization headers, names, email addresses, document data, or other account identifiers. Do not pass such values into event labels. Third-party diagnostic output and Django debug exception pages are outside this formatter's control; production must run with `DEBUG=False`, and logging must be reviewed before handling real beneficiary data.
 
+US-57 notification events use the static names `email_sent`,
+`email_retry_scheduled`, `email_send_failed`, `email_queue_failed`,
+`email_configuration_failed`, `email_outcome_unavailable` and
+`email_cleanup_failed`. No recipient, message
+content, rendering context, one-use link or provider exception is attached.
+Worker exceptions contain bounded internal error codes with the provider
+exception chain suppressed. SMTP/Azure calls stay behind adapters; HTTP diagnostic
+logging must not expose provider request bodies or credentials.
+
+`EmailLog` is a protected database delivery record, separate from application
+stdout logs. It retains recipient, optional user, template key, language, status,
+attempts, a bounded error code and timestamps. It excludes subjects, bodies,
+rendering context and tokens. `sent` means transport/provider acceptance, not
+inbox receipt. Temporary one-use links belong only in the restricted queue
+payload needed for asynchronous delivery. An hourly cleanup removes terminal
+email jobs after the active retention threshold (24 hours by default), normally
+within 24–25 hours with a healthy worker; pending/retrying jobs remain. Legacy
+jobs on the default queue require the targeted rollout cleanup described in the
+[module runbook](../../backend/modules/notifications/README.md#one-use-links-and-cleanup).
+
 HTTP results: `INFO` for 2xx/3xx, `WARNING` for 4xx, and `ERROR` for 5xx. The default Django log handler also emits only the allowlisted JSON fields.
 
 Inspect logs locally with `docker compose logs -f backend`. Trace an HTTP response by matching its `X-Request-ID` to a JSON log event. For example:

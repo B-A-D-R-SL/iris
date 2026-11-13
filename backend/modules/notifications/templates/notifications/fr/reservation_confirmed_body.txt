@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}Votre réservation est confirmée. Connectez-vous à Iris pour consulter votre code de cueillette, le lieu et la plage de cueillette.{% endautoescape %}

@@ -32,8 +32,8 @@ lead to them, within the Iris modular monolith.
 
 - `services.save_store(store)`
 - `services.ensure_badr_store()`
-- `services.submit_application(values, *, language, mailer=None)`: saves a
-  `submitted` application from validated form values and sends the
+- `services.submit_application(values, *, language)`: saves a
+  `submitted` application from validated form values and queues the bilingual
   `partner_application_received` email after the commit. Raises
   `ApplicationAlreadyOpen` while the contact email has a submitted application,
   and a `ValidationError` for inactive or unknown category codes.
@@ -46,8 +46,9 @@ lead to them, within the Iris modular monolith.
 ## Dependencies
 
 - `categories.queries`: active category codes for `goods_categories`.
-- `adapters.mailer`: confirmation email (`SmtpMailer`; Mailpit locally). Moves to
-  the templated email system and background jobs with US-57.
+- `notifications.services`: confirmation email through the shared US-57
+  template/log/job pipeline. The worker selects ACS, SMTP/Mailpit or a test fake;
+  submission never calls the transport directly.
 
 ## Architectural rules
 

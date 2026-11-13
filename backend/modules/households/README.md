@@ -179,9 +179,12 @@ transaction as the household change. The central audit service currently accepts
 view and decision actions, so registration actions remain in the household history.
 
 The walk-in screens (T-03.17.4) are in `frontend/src/areas/staff/pages/WalkIn/`.
-Approval, income notices, approval/rejection transitions and the set-password
-email belong to US-18 and US-57; they are not implemented here. US-25 adds only
-submission and duplicate-review routing.
+Walk-in approval, income notices, approval/rejection transitions and producing
+the set-password email remain US-18 work. US-57 now supplies the bilingual
+`walk_in_set_password` template and shared queued delivery through
+[the notification service](../notifications/README.md); the approval workflow
+does not yet issue that email. US-25 adds only submission and duplicate-review
+routing.
 
 ## Staff search (US-63, #553 and #554)
 

@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}Votre dossier de foyer a été réactivé. Connectez-vous à Iris pour consulter son état et les prochaines étapes.{% endautoescape %}

@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}B.A.D.R. has not approved your partner application. Contact the team if you have questions.{% endautoescape %}

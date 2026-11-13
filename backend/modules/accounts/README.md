@@ -95,8 +95,19 @@ again by the page.
 
 ## Later workflows
 
-Staff and store-team invitation screens and endpoints, email delivery, partner
-approval and household linking remain in US-05, US-06, US-13 and US-18.
+US-57 supplies shared bilingual email templates and queued delivery. The account
+adapter maps allauth confirmation and password-reset messages to that service,
+using the saved user language and a reviewed action URL. It rejects unsupported
+allauth mail types rather than sending outside the queue. Signup remains closed.
+US-02/US-03 must configure the frontend action URLs and any additional allauth
+mail types before enabling their workflows.
+
+Staff and store-team invitation screens and endpoints, invitation issuance,
+partner approval and household linking remain in US-05, US-06, US-13 and US-18.
+Their callers build `/invitation/<token>` links from the token returned by
+`create_invitation` and `PUBLIC_APP_ORIGIN`, then use
+[the notification service](../notifications/README.md). Acceptance does not issue
+or send a fresh invitation.
 
 ## Audit events
 

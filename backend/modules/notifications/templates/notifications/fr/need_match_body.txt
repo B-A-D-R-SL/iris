@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}Une offre pourrait répondre à un besoin que vous avez indiqué. Connectez-vous à Iris pour la consulter.{% endautoescape %}

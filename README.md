@@ -13,7 +13,7 @@ Iris is a solidarity redistribution platform for sharing food and goods across c
 - **Backend:** Django 6.1 (Python 3.13), REST API, authentication, background jobs.
 - **Local services:** PostgreSQL 17, Azurite (Azure Blob Storage emulator), Mailpit (email testing).
 
-**Development runs with one command.** Docker Compose starts all five services, automatically applies database migrations, and creates a local administrator.
+**Development runs with one command.** Docker Compose starts all six services, automatically applies database migrations, and creates a local administrator.
 
 The development environment uses **Docker Compose Watch** to synchronize frontend code changes automatically. Dependencies are installed during image builds and reused between runs, avoiding unnecessary installations and improving startup performance.
 
@@ -41,7 +41,7 @@ git switch setup
 docker compose up --build --watch
 ```
 
-This builds the application images, installs dependencies, starts all five services, initializes PostgreSQL, and launches the application.
+This builds the application images, installs dependencies, starts all six services, initializes PostgreSQL, and launches the application.
 
 **Subsequent launches:**
 
@@ -214,6 +214,11 @@ The SonarQube Cloud job in `.github/workflows/ci.yml` imports backend Cobertura 
 Mailpit captures outgoing development emails without delivering them to real recipients.
 The Compose `worker` service processes Procrastinate jobs, including household
 status notices, so SMTP work never blocks the request that changed the file.
+US-57 provides a shared bilingual template service, metadata-only `EmailLog`,
+ACS and fake adapters, and retries after 1, 5 and 15 minutes. Run `seed_rules`
+after migrating to publish the required notifications policy. Configuration,
+template contracts and deployment checks are in
+[the notifications module guide](backend/modules/notifications/README.md).
 
 Send a test email:
 

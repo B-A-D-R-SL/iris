@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}B.A.D.R. has approved your partner application. Use the link below to create your Iris account.{% endautoescape %}

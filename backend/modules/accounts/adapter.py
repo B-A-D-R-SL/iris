@@ -13,13 +13,62 @@ from django.core.exceptions import ValidationError
 from django.db import connection, transaction
 from django.http import HttpRequest
 
+from modules.accounts.models import User
+from modules.notifications import services as notification_services
+
 logger = logging.getLogger("iris.auth")
+
+_NOTIFICATION_TEMPLATES = {
+    "account/email/email_confirmation": (
+        "account_confirmation",
+        "activate_url",
+        "confirmation_url",
+    ),
+    "account/email/email_confirmation_signup": (
+        "account_confirmation",
+        "activate_url",
+        "confirmation_url",
+    ),
+    "account/email/password_reset_key": (
+        "password_reset",
+        "password_reset_url",
+        "reset_url",
+    ),
+}
 
 
 class AccountAdapter(DefaultAccountAdapter):
     def is_open_for_signup(self, request: HttpRequest) -> bool:
         """Keep public registration closed until US-02 adds email verification."""
         return False
+
+    def send_mail(
+        self, template_prefix: str, email: str, context: dict[str, Any]
+    ) -> None:
+        """Queue supported authentication mail without retaining allauth objects."""
+        specification = _NOTIFICATION_TEMPLATES.get(template_prefix)
+        if specification is None:
+            raise ValueError("Unsupported authentication email template.")
+        template_key, source_url, destination_url = specification
+        user = context.get("user")
+        recipient = (
+            user
+            if isinstance(user, User) and user.email.casefold() == email.casefold()
+            else email
+        )
+        language = user.preferred_language if isinstance(user, User) else None
+        if language not in ("fr", "en"):
+            request = context.get("request") or self.request
+            requested = getattr(request, "LANGUAGE_CODE", "fr")
+            language = "en" if str(requested).lower().split("-")[0] == "en" else "fr"
+        url = context.get(source_url)
+        if not isinstance(url, str):
+            raise TypeError("Authentication email requires an action URL.")
+        notification_services.send(
+            recipient,
+            template_key,
+            {destination_url: url, "language": language},
+        )
 
     def authenticate(
         self, request: HttpRequest, **credentials: Any

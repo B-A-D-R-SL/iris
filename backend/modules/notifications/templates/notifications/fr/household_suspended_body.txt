@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}Votre dossier de foyer a été suspendu. Connectez-vous à Iris pour consulter les détails et les prochaines étapes.{% endautoescape %}

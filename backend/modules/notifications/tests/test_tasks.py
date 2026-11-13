@@ -1,65 +1,139 @@
 # AI contribution: 50% or more AI-generated
-"""Household status email task adapter tests."""
+"""Exact retries and compatibility for previously queued household mail."""
 
-from collections.abc import Sequence
+from datetime import timedelta
 from typing import Any
 
 import pytest
+from django.utils import timezone
+from procrastinate.jobs import Job
 
-from modules.notifications.tasks import deliver_household_status_email
-
-
-class RecordingMailer:
-    """Record calls and return a configured adapter result."""
-
-    def __init__(self, result: int = 1) -> None:
-        self.result = result
-        self.sent: list[dict[str, Any]] = []
-
-    def send(
-        self,
-        to: Sequence[str],
-        subject: str,
-        html: str | None = None,
-        text: str | None = None,
-    ) -> int:
-        self.sent.append({"to": list(to), "subject": subject, "text": text})
-        return self.result
+from adapters.mailer.base import MailerError
+from adapters.mailer.fake import get_fake_mailer
+from modules.notifications.tasks import (
+    DeliveryFailure,
+    EmailRetryStrategy,
+    deliver_household_status_email,
+    send_household_status_email,
+)
 
 
-class FailingMailer:
-    """Raise the same kind of failure as an unavailable SMTP service."""
-
-    def send(self, *args: Any, **kwargs: Any) -> int:
-        raise ConnectionError("mail unavailable")
-
-
-def test_delivery_uses_the_mail_adapter() -> None:
-    """The worker passes the queued content to its adapter."""
-    mailer = RecordingMailer()
-    deliver_household_status_email(
-        mailer, "holder@example.test", "Status changed", "Status changed"
+def job(attempts: int, delays: Any = None) -> Job:
+    return Job(
+        queue="email",
+        lock=None,
+        queueing_lock=None,
+        task_name="notifications.send_email",
+        task_kwargs={} if delays is None else {"retry_delays": delays},
+        attempts=attempts,
     )
-    assert mailer.sent == [
-        {
-            "to": ["holder@example.test"],
-            "subject": "Status changed",
-            "text": "Status changed",
-        }
-    ]
 
 
-@pytest.mark.parametrize("mailer", [FailingMailer(), RecordingMailer(result=0)])
-def test_delivery_failure_is_contained_and_logged(
-    mailer: Any, caplog: pytest.LogCaptureFixture
+@pytest.mark.parametrize(
+    ("attempt", "seconds"), [(0, 60), (1, 300), (2, 900), (3, None)]
+)
+def test_exact_three_retry_delays(attempt: int, seconds: int | None) -> None:
+    before = timezone.now()
+    decision = EmailRetryStrategy().get_retry_decision(
+        exception=DeliveryFailure("transport_unavailable"),
+        job=job(attempt, [60, 300, 900]),
+    )
+    if seconds is None:
+        assert decision is None
+    else:
+        assert decision is not None
+        assert decision.retry_at is not None
+        assert before + timedelta(seconds=seconds) <= decision.retry_at
+        assert decision.retry_at <= timezone.now() + timedelta(seconds=seconds)
+
+
+@pytest.mark.parametrize(
+    "exception",
+    [ValueError("unexpected"), DeliveryFailure("provider_rejected", retryable=False)],
+)
+def test_only_controlled_transient_failures_are_retried(exception: Exception) -> None:
+    assert (
+        EmailRetryStrategy().get_retry_decision(
+            exception=exception, job=job(0, [60, 300, 900])
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize("delays", ["invalid", [0], [True], [-1]])
+def test_invalid_job_retry_policy_never_schedules_an_unsafe_delay(
+    delays: object,
 ) -> None:
-    """An adapter exception or refusal stays inside the background job."""
-    deliver_household_status_email(
-        mailer, "holder@example.test", "Status changed", "Status changed"
+    assert (
+        EmailRetryStrategy().get_retry_decision(
+            exception=DeliveryFailure("transport_unavailable"), job=job(0, delays)
+        )
+        is None
     )
-    record = next(
-        item
-        for item in caplog.records
-        if item.message == "household_status_email_failed"
+
+
+def test_old_job_retry_decision_uses_snapshot_from_its_safe_failure() -> None:
+    before = timezone.now()
+    decision = EmailRetryStrategy().get_retry_decision(
+        exception=DeliveryFailure("transport_unavailable", retry_delays=[60, 300, 900]),
+        job=job(1),
     )
-    assert getattr(record, "event", None) == "household_status_email_failed"
+    assert decision is not None
+    assert decision.retry_at is not None
+    assert before + timedelta(seconds=300) <= decision.retry_at
+    assert decision.retry_at <= timezone.now() + timedelta(seconds=300)
+
+
+@pytest.mark.usefixtures("notification_rules")
+def test_legacy_household_job_delivers_through_shared_fake() -> None:
+    send_household_status_email(
+        "holder@example.test", "Status changed", "Status changed"
+    )
+    [message] = get_fake_mailer().sent
+    assert message == {
+        "to": ["holder@example.test"],
+        "subject": "Status changed",
+        "text": "Status changed",
+        "html": None,
+    }
+
+
+@pytest.mark.usefixtures("notification_rules")
+def test_legacy_task_attaches_policy_for_the_pure_retry_strategy() -> None:
+    get_fake_mailer().error = MailerError("transport_unavailable")
+    with pytest.raises(DeliveryFailure) as caught:
+        send_household_status_email(
+            "holder@example.test", "Status changed", "Status changed"
+        )
+    assert caught.value.retry_delays == [60, 300, 900]
+    assert (
+        EmailRetryStrategy().get_retry_decision(exception=caught.value, job=job(0))
+        is not None
+    )
+
+
+@pytest.mark.django_db
+def test_legacy_task_missing_policy_fails_before_transport() -> None:
+    with pytest.raises(
+        DeliveryFailure, match="^email_configuration_invalid$"
+    ) as caught:
+        send_household_status_email(
+            "holder@example.test", "Status changed", "Status changed"
+        )
+    assert caught.value.retryable is False
+    assert get_fake_mailer().sent == []
+
+
+@pytest.mark.parametrize("refused", [False, True])
+def test_legacy_transport_failure_enters_the_same_safe_retry_contract(
+    refused: bool,
+) -> None:
+    mailer = get_fake_mailer()
+    if refused:
+        mailer.result = 0
+    else:
+        mailer.error = MailerError("transport_unavailable")
+    with pytest.raises(DeliveryFailure):
+        deliver_household_status_email(
+            mailer, "holder@example.test", "Status changed", "Status changed"
+        )

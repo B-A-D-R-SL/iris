@@ -1,0 +1,8 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}Hello,
+
+Thank you for applying to become a B.A.D.R. partner store with Iris. {% if business_name %}We received the application for {{ business_name }}.{% else %}We received your application.{% endif %}
+
+B.A.D.R. will review it and write to you at this address. You have nothing else to do for now.
+
+The Iris team{% endautoescape %}

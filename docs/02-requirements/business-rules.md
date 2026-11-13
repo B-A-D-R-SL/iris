@@ -5,7 +5,7 @@ Every rule Iris applies, with its default value. Values marked *(setting)* are s
 
 Decisions taken where B.A.D.R. had not specified anything are marked **Default**. They can be changed later through the settings or an ADR.
 
-Each owner publishes their section of this document in their own pull request. This version contains the listing categories and the prohibited items (SET-12), and partner applications (US-12); the other sections (roles, eligibility, reservations, priority, strikes, notifications, retention) are added by their owners.
+Each module owner publishes and updates their rules in this document through reviewed pull requests.
 
 ## Shared household access (US-63)
 
@@ -122,6 +122,26 @@ exclude a file.
 | BR-HH-SUSPEND-002 | Suspension preserves the approval expiry, cancels every reserved reservation without a strike, and returns its units to the listing. Reactivation is refused after expiry. |
 | BR-HH-SUSPEND-003 | A localized status email is queued after commit when the household has an email. A counter-only file without email can still change status. Delivery failure does not undo the change. |
 | BR-HH-SUSPEND-004 | A status reason is limited by the active `household_suspension.reason_max_length` RuleSet value (default 500). Reasons containing personal, identity, document or financial information are refused before an audit event or email job is created. |
+
+## Notifications (US-57)
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-NOTIF-001 | Retry transient delivery failures using exactly three positive delays from the active `notifications.retry_delays_seconds` RuleSet: defaults **60, 300 and 900 seconds** *(setting)* after successive failures. The initial attempt plus these retries gives at most four attempts. Capture the delay list for each queued send; later rule versions affect new sends. Confirmed permanent failures stop immediately. |
+| BR-NOTIF-002 | Queue delivery after the originating transaction commits. A rollback creates no surviving delivery log or job. Delivery and post-commit enqueue failures do not undo a committed business action. There is no atomic-outbox or exactly-once guarantee across the commit/enqueue/provider boundaries. |
+| BR-NOTIF-003 | Use a User's persisted preferred language; for a raw recipient use the caller's saved `fr`/`en` preference, defaulting to French. Render only reviewed context fields, with links on the configured application origin. Never include income, identity/document information, arbitrary case notes or status reasons. Record delivery metadata without subject/body/context/token content; application logs also exclude recipient addresses. |
+| BR-NOTIF-004 | Delete terminal email-queue job payloads once older than `notifications.job_retention_hours`, default **24 hours** *(setting)*. Cleanup runs hourly, so normal removal is approximately 24–25 hours after the terminal event while the worker is healthy. Pending/running/retrying jobs remain. EmailLog metadata is retained; this cleanup does not implement general EmailLog retention. Legacy jobs on their original default queue require targeted rollout cleanup. |
+
+The new `notifications` RuleSet validates exactly three integer delays from
+1 to 86,400 seconds and retention from 1 to 168 hours. Missing or invalid active
+configuration records a failed notification instead of silently inventing runtime
+defaults. Native queue executions govern the retry budget; database failures can
+consume an execution without a transport call. EmailLog counts transport attempts
+separately. `sent` means successful transport/provider acceptance, not inbox
+delivery. Producer workflows and reminder/digest/matching scheduling remain with
+their owning stories; US-57 supplies their bilingual templates and calling
+contracts. See [US-57 #538](https://github.com/B-A-D-R-SL/iris/issues/538) and the
+[notification runbook](../../backend/modules/notifications/README.md).
 
 ## Listings
 

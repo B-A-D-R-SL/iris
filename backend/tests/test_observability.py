@@ -10,8 +10,17 @@ import pytest
 from django.http import HttpRequest, HttpResponse
 from django.test import Client
 from django.urls import get_resolver
+from procrastinate.contrib.django import app
+from procrastinate.job_context import JobContext, JobResult
+from procrastinate.jobs import Job, Status
+from procrastinate.worker import Worker
 
-from iris.observability import JsonLogFormatter, RequestIdMiddleware
+from adapters.mailer.base import MailerError
+from iris.observability import (
+    JsonLogFormatter,
+    QueueLogPrivacyFilter,
+    RequestIdMiddleware,
+)
 
 
 def test_health_response_has_server_generated_request_id(client: Client) -> None:
@@ -61,6 +70,109 @@ def test_formatter_discards_arbitrary_message_and_exceptions() -> None:
     encoded = JsonLogFormatter().format(record)
     assert json.loads(encoded)["event"] == "safe_failure"
     assert "private@example.org" not in encoded
+
+
+def test_queue_filter_removes_payloads_before_a_record_can_be_retained() -> None:
+    failure = MailerError("provider_rejected", retryable=False)
+    record = logging.makeLogRecord(
+        {
+            "name": "procrastinate.future_logger",
+            "levelname": "ERROR",
+            "msg": "Job %s failed",
+            "args": ("private@example.test token=one-use-secret",),
+            "job": {"task_kwargs": {"context": {"action_url": "secret-link"}}},
+            "kwargs": {"body": "private email body"},
+            "exception": "private provider response",
+            "exc_info": (type(failure), failure, None),
+            "exc_text": "private traceback",
+            "stack_info": "private stack",
+            "message": "already formatted private body",
+            "event": "private-event",
+        }
+    )
+
+    assert QueueLogPrivacyFilter().filter(record)
+
+    assert record.getMessage() == "background_job_event"
+    assert record.args == ()
+    assert record.exc_info is None and record.exc_text is None
+    assert record.stack_info is None
+    assert getattr(record, "event", None) == "background_job_event"
+    assert not {"job", "kwargs", "exception", "message"} & record.__dict__.keys()
+    assert "private" not in repr(record.__dict__)
+    assert "secret" not in JsonLogFormatter().format(record)
+
+
+def test_native_worker_failure_record_is_safe_before_propagation(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Exercise the library method that normally formats every job argument."""
+    secret = "one-use-secret-token"
+    worker = Worker(app=app, install_signal_handlers=False)
+    job = Job(
+        id=1,
+        queue="email",
+        lock=None,
+        queueing_lock=None,
+        task_name="notifications.send_email",
+        task_kwargs={
+            "email_log_id": "synthetic-log-id",
+            "context": {"action_url": f"https://iris.example/invitation/{secret}"},
+        },
+    )
+    context = JobContext(
+        app=app,
+        job=job,
+        start_timestamp=1,
+        abort_reason=lambda: None,
+    )
+    captured_before_propagation: list[dict[str, object]] = []
+
+    class CaptureHandler(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            captured_before_propagation.append(record.__dict__.copy())
+
+    handler = CaptureHandler()
+    logger = logging.getLogger("procrastinate.worker")
+    logger.addHandler(handler)
+    try:
+        with caplog.at_level(logging.ERROR, logger="procrastinate.worker"):
+            worker._log_job_outcome(
+                status=Status.FAILED,
+                context=context,
+                job_result=JobResult(
+                    start_timestamp=1, end_timestamp=2, result="private email body"
+                ),
+                job_retry=None,
+                exc_info=MailerError("provider_rejected", retryable=False),
+            )
+    finally:
+        logger.removeHandler(handler)
+        handler.close()
+
+    [raw] = captured_before_propagation
+    assert raw["msg"] == "background_job_event"
+    assert raw["exc_info"] is None and raw["args"] == ()
+    assert "job" not in raw and "worker" not in raw
+    assert secret not in repr(raw)
+    assert "private email body" not in repr(raw)
+    [record] = [item for item in caplog.records if item.name == "procrastinate.worker"]
+    assert record.getMessage() == "background_job_event"
+    assert secret not in repr(record.__dict__)
+
+
+def test_queue_filter_does_not_change_application_events() -> None:
+    record = logging.makeLogRecord(
+        {
+            "name": "iris.auth",
+            "msg": "Sign-in failed",
+            "event": "sign_in_failed",
+            "request_id": "opaque-request-id",
+        }
+    )
+    original = record.__dict__.copy()
+    assert QueueLogPrivacyFilter().filter(record)
+    assert record.__dict__ == original
 
 
 @pytest.mark.parametrize("event", ["sign_in_succeeded", "signed_out"])
