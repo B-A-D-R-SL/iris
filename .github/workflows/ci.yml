@@ -273,10 +273,15 @@ jobs:
           elif [ "$EVENT" = "push" ] && [ -n "$PUSH_BEFORE" ] && [ "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]; then
             range="${PUSH_BEFORE}..${PUSH_AFTER}"
           fi
+          # git log -p shows no diff for merge commits, so a secret added while
+          # resolving a conflict would be missed: compare merges to their first
+          # parent. --log-opts replaces gitleaks' defaults, so the full-history
+          # scan restates them (--full-history --all --diff-filter=tuxdb).
+          merges="--diff-merges=first-parent"
           if [ -n "$range" ]; then
-            ./gitleaks git --config .gitleaks.toml --redact --no-banner --log-opts="$range" .
+            ./gitleaks git --config .gitleaks.toml --redact --no-banner --log-opts="$merges $range" .
           else
-            ./gitleaks git --config .gitleaks.toml --redact --no-banner .
+            ./gitleaks git --config .gitleaks.toml --redact --no-banner               --log-opts="--full-history --all --diff-filter=tuxdb $merges" .
           fi
 
   zap-baseline:

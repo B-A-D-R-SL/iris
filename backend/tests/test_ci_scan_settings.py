@@ -7,6 +7,7 @@ from collections.abc import Iterator
 from types import ModuleType
 
 import pytest
+from django.core.exceptions import ImproperlyConfigured
 
 KEYS = [
     "DEBUG",
@@ -71,3 +72,21 @@ def test_ci_scan_adds_the_seed_command_package(
 
     assert "iris" not in production.INSTALLED_APPS
     assert ci_scan.INSTALLED_APPS == [*production.INSTALLED_APPS, "iris"]
+
+
+def test_ci_scan_keeps_the_production_startup_guards(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A weak key still stops the scan backend: ci_scan inherits FIX-04's checks."""
+    monkeypatch.setenv("DJANGO_SECRET_KEY", "too-short-for-production")
+    monkeypatch.setenv("DJANGO_ALLOWED_HOSTS", "localhost")
+    monkeypatch.setenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+    saved = {name: sys.modules.pop(name, None) for name in MODULES}
+    try:
+        with pytest.raises(ImproperlyConfigured, match="DJANGO_SECRET_KEY"):
+            _load("iris.settings.ci_scan")
+    finally:
+        for name, module in saved.items():
+            sys.modules.pop(name, None)
+            if module is not None:
+                sys.modules[name] = module
