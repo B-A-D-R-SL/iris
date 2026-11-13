@@ -56,11 +56,13 @@ describe("refusalNotice", () => {
     },
   );
 
-  it("has every message in English too", () => {
-    for (const code of ["sold_out", "too_many_active_reservations", "not_enough_units", "x"]) {
-      const notice = refusalNotice(code);
-      expect(text(en, notice.messageKey)).toBeTruthy();
-    }
+  it.each([
+    ["sold_out", "Someone reserved the last items just before you. New listings arrive every day."],
+    ["too_many_active_reservations", "Pick up or cancel a reservation to make a new one."],
+    ["not_enough_units", "There are not enough left. Choose a smaller quantity."],
+    ["something_new", "The reservation could not be made. Try again."],
+  ])("gives %s its English message", (code, message) => {
+    expect(text(en, refusalNotice(code).messageKey)).toBe(message);
   });
 });
 
