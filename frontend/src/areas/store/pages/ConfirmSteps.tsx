@@ -67,7 +67,6 @@ function CodeEntry({
           description={t("reservation.confirm.codeHelp", { length: CODE_LENGTH })}
           value={code}
           onChange={onCodeChange}
-          maxLength={CODE_LENGTH}
           autoComplete="off"
           name="pickup_code"
           disabled={busy}

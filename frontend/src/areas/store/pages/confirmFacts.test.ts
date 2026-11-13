@@ -20,16 +20,17 @@ const BASE: Pickup = {
 
 describe("confirmFacts", () => {
   it("omits alternate when absent and uses the unknown-holder fallback", () => {
-    const t = (key: string) =>
-      ({
-        "reservation.confirm.holder": "Titulaire",
-        "reservation.confirm.unknownHolder": "Inconnu",
-        "reservation.confirm.item": "Article",
-        "reservation.confirm.quantity": "Quantité",
-        "reservation.confirmation.pickupCode": "Code",
-        "reservation.confirmation.pickupWindow": "Fenêtre",
-        "listing.units.item": "Article",
-      })[key] ?? key;
+    const translations: Record<string, string> = {
+      "reservation.confirm.holder": "Titulaire",
+      "reservation.confirm.unknownHolder": "Inconnu",
+      "reservation.confirm.item": "Article",
+      "reservation.confirm.quantity": "Quantité",
+      "reservation.confirmation.pickupCode": "Code",
+      "reservation.confirmation.pickupWindow": "Fenêtre",
+      "listing.units.item": "Article",
+    };
+
+    const t = (key: string) => translations[key] ?? key;
     const rows = pickupFactRows(
       BASE,
       new Date("2026-11-12T21:00:00Z"),

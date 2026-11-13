@@ -11,6 +11,7 @@ import {
 import { logger } from "../../../shared/logger";
 import { codeFromScan, draftCode, isCompleteCode } from "./confirmCode";
 import type { Language } from "./confirmFormat";
+import { usePickupClock } from "./usePickupClock";
 
 export type ConfirmStep =
   | { kind: "scan"; code: string; error: PickupFailed | null }
@@ -30,8 +31,9 @@ function asPickupFailed(error: unknown): PickupFailed {
  */
 export function useConfirmPickup(language: Language) {
   const [step, setStep] = useState<ConfirmStep>({ kind: "scan", code: "", error: null });
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = usePickupClock();
   const lookupLock = useRef(false);
+  const scannedCodes = useRef(new Set<string>());
 
   const lookup = useMutation({
     mutationFn: (code: string) => lookupPickup(code, language),
@@ -68,23 +70,31 @@ export function useConfirmPickup(language: Language) {
     (raw: string) => {
       const code = draftCode(raw);
       if (!isCompleteCode(code) || lookupLock.current || confirm.isPending) return;
+
       lookupLock.current = true;
+      confirm.reset();
       setStep({ kind: "scan", code, error: null });
       lookup.mutate(code);
     },
-    [confirm.isPending, lookup],
+    [confirm, lookup],
   );
 
   const onDetected = useCallback(
     (text: string) => {
       const code = codeFromScan(text);
-      if (code) requestLookup(code);
+      if (!code || scannedCodes.current.has(code) || lookupLock.current || confirm.isPending) {
+        return;
+      }
+
+      scannedCodes.current.add(code);
+      requestLookup(code);
     },
-    [requestLookup],
+    [confirm.isPending, requestLookup],
   );
 
   const resetScan = () => {
     lookupLock.current = false;
+    scannedCodes.current.clear();
     lookup.reset();
     confirm.reset();
     setStep({ kind: "scan", code: "", error: null });
@@ -92,14 +102,14 @@ export function useConfirmPickup(language: Language) {
 
   const setScanCode = (value: string) => {
     if (step.kind !== "scan") return;
-    setStep({ kind: "scan", code: draftCode(value), error: step.error });
+    setStep({ kind: "scan", code: draftCode(value), error: null });
   };
 
   return {
     step,
     now,
     busy: lookup.isPending || confirm.isPending,
-    confirmError: confirm.error instanceof PickupFailed ? confirm.error : null,
+    confirmError: confirm.error === null ? null : asPickupFailed(confirm.error),
     requestLookup,
     onDetected,
     resetScan,

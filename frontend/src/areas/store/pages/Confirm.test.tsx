@@ -243,12 +243,11 @@ describe("Confirm pickup scan screen (US-44 / T-06.44.3)", () => {
     expect(await screen.findByText("Fatou D.")).toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "Confirmer la remise" }));
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { name: "Vérifier la réservation", level: 2 }),
-      ).toBeVisible(),
-    );
+    expect(await screen.findByText("Serveur injoignable")).toBeVisible();
     expect(screen.getByText("Fatou D.")).toBeVisible();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Confirmer la remise" })).toBeEnabled(),
+    );
 
     fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = input instanceof Request ? input.url : String(input);
@@ -264,5 +263,76 @@ describe("Confirm pickup scan screen (US-44 / T-06.44.3)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Confirmer la remise" }));
     expect(await screen.findByText("Réservation annulée")).toBeVisible();
     expect(screen.getByLabelText("Code de cueillette")).toBeVisible();
+  });
+
+  it("normalizes a pasted code before enforcing its length", async () => {
+    const user = userEvent.setup();
+    mockApi();
+    await renderConfirm();
+
+    const input = screen.getByLabelText("Code de cueillette");
+    await user.click(input);
+    await user.paste("p4 wz8h");
+
+    expect(input).toHaveValue("P4WZ8H");
+    expect(screen.getByRole("button", { name: "Vérifier la réservation" })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "Vérifier la réservation" }));
+    expect(await screen.findByText("Fatou D.")).toBeVisible();
+  });
+
+  it("shows a network failure on review and allows confirmation retry", async () => {
+    let offline = true;
+    mockApi({
+      confirm: () => {
+        if (offline) throw new TypeError("Failed to fetch");
+        return Response.json({
+          ...PICKUP,
+          status: "picked_up",
+          picked_up_at: "2026-11-12T21:15:00Z",
+        });
+      },
+    });
+    await renderConfirm();
+    await typeCode("P4WZ8H");
+    await userEvent.click(screen.getByRole("button", { name: "Vérifier la réservation" }));
+    await screen.findByText("Fatou D.");
+
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer la remise" }));
+    expect(await screen.findByText("Serveur injoignable")).toBeVisible();
+    expect(screen.getByText("Fatou D.")).toBeVisible();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Confirmer la remise" })).toBeEnabled(),
+    );
+
+    offline = false;
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer la remise" }));
+    expect(await screen.findByText("Cueillette confirmée")).toBeVisible();
+  });
+
+  it("does not carry a confirmation refusal into another pickup review", async () => {
+    let currentPickup = PICKUP;
+    mockApi({
+      lookup: () => Response.json(currentPickup),
+      confirm: () => refusal("cancelled"),
+    });
+    await renderConfirm();
+    await typeCode("P4WZ8H");
+    await userEvent.click(screen.getByRole("button", { name: "Vérifier la réservation" }));
+    await screen.findByText("Fatou D.");
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer la remise" }));
+    expect(await screen.findByText("Réservation annulée")).toBeVisible();
+
+    currentPickup = {
+      ...PICKUP,
+      id: "00000000-0000-4000-8000-000000000202",
+      pickup_code: "B7K9M2",
+      holder: "Test holder B",
+    };
+    await typeCode("B7K9M2");
+    await userEvent.click(screen.getByRole("button", { name: "Vérifier la réservation" }));
+
+    expect(await screen.findByText("Test holder B")).toBeVisible();
+    expect(screen.queryByText("Réservation annulée")).not.toBeInTheDocument();
   });
 });
