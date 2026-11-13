@@ -7,6 +7,12 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
+msgid "An active store account is required to confirm pickups."
+msgstr "Un compte de commerce actif est requis pour confirmer une cueillette."
+
+msgid "Enter the %(length)s-character pickup code."
+msgstr "Entrez le code de cueillette de %(length)s caractères."
+
 msgid "Only approved households can see listings."
 msgstr "Seuls les foyers approuvés peuvent voir les offres."
 
@@ -15,6 +21,33 @@ msgstr "Vérifiez les champs indiqués."
 
 msgid "The request was refused."
 msgstr "La demande a été refusée."
+
+msgid "No reservation at your store has this code. Check the characters or scan the QR code."
+msgstr "Aucune réservation de votre commerce n'a ce code. Vérifiez les caractères ou scannez le code QR."
+
+msgid "This reservation is not at your store."
+msgstr "Cette réservation n'est pas à votre commerce."
+
+msgid "This reservation is picked up somewhere else. The person can find the address in their email or under My reservations."
+msgstr "Cette réservation se récupère ailleurs. La personne trouve l'adresse dans son courriel ou dans « Mes réservations »."
+
+msgid "Several reservations at your store use this code. Find the person in today's pickups instead."
+msgstr "Plusieurs réservations de votre commerce ont ce code. Retrouvez plutôt la personne dans les cueillettes du jour."
+
+msgid "This reservation was already handed over. Do not hand over the items a second time."
+msgstr "Cette réservation a déjà été remise. Ne remettez pas l'article une deuxième fois."
+
+msgid "This reservation was cancelled. The items are no longer held for this person."
+msgstr "Cette réservation a été annulée. Les articles ne sont plus réservés pour cette personne."
+
+msgid "This pickup was marked as missed and cannot be confirmed here."
+msgstr "Cette cueillette a été marquée comme une absence et ne peut pas être confirmée ici."
+
+msgid "This pickup has not started yet. Hand over the items once the pickup window opens."
+msgstr "Cette cueillette n'a pas encore commencé. Remettez les articles une fois la plage de cueillette ouverte."
+
+msgid "The pickup window has ended. This pickup cannot be confirmed here."
+msgstr "La plage de cueillette est terminée. Cette cueillette ne peut pas être confirmée ici."
 
 msgid "Sign in to see listings."
 msgstr "Connectez-vous pour voir les offres."
@@ -33,3 +66,6 @@ msgstr "Entrez un identifiant de commerce valide."
 
 msgid "Enter true or false."
 msgstr "Entrez true ou false."
+
+msgid "Photos are temporarily unavailable."
+msgstr "Les photos sont temporairement indisponibles."

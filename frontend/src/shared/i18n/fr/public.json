@@ -1,0 +1,63 @@
+{
+  "_meta": "AI contribution: 50% or more AI-generated",
+  "auth": {
+    "common": {
+      "signIn": "Connexion",
+      "signOut": "Déconnexion",
+      "createAccount": "Créer un compte",
+      "forgotPassword": "Mot de passe oublié?",
+      "verificationCode": "Code de vérification",
+      "invitation": "Invitation"
+    },
+    "login": {
+      "email": "Courriel",
+      "password": "Mot de passe",
+      "code": "Code de vérification",
+      "title": "Connexion",
+      "verify": "Vérifier le code",
+      "codeHelp": "Entrez le code à 6 chiffres de votre application d’authentification.",
+      "signOutError": "La déconnexion a échoué. Réessayez.",
+      "required": "Entrez votre courriel et votre mot de passe.",
+      "invalidEmail": "Entrez un courriel valide.",
+      "invalidCode": "Entrez un code de vérification valide à 6 chiffres.",
+      "invalidCredentials": "Le courriel ou le mot de passe est incorrect.",
+      "locked": "Trop de tentatives. Réessayez dans 15 minutes.",
+      "unavailable": "La connexion est indisponible. Réessayez.",
+      "useAnotherAccount": "Utiliser un autre compte"
+    },
+    "invitation": {
+      "title": "Définir votre mot de passe",
+      "submit": "Définir mon mot de passe",
+      "passwordHelp": "Utilisez au moins 10 caractères. Évitez les mots de passe courants et les mots similaires à votre nom ou à votre courriel.",
+      "passwordTooShort": "Utilisez au moins 10 caractères.",
+      "passwordMismatch": "Entrez le même mot de passe dans les deux champs.",
+      "expired": "Ce lien d’invitation a expiré.",
+      "used": "Ce lien d’invitation a déjà été utilisé.",
+      "invalid": "Ce lien d’invitation est invalide.",
+      "emailRegistered": "Un compte utilise déjà ce courriel.",
+      "unavailable": "L’acceptation des invitations est indisponible. Réessayez.",
+      "checkPassword": "Vérifiez le mot de passe et sa confirmation.",
+      "success": "Le nouveau compte est prêt.",
+      "signedInGuidance": "Vous êtes toujours connecté à votre compte actuel. Utilisez Déconnexion dans l’en-tête avant de vous connecter au nouveau compte.",
+      "newLinkHelp": "Demandez un nouveau lien à la personne qui vous a invité."
+    },
+    "signup": {
+      "email": "Courriel",
+      "password": "Mot de passe",
+      "passwordConfirm": "Confirmer le mot de passe",
+      "preferredLanguage": "Langue",
+      "acceptTerms": "J'accepte les conditions d'utilisation et la politique de confidentialité"
+    }
+  },
+  "public": {
+    "welcome": {
+      "title": "Bienvenue sur Iris",
+      "intro": "Iris permet aux foyers à faible revenu de réserver gratuitement des surplus offerts par B.A.D.R. et ses commerces partenaires, puis de les récupérer avec un code.",
+      "householdTitle": "Pour les foyers",
+      "householdText": "B.A.D.R. vérifie votre revenu avec votre avis de cotisation. Une fois votre dossier approuvé, vous réservez des offres près de chez vous.",
+      "apply": "Inscrire mon foyer",
+      "partnerTitle": "Pour les commerces",
+      "partnerText": "Offrez vos surplus au lieu de les jeter. B.A.D.R. examine chaque demande de partenariat."
+    }
+  }
+}

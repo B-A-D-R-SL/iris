@@ -8,7 +8,7 @@ export function Wordmark({ subtitle, strong = false }: { subtitle: string; stron
       <Text component="span" fz="xl" fw={700} lh="xl" style={{ flexShrink: 0 }}>
         Iris
       </Text>
-      <Text component="span" fz="xs" fw={strong ? 600 : 400} c="gray.7" truncate>
+      <Text component="span" fz="xs" fw={strong ? 600 : 400} c="dimmed" truncate>
         {subtitle}
       </Text>
     </Group>

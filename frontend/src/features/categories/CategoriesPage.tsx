@@ -1,5 +1,5 @@
+// AI contribution: 50% or more AI-generated
 /**
- * AI contribution: 50% or more AI-generated
  * Category management for admins (US-35): every category, active or not, with
  * add, edit, deactivate and reactivate. There is no delete: a deactivated
  * category disappears from the posting and partner forms, and existing
@@ -12,7 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { EmptyState, ErrorState, LoadingState, Notice } from "../../shared/ui";
+import { EmptyState, ErrorState, LoadingState, Notice, StatusBadge } from "../../shared/ui";
 import {
   CategoryFailed,
   listStaffCategories,
@@ -25,6 +25,7 @@ import { CategoryDialog } from "./CategoryDialog";
 type Dialog = { mode: "add" } | { mode: "edit"; category: StaffCategory } | null;
 type Outcome = { type: "success" | "error"; message: string } | null;
 
+/** Present category data, mutations and their existing edit/deactivation dialogs. */
 export function CategoriesPage() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -144,7 +145,7 @@ export function CategoriesPage() {
                   </Table.Td>
 
                   <Table.Td>
-                    <Badge variant="light" color={category.is_food ? "teal" : "gray"}>
+                    <Badge variant="light" color="neutral">
                       {category.is_food ? t("category.list.food") : t("category.list.nonFood")}
                     </Badge>
                   </Table.Td>
@@ -157,9 +158,10 @@ export function CategoriesPage() {
                   </Table.Td>
 
                   <Table.Td>
-                    <Badge variant={category.is_active ? "filled" : "outline"} color="gray">
-                      {t(`${adminKey}.${category.is_active ? "active" : "inactive"}`)}
-                    </Badge>
+                    <StatusBadge
+                      record="category"
+                      status={category.is_active ? "active" : "inactive"}
+                    />
                   </Table.Td>
 
                   <Table.Td>
@@ -180,6 +182,7 @@ export function CategoriesPage() {
                         <Button
                           size="sm"
                           variant="outline"
+                          color="danger"
                           aria-label={t(`${adminKey}.deactivateName`, { name: nameOf(category) })}
                           onClick={() => {
                             setOutcome(null);
@@ -235,6 +238,7 @@ export function CategoriesPage() {
                 {t(`${adminKey}.cancel`)}
               </Button>
               <Button
+                color="danger"
                 loading={activeMutation.isPending}
                 onClick={() => activeMutation.mutate({ category: toDeactivate, active: false })}
               >

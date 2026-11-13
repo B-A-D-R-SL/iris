@@ -190,7 +190,23 @@ def test_failed_sign_ins_are_limited_per_ip(client):
         login(client, email=f"unknown-{index}@example.test", password="incorrect")
     refused = login(client, email="unknown-10@example.test", password="incorrect")
     assert refused.status_code == 400
+    assert refused.json()["status"] == 400
     assert refused.json()["errors"][0]["code"] == "too_many_login_attempts"
+
+
+def test_login_endpoint_preserves_allauth_rate_limit_response(client, settings):
+    """The non-DRF browser endpoint retains allauth's own HTTP 429 contract."""
+    settings.ACCOUNT_RATE_LIMITS = {**settings.ACCOUNT_RATE_LIMITS, "login": "2/m/ip"}
+    for _ in range(2):
+        response = client.post(LOGIN, {}, content_type="application/json")
+        assert response.status_code == 400
+
+    refused = client.post(LOGIN, {}, content_type="application/json")
+
+    assert refused.status_code == 429
+    assert refused.json() == {"status": 429}
+    assert "Retry-After" not in refused
+    assert "_auth_user_id" not in client.session
 
 
 def test_auth_logs_do_not_identify_the_account(client, user, caplog):

@@ -1,7 +1,10 @@
 # AI contribution: 50% or more AI-generated
 
+from datetime import timedelta
+
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from modules.accounts.tests.factories import UserFactory
@@ -174,3 +177,68 @@ def test_staff_can_check_duplicates_for_shared_walk_in(access_file):
         assert checked.pk == household.pk
         assert matched is False
     _assert_unchanged(household, before)
+
+
+@pytest.mark.parametrize("action", ["suspend", "reactivate"])
+@pytest.mark.parametrize(
+    ("role", "expected"),
+    [
+        ("beneficiary", 403),
+        ("store_staff", 403),
+        ("store_manager", 403),
+        ("intake_worker", 403),
+        ("admin", 200),
+    ],
+)
+# rule: BR-HH-SUSPEND-001
+def test_status_endpoints_enforce_every_role_br_hh_suspend_001(
+    action, role, expected, ready_household_factory
+):
+    """Both status endpoints allow administrators and refuse every other role."""
+    store = StoreFactory() if role.startswith("store_") else None
+    actor = UserFactory(role=role, store=store)
+    household = ready_household_factory(
+        status=(
+            Household.Status.SUSPENDED
+            if action == "reactivate"
+            else Household.Status.APPROVED
+        ),
+        approved_at=timezone.now(),
+        expires_at=timezone.now() + timedelta(days=30),
+        email=None,
+    )
+    client = APIClient()
+    client.force_authenticate(actor)
+    response = client.post(
+        reverse(f"staff-households-{action}", kwargs={"id": household.pk}),
+        {"reason": "Safety review"},
+        format="json",
+    )
+    assert response.status_code == expected
+
+
+@pytest.mark.parametrize("action", ["suspend", "reactivate"])
+# rule: BR-HH-SUSPEND-001
+def test_status_endpoints_hide_shared_anonymized_files_br_hh_suspend_001(
+    action, ready_household_factory
+):
+    """Shared ownership never exposes an anonymized file to status actions."""
+    household = ready_household_factory(
+        status=(
+            Household.Status.SUSPENDED
+            if action == "reactivate"
+            else Household.Status.APPROVED
+        ),
+        approved_at=timezone.now(),
+        expires_at=timezone.now() + timedelta(days=30),
+        anonymized_at=timezone.now(),
+        email=None,
+    )
+    client = APIClient()
+    client.force_authenticate(UserFactory(role="admin"))
+    response = client.post(
+        reverse(f"staff-households-{action}", kwargs={"id": household.pk}),
+        {"reason": "Safety review"},
+        format="json",
+    )
+    assert response.status_code == 404

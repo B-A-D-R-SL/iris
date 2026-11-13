@@ -12,11 +12,19 @@ account. The record also preserves staff verification and creation timestamps.
 
 - `services.create_walk_in(data, staff_user) -> Household`
 - `services.update_draft(household_id, data, staff_user) -> Household`
+- `services.change_suspension(household_id, reason, actor, reactivate=...) -> Household`:
+  administrators suspend approved files or reactivate unexpired suspended files
 - `services.submit_walk_in(household_id, staff_user) -> Household`
 - `services.locked_duplicate_check(household_id, staff_user)`: context for a
   checked draft and an evaluated duplicate flag; save inside the context.
 - `queries.walk_ins_for_staff(staff_user) -> QuerySet[Household]`
 - `queries.walk_in_for_staff(household_id, staff_user) -> Household | None`
+- `queries.pickup_names(household_id)`: holder and alternate as first name and
+  last initial for store pickups, or None once anonymized (US-44)
+- `queries.any_visible_for_pickup(household_ids)`: whether any of the IDs is
+  still on file for pickup (not anonymized); used when a code matches another
+  store (US-44, BR-RES-003)
+- `queries.household_for_staff(household_id, staff_user) -> Household | None`
 - `queries.find_possible_duplicates(household) -> QuerySet[Household]`
 - `queries.approved_household_id(user_id, at=...) -> UUID | None`: the
   household the user holds, if it is `approved` and not expired at `at`
@@ -28,6 +36,7 @@ account. The record also preserves staff verification and creation timestamps.
   validates shared staff permission before pagination.
 - `domain/address.py`: `normalize_address`, `normalize_postal_code`
 - `domain/person.py`: `normalize_person`, age/name validation
+- `domain/names.py`: `short_name`, `short_full_name` ("Fatou D.")
 
 Services are transactional, enforce active staff roles, and call `full_clean()`
 before persistence. Editing is restricted to drafts; member replacement cannot
@@ -207,3 +216,12 @@ household page; this change does not create that page or approval workflows.
 
 See [search verification](../../../docs/guides/household-search.md) for database
 isolation, repeatable benchmarks and the remaining staging/device checks.
+
+## Suspension (US-32)
+
+The suspend and reactivate endpoints require an administrator and a reason. They
+preserve `expires_at`; an expired suspended file cannot be reactivated. Suspension
+cancels every reserved reservation without a late-cancellation strike and returns
+the units to its listing in the same transaction. Both actions are audited with
+the reason. A localized holder email is queued after commit; counter-only files
+without email still change status.

@@ -20,6 +20,8 @@ urlpatterns = [
     path("api/staff/audit/", include("modules.audit.api.urls")),
     # Category management for admins (US-35)
     path("api/staff/categories/", include("modules.categories.api.staff_urls")),
+    # Store pickup lookup and confirmation (US-44)
+    path("api/store/pickups/", include("modules.reservations.api.store_urls")),
     # Django admin
     path("admin/", admin.site.urls),
     # Authentication: allauth's own versioned app/browser subpaths live here.
@@ -30,6 +32,11 @@ urlpatterns = [
     path("api/", include("modules.reservations.api.urls")),
     # Public partner application form (US-12)
     path("api/partner-applications/", include("modules.stores.api.urls")),
+    # Admin review of partner applications (US-13)
+    path(
+        "api/staff/partner-applications/",
+        include("modules.stores.api.staff_urls"),
+    ),
     # API documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

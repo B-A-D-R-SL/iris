@@ -19,7 +19,7 @@
 }
 
 .details dt {
-  color: var(--mantine-color-gray-7);
+  color: var(--iris-text-muted);
   font-size: var(--mantine-font-size-sm);
 }
 

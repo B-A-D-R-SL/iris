@@ -76,6 +76,26 @@ model, sequence/state diagrams and migration plan consistent.
 
 Applied database changes use new reviewed migrations.
 
+### Production configuration boundary (FIX-04)
+
+The WSGI/ASGI entry points default to production settings, including when those
+settings are used for staging. Local Compose and management commands explicitly
+retain the development configuration. Production validates the secret and mailer,
+requires HTTPS with HSTS, and trusts the configured HTTPS header only behind a
+proxy that strips and replaces client-supplied headers. API docs require an active
+Iris admin role. General DRF limits are operational environment settings;
+partner applications and allauth retain their separate request policies.
+DRF checks permissions before throttling, so rejected anonymous requests to
+protected routes do not consume its quota. Allauth has an independent trusted
+proxy count and native error responses, documented in
+[authentication routing](../guides/auth-routing.md#rate-limit-responses).
+
+The [production settings guide](../guides/production-settings.md) documents the
+configuration, the deliberate HSTS preload exception and the strict deploy check.
+These controls do not establish a running Azure deployment. SET-17 owns the real
+staging resources and proxy verification; FIX-17 owns the dedicated CI security
+gates. The Release 1 deployment scope below remains staging.
+
 ## Module ownership
 
 | Module | Business models | Responsibility |
@@ -429,6 +449,7 @@ an Iris account or invitation.
 sequenceDiagram
     actor B as Business applicant
     actor AD as Administrator
+    participant API as Staff applications API
     participant S as Stores service
     participant AC as Accounts service
     participant A as Audit service
@@ -439,9 +460,15 @@ sequenceDiagram
     S->>S: Validate and save submitted application
     S-->>N: Queue confirmation email after commit
 
-    AD->>S: Decide application
+    AD->>API: GET /api/staff/partner-applications/?status=submitted
+    API->>API: Check active admin (else 401 or 403)
+    API->>S: partner_applications(status), oldest first
+    S-->>API: Page of applications
+    API-->>AD: 200 list
 
     alt Approve
+        AD->>API: POST /api/staff/partner-applications/{id}/approve/
+        API->>S: approve_application(application, admin)
         rect rgb(24, 42, 62)
             Note over S,A: One transaction, failure rolls back all approval writes
             S->>S: Create active Store
@@ -450,6 +477,8 @@ sequenceDiagram
             S->>S: Save approved application and decision information
             S->>A: Record approval
         end
+        S-->>API: Approved application (409 if already decided)
+        API-->>AD: 200 application
 
         S-->>N: Queue invitation email after commit
         N-->>M: Deliver invitation link
@@ -459,8 +488,11 @@ sequenceDiagram
         AC->>AC: Create active User with invited identity, role and Store and mark invitation accepted
         AC-->>M: Account ready for sign-in
     else Reject
-        S->>S: Save rejected status and required reason
+        AD->>API: POST /api/staff/partner-applications/{id}/reject/ {reason}
+        API->>S: reject_application(application, admin, reason)
+        S->>S: Save rejected status and required reason (400 if blank or over 500)
         S->>A: Record rejection
+        API-->>AD: 200 application
         S-->>N: Queue decision email after commit
         N-->>M: Notify proposed store manager of rejection
     end
@@ -473,8 +505,8 @@ or change an existing browser session. Issuance stores only the unique SHA-256
 hash of a token generated from 32 random bytes and saves an expiry from the active
 `invitations.expires_after_days` rule (default seven days); later rule versions
 affect only new invitations. The raw token is returned for the calling workflow's
-email. Staff/team issuing screens, partner approval, household linking and email
-delivery remain US-05, US-06, US-13 and US-18; the acceptance page is #431.
+email. Staff/team issuing screens, household linking and email delivery remain
+US-05, US-06 and US-18 (partner approval is US-13); the acceptance page is #431.
 
 
 

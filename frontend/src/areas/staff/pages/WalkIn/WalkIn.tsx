@@ -75,6 +75,7 @@ function WalkInLoader({ id }: { id: string | undefined }) {
   return <WalkInForm draft={query.data} />;
 }
 
+/** Drive the saved/new draft through the registration steps and server submission outcome. */
 function WalkInForm({ draft }: { draft: WalkInDraft | null }) {
   const { t } = useTranslation();
   const language = useLanguage();
@@ -169,9 +170,9 @@ function WalkInForm({ draft }: { draft: WalkInDraft | null }) {
         <div>
           <Text className={classes.eyebrow}>{t("staff.walkIn.eyebrow")}</Text>
           <Title order={1}>{t("app.staffNav.walkIn")}</Title>
-          <Text c="gray.7">{t("staff.walkIn.description")}</Text>
+          <Text c="dimmed">{t("staff.walkIn.description")}</Text>
           {current && (
-            <Text size="sm" c="gray.7" mt={4}>
+            <Text size="sm" c="dimmed" mt={4}>
               {t("staff.walkIn.createdBy", {
                 email: current.created_by_email,
                 date: formatDateTime(current.created_at, language),

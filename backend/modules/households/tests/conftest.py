@@ -14,10 +14,12 @@ from modules.rules.services import publish
 
 
 @pytest.fixture(autouse=True)
-def household_size_rules(request):
+def household_rules(request):
     if request.node.get_closest_marker("django_db") or "db" in request.fixturenames:
         request.getfixturevalue("db")
-        return publish("household_size", {"max_people": 15}, UserFactory(role="admin"))
+        actor = UserFactory(role="admin")
+        publish("household_size", {"max_people": 15}, actor)
+        publish("household_suspension", {"reason_max_length": 500}, actor)
 
 
 @pytest.fixture

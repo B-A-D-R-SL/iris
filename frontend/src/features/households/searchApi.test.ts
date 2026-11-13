@@ -61,6 +61,39 @@ describe("household search request contract", () => {
   );
 });
 
+describe("household search known statuses", () => {
+  it.each([
+    "draft",
+    "submitted",
+    "review_required",
+    "awaiting_visit",
+    "approved",
+    "renewal_needed",
+    "suspended",
+    "rejected",
+  ] as const)("accepts the API status %s without a separate label map", async (status) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(Response.json(searchPage({ results: [searchFile({ status })] }))),
+    );
+    expect((await searchHouseholds("Exemple", 1, "fr")).results[0].status).toBe(status);
+  });
+
+  it.each(["toString", "__proto__", "future_status"])("rejects unknown %s", async (status) => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          Response.json(searchPage({ results: [{ ...searchFile(), status } as never] })),
+        ),
+    );
+    await expect(searchHouseholds("Exemple", 1, "fr")).rejects.toThrow(
+      "Invalid household search response",
+    );
+  });
+});
+
 describe("household search response validation", () => {
   it.each([
     null,
@@ -71,6 +104,7 @@ describe("household search response validation", () => {
     searchPage({ results: [{ ...searchFile(), phone: null } as never] }),
     searchPage({ results: [{ ...searchFile(), can_resume: undefined } as never] }),
     searchPage({ results: [{ ...searchFile(), can_resume: "true" } as never] }),
+    searchPage({ results: [{ ...searchFile(), can_open: undefined } as never] }),
     { ...searchPage(), next: {} },
   ])("rejects malformed responses", async (body) => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(body)));

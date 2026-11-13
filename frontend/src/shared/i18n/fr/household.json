@@ -1,0 +1,226 @@
+{
+  "_meta": "AI contribution: 50% or more AI-generated",
+  "household": {
+    "common": {
+      "walkInRegistration": "Inscription en personne",
+      "onlineApplication": "Demande en ligne",
+      "adultMember": "Membre adulte",
+      "dependant": "Personne à charge",
+      "renewal": "Renouvellement",
+      "expiryDate": "Date d'expiration",
+      "consent": "Consentement",
+      "taxReturn": "Déclaration de revenus",
+      "identityVerification": "Vérification de l'identité",
+      "household": "Foyer",
+      "accountHolder": "Personne responsable",
+      "member": "Membre du foyer",
+      "alternate": "Personne remplaçante",
+      "file": "Dossier"
+    },
+    "needs": {
+      "myNeeds": "Mes besoins",
+      "match": "Correspondance",
+      "category": "Catégorie",
+      "detail": "Précision",
+      "isActive": "Actif",
+      "need": "Besoin"
+    },
+    "registrationHolder": {
+      "firstName": "Prénom",
+      "lastName": "Nom de famille",
+      "dateOfBirth": "Date de naissance",
+      "email": "Courriel",
+      "phone": "Téléphone",
+      "preferredLanguage": "Langue de communication"
+    },
+    "registrationAddress": {
+      "streetNumber": "Numéro civique",
+      "streetName": "Rue",
+      "unit": "Appartement",
+      "city": "Ville",
+      "province": "Province",
+      "postalCode": "Code postal"
+    },
+    "registrationMembers": {
+      "firstName": "Prénom",
+      "lastName": "Nom de famille",
+      "dateOfBirth": "Date de naissance",
+      "relation": "Lien avec la personne responsable",
+      "relations": {
+        "spousePartner": "Conjoint·e",
+        "child": "Enfant",
+        "parent": "Parent",
+        "sibling": "Frère ou sœur",
+        "grandparent": "Grand-parent",
+        "grandchild": "Petit-enfant",
+        "otherRelative": "Autre membre de la famille",
+        "other": "Autre"
+      }
+    },
+    "registrationConsent": {
+      "consentDataProcessing": "J'accepte que B.A.D.R. utilise ces renseignements pour vérifier mon admissibilité",
+      "consentAiReading": "J'accepte qu'un logiciel lise mes avis de cotisation pour remplir les champs",
+      "consentDigestEmails": "Je veux recevoir un courriel quotidien des nouvelles offres"
+    },
+    "registrationNotices": {
+      "file": "Avis de cotisation de Revenu Québec",
+      "didNotFile": "Cette personne n'a pas produit de déclaration de revenus",
+      "didNotFileReason": "Expliquez pourquoi",
+      "taxYear": "Année d'imposition",
+      "totalIncome": "Revenu total (ligne 199)",
+      "noticeFirstName": "Nom sur l'avis",
+      "noticePostalCode": "Code postal sur l'avis",
+      "noticeDate": "Date de l'avis"
+    },
+    "alternate": {
+      "alternateName": "Nom de la personne remplaçante",
+      "alternatePhone": "Téléphone de la personne remplaçante",
+      "alternateEmail": "Courriel de la personne remplaçante"
+    },
+    "registration": {
+      "firstName": "Prénom"
+    },
+    "eligibility": {
+      "noticeOfAssessment": "Avis de cotisation",
+      "totalIncome": "Revenu total (ligne 199)",
+      "taxYear": "Année d'imposition",
+      "lowIncomeCutoff": "Seuil de faible revenu (SFR)",
+      "title": "Admissibilité"
+    },
+    "search": {
+      "label": "Rechercher un foyer",
+      "description": "Nom, courriel, téléphone, numéro de membre ou adresse.",
+      "clear": "Effacer la recherche",
+      "start": "Commencez à saisir pour rechercher un foyer",
+      "empty": "Aucun foyer trouvé",
+      "emptyDescription": "Vérifiez votre recherche ou essayez un autre renseignement.",
+      "email": "Courriel",
+      "phone": "Téléphone",
+      "address": "Adresse",
+      "unit": "app. {{unit}}",
+      "notProvided": "Non renseigné",
+      "unnamed": "Nom non renseigné",
+      "noMemberNumber": "Numéro de membre non attribué",
+      "resume": "Reprendre l’inscription",
+      "open": "Ouvrir le dossier",
+      "newRegistration": "Nouvelle inscription",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "page": "Page {{page}}",
+      "pagination": "Pages des résultats",
+      "results": "Résultats de recherche",
+      "staffOnly": "Renseignements réservés au personnel autorisé.",
+      "denied": "Accès refusé",
+      "deniedDescription": "Reconnectez-vous avec un compte de personnel autorisé.",
+      "signIn": "Se reconnecter",
+      "countOne": "{{count}} foyer trouvé",
+      "countOther": "{{count}} foyers trouvés"
+    },
+    "manage": {
+      "title": "Dossier du foyer",
+      "contact": "Coordonnées",
+      "expires": "Valide jusqu’au {{date}}",
+      "actions": "Actions du personnel",
+      "actionHelp": "Chaque changement de statut exige un motif et est consigné dans le journal d’audit.",
+      "suspend": "Suspendre le dossier",
+      "reactivate": "Réactiver le dossier",
+      "suspendTitle": "Suspendre ce dossier de foyer",
+      "reactivateTitle": "Réactiver ce dossier de foyer",
+      "reason": "Motif",
+      "cancel": "Annuler",
+      "back": "Retour aux foyers",
+      "failed": "Le statut n’a pas pu être modifié. Réessayez.",
+      "suspendSuccess": "Le dossier du foyer a été suspendu.",
+      "reactivateSuccess": "Le dossier du foyer a été réactivé."
+    },
+    "browse": {
+      "filters": "Filtres",
+      "today": "Aujourd'hui",
+      "tomorrow": "Demain",
+      "category": "Catégorie",
+      "store": "Commerce",
+      "allCategories": "Toutes les catégories",
+      "allStores": "Tous les commerces",
+      "foodCategories": "Aliments",
+      "otherCategories": "Autres produits",
+      "noStores": "Les commerces des offres affichées apparaissent ici.",
+      "closeFilter": "Fermer",
+      "countOne": "1 offre · par heure de cueillette",
+      "countMany": "{{count}} offres · par heure de cueillette",
+      "unitLeft": "1 restant",
+      "unitsLeft": "{{count}} restants",
+      "bundleLeft": "1 lot restant",
+      "bundlesLeft": "{{count}} lots restants",
+      "bestBefore": "Meilleur avant {{date}}",
+      "loadMore": "Afficher plus d'offres",
+      "emptyTitle": "Aucune offre pour le moment",
+      "emptyDescription": "De nouvelles offres arrivent chaque jour.",
+      "noMatchTitle": "Aucune offre pour ces filtres",
+      "noMatchDescription": "Essayez un autre jour ou une autre catégorie. De nouvelles offres arrivent chaque jour.",
+      "clearFilters": "Effacer les filtres",
+      "notApprovedTitle": "Les offres seront visibles quand votre dossier sera approuvé",
+      "notApprovedDescription": "L'équipe de B.A.D.R. doit d'abord approuver votre dossier. Son état est sur la page d'accueil.",
+      "fileStatus": "Voir l'état de mon dossier"
+    },
+    "listingDetail": {
+      "bestBefore": "Meilleur avant le {{date}}",
+      "unit": "local {{unit}}",
+      "goneTitle": "Cette offre n'est plus disponible",
+      "goneDescription": "Elle a peut-être été réservée au complet ou sa cueillette est terminée.",
+      "backToListings": "Voir les offres"
+    }
+  },
+  "reservation": {
+    "status": {
+      "reserved": "Réservée",
+      "pickedUp": "Récupérée",
+      "cancelled": "Annulée",
+      "cancelledByStore": "Annulée par le commerce",
+      "noShow": "Absence"
+    },
+    "common": {
+      "confirmPickup": "Confirmer la cueillette",
+      "qrCode": "Code QR",
+      "pickupHistory": "Historique des cueillettes"
+    },
+    "confirmation": {
+      "pickupCode": "Code de cueillette",
+      "title": "Réservation",
+      "pickupWindow": "Plage de cueillette"
+    }
+  },
+  "privacy": {
+    "common": {
+      "privacyPolicy": "Politique de confidentialité",
+      "downloadData": "Télécharger mes données",
+      "requestCorrection": "Demander une correction",
+      "humanReview": "Examen par une personne",
+      "closeAccount": "Fermer mon compte"
+    }
+  },
+  "assistant": {
+    "resources": {
+      "communityResourceAssistant": "Assistant de ressources communautaires",
+      "approvedSource": "Source approuvée"
+    }
+  },
+  "furniture": {
+    "offer": {
+      "furnitureOffer": "Offre de meuble",
+      "donor": "Donateur",
+      "title": "Titre",
+      "furnitureType": "Type de meuble",
+      "description": "Description",
+      "dimensions": "Dimensions (L × P × H, cm)",
+      "condition": "État",
+      "photos": "Photos",
+      "pickupArea": "Secteur (3 premiers caractères du code postal)",
+      "donorName": "Vos coordonnées",
+      "conditionOptions": {
+        "new": "Neuf",
+        "good": "Bon état",
+        "fair": "Acceptable"
+      }
+    }
+  }
+}

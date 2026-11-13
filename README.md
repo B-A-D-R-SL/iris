@@ -101,6 +101,15 @@ PostgreSQL uses port `55433` on the host to avoid conflicts with existing local 
 
 **PostgreSQL is required.** Django does not fall back to SQLite. For manual execution, set `DATABASE_URL` to a PostgreSQL connection string.
 
+### Production settings
+
+WSGI and ASGI default to `iris.settings.production`, which rejects unsafe secret
+keys and non-delivery email backends, enables HTTPS protections, restricts
+API documentation to active Iris admins, and rate-limits DRF requests.
+`manage.py` and Docker Compose continue to select local settings for development.
+See [production configuration and checks](docs/guides/production-settings.md)
+for environment variables, trusted proxy requirements and the HSTS preload decision.
+
 ## Development and Testing
 
 ### Commit hooks
@@ -221,6 +230,8 @@ The SonarQube Cloud job in `.github/workflows/ci.yml` imports backend Cobertura 
 ### Email Testing
 
 Mailpit captures outgoing development emails without delivering them to real recipients.
+The Compose `worker` service processes Procrastinate jobs, including household
+status notices, so SMTP work never blocks the request that changed the file.
 
 Send a test email:
 

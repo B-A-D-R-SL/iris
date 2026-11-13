@@ -35,9 +35,9 @@ These only shape the interface: **every endpoint must still check permissions on
 ## Theme
 
 Colour tokens come from the Figma
-[Foundations · Iris colour](https://www.figma.com/design/mxXyzEOGl4nuDVdYeoRNPA/Wireframes)
-page (SET-33). Screens use tokens, never shade numbers directly. Applying them in
-`theme.ts` is SET-34; until then the running app still uses the grayscale theme.
+[Foundations · Iris colour](https://www.figma.com/design/mxXyzEOGl4nuDVdYeoRNPA/Wireframes?node-id=249-2)
+page (SET-33; [repository export](../03-design/mockups/Foundations.png)). Screens use tokens, never shade numbers directly. `tokens.ts` copies the exported palettes and semantic/component tokens;
+`theme.ts` applies them through SET-34.
 
 | Token | Used for | Hex | Mantine colour and shade |
 | --- | --- | --- | --- |
@@ -53,6 +53,9 @@ page (SET-33). Screens use tokens, never shade numbers directly. Applying them i
 | `danger` strong / light | Errors, error borders, destructive buttons / badge and alert background | `#BD250B` / `#FFECE7` | `irisRed.8` / `irisRed.0` |
 | `info` strong / light | Info text and icons / badge and alert background | `#0070B2` / `#E5F9FF` | `irisBlue.9` / `irisBlue.0` |
 
+Neutral strong/light tokens are specified in the component-token table under
+[Colour in code](#colour-in-code-set-34).
+
 **Status colours** (strong shade for icon, text and border; light shade for badge and alert background):
 
 | Record | Status and tone |
@@ -64,12 +67,70 @@ page (SET-33). Screens use tokens, never shade numbers directly. Applying them i
 | Store, category | Active: success · Deactivated or inactive: neutral |
 | Pickup scan result | Confirmed: success · Late pickup: warning · Unknown code, other store, already picked up, cancelled: danger |
 
-**Rules:** colour is never the only signal (every status keeps its icon and label; links stay underlined); one filled `primary` button per screen; `danger` only for destructive actions and blocking errors.
+**Rules:** colour is never the only signal (every status keeps its label and each non-neutral tone keeps its icon; links stay underlined); one filled `primary` button per screen; `danger` for destructive actions, blocking errors and statuses assigned danger in the map.
 
 Buttons are 48 px and inputs 44 px with 16 px text (touch targets, no iOS zoom). Use Mantine
 components with their defaults; pass `size="sm"` only for compact controls. Icons come from
 `@tabler/icons-react` (the wireframes use the same set). One filled `Button` per screen (main
 action), `variant="outline"` for secondary, `variant="subtle"` for tertiary.
+
+### Colour in code (SET-34)
+
+`frontend/src/app/tokens.ts` owns all colour values and the stable application palettes:
+`iris`, `success`, `warning`, `danger` and `info`. The theme registers them and exposes
+semantic aliases through `--iris-*` variables. Use `c="dimmed"` for secondary text,
+`<StatusBadge record="household" status={household.status} />` for record statuses and
+`<Notice type="error">` for messages. Use `FieldError` for inline errors. Never put a
+hex value, named colour or numbered grey in a component or CSS module.
+
+The seven original Foundations palettes (`irisGreen`, `irisNavy`, `irisSand`,
+`irisSlate`, `irisOrange`, `irisRed`, `irisBlue`) are registered alongside the stable
+application aliases. `iris` and `success` both use `irisGreen`; `warning`, `danger`,
+`info` and `neutral` use orange, red, blue and sand respectively. Mantine's internal
+`gray` defaults also use the warm sand scale. Shade numbers occur
+only in `tokens.ts`; application code uses semantic names and CSS variables.
+
+Foundations' component-token note supplies the values missing from its main table:
+
+| Token | Value | Source / use |
+| --- | --- | --- |
+| `input-border` | `#968A81` | irisSand.5; interactive input boundaries, including on raised surfaces |
+| `text-placeholder` | `#627482` | irisSlate.7; placeholders on white input backgrounds |
+| `neutral` strong / light | `#013751` / `#EEE6E0` | body text / neutral-badge background; neutral has no icon |
+| `primary-light` | `#DEF3E0` | irisGreen.1; selected navigation background, with navy text |
+| `primary-hover` / `primary-pressed` | `#1D6824` / `#17561D` | darker primary-button states from Foundations |
+| `warning-border` | `#F98A0F` | irisOrange.6; decorative warning alert border |
+
+`border` is decorative (cards/dividers), and is intentionally exempt from the control
+contrast threshold. Use `--iris-input-border` for controls, never `--iris-border`.
+`--mantine-color-dimmed` uses `text-muted`; `--mantine-color-placeholder` uses the
+explicit Foundations component token `text-placeholder`. The contrast tests cover
+both text backgrounds, the four status pairs, neutral/selected states, filled-button
+states, placeholders on white inputs, input borders on both surfaces and focus rings.
+No placeholder palettes or temporary neutral success/warning fallbacks remain.
+
+Interaction tokens extend (and do not change) the 70 Foundations swatches. Filled
+success uses the published primary hover; danger uses red.9. Warning, info and neutral
+already use their darkest palette shade, so their filled hover is a 15% black mix
+(`#934C00`, `#005F97`, `#012F45`). Light hover uses the next stronger tint (green.2,
+orange.1, red.1, blue.1, sand.2) with the corresponding darker hover text to preserve
+4.5:1 contrast. Default controls use sand.1 on hover over sand.0. These additional
+component states are implementation choices for hover feedback, not new SET-33 swatches.
+
+Household and category status wording lives only under `shared.status`, including
+search results and the category administration table. Search response validation uses
+`statusTones.household`, not a second translation map.
+
+`statusTones.ts` is the single status-to-tone map copied from #651. Household and listing
+statuses use the current generated API enums; reservation and partner application enums
+must be adopted when their endpoints expose them. The `partnerApplication` record name
+uses the translation namespace convention. Labels use `shared.status.<record>.<status>`
+in both languages, keeping backend snake_case status codes verbatim. Unknown statuses
+show the raw value in a neutral badge and log only the record and status.
+
+Check every built screen at 360 px (staff also at 1024 px) against the SET-33 exports.
+Obtain the required teammate review and CI checks before merging; post the badge usage
+line to the team chat after merge.
 
 ## Forms
 
@@ -122,8 +183,10 @@ Say plainly why something is empty and what to do next; never show technical det
 ## Translations
 
 Every visible text goes through `t("area.screen.element")`, with the French and the English
-value added to `src/shared/i18n/fr.json` and `en.json` (the test fails if a key is missing in
-one of them). Shared keys live under `app.*` (shell) and `shared.*` (fields, states).
+value added to matching area files under `src/shared/i18n/fr/` and `en/`.
+The tests check every file for matching keys and empty strings. Shared keys live
+in `common.json` under `app.*` (shell) and `shared.*` (fields, states).
+See [the glossary](../01-project/glossary.md#translation-keys) for the file map.
 
 ## Tests
 

@@ -8,6 +8,9 @@ from django.db import models
 from django.db.models.functions import Lower
 from django.utils.translation import gettext_lazy as _
 
+from modules.accounts.queries import STORE_ROLES
+from modules.accounts.roles import UserRole
+
 
 class UserManager(BaseUserManager["User"]):
     def get_by_natural_key(self, email: str | None) -> "User":
@@ -35,12 +38,7 @@ class UserManager(BaseUserManager["User"]):
 
 
 class User(AbstractUser):
-    class Role(models.TextChoices):
-        BENEFICIARY = "beneficiary"
-        STORE_STAFF = "store_staff"
-        STORE_MANAGER = "store_manager"
-        INTAKE_WORKER = "intake_worker"
-        ADMIN = "admin"
+    Role = UserRole
 
     username = None  # type: ignore[assignment]
     date_joined = None  # type: ignore[assignment]
@@ -70,7 +68,7 @@ class User(AbstractUser):
             ),
             models.CheckConstraint(
                 condition=models.Q(store__isnull=False)
-                | ~models.Q(role__in=["store_staff", "store_manager"]),
+                | ~models.Q(role__in=list(STORE_ROLES)),
                 name="accounts_user_store_required_for_store_roles",
             ),
         ]
@@ -110,7 +108,7 @@ class Invitation(models.Model):
         constraints = [  # noqa: RUF012 - Django model metadata.
             models.CheckConstraint(
                 condition=models.Q(store__isnull=False)
-                | ~models.Q(role__in=["store_staff", "store_manager"]),
+                | ~models.Q(role__in=list(STORE_ROLES)),
                 name="accounts_invitation_store_required_for_store_roles",
             ),
         ]

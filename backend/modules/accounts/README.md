@@ -23,9 +23,15 @@ Own the accounts feature boundary within the Iris modular monolith.
 The module owns `User` and `Invitation`, serves the authenticated `GET /api/me/`
 endpoint, and enforces browser sign-in limits through its allauth adapter.
 Public signup remains closed until US-02 adds email verification.
+Only the browser headless client is enabled; `/api/auth/app/v1/` routes return 404.
 The `AuthCache` stores failed-attempt counters in PostgreSQL so workers share
 the five-attempt, 15-minute lockout. The Django admin uses
 `RateLimitedAdminAuthenticationForm` and shares that limit with browser sign-in.
+
+`queries.STORE_ROLES` and `queries.STAFF_ROLES` expose immutable groups from
+`User.Role`. `queries.is_admin(user)` checks an active, authenticated admin.
+The role enum lives in `roles.py` so model constraints can use these groups
+without a circular import; `User.Role` remains the same public interface.
 
 Invitation services:
 
@@ -94,7 +100,9 @@ approval and household linking remain in US-05, US-06, US-13 and US-18.
 
 ## Audit events
 
-Authentication logs `sign_in_failed` and `sign_in_rate_limited` without account
+Authentication logs `sign_in_succeeded` and `signed_out` with only the user UUID
+as account data, for both browser and admin sessions. Anonymous sign-out emits
+no account event. `sign_in_failed` and `sign_in_rate_limited` have no account
 identifiers. Invitation services emit `invitation_created` and
 `invitation_accepted` only after transaction commit, without recipient details,
 account identifiers, tokens or passwords. Document later business audit events

@@ -75,14 +75,43 @@ export interface paths {
     post: operations["staff_households_create"];
   };
   "/api/staff/households/{id}/": {
-    /** Resume an existing walk-in household draft */
+    /** View a household file (staff) */
     get: operations["staff_households_retrieve"];
     /** Edit an existing walk-in household draft */
     patch: operations["staff_households_partial_update"];
   };
+  "/api/staff/households/{id}/reactivate/": {
+    /** Reactivate a household file (administrator) */
+    post: operations["staff_households_reactivate_create"];
+  };
   "/api/staff/households/{id}/submit/": {
     /** Submit a walk-in draft and check for duplicates */
     post: operations["staff_households_submit_create"];
+  };
+  "/api/staff/households/{id}/suspend/": {
+    /** Suspend a household file (administrator) */
+    post: operations["staff_households_suspend_create"];
+  };
+  "/api/staff/partner-applications/": {
+    /**
+     * List partner applications (admin only)
+     * @description Oldest first. Filter with `status`; without it, all statuses.
+     */
+    get: operations["staff_partner_applications_list"];
+  };
+  "/api/staff/partner-applications/{id}/approve/": {
+    /**
+     * Approve a partner application (admin only)
+     * @description Creates the store and a store-manager invitation in one transaction, records the decision in the audit log, then emails the invitation.
+     */
+    post: operations["staff_partner_applications_approve"];
+  };
+  "/api/staff/partner-applications/{id}/reject/": {
+    /**
+     * Reject a partner application (admin only)
+     * @description Requires a reason of at most 500 characters. Records the decision in the audit log, then emails the reason to the applicant.
+     */
+    post: operations["staff_partner_applications_reject"];
   };
   "/api/store/listings/": {
     /** Post a listing for the signed-in user's active store */
@@ -94,6 +123,20 @@ export interface paths {
      * @description Categories for the posting form; banned ones (US-34) are left out.
      */
     get: operations["store_listings_categories_list"];
+  };
+  "/api/store/pickups/{id}/confirm/": {
+    /**
+     * Mark a reservation at the signed-in staff member's store picked up
+     * @description One tap: record who confirmed and when, exactly once.
+     */
+    post: operations["store_pickups_confirm"];
+  };
+  "/api/store/pickups/lookup/": {
+    /**
+     * Find a reservation at the signed-in staff member's store by its code
+     * @description Show who and what before confirming; changes nothing.
+     */
+    post: operations["store_pickups_lookup"];
   };
 }
 
@@ -109,9 +152,12 @@ export interface components {
     /**
      * @description * `view` - View
      * * `decision` - Decision
+     * * `rule_published` - Rule Published
+     * * `suspend` - Suspend
+     * * `reactivate` - Reactivate
      * @enum {string}
      */
-    ActionEnum: "view" | "decision";
+    ActionEnum: "view" | "decision" | "rule_published" | "suspend" | "reactivate";
     AddressInput: {
       city: string;
       postal_code: string;
@@ -221,8 +267,10 @@ export interface components {
       };
       message: string;
     };
-    /** @description Expose minimal household fields and the server-authorized resume action. */
+    /** @description Expose minimal fields and server-authorized resume and open actions. */
     HouseholdSearchResult: {
+      /** @description Fail closed when serialization has no authenticated request context. */
+      can_open: boolean;
       /** @description Fail closed when serialization has no authenticated request context. */
       can_resume: boolean;
       channel: components["schemas"]["ChannelEnum"];
@@ -240,6 +288,19 @@ export interface components {
       street_name: string;
       street_number: string;
       unit: string;
+    };
+    /** @description Accept a reason whose policy limits are enforced by the service. */
+    HouseholdStatusInput: {
+      reason: string;
+    };
+    /** @description Return the status fields changed by a suspension action. */
+    HouseholdStatusRead: {
+      /** Format: date-time */
+      expires_at: string | null;
+      /** Format: uuid */
+      id: string;
+      status: components["schemas"]["WalkInDraftReadStatusEnum"];
+      status_reason: string;
     };
     /** @description Confirm completion without returning credentials or account information. */
     InvitationAccepted: {
@@ -266,6 +327,8 @@ export interface components {
       category: string;
       /** Format: uuid */
       id: string;
+      /** @description Read-only photo link that expires within five minutes; null when no photo is available or photo storage is unavailable. */
+      photo_url: string | null;
       /** Format: date-time */
       pickup_end: string;
       /** Format: date-time */
@@ -412,6 +475,21 @@ export interface components {
       previous?: string | null;
       results: components["schemas"]["ListingCard"][];
     };
+    PaginatedStaffPartnerApplicationList: {
+      /** @example 123 */
+      count: number;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=4
+       */
+      next?: string | null;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=2
+       */
+      previous?: string | null;
+      results: components["schemas"]["StaffPartnerApplication"][];
+    };
     /** @description Submitted partner form; field rules from forms-and-fields.md. */
     PartnerApplication: {
       business_name: string;
@@ -465,6 +543,47 @@ export interface components {
       identity_checked_in_person?: boolean;
       members?: components["schemas"]["MemberInput"][];
     };
+    /** @description First name and last initial only; no phone, email or address. */
+    Pickup: {
+      alternate: string | null;
+      holder: string | null;
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      picked_up_at: string | null;
+      pickup_code: string;
+      /** Format: date-time */
+      pickup_end: string;
+      /** Format: date-time */
+      pickup_start: string;
+      quantity: number;
+      status: components["schemas"]["PickupStatusEnum"];
+      title: string;
+      unit: string;
+    };
+    /** @description The shared ``{code, message, fields}`` error, plus the first pickup time. */
+    PickupError: {
+      code: string;
+      fields: {
+        [key: string]: string[];
+      };
+      message: string;
+      /** Format: date-time */
+      picked_up_at?: string | null;
+    };
+    /** @description A typed or scanned pickup code; spaces and lowercase are accepted. */
+    PickupLookup: {
+      code: string;
+    };
+    /**
+     * @description * `reserved` - Reserved
+     * * `picked_up` - Picked up
+     * * `cancelled` - Cancelled
+     * * `cancelled_by_store` - Cancelled by store
+     * * `no_show` - No-show
+     * @enum {string}
+     */
+    PickupStatusEnum: "reserved" | "picked_up" | "cancelled" | "cancelled_by_store" | "no_show";
     PostedListing: {
       /** Format: date */
       best_before: string | null;
@@ -518,6 +637,10 @@ export interface components {
      * @enum {string}
      */
     ProvinceEnum: "QC";
+    /** @description Rejection body; the service checks the length and blank reasons. */
+    RejectApplication: {
+      reason: string;
+    };
     /**
      * @description * `beneficiary` - Beneficiary
      * * `store_staff` - Store Staff
@@ -543,6 +666,74 @@ export interface components {
       name_en: string;
       name_fr: string;
     };
+    /** @description An application as the admin reviews it (US-13). */
+    StaffPartnerApplication: {
+      /** Nom de l’entreprise */
+      business_name: string;
+      /** Type d’entreprise */
+      business_type: components["schemas"]["BusinessTypeEnum"];
+      /** @description Expose the service's decision rule; an absent request denies availability. */
+      can_decide: boolean;
+      /** Ville */
+      city: string;
+      /**
+       * Courriel
+       * Format: email
+       */
+      contact_email: string;
+      /** Prénom */
+      contact_first_name: string;
+      /** Nom de famille */
+      contact_last_name: string;
+      /** Téléphone */
+      contact_phone: string;
+      /** Fonction */
+      contact_role: string | null;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      decided_at: string | null;
+      /** Motif de la décision */
+      decision_reason: string | null;
+      /** Fréquence prévue des dons */
+      expected_frequency: components["schemas"]["ExpectedFrequencyEnum"];
+      /** Types de produits offerts */
+      goods_categories: readonly string[];
+      /** Format: uuid */
+      id: string;
+      /** Langue */
+      language: components["schemas"]["LanguageEnum"];
+      message: string | null;
+      /** Numéro d’entreprise du Québec (NEQ) */
+      neq: string | null;
+      /** Heures d’ouverture */
+      opening_hours: string;
+      /** Code postal */
+      postal_code: string;
+      /**
+       * Statut
+       * @default submitted
+       */
+      status: components["schemas"]["StaffPartnerApplicationStatusEnum"];
+      /** Rue */
+      street_name: string;
+      /** Numéro civique */
+      street_number: string;
+      /** App. */
+      unit: string | null;
+      /**
+       * Site Web
+       * Format: uri
+       */
+      website: string | null;
+    };
+    /**
+     * @description * `submitted` - Soumise
+     * * `approved` - Approuvée
+     * * `rejected` - Refusée
+     * @enum {string}
+     */
+    StaffPartnerApplicationStatusEnum: "submitted" | "approved" | "rejected";
     StoreAddress: {
       city: string;
       postal_code: string;
@@ -572,6 +763,8 @@ export interface components {
       members?: components["schemas"]["MemberInput"][];
     };
     WalkInDraftRead: {
+      /** @description Return only actions currently authorized for the requesting user. */
+      allowed_actions: readonly string[];
       channel: components["schemas"]["ChannelEnum"];
       city: string;
       /** Format: date-time */
@@ -580,17 +773,23 @@ export interface components {
       /** Format: date-time */
       created_at: string;
       /** Format: email */
-      created_by_email: string;
+      created_by_email: string | null;
       /** Format: email */
       email: string | null;
+      /** Format: date-time */
+      expires_at: string | null;
       /** Format: uuid */
       id: string;
       identity_checked_in_person: boolean;
+      member_number: string | null;
       members: readonly components["schemas"]["MemberRead"][];
       phone: string;
       postal_code: string;
       preferred_language: components["schemas"]["LanguageEnum"];
+      /** @description Expose the active server limit used by status-action forms. */
+      reason_max_length: number;
       status: components["schemas"]["WalkInDraftReadStatusEnum"];
+      status_reason: string;
       street_name: string;
       street_number: string;
       unit: string;
@@ -1000,7 +1199,7 @@ export interface operations {
       };
     };
   };
-  /** Resume an existing walk-in household draft */
+  /** View a household file (staff) */
   staff_households_retrieve: {
     parameters: {
       path: {
@@ -1042,6 +1241,43 @@ export interface operations {
       };
     };
   };
+  /** Reactivate a household file (administrator) */
+  staff_households_reactivate_create: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["HouseholdStatusInput"];
+        "application/x-www-form-urlencoded": components["schemas"]["HouseholdStatusInput"];
+        "multipart/form-data": components["schemas"]["HouseholdStatusInput"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["HouseholdStatusRead"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+    };
+  };
   /** Submit a walk-in draft and check for duplicates */
   staff_households_submit_create: {
     parameters: {
@@ -1058,6 +1294,169 @@ export interface operations {
       503: {
         content: {
           "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+    };
+  };
+  /** Suspend a household file (administrator) */
+  staff_households_suspend_create: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["HouseholdStatusInput"];
+        "application/x-www-form-urlencoded": components["schemas"]["HouseholdStatusInput"];
+        "multipart/form-data": components["schemas"]["HouseholdStatusInput"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["HouseholdStatusRead"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+    };
+  };
+  /**
+   * List partner applications (admin only)
+   * @description Oldest first. Filter with `status`; without it, all statuses.
+   */
+  staff_partner_applications_list: {
+    parameters: {
+      query?: {
+        /** @description Un numéro de page de l'ensemble des résultats. */
+        page?: number;
+        /** @description Nombre de résultats à retourner par page. */
+        page_size?: number;
+        /** @description Only applications with this status */
+        status?: "approved" | "rejected" | "submitted";
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PaginatedStaffPartnerApplicationList"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      409: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Approve a partner application (admin only)
+   * @description Creates the store and a store-manager invitation in one transaction, records the decision in the audit log, then emails the invitation.
+   */
+  staff_partner_applications_approve: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["StaffPartnerApplication"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      409: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Reject a partner application (admin only)
+   * @description Requires a reason of at most 500 characters. Records the decision in the audit log, then emails the reason to the applicant.
+   */
+  staff_partner_applications_reject: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RejectApplication"];
+        "application/x-www-form-urlencoded": components["schemas"]["RejectApplication"];
+        "multipart/form-data": components["schemas"]["RejectApplication"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["StaffPartnerApplication"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      409: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
         };
       };
     };
@@ -1113,6 +1512,94 @@ export interface operations {
       503: {
         content: {
           "application/json": components["schemas"]["PostingError"];
+        };
+      };
+    };
+  };
+  /**
+   * Mark a reservation at the signed-in staff member's store picked up
+   * @description One tap: record who confirmed and when, exactly once.
+   */
+  store_pickups_confirm: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["Pickup"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["PickupError"];
+        };
+      };
+      401: {
+        content: {
+          "application/json": components["schemas"]["PickupError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["PickupError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["PickupError"];
+        };
+      };
+      409: {
+        content: {
+          "application/json": components["schemas"]["PickupError"];
+        };
+      };
+    };
+  };
+  /**
+   * Find a reservation at the signed-in staff member's store by its code
+   * @description Show who and what before confirming; changes nothing.
+   */
+  store_pickups_lookup: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PickupLookup"];
+        "application/x-www-form-urlencoded": components["schemas"]["PickupLookup"];
+        "multipart/form-data": components["schemas"]["PickupLookup"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["Pickup"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["PickupError"];
+        };
+      };
+      401: {
+        content: {
+          "application/json": components["schemas"]["PickupError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["PickupError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["PickupError"];
+        };
+      };
+      409: {
+        content: {
+          "application/json": components["schemas"]["PickupError"];
         };
       };
     };
