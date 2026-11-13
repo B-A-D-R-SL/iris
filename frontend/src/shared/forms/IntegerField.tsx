@@ -13,44 +13,59 @@ export interface IntegerFieldProps extends BaseFieldProps {
   max?: number;
 }
 
+interface StepButtonProps {
+  delta: -1 | 1;
+  /** The field's label, read out with the button: "Diminuer (Quantité)". */
+  label: string;
+  disabled: boolean;
+  onStep: (delta: -1 | 1) => void;
+}
+
+/** The large − or + button, 44 px for a thumb. */
+function StepButton({ delta, label, disabled, onStep }: StepButtonProps) {
+  const { t } = useTranslation();
+  const Icon = delta < 0 ? IconMinus : IconPlus;
+  return (
+    <ActionIcon
+      variant="default"
+      size={44}
+      aria-label={t(delta < 0 ? "shared.integerField.decrease" : "shared.integerField.increase", {
+        label,
+      })}
+      disabled={disabled}
+      onClick={() => onStep(delta)}
+    >
+      <Icon size={20} stroke={2} aria-hidden />
+    </ActionIcon>
+  );
+}
+
 /**
  * A whole number with large − and + buttons, usable with one thumb
  * (forms-and-fields.md, type `integer`). Typing works too.
  */
 export function IntegerField(props: IntegerFieldProps) {
   const { value = "", onChange, min, max } = props;
-  const { t } = useTranslation();
-  const wrapper = useFieldWrapper(props);
   const current = value === "" ? null : Number(value);
   const step = (delta: number) => {
     const next = current === null || Number.isNaN(current) ? (min ?? 0) : current + delta;
     onChange(Math.min(max ?? Infinity, Math.max(min ?? -Infinity, next)));
   };
+  const atLimit = (delta: -1 | 1) =>
+    current !== null &&
+    (delta < 0 ? min !== undefined && current <= min : max !== undefined && current >= max);
   const button = (delta: -1 | 1) => (
-    <ActionIcon
-      variant="default"
-      size={44}
-      aria-label={t(delta < 0 ? "shared.integerField.decrease" : "shared.integerField.increase", {
-        label: props.label,
-      })}
-      disabled={
-        props.disabled ||
-        (current !== null &&
-          (delta < 0 ? min !== undefined && current <= min : max !== undefined && current >= max))
-      }
-      onClick={() => step(delta)}
-    >
-      {delta < 0 ? (
-        <IconMinus size={20} stroke={2} aria-hidden />
-      ) : (
-        <IconPlus size={20} stroke={2} aria-hidden />
-      )}
-    </ActionIcon>
+    <StepButton
+      delta={delta}
+      label={props.label}
+      disabled={Boolean(props.disabled) || atLimit(delta)}
+      onStep={step}
+    />
   );
 
   return (
     <NumberInput
-      {...wrapper}
+      {...useFieldWrapper(props)}
       value={value}
       onChange={onChange}
       min={min}
@@ -66,11 +81,6 @@ export function IntegerField(props: IntegerFieldProps) {
       leftSectionPointerEvents="all"
       rightSectionPointerEvents="all"
       styles={{ input: { textAlign: "center" } }}
-      disabled={props.disabled}
-      name={props.name}
-      id={props.id}
-      onBlur={props.onBlur}
-      onFocus={props.onFocus}
     />
   );
 }

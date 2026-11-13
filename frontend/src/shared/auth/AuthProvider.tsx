@@ -3,11 +3,7 @@ import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useEffect, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import {
-  CURRENT_USER_QUERY_KEY,
-  fetchCurrentUser,
-  useCurrentUser,
-} from "../../features/accounts/currentUser";
+import { CURRENT_USER_QUERY_KEY, fetchCurrentUser, useCurrentUser } from "./currentUser";
 import { logger } from "../logger";
 import { AuthError, loginWithCode, loginWithPassword, logout } from "./api";
 import { AuthContext, type AuthContextValue } from "./authContext";

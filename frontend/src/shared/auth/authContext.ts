@@ -1,7 +1,7 @@
 // AI contribution: 50% or more AI-generated
 import { createContext, useContext } from "react";
 
-import type { CurrentUser } from "../../features/accounts/currentUser";
+import type { CurrentUser } from "./currentUser";
 
 export interface AuthContextValue {
   user: CurrentUser | null | undefined;
