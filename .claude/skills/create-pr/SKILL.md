@@ -63,8 +63,10 @@ One AskUserQuestion call, with only the questions that apply:
    that look like parents of the current one. Do not guess.
 2. **Uncommitted changes** (only if tracked files are modified or staged), header "Changes":
    "`<n>` tracked files have uncommitted changes (`<first few paths>`). What should happen to them?"
-   - **Commit them into this PR**: "Committed with a subject that passes the commit-msg hook
-     (`<ID> <type>(<scope>): <summary>`), before the merge."
+   - **Commit them into this PR**: "Split into logical commits (one per task or area, tests
+     with the code they cover), each with a subject that passes the commit-msg hook. You see
+     the planned commits and approve them in the next round of questions, before anything is
+     committed."
    - **Stash them, restore at the end**: "Left out of the PR and the tests; put back after the PR is opened."
    - **Stop**: "End the skill so you can deal with them yourself."
 3. **Tests**, header "Tests": "Which tests should run before pushing and opening the PR?"
@@ -108,6 +110,32 @@ git diff --name-status origin/<target>...HEAD
 - whether code changed with **no test change** (`pr_policy.needs_tests` / `is_test`).
 
 Include uncommitted changes the developer chose to commit in all of these.
+
+### Plan the commits
+
+Only if the developer chose **Commit them into this PR** in step 2. List the tracked changes
+(`git status --porcelain`, `git diff --stat`, `git diff --cached --stat`) and read the diffs,
+then group the files into logical commits:
+
+- **One commit per task or area.** Files that serve the same change go together; unrelated
+  changes (a fix in one module, docs for another) go in separate commits.
+- **Tests go in the same commit as the code they cover**, never in a commit of their own when
+  that code is also in this plan. Test-only changes for code already committed get their own
+  `test(...)` commit.
+- **ID per commit**: the task ID when the change clearly belongs to one task. Match the
+  module and files with the branch's existing commits for that task
+  (`git log --format=%s origin/<target>..HEAD -- <path>`) and the story's sub-issues. If no
+  task matches with certainty, use the PR's ID (the story, `SET-`, `FIX-`...).
+- **Type and scope** from what changed: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`;
+  the scope is the module or area (`reservations`, `household`, `skills`).
+- **Subject**: `<ID> <type>(<scope>): <summary>`, lower-case summary, imperative, no full
+  stop, as the commit-msg hook (`.githooks/commit-msg`) requires.
+- **Order**: commits that others depend on first (model before service before API before
+  screen); docs last.
+- A file with changes for two different commits is rare. Put it in the commit it mostly
+  belongs to and say so in the plan; never split hunks.
+
+If everything is one small change, the plan is a single commit; that is fine.
 
 ### Find the issues
 
@@ -159,14 +187,40 @@ apply, ask the rest in a second call straight after.
 5. **No tests** (if code changed and no test did), header "No tests": "Code changed but no
    test file did. Which reason goes on the `No tests:` line?" Offer likely reasons (e.g.
    "refactor only, existing tests cover it", "configuration only"); Other for a custom one.
+6. **Commits** (only if the developer chose to commit uncommitted changes), header "Commits":
+   "I'll commit your uncommitted changes as these `<n>` commits, in this order. OK?"
+   Put the whole plan in the first option's `preview` (each subject, then its files), e.g.:
+
+   ```
+   1. T-06.41.3 fix(reservations): refuse reserving on an expired listing
+        backend/modules/reservations/services.py
+        backend/modules/reservations/tests/test_reserve_service.py
+   2. US-41 docs(reservations): document the expired-listing refusal
+        backend/modules/reservations/README.md
+   ```
+
+   - **Use these commits (Recommended)**: "Committed as shown, before the merge."
+   - **One commit for everything**: "A single commit with the first subject's ID and the most
+     common type." Show that subject in its `preview`.
+   - The developer can type changes with Other (e.g. "merge 2 into 1", "use T-06.41.4 for 1");
+     apply them without asking again unless they are unclear.
 
 From here, do not ask anything else unless "When to stop anyway" applies.
 
 ## 4. Uncommitted changes
 
-- **Commit**: stage the tracked changes (`git add -u`, never untracked files) and commit with a
-  valid subject (`<ID> <type>(<scope>): <summary>`, type chosen from what changed). Test files go
-  in the same commit as the code they cover.
+- **Commit**: follow the plan the developer approved in step 3, one commit at a time, in order:
+
+  ```sh
+  git add -- <the files of this commit>      # only tracked files; never git add -A or git add .
+  git commit -m "<subject>"
+  ```
+
+  End each message with the attribution lines your tool requires, if any. If something was
+  already staged before the skill started, unstage it first (`git restore --staged .`) so
+  each commit holds exactly its planned files. After the last commit, `git status --porcelain`
+  must show no tracked changes; if one is left, stop and ask. If the commit-msg hook refuses a
+  subject, fix the subject (not the hook) and commit again.
 - **Stash**: `git stash push -m "create-pr: <branch>"` (tracked changes only). Restore it in step 11.
 
 Untracked files stay where they are and are not part of the PR; mention them in the report.
