@@ -247,11 +247,13 @@ Approved files with email call the US-04 invitation service from `main`; existin
 accounts are refused under its new-account-only policy and roll back approval.
 Acceptance creates the account but does not yet link it to the household.
 
-The French or English set-password email is sent through the mailer adapter only
-after commit, using `FRONTEND_URL` and `/invitation/:token`. No email is sent on
-rollback, rejection or review. Delivery failure is logged without recipient,
-token or provider details and cannot undo approval. Durable retries and a resend
-workflow remain for the notifications owner.
+The French or English set-password email uses US-57's `walk_in_set_password`
+template through `notifications.services.queue_set_password_email`, which calls
+the shared queued `send` service. The link is `PUBLIC_APP_ORIGIN` plus
+`/invitation/:token`. The job is queued only after commit, so no email is sent on
+rollback, rejection or review. Configuration or delivery failure is recorded in
+`EmailLog` without the token and cannot undo approval; retries follow the
+`notifications` RuleSet. A staff resend workflow remains unimplemented.
 
 ## Staff search (US-63, #553 and #554)
 
@@ -295,3 +297,20 @@ cancels every reserved reservation without a late-cancellation strike and return
 the units to its listing in the same transaction. Both actions are audited with
 the reason. A localized holder email is queued after commit; counter-only files
 without email still change status.
+
+The suspension/reactivation email includes the same normalized, privacy-validated
+reason recorded by this workflow, preserving US-32's existing behavior. Household
+`_status_reason` remains authoritative: it normalizes whitespace, applies the
+active `household_suspension.reason_max_length` (default 500; schema maximum
+2,000), and refuses personal, identity, document or financial details before
+audit or queueing. Model validation still limits a suspended file's stored
+`status_reason` to 500 characters; the larger RuleSet ceiling does not change
+that column. Reactivation clears the stored status reason and can carry a longer
+validated email/audit reason when permitted by the active rule. The notification
+template captures the accepted text up to
+the schema ceiling rather than reapplying a later RuleSet version. Plain text
+preserves the captured reason and HTML escapes it once. EmailLog and stdout do
+not retain it. This decision is recorded in the US-57 PR #697 review follow-up.
+Known-template email validation/configuration failures become failed delivery
+records and do not undo a valid suspension/reactivation. The household's own
+reason, privacy and authorization checks still refuse invalid business actions.

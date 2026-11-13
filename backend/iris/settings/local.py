@@ -15,7 +15,6 @@ DEBUG = not _tunnel_hosts
 ALLOWED_HOSTS += _tunnel_hosts
 CSRF_TRUSTED_ORIGINS += env.list("IRIS_TUNNEL_ORIGINS", default=[])
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@iris.local")
-FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5174")
 
 # Expose Iris's development-only management commands in local settings.
 INSTALLED_APPS = [*INSTALLED_APPS, "iris"]

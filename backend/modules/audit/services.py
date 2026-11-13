@@ -41,6 +41,7 @@ RULE_PUBLICATION_TYPES = frozenset(
         "household_size",
         "household_suspension",
         "invitations",
+        "notifications",
         "lico_thresholds",
         "auto_approval",
         "priority",

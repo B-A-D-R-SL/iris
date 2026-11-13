@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}Votre dossier de foyer est approuvé. Connectez-vous à Iris pour voir les prochaines étapes.{% endautoescape %}

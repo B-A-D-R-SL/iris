@@ -85,6 +85,23 @@ describe("US-04 accept an invitation and set a password", () => {
     expect(screen.getByRole("button", { name: /(?:set|create).*password/i })).toBeInTheDocument();
   });
 
+  it("validates both passwords on blur before submitting", async () => {
+    const fetchMock = mockAcceptance();
+    renderInvitation();
+    const user = userEvent.setup();
+    const password = await screen.findByLabelText(/^Mot de passe$/);
+    await user.type(password, "short");
+    const confirmation = screen.getByLabelText(/^Confirmer le mot de passe$/);
+    await user.click(confirmation);
+    expect(await screen.findByText("Utilisez au moins 10 caractères.")).toBeVisible();
+    await user.type(confirmation, "different");
+    await user.tab();
+    expect(
+      await screen.findByText("Entrez le même mot de passe dans les deux champs."),
+    ).toBeVisible();
+    expect(acceptanceCalls(fetchMock)).toHaveLength(0);
+  });
+
   it.each([
     ["missing passwords", "", ""],
     ["a short password", "short", "short"],

@@ -1,9 +1,11 @@
 # AI contribution: 50% or more AI-generated
 """Tests for the ZAP gate (FIX-17). Run: python3 -m unittest discover -s .github/scripts"""
 
+import io
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 
 import zap_gate
@@ -62,6 +64,81 @@ class ZapGateTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             missing = Path(folder, "zap-report.json")
             self.assertEqual(zap_gate.main(missing, Path(folder, "rules.tsv")), 2)
+
+    def test_valid_scanned_site_with_zero_alerts_passes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder, "report.json")
+            path.write_text(json.dumps(report()), encoding="utf-8")
+            rules = Path(folder, "rules.tsv")
+            rules.write_text("", encoding="utf-8")
+            self.assertEqual(zap_gate.main(path, rules), 0)
+
+    def test_malformed_scan_structure_never_passes_as_zero_alerts(self):
+        malformed = [
+            {},
+            [],
+            None,
+            {"site": []},
+            {"site": None},
+            {"site": {}},
+            {"site": [None]},
+            {"site": [{}]},
+            {"site": [{"alerts": None}]},
+            {"site": [{"alerts": {}}]},
+            {"site": [{"alerts": []}, {}]},
+            {"site": [{"alerts": [None]}]},
+            {"site": [{"alerts": [{}]}]},
+            {"site": [{"alerts": [{"pluginid": "40018"}]}]},
+            {"site": [{"alerts": [{"pluginid": "40018", "riskcode": True}]}]},
+            {
+                "site": [
+                    {
+                        "alerts": [
+                            {"pluginid": "40018", "riskcode": "private-invalid-risk"}
+                        ]
+                    }
+                ]
+            },
+        ]
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder, "report.json")
+            rules = Path(folder, "rules.tsv")
+            rules.write_text(RULES, encoding="utf-8")
+            for data in malformed:
+                with self.subTest(data=data), redirect_stderr(io.StringIO()) as errors:
+                    path.write_text(json.dumps(data), encoding="utf-8")
+                    self.assertEqual(zap_gate.main(path, rules), 2)
+                    self.assertIn("::error::", errors.getvalue())
+                    self.assertNotIn("private-invalid-risk", errors.getvalue())
+
+    def test_invalid_json_and_encoding_fail_with_a_safe_error(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder, "report.json")
+            rules = Path(folder, "rules.tsv")
+            rules.write_text(RULES, encoding="utf-8")
+            for payload in (b'{"site": private-invalid-json', b"\xff"):
+                with (
+                    self.subTest(payload=payload),
+                    redirect_stderr(io.StringIO()) as errors,
+                ):
+                    path.write_bytes(payload)
+                    self.assertEqual(zap_gate.main(path, rules), 2)
+                    self.assertNotIn("private-invalid-json", errors.getvalue())
+
+    def test_unreadable_report_or_rules_fail_closed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder, "report.json")
+            path.write_text(json.dumps(report()), encoding="utf-8")
+            rules = Path(folder, "rules.tsv")
+            for report_path, rules_path in (
+                (Path(folder), rules),
+                (path, rules),
+            ):
+                with self.subTest(report=report_path), redirect_stderr(io.StringIO()):
+                    self.assertEqual(zap_gate.main(report_path, rules_path), 2)
+            rules.write_bytes(b"\xff")
+            with redirect_stderr(io.StringIO()):
+                self.assertEqual(zap_gate.main(path, rules), 2)
 
     def test_default_paths_are_inside_the_workspace(self):
         self.assertEqual(zap_gate.REPORT, Path("zap/zap-report.json"))

@@ -21,6 +21,7 @@ RULE_TYPES: Final = (
     "household_size",
     "household_suspension",
     "invitations",
+    "notifications",
     "lico_thresholds",
     "auto_approval",
     "priority",
@@ -53,6 +54,17 @@ RULE_SCHEMAS: Final[dict[str, JSONSchema]] = {
     ),
     "invitations": _object_schema(
         {"expires_after_days": {"type": "integer", "minimum": 1}}
+    ),
+    "notifications": _object_schema(
+        {
+            "retry_delays_seconds": {
+                "type": "array",
+                "items": {"type": "integer", "minimum": 1, "maximum": 86400},
+                "minItems": 3,
+                "maxItems": 3,
+            },
+            "job_retention_hours": {"type": "integer", "minimum": 1, "maximum": 168},
+        }
     ),
     "lico_thresholds": _object_schema(
         {
@@ -207,6 +219,10 @@ DEFAULT_RULE_VALUES: Final[dict[str, dict[str, Any]]] = {
     "household_size": {"max_people": 15},
     "household_suspension": {"reason_max_length": 500},
     "invitations": {"expires_after_days": 7},
+    "notifications": {
+        "retry_delays_seconds": [60, 300, 900],
+        "job_retention_hours": 24,
+    },
     "auto_approval": {
         "accepted_tax_years": [2025],
         "minimum_field_confidence": 0.90,

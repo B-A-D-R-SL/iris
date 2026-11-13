@@ -2,13 +2,20 @@
 """Production settings for Iris."""
 
 import re
+from ipaddress import ip_address
+from urllib.parse import urlsplit
 
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import ImproperlyConfigured, ValidationError
+from django.core.validators import validate_email
 
 from .base import *
 from .base import (
+    AZURE_COMMUNICATION_CONNECTION_STRING,
     DATABASES,
+    DEFAULT_FROM_EMAIL,
+    MAILER_ADAPTER,
     MAILERS,
+    PUBLIC_APP_ORIGIN,
     REST_FRAMEWORK,
     SECRET_KEY,
     SPECTACULAR_SETTINGS,
@@ -44,7 +51,10 @@ ALLAUTH_TRUSTED_PROXY_COUNT = env.int("ALLAUTH_TRUSTED_PROXY_COUNT", default=0)
 if ALLAUTH_TRUSTED_PROXY_COUNT < 0:
     raise ImproperlyConfigured("ALLAUTH_TRUSTED_PROXY_COUNT must be zero or positive.")
 
-if MAILERS["default"]["BACKEND"] in {
+if MAILER_ADAPTER == "fake":
+    raise ImproperlyConfigured("MAILER_ADAPTER must deliver email in production.")
+
+if MAILER_ADAPTER == "smtp" and MAILERS["default"]["BACKEND"] in {
     "django.core.mail.backends.console.EmailBackend",
     "django.core.mail.backends.dummy.EmailBackend",
     "django.core.mail.backends.filebased.EmailBackend",
@@ -53,6 +63,35 @@ if MAILERS["default"]["BACKEND"] in {
     raise ImproperlyConfigured(
         "EMAIL_BACKEND must deliver email in production; console, dummy, file-based "
         "and in-memory backends are forbidden."
+    )
+
+try:
+    validate_email(DEFAULT_FROM_EMAIL)
+except ValidationError:
+    raise ImproperlyConfigured(
+        "DEFAULT_FROM_EMAIL must be a valid sender address in production."
+    ) from None
+if DEFAULT_FROM_EMAIL.rsplit("@", 1)[-1].lower().endswith((".local", ".localhost")):
+    raise ImproperlyConfigured(
+        "DEFAULT_FROM_EMAIL must be a public sender address in production."
+    )
+
+if MAILER_ADAPTER == "azure" and not AZURE_COMMUNICATION_CONNECTION_STRING:
+    raise ImproperlyConfigured(
+        "AZURE_COMMUNICATION_CONNECTION_STRING is required for the Azure mailer."
+    )
+
+_origin = urlsplit(PUBLIC_APP_ORIGIN)
+_origin_host = (_origin.hostname or "").lower().rstrip(".")
+try:
+    _origin_is_local = not ip_address(_origin_host).is_global
+except ValueError:
+    _origin_is_local = "." not in _origin_host or _origin_host.endswith(
+        (".localhost", ".local")
+    )
+if _origin.scheme != "https" or _origin_is_local:
+    raise ImproperlyConfigured(
+        "PUBLIC_APP_ORIGIN must use HTTPS with a nonlocal hostname in production."
     )
 
 SESSION_COOKIE_SECURE = True

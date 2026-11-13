@@ -68,6 +68,9 @@ def test_entrypoint_connection_policy(
         DJANGO_ALLOWED_HOSTS="localhost",
         DATABASE_CONN_MAX_AGE=configured_max_age,
         EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+        MAILER_ADAPTER="smtp",
+        DEFAULT_FROM_EMAIL="noreply@iris.example",
+        PUBLIC_APP_ORIGIN="https://iris.example",
     )
     result = subprocess.run(
         [

@@ -1,5 +1,6 @@
 # AI contribution: 50% or more AI-generated
 from contextlib import ExitStack
+from datetime import UTC, datetime
 
 import pytest
 from django.db import connections, transaction
@@ -57,3 +58,33 @@ def _empty_file_store():
     """Each test starts with no stored files and no cached store."""
     InMemoryFileStore.clear()
     configured_store.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def _reset_test_mailer():
+    """Every test receives a clean in-memory transport, including worker tests."""
+    from adapters.mailer.fake import reset_fake_mailer
+
+    reset_fake_mailer()
+    yield
+    reset_fake_mailer()
+
+
+@pytest.fixture
+def notification_rules(db):
+    """Publish the required policy explicitly for workflows that queue email."""
+    from django.apps import apps
+    from django.contrib.auth import get_user_model
+
+    from modules.rules.domain.schemas import DEFAULT_RULE_VALUES
+
+    publisher = get_user_model().objects.create_user(
+        email="notification-rules@example.test", password=None, role="admin"
+    )
+    return apps.get_model("rules", "RuleSetVersion").objects.create(
+        rule_type="notifications",
+        version=1,
+        values=DEFAULT_RULE_VALUES["notifications"],
+        effective_from=datetime(2000, 1, 1, tzinfo=UTC),
+        created_by=publisher,
+    )

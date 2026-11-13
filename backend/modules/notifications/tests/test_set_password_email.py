@@ -1,86 +1,79 @@
 # AI contribution: 50% or more AI-generated
+"""US-18 walk-in set-password email on US-57's shared queued delivery."""
+
 from typing import Any
-from unittest.mock import Mock
 
 import pytest
-from django.core.exceptions import ValidationError
+from django.db import transaction
 
+from modules.notifications.models import EmailLog
 from modules.notifications.services import queue_set_password_email
+from modules.notifications.tasks import send_email
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("notification_rules")]
+ORIGIN = "https://iris.example.test"
+TOKEN = "A" * 43
+
+
+@pytest.fixture
+def queued(monkeypatch: pytest.MonkeyPatch, settings: Any) -> list[dict[str, Any]]:
+    """Capture post-commit task arguments without running a worker."""
+    settings.PUBLIC_APP_ORIGIN = ORIGIN
+    jobs: list[dict[str, Any]] = []
+    monkeypatch.setattr(send_email, "configure", lambda **kwargs: send_email)
+    monkeypatch.setattr(send_email, "defer", lambda **kwargs: jobs.append(kwargs))
+    return jobs
 
 
 @pytest.mark.parametrize(
-    ("language", "subject"),
-    [
-        ("en", "Set your Iris password"),
-        ("fr", "Créez votre mot de passe Iris"),
-    ],
+    ("language", "saved"), [("en", "en"), ("fr", "fr"), ("", "fr")]
 )
-def test_email_language_and_post_commit_delivery(
+def test_link_is_queued_after_commit_in_the_holder_language(
     language: str,
-    subject: str,
+    saved: str,
+    queued: list[dict[str, Any]],
     django_capture_on_commit_callbacks: Any,
 ) -> None:
-    mailer = Mock()
-    mailer.send.return_value = 1
     with django_capture_on_commit_callbacks(execute=True):
-        queue_set_password_email(
-            email="holder@example.test",
-            token="secret",
-            language=language,
-            mailer=mailer,
+        log = queue_set_password_email(
+            email="holder@example.test", token=TOKEN, language=language
         )
-        mailer.send.assert_not_called()
-    assert mailer.send.call_args.args[1] == subject
-    assert "/invitation/secret" in mailer.send.call_args.kwargs["text"]
+        assert queued == []
+    [job] = queued
+    assert job["email_log_id"] == str(log.pk)
+    assert job["context"] == {"invitation_url": f"{ORIGIN}/invitation/{TOKEN}"}
+    log.refresh_from_db()
+    assert log.template_key == "walk_in_set_password"
+    assert log.language == saved
+    assert log.to_email == "holder@example.test"
+    assert TOKEN not in repr(EmailLog.objects.values().get(pk=log.pk))
 
 
-@pytest.mark.parametrize("failure", [RuntimeError("private@example.test secret"), None])
-def test_delivery_failure_is_private_and_does_not_escape(
-    failure: Exception | None,
-    caplog: Any,
-    django_capture_on_commit_callbacks: Any,
+@pytest.mark.parametrize("origin", [None, "", "https://iris.example.test/path"])
+def test_bad_origin_is_a_failed_log_not_an_error(
+    origin: str | None, settings: Any, queued: list[dict[str, Any]]
 ) -> None:
-    mailer = Mock()
-    mailer.send.side_effect = failure
-    mailer.send.return_value = 0
-    with django_capture_on_commit_callbacks(execute=True):
-        queue_set_password_email(
-            email="private@example.test", token="secret", language="en", mailer=mailer
-        )
-    assert "set_password_email_failed" in caplog.text
-    assert "private@example.test" not in caplog.text
-    assert "secret" not in caplog.text
+    settings.PUBLIC_APP_ORIGIN = origin
+    log = queue_set_password_email(
+        email="holder@example.test", token=TOKEN, language="en"
+    )
+    assert log.status == EmailLog.Status.FAILED
+    assert log.error == "email_configuration_invalid"
+    assert queued == []
 
 
-@pytest.mark.parametrize(
-    "url",
-    [
-        "",
-        "javascript:alert(1)",
-        "https://iris.test/?token=secret",
-        "http://iris.test",
-        "https://user:secret@iris.test",
-    ],
-)
-def test_invalid_frontend_url_is_refused(url: str, settings: Any) -> None:
-    settings.FRONTEND_URL = url
-    with pytest.raises(ValidationError):
-        queue_set_password_email(
-            email="holder@example.test", token="secret", language="en"
-        )
-
-
-@pytest.mark.parametrize("backend", ["console", "filebased"])
-def test_secret_links_cannot_be_sent_to_logging_backends(
-    backend: str, settings: Any, capsys: Any
+def test_rollback_queues_nothing(
+    queued: list[dict[str, Any]], django_capture_on_commit_callbacks: Any
 ) -> None:
-    settings.MAILERS = {
-        "default": {"BACKEND": f"django.core.mail.backends.{backend}.EmailBackend"}
-    }
-    with pytest.raises(ValidationError):
+    with (
+        django_capture_on_commit_callbacks(execute=True) as callbacks,
+        pytest.raises(RuntimeError),
+        transaction.atomic(),
+    ):
         queue_set_password_email(
-            email="holder@example.test", token="secret", language="en"
+            email="holder@example.test", token=TOKEN, language="en"
         )
-    assert "secret" not in capsys.readouterr().out
+        raise RuntimeError("Cancel")
+    assert callbacks == []
+    assert queued == []
+    assert not EmailLog.objects.exists()

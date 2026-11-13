@@ -17,6 +17,7 @@ from django.db import close_old_connections, transaction
 from django.utils import timezone
 from django.utils.translation import gettext
 
+from adapters.mailer.fake import get_fake_mailer
 from modules.accounts import services as account_services
 from modules.accounts.tests.factories import UserFactory
 from modules.audit import services as audit_services
@@ -25,13 +26,17 @@ from modules.households.models import Household
 from modules.households.queries import HouseholdEvidenceUnavailable, eligibility_inputs
 from modules.households.services import approve_walk_in, update_draft
 from modules.households.tests.factories import HouseholdFactory, MemberFactory
+from modules.notifications.models import EmailLog
+from modules.notifications.tasks import send_email
 from modules.rules import queries as rule_queries
 from modules.rules.domain.schemas import DEFAULT_RULE_VALUES
 from modules.rules.services import publish
 from modules.stores.tests.factories import StoreFactory
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("notification_rules")]
 NOW = datetime(2026, 11, 8, 15, tzinfo=UTC)
+# Direct task calls run without a native worker's injected JobContext.
+DIRECT_CONTEXT: Any = None
 
 
 @pytest.fixture(autouse=True)
@@ -370,27 +375,41 @@ def test_missing_rules_fail_closed(
     assert not decisions(household).exists()
 
 
+@pytest.fixture
+def email_jobs(monkeypatch: Any) -> list[dict[str, Any]]:
+    """Capture the post-commit queue arguments without running a worker."""
+    queued: list[dict[str, Any]] = []
+    monkeypatch.setattr(send_email, "configure", lambda **kwargs: send_email)
+    monkeypatch.setattr(send_email, "defer", lambda **kwargs: queued.append(kwargs))
+    return queued
+
+
 def test_email_is_sent_after_commit_and_accepts_invitation(
     household: Any,
     staff: Any,
     settings: Any,
-    mailoutbox: Any,
+    email_jobs: list[dict[str, Any]],
     django_capture_on_commit_callbacks: Any,
 ) -> None:
-    settings.FRONTEND_URL = "https://iris.example.test"
+    settings.PUBLIC_APP_ORIGIN = "https://iris.example.test"
     Household.objects.filter(pk=household.pk).update(
         email="holder@example.test", preferred_language="en"
     )
     with django_capture_on_commit_callbacks(execute=True):
         submit_and_approve(household, staff)
-        assert len(mailoutbox) == 0
+        assert email_jobs == []
         invitation = invitations().get()
         assert invitation.role == "beneficiary"
         assert invitation.invited_by_id == staff.pk
-    message = mailoutbox[0]
-    assert message.to == ["holder@example.test"]
-    assert message.subject == "Set your Iris password"
-    token = message.body.split("/invitation/", 1)[1].strip()
+    [job] = email_jobs
+    send_email(DIRECT_CONTEXT, **job)
+    [message] = get_fake_mailer().sent
+    assert message["to"] == ["holder@example.test"]
+    assert message["subject"] == "Set up your Iris access"
+    log = EmailLog.objects.get(pk=job["email_log_id"])
+    assert (log.template_key, log.status) == ("walk_in_set_password", "sent")
+    token = message["text"].split("/invitation/", 1)[1].strip()
+    assert token not in repr(EmailLog.objects.values().get(pk=log.pk))
     assert sha256(token.encode()).hexdigest() == invitation.token_hash
     assert token not in str(list(invitations().values()))
     user = account_services.accept_invitation(token, "Uncommon-secret-9146!")
@@ -423,7 +442,6 @@ def test_audit_failure_rolls_back_all_writes(
 def test_outer_rollback_sends_no_email(
     household: Any,
     staff: Any,
-    mailoutbox: Any,
     django_capture_on_commit_callbacks: Any,
 ) -> None:
     Household.objects.filter(pk=household.pk).update(email="holder@example.test")
@@ -436,7 +454,7 @@ def test_outer_rollback_sends_no_email(
         approve_walk_in(household, staff)
         raise RuntimeError("Cancel")
     assert callbacks == []
-    assert mailoutbox == []
+    assert not EmailLog.objects.exists()
     assert_unapproved(household, "submitted")
     assert not decisions(household).exists()
     assert not audit_events(household).exists()
@@ -456,7 +474,7 @@ def test_repeated_stale_request_does_not_duplicate_approval(
 def test_simultaneous_approvals_create_one_decision_and_invitation(
     household: Any,
     staff: Any,
-    mailoutbox: Any,
+    email_jobs: list[dict[str, Any]],
 ) -> None:
     Household.objects.filter(pk=household.pk).update(email="holder@example.test")
     submit(household)
@@ -482,7 +500,8 @@ def test_simultaneous_approvals_create_one_decision_and_invitation(
     assert decisions(household).count() == 1
     assert audit_events(household).count() == 1
     assert invitations().count() == 1
-    assert len(mailoutbox) == 1
+    assert EmailLog.objects.filter(template_key="walk_in_set_password").count() == 1
+    assert len(email_jobs) == 1
 
 
 # rule: BR-DUP-002

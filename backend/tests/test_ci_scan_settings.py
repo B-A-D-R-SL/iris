@@ -4,6 +4,7 @@
 import importlib
 import sys
 from collections.abc import Iterator
+from contextlib import contextmanager
 from types import ModuleType
 
 import pytest
@@ -18,6 +19,9 @@ KEYS = [
     "MIDDLEWARE",
     "REST_FRAMEWORK",
     "AUTH_PASSWORD_VALIDATORS",
+    "MAILER_ADAPTER",
+    "DEFAULT_FROM_EMAIL",
+    "PUBLIC_APP_ORIGIN",
 ]
 # Reloaded together so production sees this test's environment, not pytest's.
 MODULES = ("iris.settings.ci_scan", "iris.settings.production", "iris.settings.base")
@@ -31,23 +35,40 @@ def _load(module: str) -> ModuleType:
     return importlib.import_module(module)
 
 
+def _set_ci_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Use the synthetic mail configuration supplied by the workflow."""
+    for key, value in {
+        "DJANGO_SECRET_KEY": SECRET_KEY,
+        "DJANGO_ALLOWED_HOSTS": "localhost",
+        "EMAIL_BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+        "MAILER_ADAPTER": "smtp",
+        "DEFAULT_FROM_EMAIL": "noreply@iris.example.org",
+        "PUBLIC_APP_ORIGIN": "https://iris.example.org",
+    }.items():
+        monkeypatch.setenv(key, value)
+
+
+@contextmanager
+def _isolated_modules() -> Iterator[None]:
+    """Restore pytest's modules even when a startup guard rejects an import."""
+    saved = {name: sys.modules.pop(name, None) for name in MODULES}
+    try:
+        yield
+    finally:
+        for name, module in saved.items():
+            sys.modules.pop(name, None)
+            if module is not None:
+                sys.modules[name] = module
+
+
 @pytest.fixture
 def modules(
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[tuple[ModuleType, ModuleType]]:
     """Production and CI scan settings, loaded with the values CI gives them."""
-    monkeypatch.setenv("DJANGO_SECRET_KEY", SECRET_KEY)
-    monkeypatch.setenv("DJANGO_ALLOWED_HOSTS", "localhost")
-    monkeypatch.setenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
-    saved = {name: sys.modules.pop(name, None) for name in MODULES}
-    production = _load("iris.settings.production")
-    ci_scan = _load("iris.settings.ci_scan")
-    yield production, ci_scan
-    # Put back the modules pytest's Django setup loaded.
-    for name, module in saved.items():
-        sys.modules.pop(name, None)
-        if module is not None:
-            sys.modules[name] = module
+    _set_ci_environment(monkeypatch)
+    with _isolated_modules():
+        yield _load("iris.settings.production"), _load("iris.settings.ci_scan")
 
 
 def test_ci_scan_keeps_production_settings_except_the_https_redirect(
@@ -78,15 +99,30 @@ def test_ci_scan_keeps_the_production_startup_guards(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A weak key still stops the scan backend: ci_scan inherits FIX-04's checks."""
+    _set_ci_environment(monkeypatch)
     monkeypatch.setenv("DJANGO_SECRET_KEY", "too-short-for-production")
-    monkeypatch.setenv("DJANGO_ALLOWED_HOSTS", "localhost")
-    monkeypatch.setenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
-    saved = {name: sys.modules.pop(name, None) for name in MODULES}
-    try:
-        with pytest.raises(ImproperlyConfigured, match="DJANGO_SECRET_KEY"):
-            _load("iris.settings.ci_scan")
-    finally:
-        for name, module in saved.items():
-            sys.modules.pop(name, None)
-            if module is not None:
-                sys.modules[name] = module
+    with (
+        _isolated_modules(),
+        pytest.raises(ImproperlyConfigured, match="DJANGO_SECRET_KEY"),
+    ):
+        _load("iris.settings.ci_scan")
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("MAILER_ADAPTER", "fake"),
+        ("DEFAULT_FROM_EMAIL", "noreply@iris.local"),
+        ("DEFAULT_FROM_EMAIL", "not-an-address"),
+        ("PUBLIC_APP_ORIGIN", "http://iris.example.org"),
+        ("PUBLIC_APP_ORIGIN", "https://localhost"),
+    ],
+)
+def test_ci_scan_preserves_email_startup_guards(
+    monkeypatch: pytest.MonkeyPatch, key: str, value: str
+) -> None:
+    """The scan inherits US-57 validation instead of bypassing delivery settings."""
+    _set_ci_environment(monkeypatch)
+    monkeypatch.setenv(key, value)
+    with _isolated_modules(), pytest.raises(ImproperlyConfigured, match=key):
+        _load("iris.settings.ci_scan")

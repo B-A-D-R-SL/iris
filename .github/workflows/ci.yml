@@ -89,10 +89,13 @@ jobs:
       # FIX-17 (#643): fail when the production settings (FIX-04) regress.
       - name: Production deployment check
         env:
-          # CI-only values that pass FIX-04's startup rules; nothing here is a real secret.
+          # Synthetic values satisfy production startup guards; no provider is used.
           DJANGO_SECRET_KEY: iris-ci-deploy-check-only-not-a-secret-0123456789abcdef
           DJANGO_ALLOWED_HOSTS: iris.example.org
           EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+          MAILER_ADAPTER: smtp
+          DEFAULT_FROM_EMAIL: noreply@iris.example.org
+          PUBLIC_APP_ORIGIN: https://iris.example.org
         run: python manage.py check --settings=iris.settings.production --deploy --fail-level WARNING
 
       - name: Tests with coverage (minimum 70%)
@@ -309,8 +312,11 @@ jobs:
       DJANGO_SECRET_KEY: iris-ci-zap-scan-only-not-a-secret-0123456789abcdefghij
       DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
       DATABASE_URL: postgresql://iris:iris_ci_password@localhost:5432/iris
-      # Production refuses console mail; nothing is sent during the scan.
+      # Synthetic mail settings satisfy production guards; no worker is started.
       EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+      MAILER_ADAPTER: smtp
+      DEFAULT_FROM_EMAIL: noreply@iris.example.org
+      PUBLIC_APP_ORIGIN: https://iris.example.org
       SEED_PASSWORD: iris-ci-scan-seed-password
       # ZAP 2.17.0 ("stable" on 2026-11-03), pinned by digest like the actions.
       ZAP_IMAGE: ghcr.io/zaproxy/zaproxy@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af
