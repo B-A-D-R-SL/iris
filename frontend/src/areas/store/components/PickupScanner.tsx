@@ -57,23 +57,16 @@ export function PickupScanner({ active, onDetected, onStatus }: PickupScannerPro
   const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
-  const reportDetected = useEffectEvent((text: string) => {
-    onDetected(text);
-  });
-  const reportStatus = useEffectEvent((status: ScannerStatus) => {
-    onStatus(status);
-  });
+  const reportDetected = useEffectEvent((text: string) => onDetected(text));
+  const reportStatus = useEffectEvent((status: ScannerStatus) => onStatus(status));
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || !videoRef.current) return;
     const video = videoRef.current;
-    if (!video) return;
-
     let cancelled = false;
     reportStatus("starting");
-    void (async () => {
-      try {
-        const controls = await startDecoder(video, reportDetected, controlsRef);
+    void startDecoder(video, reportDetected, controlsRef)
+      .then((controls) => {
         if (cancelled) {
           controls.stop();
           stopTracks(video);
@@ -81,14 +74,13 @@ export function PickupScanner({ active, onDetected, onStatus }: PickupScannerPro
         }
         controlsRef.current = controls;
         reportStatus("live");
-      } catch (error) {
+      })
+      .catch((error: unknown) => {
         if (!cancelled) {
           logger.warning("pickup_camera_unavailable");
           reportStatus(cameraStatus(error));
         }
-      }
-    })();
-
+      });
     return () => {
       cancelled = true;
       controlsRef.current?.stop();

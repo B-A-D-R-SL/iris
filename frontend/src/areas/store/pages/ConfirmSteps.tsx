@@ -221,7 +221,7 @@ export function DoneStep({
         <Button type="button" fullWidth onClick={onAgain}>
           {t("reservation.confirm.scanAnother")}
         </Button>
-        <Button type="button" fullWidth variant="outline" component={Link} to="/store">
+        <Button type="button" fullWidth variant="outline" component={Link} to="/store/listings/new">
           {t("reservation.confirm.backToToday")}
         </Button>
       </div>

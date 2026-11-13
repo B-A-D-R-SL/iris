@@ -136,7 +136,7 @@ describe("Confirm pickup scan screen (US-44 / T-06.44.3)", () => {
     expect(screen.getByText(/Remise effectuée pour Fatou D/)).toBeVisible();
     expect(screen.getByRole("link", { name: "Retour à Aujourd'hui" })).toHaveAttribute(
       "href",
-      "/store",
+      "/store/listings/new",
     );
 
     await expectNoAxeViolations(container);

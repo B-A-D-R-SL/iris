@@ -6,9 +6,9 @@
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppBar } from "../../../app/layouts/AppBar";
+import { AppBar } from "../../../shared/ui";
 import type { ScannerStatus } from "../components/PickupScanner";
-import { DoneStep, ReviewStep, ScanStep } from "./ConfirmSteps";
+import { ConfirmFlow } from "./ConfirmFlow";
 import type { Language } from "./confirmFormat";
 import { useConfirmPickup } from "./useConfirmPickup";
 import classes from "./Confirm.module.css";
@@ -32,43 +32,14 @@ export function Confirm() {
     <>
       <AppBar title={t("reservation.common.confirmPickup")} />
       <div className={classes.page}>
-        {flow.step.kind === "scan" && (
-          <ScanStep
-            code={flow.step.code}
-            error={flow.step.error}
-            camera={camera}
-            busy={flow.busy}
-            codeFieldId={codeFieldId}
-            language={language}
-            onCamera={setCamera}
-            onDetected={flow.onDetected}
-            onCodeChange={flow.setScanCode}
-            onLookup={() => flow.requestLookup(flow.step.kind === "scan" ? flow.step.code : "")}
-          />
-        )}
-        {flow.step.kind === "review" && (
-          <ReviewStep
-            pickup={flow.step.pickup}
-            now={flow.now}
-            language={language}
-            dayLabels={dayLabels}
-            busy={flow.busy}
-            error={flow.confirmError}
-            onConfirm={() => {
-              if (flow.step.kind === "review") flow.confirmPickup(flow.step.pickup);
-            }}
-            onCancel={flow.resetScan}
-          />
-        )}
-        {flow.step.kind === "done" && (
-          <DoneStep
-            pickup={flow.step.pickup}
-            now={flow.now}
-            language={language}
-            dayLabels={dayLabels}
-            onAgain={flow.resetScan}
-          />
-        )}
+        <ConfirmFlow
+          flow={flow}
+          camera={camera}
+          codeFieldId={codeFieldId}
+          language={language}
+          dayLabels={dayLabels}
+          onCamera={setCamera}
+        />
       </div>
     </>
   );
