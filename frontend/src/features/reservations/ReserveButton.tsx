@@ -21,7 +21,8 @@ export interface ReserveButtonProps {
   maxPerHousehold: number;
   unitsLeft: number;
   onReserved: (reservation: Reservation) => void;
-  onRefused: (code: string) => void;
+  /** A refusal code to show, or null to clear the one shown (quantity changed, retrying). */
+  onRefused: (code: string | null) => void;
 }
 
 export function ReserveButton(props: ReserveButtonProps) {
@@ -33,9 +34,15 @@ export function ReserveButton(props: ReserveButtonProps) {
   const mutation = useMutation({
     // A value typed past the cap is only clamped on blur, so clamp it here too.
     mutationFn: () => reserve(listingId, quantityToSend(quantity, cap), language),
+    onMutate: () => onRefused(null), // a new try clears the last refusal
     onSuccess: (reservation) => onReserved(reservation),
     onError: (error) => onRefused(refusalCode(error)),
   });
+  const changeQuantity = (value: number | string) => {
+    setQuantity(value);
+    mutation.reset();
+    onRefused(null);
+  };
 
   const refusal = mutation.isError ? refusalCode(mutation.error) : null;
   const soldOut = unitsLeft < 1 || refusal === SOLD_OUT;
@@ -48,7 +55,7 @@ export function ReserveButton(props: ReserveButtonProps) {
           value={quantity}
           maxPerHousehold={maxPerHousehold}
           cap={cap}
-          onChange={setQuantity}
+          onChange={changeQuantity}
         />
       )}
       <Button

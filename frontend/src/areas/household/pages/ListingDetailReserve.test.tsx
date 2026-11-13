@@ -159,6 +159,25 @@ describe("Reserving from the listing page (US-41)", () => {
     );
   });
 
+  it("removes the notice when the household changes the quantity after a refusal", async () => {
+    let calls = 0;
+    await openListing(() => {
+      calls += 1;
+      return calls === 1 ? refused(409, "not_enough_units")() : reserved();
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Augmenter (Quantité)" }));
+    await userEvent.click(reserveButton());
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Il n'en reste pas assez. Choisissez une plus petite quantité.",
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Diminuer (Quantité)" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    await userEvent.click(reserveButton());
+    expect(await screen.findByRole("heading", { name: "C'est réservé!" })).toBeVisible();
+  });
+
   it("shows other refusals as an error at the top and lets the household try again", async () => {
     let calls = 0;
     await openListing(() => {

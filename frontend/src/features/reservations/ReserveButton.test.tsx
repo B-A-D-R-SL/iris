@@ -72,7 +72,8 @@ describe("ReserveButton", () => {
     await waitFor(() =>
       expect(onReserved).toHaveBeenCalledWith(expect.objectContaining({ pickup_code: "K7MPX3" })),
     );
-    expect(onRefused).not.toHaveBeenCalled();
+    // Only the clearing call made when the request starts: no refusal.
+    expect(onRefused.mock.calls).toEqual([[null]]);
     expect(postedBody(fetchMock)).toEqual({ listing_id: LISTING_ID, quantity: 1 });
     await expectNoAxeViolations(container);
   });
@@ -167,6 +168,27 @@ describe("ReserveButton", () => {
     await waitFor(() => expect(onRefused).toHaveBeenCalledWith(code));
     expect(reserveButton()).toBeEnabled();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("clears a refusal when the quantity changes, then when the household retries", async () => {
+    let calls = 0;
+    mockApi(() => {
+      calls += 1;
+      return calls === 1 ? refused(409, "not_enough_units") : reserved();
+    });
+    const { onRefused, onReserved } = renderButton({ maxPerHousehold: 3, unitsLeft: 3 });
+    await userEvent.click(screen.getByRole("button", { name: "Augmenter (Quantité)" }));
+    await userEvent.click(reserveButton());
+    await waitFor(() => expect(onRefused).toHaveBeenLastCalledWith("not_enough_units"));
+
+    onRefused.mockClear();
+    await userEvent.click(screen.getByRole("button", { name: "Diminuer (Quantité)" }));
+    expect(onRefused).toHaveBeenCalledWith(null);
+
+    onRefused.mockClear();
+    await userEvent.click(reserveButton());
+    await waitFor(() => expect(onReserved).toHaveBeenCalled());
+    expect(onRefused.mock.calls).toEqual([[null]]);
   });
 
   it("reports a lost connection as a generic refusal", async () => {
