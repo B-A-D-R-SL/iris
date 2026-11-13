@@ -1,12 +1,12 @@
 // AI contribution: 50% or more AI-generated
 import { QueryClient } from "@tanstack/react-query";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useLocation } from "react-router";
 
 import App from "../../../app/App";
-import type { Role } from "../../../features/accounts/currentUser";
+import type { Role } from "../../../shared/auth/roles";
 import { expectNoAxeViolations, renderWithProviders, testUser } from "../../../test/render";
 
 function CurrentPath() {
@@ -53,9 +53,9 @@ describe("US-01 sign-in screen", () => {
   });
 
   it.each([
-    ["beneficiary", "/home"],
-    ["store_staff", "/store"],
-    ["store_manager", "/store"],
+    ["beneficiary", "/listings"],
+    ["store_staff", "/store/listings/new"],
+    ["store_manager", "/store/listings/new"],
     ["intake_worker", "/staff/households"],
     ["admin", "/staff/households"],
   ] as const)("signs in %s and redirects to %s", async (role: Role, path) => {
@@ -141,7 +141,7 @@ describe("US-01 sign-in screen", () => {
 
     await enterCredentials();
 
-    await screen.findByRole("heading", { name: "Accueil" });
+    await screen.findByRole("heading", { name: "Offres" });
     expect(queryClient.getQueryData(["private-list"])).toBeUndefined();
   });
 
@@ -170,7 +170,7 @@ describe("US-01 sign-in screen", () => {
 
     profileAvailable = true;
     await userEvent.click(screen.getByRole("button", { name: "Réessayer" }));
-    await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/home"));
+    await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/listings"));
     expect(
       fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/auth/login")),
     ).toHaveLength(1);
@@ -255,8 +255,8 @@ describe("US-01 sign-in screen", () => {
   });
 
   it.each([
-    ["beneficiary", "/home"],
-    ["store_staff", "/store"],
+    ["beneficiary", "/listings"],
+    ["store_staff", "/store/listings/new"],
   ] as const)("offers sign-out in the %s account menu", async (role, path) => {
     let signedIn = true;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
@@ -279,7 +279,7 @@ describe("US-01 sign-in screen", () => {
       { route: path },
     );
     await screen.findByRole("heading", {
-      name: role === "beneficiary" ? "Accueil" : "Aujourd'hui",
+      name: role === "beneficiary" ? "Offres" : "Publier une offre",
     });
     await userEvent.click(screen.getByRole("button", { name: "Mon compte" }));
     await userEvent.click(screen.getByRole("menuitem", { name: "Déconnexion" }));
@@ -298,12 +298,14 @@ describe("US-01 sign-in screen", () => {
         return new Response(null, { status: 404 });
       }),
     );
-    renderWithProviders(<App />, { route: "/home" });
-    await screen.findByRole("heading", { name: "Accueil" });
+    renderWithProviders(<App />, { route: "/listings" });
+    await screen.findByRole("heading", { name: "Offres" });
     await userEvent.click(screen.getByRole("button", { name: "Mon compte" }));
     await userEvent.click(screen.getByRole("menuitem", { name: "Déconnexion" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("déconnexion");
-    expect(screen.getByRole("menu")).toBeInTheDocument();
+    // The listings behind the menu can show their own error: look inside the menu.
+    expect(await within(screen.getByRole("menu")).findByRole("alert")).toHaveTextContent(
+      "déconnexion",
+    );
   });
 
   it("leaves protected pages when another tab signs out", async () => {
@@ -346,8 +348,8 @@ describe("US-01 sign-in screen", () => {
       }),
     );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    renderWithProviders(<App />, { route: "/home", queryClient });
-    await screen.findByRole("heading", { name: "Accueil" });
+    renderWithProviders(<App />, { route: "/listings", queryClient });
+    await screen.findByRole("heading", { name: "Offres" });
     queryClient.setQueryData(["private-list"], { items: ["previous account"] });
     await userEvent.click(screen.getByRole("button", { name: "Mon compte" }));
     await userEvent.click(screen.getByRole("menuitem", { name: "Déconnexion" }));
@@ -423,7 +425,7 @@ describe("US-01 sign-in screen", () => {
     renderSignIn();
     await screen.findByRole("heading", { name: "Connexion" });
     await enterCredentials();
-    await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/home"));
+    await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/listings"));
   });
 
   it("lets the user leave the MFA code step", async () => {
@@ -442,20 +444,15 @@ describe("US-01 sign-in screen", () => {
     expect(screen.getByRole("textbox", { name: "Courriel" })).toBeInTheDocument();
   });
 
-  it("provides recovery, registration and partner links", async () => {
+  it("links to the partner application, and not to screens that are not built", async () => {
     renderSignIn();
     await screen.findByRole("heading", { name: "Connexion" });
-    expect(screen.getByRole("link", { name: "Mot de passe oublié?" })).toHaveAttribute(
-      "href",
-      "/forgot-password",
-    );
-    expect(screen.getByRole("link", { name: "Créer un compte" })).toHaveAttribute(
-      "href",
-      "/sign-up",
-    );
     expect(screen.getByRole("link", { name: /devenir partenaire/i })).toHaveAttribute(
       "href",
       "/partner/apply",
     );
+    // Password reset and online sign-up add their links with their screens (FIX-13).
+    expect(screen.queryByRole("link", { name: "Mot de passe oublié?" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Créer un compte" })).not.toBeInTheDocument();
   });
 });

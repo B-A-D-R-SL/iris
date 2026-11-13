@@ -8,8 +8,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppBar } from "../../../app/layouts/AppBar";
 import { BrowseFailed, NOT_APPROVED } from "../../../features/listings/browse";
+import { AppBar } from "../../../shared/ui";
 import { FilterChips, type FilterSheetName } from "../components/FilterChips";
 import { FilterSheet } from "../components/FilterSheet";
 import { ListingResults } from "../components/ListingResults";

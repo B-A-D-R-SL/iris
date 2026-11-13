@@ -7,17 +7,8 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
-import type { components, paths } from "../../shared/api/generated";
-
-export type Role = components["schemas"]["RoleEnum"];
-
-export const ROLES = [
-  "beneficiary",
-  "store_staff",
-  "store_manager",
-  "intake_worker",
-  "admin",
-] as const satisfies readonly Role[];
+import type { paths } from "../api/generated";
+import { isRole } from "./roles";
 
 type CurrentUserResponse =
   paths["/api/me/"]["get"]["responses"][200]["content"]["application/json"];
@@ -25,10 +16,6 @@ type CurrentUserResponse =
 export type CurrentUser = CurrentUserResponse;
 
 export const CURRENT_USER_QUERY_KEY = ["current-user"] as const;
-
-function isRole(value: unknown): value is Role {
-  return typeof value === "string" && (ROLES as readonly string[]).includes(value);
-}
 
 function parseCurrentUser(data: unknown): CurrentUser {
   if (typeof data !== "object" || data === null) {

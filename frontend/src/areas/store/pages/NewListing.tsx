@@ -9,10 +9,9 @@ import { useForm } from "@mantine/form";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { AppBar } from "../../../app/layouts/AppBar";
 import type { Category } from "../../../features/categories/api";
 import { getPostingCategories } from "../../../features/listings/api";
-import { ErrorState, LoadingState } from "../../../shared/ui";
+import { AppBar, ErrorState, LoadingState } from "../../../shared/ui";
 import {
   ConfirmSection,
   DetailsSection,
