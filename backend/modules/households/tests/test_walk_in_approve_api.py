@@ -38,7 +38,13 @@ def rules(monkeypatch: Any) -> None:
     """Rules approval reads, with a fixed clock (same as the service tests)."""
     monkeypatch.setattr(timezone, "now", lambda: NOW)
     admin: Any = UserFactory(role="admin", password=None)
-    for rule_type in ("auto_approval", "file_validity", "invitations", "notice_upload"):
+    for rule_type in (
+        "auto_approval",
+        "file_validity",
+        "household_size",
+        "invitations",
+        "notice_upload",
+    ):
         publish(
             rule_type,
             deepcopy(DEFAULT_RULE_VALUES[rule_type]),
@@ -282,7 +288,7 @@ def test_the_summary_lists_only_adults_as_needing_a_notice(
     staff_client: APIClient, household: Any
 ) -> None:
     """BR-DOC-007: a child gets no card; the screen does not work out ages."""
-    child = MemberFactory(
+    child: Any = MemberFactory(
         household=household, relation="child", date_of_birth="2015-06-01"
     )
 

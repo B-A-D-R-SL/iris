@@ -44,7 +44,12 @@ DIRECT_CONTEXT: Any = None
 def rules(monkeypatch: Any) -> None:
     monkeypatch.setattr(timezone, "now", lambda: NOW)
     admin: Any = UserFactory(role="admin", password=None)
-    for rule_type in ("auto_approval", "file_validity", "invitations"):
+    for rule_type in (
+        "auto_approval",
+        "file_validity",
+        "household_size",
+        "invitations",
+    ):
         publish(
             rule_type,
             deepcopy(DEFAULT_RULE_VALUES[rule_type]),
