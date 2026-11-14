@@ -30,6 +30,7 @@ RULE_TYPES: Final = (
     "reservations",
     "listing_safety",
     "listing_posting",
+    "notice_upload",
     "file_validity",
     "retention",
 )
@@ -183,6 +184,19 @@ RULE_SCHEMAS: Final[dict[str, JSONSchema]] = {
             "photo_max_dimension": {"type": "integer", "minimum": 1},
         }
     ),
+    # Notice of assessment files (BR-DOC-004), their staff links (BR-DOC-006), the
+    # oldest tax year (BR-DOC-002), the non-filing reason length (BR-DOC-003) and
+    # the highest line-199 income staff can enter (BR-DOC-001).
+    "notice_upload": _object_schema(
+        {
+            "max_bytes": {"type": "integer", "minimum": 1},
+            "link_minutes": {"type": "integer", "minimum": 1, "maximum": 60},
+            "earliest_tax_year": {"type": "integer", "minimum": 1900, "maximum": 9999},
+            # The reason column holds at most 500 characters.
+            "reason_max_length": {"type": "integer", "minimum": 1, "maximum": 500},
+            "max_income_cents": {"type": "integer", "minimum": 0},
+        }
+    ),
     "file_validity": _object_schema(
         {
             "approved_months": {"type": "integer", "minimum": 1},
@@ -267,6 +281,15 @@ DEFAULT_RULE_VALUES: Final[dict[str, dict[str, Any]]] = {
         "pickup_max_minutes": 720,
         "photo_max_bytes": 5 * 1024 * 1024,
         "photo_max_dimension": 1280,
+    },
+    # US-18 (#468): JPG, PNG or PDF up to 10 MB; staff links valid 5 minutes.
+    "notice_upload": {
+        "max_bytes": 10 * 1024 * 1024,
+        "link_minutes": 5,
+        "earliest_tax_year": 2000,
+        "reason_max_length": 500,
+        # forms-and-fields.md: total income is 0 to 500,000 $.
+        "max_income_cents": 50_000_000,
     },
     "file_validity": {
         "approved_months": 12,

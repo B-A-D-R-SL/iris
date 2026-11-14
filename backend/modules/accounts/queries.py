@@ -21,6 +21,15 @@ def is_admin(user: object) -> bool:
     )
 
 
+def is_intake_staff(user: object) -> bool:
+    """Return whether the user is an active intake worker or administrator."""
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and getattr(user, "is_active", False)
+        and getattr(user, "role", None) in STAFF_ROLES
+    )
+
+
 def invitation_is_usable(token: str, email: str) -> bool:
     """Check a queued link's recipient and current validity without exposing it.
 

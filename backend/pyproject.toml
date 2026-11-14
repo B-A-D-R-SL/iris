@@ -6,7 +6,7 @@ requires-python = ">=3.13"
 dependencies = [
     "argon2-cffi>=25.1.0",
     "azure-communication-email>=1.1,<2",
-    "azure-storage-blob>=12.27,<13",
+    "azure-storage-blob>=12.31,<13",
     "django>=6.1,<6.2",
     "django-allauth[headless]>=65.19.7",
     "django-environ>=0.14.0",
@@ -116,6 +116,7 @@ ignore_imports = [
     "modules.accounts.tests.test_invitations -> modules.stores.tests.factories",
     "modules.accounts.tests.test_api -> modules.stores.tests.factories",
     "modules.accounts.tests.conftest -> modules.rules.models",
+    "modules.households.tests.** -> modules.documents.tests.factories",
     # US-57 integration tests follow owning workflows into the queued delivery.
     "modules.accounts.tests.test_notification_adapter -> modules.notifications.models",
     "modules.accounts.tests.test_notification_adapter -> modules.notifications.tasks",
@@ -133,11 +134,20 @@ ignore_imports = [
     "modules.stores.tests.test_staff_application_api -> modules.notifications.tasks",
     "modules.households.tests.test_suspension_api -> modules.notifications.models",
     "modules.households.tests.test_suspension_api -> modules.notifications.tasks",
+    # US-18 walk-in approval follows the set-password email into the queue.
+    "modules.households.tests.test_walk_in_approval -> modules.notifications.models",
+    "modules.households.tests.test_walk_in_approval -> modules.notifications.tasks",
     "modules.notifications.tests.test_services -> modules.accounts.tests.factories",
     "modules.audit.tests.** -> modules.stores.tests.factories",
     "modules.rules.tests.test_rule_set_versions -> modules.accounts.tests.factories",
     "modules.households.tests.** -> modules.accounts.tests.factories",
     "modules.households.tests.** -> modules.stores.tests.factories",
+    # documents tests build members, users and rule versions for notices (T-03.18.2).
+    "modules.documents.tests.** -> modules.households.tests.factories",
+    "modules.documents.tests.** -> modules.accounts.tests.factories",
+    "modules.documents.tests.** -> modules.stores.tests.factories",
+    "modules.documents.tests.** -> modules.rules.domain.schemas",
+    "modules.households.tests.** -> modules.rules.domain.schemas",
     # US-32 integration tests build reservations and verify their audit records.
     "modules.households.tests.test_suspension_api -> modules.audit.models",
     "modules.households.tests.test_suspension_api -> modules.listings.models",
@@ -175,6 +185,11 @@ ignore_imports = [
     # stores -> categories: partner applications list active category codes (US-12)
     "modules.stores.** -> modules.categories.queries",
     "modules.stores.tests.** -> modules.categories.tests.factories",
+
+    # households and documents -> accounts: one rule for intake staff (T-03.18.2)
+    "modules.households.** -> modules.accounts.services",
+    "modules.households.** -> modules.accounts.queries",
+    "modules.documents.** -> modules.accounts.queries",
 
     # households -> documents, eligibility, priority, review
     "modules.households.** -> modules.documents.services",

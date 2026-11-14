@@ -224,7 +224,7 @@ dev = [
 requires-dist = [
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "azure-communication-email", specifier = ">=1.1,<2" },
-    { name = "azure-storage-blob", specifier = ">=12.27,<13" },
+    { name = "azure-storage-blob", specifier = ">=12.31,<13" },
     { name = "django", specifier = ">=6.1,<6.2" },
     { name = "django-allauth", extras = ["headless"], specifier = ">=65.19.7" },
     { name = "django-environ", specifier = ">=0.14.0" },

@@ -12,6 +12,16 @@ account. The record also preserves staff verification and creation timestamps.
 
 - `services.create_walk_in(data, staff_user) -> Household`
 - `services.update_draft(household_id, data, staff_user) -> Household`
+- `approval_services.approve_walk_in(household, staff) -> Household`: checks current
+  evidence, records the outcome and prepares a beneficiary invitation when needed
+- `notice_services.record_walk_in_notice(household_id, data, staff_user) -> IncomeNotice`:
+  checks the household is a draft walk-in (not anonymized) and the member is one of
+  its adults (BR-DOC-007), stores the file with `documents.services.prepare_staff_notice`
+  before locking, then locks the household, checks again, records the draft change and
+  saves with `save_prepared_notice`; a refusal removes the stored file (T-03.18.2)
+- `queries.walk_in_for_staff(household_id) -> Household | None`
+- `queries.eligibility_inputs(household_id) -> EligibilityInputs`: verified
+  adult incomes and the full member count for the eligibility service
 - `services.change_suspension(household_id, reason, actor, reactivate=...) -> Household`:
   administrators suspend approved files or reactivate unexpired suspended files
 - `services.submit_walk_in(household_id, staff_user) -> Household`
@@ -35,12 +45,17 @@ account. The record also preserves staff verification and creation timestamps.
 - `queries.search_for_staff(q, actor) -> QuerySet[Household]`: the API entry point;
   validates shared staff permission before pagination.
 - `domain/address.py`: `normalize_address`, `normalize_postal_code`
-- `domain/person.py`: `normalize_person`, age/name validation
+- `domain/person.py`: `normalize_person`, age/name validation, `is_adult`
 - `domain/names.py`: `short_name`, `short_full_name` ("Fatou D.")
 
 Services are transactional, enforce active staff roles, and call `full_clean()`
 before persistence. Editing is restricted to drafts; member replacement cannot
-remove a record referenced by another module. No form can set the status,
+remove a record referenced by another module. Members sent back
+unchanged (same names, date of birth and relation) keep their record, so a
+member with a notice can stay while others are added; removing or changing that
+member is refused. The holder keeps one record and is edited in place, so their
+notice stays linked when staff correct their name or date of birth; the notice
+keeps the name it was recorded with. No form can set the status,
 creator, verifier or internal keys directly.
 
 ## API routes
@@ -53,6 +68,27 @@ creator, verifier or internal keys directly.
 - `PATCH /api/staff/households/{uuid}/`: patch draft steps, including members
 - `POST /api/staff/households/{uuid}/submit/`: submit saved registration data,
   returning `{id, status, status_reason, submitted_at}`; request body is `{}`.
+- `GET /api/staff/households/{uuid}/notices/`: the current notice of each
+  member (`queries.walk_in_notices`), without storage references, so the
+  notices screen shows what was saved after a reload; unknown IDs 404.
+- `POST /api/staff/households/{uuid}/notices/` (multipart): an adult's notice of
+  assessment (`file`, `tax_year`, `total_income_cents`, `name_on_notice`,
+  `postal_code_on_notice`, `notice_date`, `seen_in_person`) or
+  `did_not_file` with `did_not_file_reason`; returns the notice without its
+  storage reference. A second entry for the same adult replaces the current
+  one. See `modules/documents/README.md` for the rules and file links.
+- `POST /api/staff/households/{uuid}/approve/` (no body): calls
+  `approve_walk_in` and returns `{ id, status, status_reason, approved_at,
+  expires_at }` with 200, whether the file is approved, rejected or sent to
+  review. An incomplete file, or one that cannot be decided in its status,
+  answers 400 with the message in `fields.non_field_errors`; unknown IDs 404.
+- `GET /api/staff/households/{uuid}/decision-summary/`: calls
+  `approval_services.decision_summary` and returns `{ household_size, adult_count,
+  total_income_cents, threshold_cents, ready_for_decision, will_go_to_review, eligible, approved_months, valid_until }`.
+  `approved_months` and `valid_until` are set only when approving would approve the file;
+  they come from the same `file_validity` helper the approval uses.
+  Read-only; income and threshold are `null` until every adult has a notice the
+  rules can add up. The screen shows these and works nothing out itself.
 
 Errors use `{ "code", "message", "fields" }`; nested form field paths are
 reported as dotted keys such as `address.postal_code`.
@@ -70,7 +106,10 @@ signed-out or deactivated sessions return 401.
 
 Submission needs a complete address, one holder, an identity check, and consent.
 The household limit comes from `household_size.max_people`; the seed default is
-15 people, including the holder. Income notices and approval belong to US-18.
+15 people, including the holder. Income notices and approval belong to US-18:
+submission also requires a current notice or non-filing reason for every adult
+(BR-DOC-007, `queries.require_adult_notices`) and returns a `notices` field error
+otherwise, so a submitted file can always reach approval.
 
 A clean file becomes `submitted`. A matching address (including unit) or person
 (first name, last name and birth date) sends it to `review_required` with reason
@@ -177,14 +216,57 @@ details creates it, and incomplete details return a `holder` field error.
 role and time. It has no personal-data payload. Events are saved in the same
 transaction as the household change. The central audit service currently accepts
 view and decision actions, so registration actions remain in the household history.
+Approval records a central decision event.
 
 The walk-in screens (T-03.17.4) are in `frontend/src/areas/staff/pages/WalkIn/`.
-Walk-in approval, income notices, approval/rejection transitions and producing
-the set-password email remain US-18 work. US-57 now supplies the bilingual
-`walk_in_set_password` template and shared queued delivery through
-[the notification service](../notifications/README.md); the approval workflow
-does not yet issue that email. US-25 adds only submission and duplicate-review
-routing.
+Income notices are recorded through the endpoint above (T-03.18.2).
+
+## Walk-in approval (#469)
+
+`approve_walk_in` accepts submitted walk-ins from an active
+intake worker or admin; a file already in review is refused ("This file is already
+waiting for review.": approving again cannot change the outcome), and a draft is refused with "Submit the file before approving
+it." (BR-DUP-002: the US-25 submission runs the duplicate check first). It reloads and locks the saved file; it does not
+trust unsaved changes on the argument. Anonymized files are hidden. The holder,
+address, phone, consent and identity check are required by submission; approval requires
+every adult's notice or non-filing reason. Missing information raises validation errors without changing the file.
+
+Only current notices count. Adult ages use Montreal's date at approval. Each
+notice name is checked against the member's current first and last names, including
+holder corrections made after recording the notice. Case and accents are ignored;
+extra middle names are allowed. Postal codes must match the household address.
+
+Review reasons are `NAME_MISMATCH`, `ADDRESS_MISMATCH`, `NOTICE_NOT_SEEN`,
+`TAX_YEAR_NOT_ACCEPTED`, `DID_NOT_FILE`, `INCOME_NOT_CONFIRMED` and `NOTICE_MISSING` (a member who turned 18 after submission, when notices are locked).
+If the household's email already has an account, the file is still approved but no invitation is sent: the response has `invitation_not_sent: true` and the log has `walk_in_invitation_skipped`. Non-filing,
+unaccepted or unverified evidence goes to review without an income decision;
+it is never treated as zero. Accepted tax years come from
+`auto_approval.accepted_tax_years`. The income-ratio rule for online automatic
+approval does not apply to this staff workflow. Each decision is logged after commit as
+`walk_in_decision` with the household ID, outcome and reason codes only.
+
+With complete verified income, `eligibility.services.decide_for_household`
+records the calculation. Income above LICO gives `rejected` with
+`INCOME_ABOVE_LICO`; an eligible file without review flags becomes `approved`.
+Validity uses calendar months in Montreal from `file_validity.approved_months`
+(seed default 12), including month-end clamping. Other outcomes have no approval
+or expiry date. A final file cannot be approved again. The approval API is
+`POST /api/staff/households/{uuid}/approve/`; the review queue UI remains a
+separate task, and this service stores `review_required`.
+
+Outcome, eligibility, audit and invitation writes share one transaction.
+`audit.services.record` receives only the outcome, never notice or income data.
+Approved files with email call the US-04 invitation service from `main`; existing
+accounts are refused under its new-account-only policy and roll back approval.
+Acceptance creates the account but does not yet link it to the household.
+
+The French or English set-password email uses US-57's `walk_in_set_password`
+template through `notifications.services.queue_set_password_email`, which calls
+the shared queued `send` service. The link is `PUBLIC_APP_ORIGIN` plus
+`/invitation/:token`. The job is queued only after commit, so no email is sent on
+rollback, rejection or review. Configuration or delivery failure is recorded in
+`EmailLog` without the token and cannot undo approval; retries follow the
+`notifications` RuleSet. A staff resend workflow remains unimplemented.
 
 ## Staff search (US-63, #553 and #554)
 

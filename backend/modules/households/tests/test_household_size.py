@@ -77,7 +77,9 @@ def test_submission_reads_configured_limit(
 ):
     publish("household_size", {"max_people": 3}, submission_worker)
     household = ready_household_factory()
-    MemberFactory.create_batch(total - 1, household=household)
+    MemberFactory.create_batch(
+        total - 1, household=household, date_of_birth="2015-01-01"
+    )
     with override("en"):
         if total == 3:
             submit_walk_in(household.pk, submission_worker)

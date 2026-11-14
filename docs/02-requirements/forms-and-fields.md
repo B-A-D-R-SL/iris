@@ -184,6 +184,30 @@ The holder is person 1 automatically. "Ajouter une personne / Add a person" adds
 
 A summary of the three steps, each with "Modifier / Edit". Notices of assessment and approval come next (US-18).
 
+### Notices of assessment (walk-in, US-18)
+
+Staff page **Avis de cotisation / Notices of assessment** (`/staff/walk-in/{id}/notices`), opened from "Draft saved". One card per member aged 18 or older (BR-DOC-007), titled with the member's name. Each card is sent on its own (`POST /api/staff/households/{id}/notices/`); recording a new one replaces the current notice (BR-DOC-005). Notices already saved are loaded when the page opens (`GET /api/staff/households/{id}/notices/`), so a reload or a return from the file keeps them.
+
+| Field | Français | English | Type | Required | Rules |
+| --- | --- | --- | --- | --- | --- |
+| `did_not_file` | Cette personne n'a pas produit de déclaration de revenus | This person did not file a tax return | checkbox | No | Hides the notice fields; the file goes to review |
+| `did_not_file_reason` | Expliquez pourquoi | Explain why | text | If `did_not_file` | 1 to 500 characters after trimming (BR-DOC-003) |
+| `file` | Avis de cotisation de Revenu Québec | Revenu Québec notice of assessment | file | Yes, unless `did_not_file` | "Photographier l'avis / Take a photo of the notice" opens the rear camera (`capture="environment"`); or choose a JPG, PNG or PDF of 10 MB or less (BR-DOC-004) |
+| `tax_year` | Année d'imposition | Tax year | year | Yes, unless `did_not_file` | 2000 to last year (BR-DOC-002) |
+| `total_income_cents` | Revenu total (ligne 199) | Total income (line 199) | money | Yes, unless `did_not_file` | 0 to 500,000 $ |
+| `name_on_notice` | Nom sur l'avis | Name on the notice | name | Yes, unless `did_not_file` | Compared with the member at approval |
+| `postal_code_on_notice` | Code postal sur l'avis | Postal code on the notice | postal_code | Yes, unless `did_not_file` | Compared with the address at approval |
+| `notice_date` | Date de l'avis | Notice date | date | Yes, unless `did_not_file` | After December 31 of the tax year, not after today (BR-DOC-002) |
+| `seen_in_person` | Avis vu en personne | Notice seen in person | checkbox | No | Unticked sends the file to review |
+
+The page header reads "Avis et décision · {name}", with the member number, the channel and the visit date, the file's status badge and an adults / dependants count. Each card is titled "Adulte 1 · {name}", followed by "(personne responsable / responsible person)" for the holder.
+
+Below the cards, **Résumé pour la décision / Decision summary** lists each adult (to record, notice recorded, not seen in person, did not file), the household size, the total household income and the low-income threshold, and says whether the file is ready for a decision or will go to review. Those numbers and the ready / review answers come from `GET /api/staff/households/{id}/decision-summary/`; the screen does not work them out. The steps are:
+
+1. **Soumettre le dossier / Submit the file** is enabled once every adult has a notice or a reason and no saved notice is being replaced ("Remplacer cet avis / Replace this notice" disables it until the new notice is saved or cancelled, and submitting disables replacing). Submitting runs the duplicate check and locks the notices. A possible duplicate sends the file to review (BR-DUP-002).
+2. **Approuver le dossier / Approve the file** appears for a submitted file. It opens a confirmation, "Approuver ce dossier ? / Approve this file?", because approval is final and emails an invitation when the household gave an email address. **Confirmer l'approbation / Confirm approval** asks the server to decide.
+3. The answer shows "Dossier approuvé jusqu'au … / File approved until …", "Dossier refusé / File rejected" or "Dossier envoyé en révision / File sent to review", with each reason in plain words. A file in review has no approve action: approving it again could not change the outcome.
+
 ## Categories
 
 Used by `goods_categories` (partner application) and `category` (listing). Seed file: `backend/modules/categories/data/categories.yaml`. Admins can add, rename or deactivate categories (US-35).

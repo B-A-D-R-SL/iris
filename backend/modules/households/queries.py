@@ -1,21 +1,30 @@
 # AI contribution: 50% or more AI-generated
-"""Read household files, search staff records and preview duplicates."""
+"""Household files, verified income evidence, staff search and duplicate previews."""
 
 import re
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from django.contrib.auth.base_user import AbstractBaseUser
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 from django.db.models import OuterRef, Q, QuerySet, Subquery, Value
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from modules.documents import queries as document_queries
+from modules.households.domain.address import normalize_postal_code
 from modules.households.domain.names import short_full_name, short_name
+from modules.households.domain.notice_name import notice_name_matches
+from modules.households.domain.person import is_adult
 from modules.households.models import Household, Member
 from modules.households.policies import StaffActor, can_manage_walk_ins
 from modules.households.search_expressions import SearchKey
+from modules.rules import queries as rule_queries
 
 DUPLICATE_CANDIDATE_STATUSES = (
     Household.Status.SUBMITTED,
@@ -25,6 +34,127 @@ DUPLICATE_CANDIDATE_STATUSES = (
     Household.Status.RENEWAL_NEEDED,
     Household.Status.SUSPENDED,
 )
+
+
+class HouseholdEvidenceUnavailable(ValueError):
+    def __init__(self, reasons: set[str]) -> None:
+        self.reasons = tuple(sorted(reasons))
+        super().__init__(", ".join(self.reasons))
+
+
+@dataclass(frozen=True)
+class EligibilityInputs:
+    household: Household
+    household_size: int
+    adult_count: int
+    adult_incomes_cents: list[int]
+
+
+def _accepted_tax_years() -> list[int]:
+    rule = rule_queries.active("auto_approval")
+    years = rule.values.get("accepted_tax_years") if rule else None
+    if (
+        not isinstance(years, list)
+        or not years
+        or any(type(y) is not int for y in years)
+    ):
+        raise ValidationError(_("Accepted tax years are not configured."))
+    return years
+
+
+def _notice_reasons(
+    member: Member,
+    notice: document_queries.IncomeNotice,
+    household: Household,
+    years: list[int],
+) -> set[str]:
+    if notice.status == "did_not_file":
+        return {"DID_NOT_FILE"}
+    reasons = set()
+    if notice.tax_year not in years:
+        reasons.add("TAX_YEAR_NOT_ACCEPTED")
+    if not notice.seen_in_person:
+        reasons.add("NOTICE_NOT_SEEN")
+    if not notice_name_matches(
+        member.first_name, member.last_name, notice.name_on_notice
+    ):
+        reasons.add("NAME_MISMATCH")
+    if normalize_postal_code(notice.postal_code_on_notice) != household.postal_code:
+        reasons.add("ADDRESS_MISMATCH")
+    return reasons
+
+
+def _adults(members: Iterable[Member]) -> list[Member]:
+    today = timezone.localdate(timezone=ZoneInfo("America/Montreal"))
+    return [m for m in members if is_adult(m.date_of_birth, today)]
+
+
+def _notices_for_adults(adults: list[Member]) -> dict[UUID, Any]:
+    """BR-DOC-007: a current notice or non-filing reason for every adult."""
+    notices = document_queries.current_notices(m.pk for m in adults)
+    if len(notices) != len(adults):
+        raise ValidationError(
+            {"notices": _("Record a notice or non-filing reason for every adult.")}
+        )
+    return notices
+
+
+def require_adult_notices(household: Household) -> None:
+    """BR-DOC-007: submission needs a current notice or non-filing reason per adult."""
+    _notices_for_adults(_adults(household.members.all()))
+
+
+@transaction.atomic
+def eligibility_inputs(household_id: UUID) -> EligibilityInputs:
+    # Eligibility and staff edits share the household lock for a stable snapshot.
+    household = Household.objects.select_for_update().get(
+        pk=household_id, anonymized_at__isnull=True
+    )
+    members = list(household.members.order_by("pk"))
+    adults = _adults(members)
+    if not any(m.relation == Member.Relation.HOLDER for m in adults):
+        raise ValidationError(_("An adult holder is required."))
+    notices = _notices_for_adults(adults)
+    years = _accepted_tax_years()
+    reasons: set[str] = set()
+    for member in adults:
+        reasons.update(_notice_reasons(member, notices[member.pk], household, years))
+    if reasons:
+        # A non-filer or unverified notice must never become an assumed zero income.
+        raise HouseholdEvidenceUnavailable(reasons)
+    incomes = []
+    for member in adults:
+        amount = notices[member.pk].total_income_cents
+        if type(amount) is not int or amount < 0:
+            raise HouseholdEvidenceUnavailable({"INCOME_NOT_CONFIRMED"})
+        incomes.append(amount)
+    return EligibilityInputs(household, len(members), len(adults), incomes)
+
+
+@dataclass(frozen=True)
+class DecisionEvidence:
+    """What staff see before asking for the decision; the API decides, not the screen."""
+
+    household_size: int
+    adult_count: int
+    complete: bool  # every adult has a notice or a non-filing reason
+    review_reasons: frozenset[str]
+
+
+def decision_evidence(household: Household) -> DecisionEvidence:
+    members = list(household.members.order_by("pk"))
+    adults = _adults(members)
+    notices = document_queries.current_notices(m.pk for m in adults)
+    has_holder = any(m.relation == Member.Relation.HOLDER for m in adults)
+    complete = has_holder and len(notices) == len(adults)
+    reasons: set[str] = set()
+    if complete:
+        years = _accepted_tax_years()
+        for member in adults:
+            reasons.update(
+                _notice_reasons(member, notices[member.pk], household, years)
+            )
+    return DecisionEvidence(len(members), len(adults), complete, frozenset(reasons))
 
 
 def walk_ins_for_staff(staff_user: AbstractBaseUser) -> QuerySet[Household]:
@@ -46,6 +176,20 @@ def walk_in_for_staff(
         .filter(pk=household_id)
         .first()
     )
+
+
+def walk_in_notices(
+    household_id: UUID, staff_user: AbstractBaseUser
+) -> list[document_queries.IncomeNotice] | None:
+    """Current notice of each member of a walk-in file; None when the file is unknown.
+
+    Staff resuming the notices screen see what was already recorded (US-18).
+    """
+    household = walk_in_for_staff(household_id, staff_user)
+    if household is None:
+        return None
+    notices = document_queries.current_notices(m.pk for m in household.members.all())
+    return sorted(notices.values(), key=lambda notice: notice.created_at)
 
 
 def pickup_names(household_id: UUID) -> dict[str, str | None] | None:

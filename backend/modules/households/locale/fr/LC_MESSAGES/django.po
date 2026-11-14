@@ -8,6 +8,24 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-AI-Contribution: 50% or more AI-generated\n"
 
+msgid "Accepted tax years are not configured."
+msgstr "Les années d'imposition acceptées ne sont pas configurées."
+
+msgid "An adult holder is required."
+msgstr "Une personne responsable adulte est requise."
+
+msgid "Record a notice or non-filing reason for every adult."
+msgstr "Enregistrez un avis ou un motif de non-production pour chaque adulte."
+
+msgid "Data-processing consent is required."
+msgstr "Le consentement au traitement des données est requis."
+
+msgid "File validity is not configured correctly."
+msgstr "La durée de validité des dossiers n'est pas configurée correctement."
+
+msgid "This household file cannot be approved in its current status."
+msgstr "Ce dossier ne peut pas être approuvé dans son état actuel."
+
 msgid "Enter a Canadian postal code."
 msgstr "Entrez un code postal canadien."
 
@@ -167,6 +185,21 @@ msgstr "Seuls les dossiers en brouillon peuvent être modifiés."
 msgid "Cannot replace members already linked to notices or other records."
 msgstr "Impossible de remplacer des membres déjà liés à des avis ou à d'autres dossiers."
 
+msgid "Notices can only be added to a draft file."
+msgstr "Les avis ne peuvent être ajoutés qu'à un dossier en brouillon."
+
+msgid "Submit the file before approving it."
+msgstr "Soumettez le dossier avant de l'approuver."
+
+msgid "This file is already waiting for review."
+msgstr "Ce dossier est déjà en attente de révision."
+
+msgid "Choose a person from this household."
+msgstr "Choisissez une personne de ce foyer."
+
+msgid "Notices are recorded for adults only."
+msgstr "Les avis sont enregistrés seulement pour les adultes."
+
 # US-25 duplicate checking (#479)
 msgid "An anonymized file cannot be submitted."
 msgstr "Un dossier anonymisé ne peut pas être soumis."
@@ -174,8 +207,6 @@ msgstr "Un dossier anonymisé ne peut pas être soumis."
 msgid "Complete the address before submission."
 msgstr "Complétez l'adresse avant de soumettre le dossier."
 
-msgid "Data-processing consent is required."
-msgstr "Le consentement au traitement des données est requis."
 
 msgid "Only draft household files can be submitted."
 msgstr "Seuls les dossiers en brouillon peuvent être soumis."

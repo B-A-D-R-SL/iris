@@ -1,0 +1,655 @@
+// AI contribution: 50% or more AI-generated
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import App from "../../../../app/App";
+import type { RecordedNotice, WalkInDecision } from "../../../../features/households/noticeApi";
+import type { WalkInDraft } from "../../../../features/households/walkInApi";
+import axe from "axe-core";
+
+import { renderWithProviders, testUser } from "../../../../test/render";
+
+const ID = "6f1c2c1e-0000-4000-8000-000000000018";
+const ROUTE = `/staff/walk-in/${ID}/notices`;
+const NOTICES_URL = `/api/staff/households/${ID}/notices/`;
+const APPROVE_URL = `/api/staff/households/${ID}/approve/`;
+const SUBMIT_URL = `/api/staff/households/${ID}/submit/`;
+const SUMMARY_URL = `/api/staff/households/${ID}/decision-summary/`;
+
+/** A walk-in draft with one adult holder and one child (generated data only). */
+function draft(status = "draft", statusReason = ""): WalkInDraft {
+  return {
+    id: ID,
+    channel: "walk_in",
+    status,
+    status_reason: statusReason,
+    member_number: null,
+    expires_at: null,
+    allowed_actions: [],
+    reason_max_length: 500,
+    email: null,
+    preferred_language: "fr",
+    phone: "+15145550156",
+    street_number: "100",
+    street_name: "rue Exemple",
+    unit: "",
+    city: "Montréal",
+    postal_code: "H2X 1Y4",
+    identity_checked_in_person: true,
+    consent_data_processing_at: "2026-11-02T14:05:00Z",
+    consent_text_version: "2026-11-v1",
+    members: [
+      {
+        id: "m1",
+        first_name: "Nadia",
+        last_name: "Démo",
+        date_of_birth: "1990-04-12",
+        relation: "holder",
+      },
+      {
+        id: "m2",
+        first_name: "Léo",
+        last_name: "Démo",
+        date_of_birth: "2015-06-01",
+        relation: "child",
+      },
+    ],
+    created_by_email: "sophie@example.org",
+    created_at: "2026-11-02T14:05:00Z",
+    updated_at: "2026-11-02T14:05:00Z",
+    verified_by_email: "sophie@example.org",
+    verified_at: "2026-11-02T14:05:00Z",
+  } as WalkInDraft;
+}
+
+function recorded(overrides: Partial<RecordedNotice> = {}): RecordedNotice {
+  return {
+    id: "n1",
+    member: "m1",
+    status: "current",
+    source: "walk_in",
+    tax_year: 2025,
+    total_income_cents: 1_850_000,
+    name_on_notice: "Nadia Démo",
+    postal_code_on_notice: "H2X 1Y4",
+    notice_date: "2026-04-30",
+    seen_in_person: true,
+    did_not_file_reason: "",
+    has_file: true,
+    created_at: "2026-11-10T15:00:00Z",
+    ...overrides,
+  } as RecordedNotice;
+}
+
+/** The decision as the approve endpoint returns it. */
+function decision(overrides: Partial<WalkInDecision> = {}): WalkInDecision {
+  return {
+    id: ID,
+    status: "approved",
+    status_reason: "",
+    approved_at: "2026-11-10T14:00:00Z",
+    expires_at: "2027-11-10T14:00:00Z",
+    invitation_not_sent: false,
+    ...overrides,
+  };
+}
+
+/** Records "did not file" for Nadia so the file is ready for a decision. */
+async function recordDidNotFile() {
+  const nadia = within(card("Nadia Démo"));
+  await userEvent.click(nadia.getByRole("checkbox", { name: /n'a pas produit de déclaration/ }));
+  await userEvent.type(nadia.getByLabelText("Expliquez pourquoi"), "Aucun revenu en 2025");
+  await userEvent.click(nadia.getByRole("button", { name: "Enregistrer l'avis" }));
+  await waitFor(() => expect(within(summary()).getByText("N'a pas produit")).toBeVisible());
+}
+
+/** What the API works out for this file: one adult and one child, so a household of two. */
+function summaryFor(stored: RecordedNotice[]) {
+  const mine = stored.find((entry) => entry.member === "m1");
+  const review = Boolean(mine && (mine.did_not_file_reason || !mine.seen_in_person));
+  const decided = Boolean(mine) && !review;
+  const eligible = decided ? (mine?.total_income_cents ?? 0) <= 3_000_000 : null;
+  return {
+    household_size: 2,
+    adult_count: 1,
+    ready_for_decision: Boolean(mine),
+    will_go_to_review: review,
+    total_income_cents: decided ? (mine?.total_income_cents ?? null) : null,
+    threshold_cents: 3_000_000,
+    eligible,
+    // Only a file that approval would approve has a length and an end date.
+    approved_months: eligible ? 12 : null,
+    valid_until: eligible ? "2027-11-14T12:00:00Z" : null,
+  };
+}
+
+/** Fakes /api/me/, the file read, the notice list and record, and the submit and approve endpoints. */
+function mockApi(
+  record: () => Response = () => Response.json(recorded(), { status: 201 }),
+  approve: () => Response = () => Response.json(decision()),
+  saved: RecordedNotice[] = [],
+  file: { status?: string; statusReason?: string; submitTo?: string; expiresAt?: string } = {},
+) {
+  // The file's status, as the server would report it after a submission.
+  const state = { status: file.status ?? "draft", reason: file.statusReason ?? "" };
+  let stored = [...saved];
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = input instanceof Request ? input.url : String(input);
+    const method = init?.method ?? "GET";
+    if (url.endsWith("/api/me/")) return Response.json(testUser("intake_worker"));
+    if (url.endsWith(`/api/staff/households/${ID}/`) && method === "GET") {
+      return Response.json({
+        ...draft(state.status, state.reason),
+        expires_at: file.expiresAt ?? null,
+      });
+    }
+    if (url.endsWith(SUBMIT_URL) && method === "POST") {
+      state.status = file.submitTo ?? "submitted";
+      state.reason = state.status === "review_required" ? "POSSIBLE_DUPLICATE" : "";
+      return Response.json({
+        id: ID,
+        status: state.status,
+        status_reason: state.reason,
+        submitted_at: "2026-11-10T14:00:00Z",
+      });
+    }
+    if (url.endsWith(NOTICES_URL) && method === "GET") return Response.json(stored);
+    if (url.endsWith(NOTICES_URL) && method === "POST") {
+      const response = record();
+      // Like the server, keep what was recorded for the next read.
+      if (response.ok) {
+        const notice = (await response.clone().json()) as RecordedNotice;
+        stored = [...stored.filter((entry) => entry.member !== notice.member), notice];
+      }
+      return response;
+    }
+    if (url.endsWith(APPROVE_URL) && method === "POST") return approve();
+    if (url.endsWith(SUMMARY_URL) && method === "GET") return Response.json(summaryFor(stored));
+    return new Response(null, { status: 404 });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+function sentForm(fetchMock: ReturnType<typeof mockApi>): FormData {
+  const call = fetchMock.mock.calls.find(
+    ([input, init]) => String(input).endsWith(NOTICES_URL) && init?.method === "POST",
+  );
+  if (!call) throw new Error("No notice was sent");
+  return call[1]?.body as FormData;
+}
+
+// The card is titled "Adulte 1 · name (personne responsable)": match on the name.
+const card = (name: string) => screen.getByRole("region", { name: new RegExp(name) });
+const summary = () => screen.getByRole("region", { name: "Résumé pour la décision" });
+
+/** Every notice is in: submit the draft (duplicate check) so approval is offered. */
+async function submitFile() {
+  await userEvent.click(screen.getByRole("button", { name: "Soumettre le dossier" }));
+  await screen.findByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ });
+}
+
+/** Approval is final: it asks first (Figma W6.3 S26), then the server decides. */
+async function approve() {
+  await userEvent.click(
+    screen.getByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ }),
+  );
+  await userEvent.click(await screen.findByRole("button", { name: "Confirmer l'approbation" }));
+}
+
+async function openPage() {
+  renderWithProviders(<App />, { route: ROUTE });
+  await screen.findByRole("heading", { level: 1, name: "Avis et décision · Nadia Démo" });
+  // The numbers come from the API, so wait for them before acting.
+  await screen.findByText("Taille du foyer");
+}
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(2026, 10, 10, 9, 0));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("Walk-in notices (US-18, T-03.18.4)", () => {
+  it("shows one card per adult, with the phone camera for the notice", async () => {
+    mockApi();
+    await openPage();
+
+    expect(card("Nadia Démo")).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Léo Démo" })).not.toBeInTheDocument();
+
+    const inputs = card("Nadia Démo").querySelectorAll<HTMLInputElement>('input[type="file"]');
+    const camera = Array.from(inputs).find((input) => input.getAttribute("capture"));
+    expect(camera?.getAttribute("capture")).toBe("environment");
+    expect(camera?.accept).toBe("image/*");
+    expect(within(summary()).getByText("À enregistrer")).toBeVisible();
+    // The shared FileUpload drop zone puts aria-required on a <button> (a known issue in
+    // shared/forms, reported to its owner); every other element is checked.
+    const results = await axe.run(
+      { include: [document.body], exclude: [["[class*='dropZone']"]] },
+      { rules: { "color-contrast": { enabled: false } } },
+    );
+    expect(results.violations.map((violation) => violation.id)).toEqual([]);
+  });
+
+  it("checks the card before sending and sends nothing while values are missing", async () => {
+    const fetchMock = mockApi();
+    await openPage();
+
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer l'avis" }));
+
+    expect(await screen.findAllByText("Remplissez ce champ.")).not.toHaveLength(0);
+    expect(
+      fetchMock.mock.calls.some(
+        ([input, init]) => String(input).endsWith(NOTICES_URL) && init?.method === "POST",
+      ),
+    ).toBe(false);
+  });
+
+  it("records a photographed notice with the typed values", async () => {
+    const fetchMock = mockApi();
+    await openPage();
+    const nadia = within(card("Nadia Démo"));
+
+    const photo = new File(["jpeg"], "avis.jpg", { type: "image/jpeg" });
+    const camera = card("Nadia Démo").querySelector<HTMLInputElement>(
+      'input[capture="environment"]',
+    );
+    await userEvent.upload(camera as HTMLInputElement, photo);
+    await userEvent.type(nadia.getByLabelText("Année d'imposition"), "2025");
+    await userEvent.type(nadia.getByLabelText("Revenu total (ligne 199)"), "18500");
+    await userEvent.type(nadia.getByLabelText("Nom sur l'avis"), "Nadia Démo");
+    await userEvent.type(nadia.getByLabelText("Code postal sur l'avis"), "h2x1y4");
+    await userEvent.type(nadia.getByLabelText("Date de l'avis"), "2026-04-30");
+    await userEvent.click(nadia.getByRole("checkbox", { name: /Avis vu en personne/ }));
+    await userEvent.click(nadia.getByRole("button", { name: "Enregistrer l'avis" }));
+
+    await waitFor(() => expect(within(summary()).getByText("Avis enregistré")).toBeVisible());
+    const form = sentForm(fetchMock);
+    expect(form.get("member")).toBe("m1");
+    expect(form.get("did_not_file")).toBe("false");
+    expect((form.get("file") as File).name).toBe("avis.jpg");
+    expect(form.get("tax_year")).toBe("2025");
+    expect(form.get("total_income_cents")).toBe("1850000");
+    expect(form.get("postal_code_on_notice")).toBe("H2X 1Y4");
+    expect(form.get("notice_date")).toBe("2026-04-30");
+    expect(form.get("seen_in_person")).toBe("true");
+    expect(await screen.findByText(/Le dossier est prêt pour la décision/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Remplacer cet avis" })).toBeVisible();
+  });
+
+  it("records 'did not file' with a reason and warns that the file goes to review", async () => {
+    const fetchMock = mockApi(() =>
+      Response.json(recorded({ did_not_file_reason: "Aucun revenu en 2025", has_file: false }), {
+        status: 201,
+      }),
+    );
+    await openPage();
+    const nadia = within(card("Nadia Démo"));
+
+    await userEvent.click(nadia.getByRole("checkbox", { name: /n'a pas produit de déclaration/ }));
+    expect(nadia.queryByLabelText("Année d'imposition")).not.toBeInTheDocument();
+    await userEvent.type(nadia.getByLabelText("Expliquez pourquoi"), "Aucun revenu en 2025");
+    await userEvent.click(nadia.getByRole("button", { name: "Enregistrer l'avis" }));
+
+    await waitFor(() => expect(within(summary()).getByText("N'a pas produit")).toBeVisible());
+    const form = sentForm(fetchMock);
+    expect(form.get("did_not_file")).toBe("true");
+    expect(form.get("did_not_file_reason")).toBe("Aucun revenu en 2025");
+    expect(form.has("file")).toBe(false);
+    expect(await screen.findByText(/envoie le dossier en révision/)).toBeVisible();
+  });
+
+  it("shows the server's message on the field it refused", async () => {
+    mockApi(() =>
+      Response.json(
+        {
+          code: "validation_error",
+          message: "Vérifiez les champs indiqués.",
+          fields: { did_not_file_reason: ["Le motif est trop court."] },
+        },
+        { status: 400 },
+      ),
+    );
+    await openPage();
+    const nadia = within(card("Nadia Démo"));
+
+    await userEvent.click(nadia.getByRole("checkbox", { name: /n'a pas produit de déclaration/ }));
+    await userEvent.type(nadia.getByLabelText("Expliquez pourquoi"), "Non");
+    await userEvent.click(nadia.getByRole("button", { name: "Enregistrer l'avis" }));
+
+    expect(await nadia.findByText("Le motif est trop court.")).toBeVisible();
+    expect(within(summary()).getByText("À enregistrer")).toBeVisible();
+  });
+
+  it("explains a refused save that has no field errors", async () => {
+    mockApi(() =>
+      Response.json(
+        { code: "parse_error", message: "Malformed request.", fields: {} },
+        { status: 400 },
+      ),
+    );
+    await openPage();
+    const nadia = within(card("Nadia Démo"));
+
+    await userEvent.click(nadia.getByRole("checkbox", { name: /n'a pas produit de déclaration/ }));
+    await userEvent.type(nadia.getByLabelText("Expliquez pourquoi"), "Aucun revenu en 2025");
+    await userEvent.click(nadia.getByRole("button", { name: "Enregistrer l'avis" }));
+
+    expect(
+      await nadia.findByText("Le serveur a refusé d'enregistrer le dossier. Réessayez."),
+    ).toBeVisible();
+  });
+  // rule: BR-DOC-007
+  it("keeps Submit disabled until every adult has a notice or a reason", async () => {
+    mockApi();
+    await openPage();
+
+    expect(screen.getByRole("button", { name: "Soumettre le dossier" })).toBeDisabled();
+  });
+
+  it("approves the file and says until when", async () => {
+    const fetchMock = mockApi(() => Response.json(recorded(), { status: 201 }));
+    await openPage();
+    const nadia = within(card("Nadia Démo"));
+    await userEvent.click(nadia.getByRole("checkbox", { name: /n'a pas produit de déclaration/ }));
+    await userEvent.type(nadia.getByLabelText("Expliquez pourquoi"), "Aucun revenu en 2025");
+    await userEvent.click(nadia.getByRole("button", { name: "Enregistrer l'avis" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Soumettre le dossier" })).toBeEnabled(),
+    );
+    await submitFile();
+
+    await approve();
+
+    expect(await screen.findByText(/Dossier approuvé jusqu'au 10 novembre 2027/)).toBeVisible();
+    expect(
+      fetchMock.mock.calls.some(
+        ([input, init]) => String(input).endsWith(APPROVE_URL) && init?.method === "POST",
+      ),
+    ).toBe(true);
+  });
+
+  it("explains a file sent to review with each reason", async () => {
+    mockApi(
+      () =>
+        Response.json(recorded({ did_not_file_reason: "Aucun revenu en 2025" }), { status: 201 }),
+      () =>
+        Response.json(
+          decision({
+            status: "review_required",
+            status_reason: "DID_NOT_FILE, NAME_MISMATCH",
+            approved_at: null,
+            expires_at: null,
+          }),
+        ),
+    );
+    await openPage();
+    await recordDidNotFile();
+    await submitFile();
+
+    await approve();
+
+    expect(await screen.findByText("Dossier envoyé en révision")).toBeVisible();
+    expect(screen.getByText("Un adulte n'a pas produit de déclaration de revenus.")).toBeVisible();
+    expect(screen.getByText("Le nom sur un avis ne correspond pas à la personne.")).toBeVisible();
+  });
+
+  it("shows a rejection with its reason", async () => {
+    mockApi(
+      () =>
+        Response.json(recorded({ did_not_file_reason: "Aucun revenu en 2025" }), { status: 201 }),
+      () =>
+        Response.json(
+          decision({
+            status: "rejected",
+            status_reason: "INCOME_ABOVE_LICO",
+            approved_at: null,
+            expires_at: null,
+          }),
+        ),
+    );
+    await openPage();
+    await recordDidNotFile();
+    await submitFile();
+
+    await approve();
+
+    expect(await screen.findByText("Dossier refusé")).toBeVisible();
+    expect(screen.getByText(/dépasse le seuil de faible revenu/)).toBeVisible();
+  });
+
+  it("shows why no decision was made when the file is incomplete", async () => {
+    mockApi(
+      () =>
+        Response.json(recorded({ did_not_file_reason: "Aucun revenu en 2025" }), { status: 201 }),
+      () =>
+        Response.json(
+          {
+            code: "validation_error",
+            message: "Vérifiez les champs indiqués.",
+            fields: { non_field_errors: ["Complétez l'adresse et le téléphone du foyer."] },
+          },
+          { status: 400 },
+        ),
+    );
+    await openPage();
+    await recordDidNotFile();
+    await submitFile();
+
+    await approve();
+
+    expect(await screen.findByText("Aucune décision n'a été prise")).toBeVisible();
+    expect(screen.getByText("Complétez l'adresse et le téléphone du foyer.")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ }),
+    ).toBeVisible();
+  });
+
+  it("shows the notices saved earlier, so a reloaded file can still be submitted", async () => {
+    mockApi(undefined, undefined, [recorded()]);
+    await openPage();
+
+    expect(within(summary()).getByText("Avis enregistré")).toBeVisible();
+    expect(within(card("Nadia Démo")).getByText(/2025/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Remplacer cet avis" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Soumettre le dossier" })).toBeEnabled();
+  });
+
+  it("disables submission while a saved notice is being replaced", async () => {
+    mockApi(undefined, undefined, [recorded()]);
+    await openPage();
+
+    await userEvent.click(screen.getByRole("button", { name: "Remplacer cet avis" }));
+
+    expect(screen.getByRole("button", { name: "Soumettre le dossier" })).toBeDisabled();
+    expect(screen.getByText(/en cours de remplacement/)).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Annuler" }));
+
+    expect(screen.getByRole("button", { name: "Soumettre le dossier" })).toBeEnabled();
+  });
+
+  // rule: BR-DUP-002
+  it("submits a draft first, then offers approval", async () => {
+    const fetchMock = mockApi(undefined, undefined, [recorded()], { status: "draft" });
+    await openPage();
+
+    expect(
+      screen.queryByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ }),
+    ).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Soumettre le dossier" }));
+
+    expect(
+      await screen.findByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ }),
+    ).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Soumettre le dossier" })).toBeNull();
+    expect(
+      fetchMock.mock.calls.some(
+        ([input, init]) => String(input).endsWith(SUBMIT_URL) && init?.method === "POST",
+      ),
+    ).toBe(true);
+  });
+
+  // rule: BR-DUP-002
+  it("sends a possible duplicate to review and offers no approval", async () => {
+    mockApi(undefined, undefined, [recorded()], { status: "draft", submitTo: "review_required" });
+    await openPage();
+
+    await userEvent.click(screen.getByRole("button", { name: "Soumettre le dossier" }));
+
+    expect(await screen.findByText("Dossier envoyé en révision")).toBeVisible();
+    expect(
+      screen.getByText("Un foyer avec la même adresse ou la même personne est déjà inscrit."),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ }),
+    ).toBeNull();
+  });
+
+  // rule: BR-DOC-007
+  it("locks the notices once the file is submitted", async () => {
+    mockApi(undefined, undefined, [recorded()], { status: "submitted" });
+    await openPage();
+
+    expect(screen.getByText(/n'est plus un brouillon/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Remplacer cet avis" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Soumettre le dossier" })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ }),
+    ).toBeEnabled();
+  });
+
+  it("offers nothing once the file is decided", async () => {
+    mockApi(undefined, undefined, [recorded()], { status: "approved" });
+    await openPage();
+
+    expect(screen.queryByRole("button", { name: "Soumettre le dossier" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ }),
+    ).toBeNull();
+  });
+
+  it("still shows a saved approval and its date after a reload", async () => {
+    mockApi(undefined, undefined, [recorded()], {
+      status: "approved",
+      expiresAt: "2027-11-10T14:00:00Z",
+    });
+    await openPage();
+
+    expect(await screen.findByText(/Dossier approuvé jusqu'au 10 novembre 2027/)).toBeVisible();
+  });
+
+  it("still shows a saved rejection and its reason after a reload", async () => {
+    mockApi(undefined, undefined, [recorded()], {
+      status: "rejected",
+      statusReason: "INCOME_ABOVE_LICO",
+    });
+    await openPage();
+
+    expect(await screen.findByText("Dossier refusé")).toBeVisible();
+    expect(screen.getByText(/dépasse le seuil de faible revenu/)).toBeVisible();
+  });
+
+  // Approving again could not change the outcome, so the screen does not offer it.
+  it("shows a file in review with its reasons and no approve action", async () => {
+    mockApi(undefined, undefined, [recorded()], {
+      status: "review_required",
+      statusReason: "POSSIBLE_DUPLICATE",
+    });
+    await openPage();
+
+    expect(await screen.findByText("Dossier envoyé en révision")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ }),
+    ).toBeNull();
+  });
+
+  it("asks for confirmation before approving, and approves nothing when cancelled", async () => {
+    const fetchMock = mockApi(undefined, undefined, [recorded()], { status: "submitted" });
+    await openPage();
+
+    expect(await screen.findByText("Admissible : le revenu est sous le seuil")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Approuver pour 12 mois" }));
+    const dialog = await screen.findByRole("dialog", { name: "Approuver ce dossier ?" });
+    expect(
+      within(dialog).getByText("Le dossier sera valide jusqu'au 14 novembre 2027."),
+    ).toBeVisible();
+    expect(within(dialog).getByText(/La décision est définitive/)).toBeVisible();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Annuler" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(
+      fetchMock.mock.calls.some(
+        ([input, init]) => String(input).endsWith(APPROVE_URL) && init?.method === "POST",
+      ),
+    ).toBe(false);
+  });
+
+  it("says when the income is above the threshold, before anyone approves", async () => {
+    mockApi(undefined, undefined, [recorded({ total_income_cents: 3_500_000 })], {
+      status: "submitted",
+    });
+    await openPage();
+
+    expect(await screen.findByText("Non admissible : le revenu dépasse le seuil")).toBeVisible();
+    expect(screen.getByText(/Si vous continuez, le dossier sera refusé/)).toBeVisible();
+    // No validity to promise: the button does not mention months.
+    expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeEnabled();
+  });
+
+  it("shows the header, the card title and the numbers the API worked out", async () => {
+    mockApi(undefined, undefined, [recorded()]);
+    await openPage();
+
+    expect(screen.getByText(/Au comptoir · Visite du/)).toBeVisible();
+    expect(screen.getByText("Adultes : 1 · Personnes à charge : 1")).toBeVisible();
+    expect(
+      screen.getByRole("region", { name: "Adulte 1 · Nadia Démo (personne responsable)" }),
+    ).toBeVisible();
+    const facts = within(summary());
+    expect(facts.getByText("Taille du foyer").nextSibling).toHaveTextContent("2");
+    expect(facts.getByText("Revenu total du foyer").nextSibling).toHaveTextContent(/18\s?500/);
+    expect(facts.getByText("Seuil de faible revenu").nextSibling).toHaveTextContent(/30\s?000/);
+  });
+
+  it("writes the colon in the translation: French puts a space before it", async () => {
+    mockApi(undefined, undefined, [recorded()]);
+    await openPage();
+
+    expect(within(card("Nadia Démo")).getByText(/^Année d'imposition : 2025$/)).toBeVisible();
+  });
+
+  it("does not show a zero income when the notice has none", async () => {
+    mockApi(undefined, undefined, [recorded({ total_income_cents: null })]);
+    await openPage();
+
+    expect(within(card("Nadia Démo")).getByText(/Non fournie/)).toBeVisible();
+  });
+
+  it("tells staff when no invitation was sent because the email has an account", async () => {
+    mockApi(undefined, () => Response.json(decision({ invitation_not_sent: true })), [recorded()], {
+      status: "submitted",
+    });
+    await openPage();
+
+    await approve();
+
+    expect(await screen.findByText(/Dossier approuvé jusqu'au/)).toBeVisible();
+    expect(screen.getByText(/Aucun courriel n'a été envoyé/)).toBeVisible();
+  });
+
+  it("explains a file sent to review because an adult has no notice", async () => {
+    mockApi(undefined, undefined, [recorded()], {
+      status: "review_required",
+      statusReason: "NOTICE_MISSING",
+    });
+    await openPage();
+
+    expect(await screen.findByText(/ni avis ni motif de non-production/)).toBeVisible();
+  });
+});

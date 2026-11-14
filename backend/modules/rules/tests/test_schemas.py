@@ -86,6 +86,18 @@ def test_default_values_satisfy_each_rule_schema(rule_type: str) -> None:
             {**DEFAULT_RULE_VALUES["retention"], "unexpected": 1},
             "Additional properties are not allowed",
         ),
+        # rule: BR-DOC-006
+        (
+            "notice_upload",
+            {**DEFAULT_RULE_VALUES["notice_upload"], "link_minutes": 61},
+            "maximum of 60",
+        ),
+        # rule: BR-DOC-004
+        (
+            "notice_upload",
+            {**DEFAULT_RULE_VALUES["notice_upload"], "max_bytes": 0},
+            "minimum of 1",
+        ),
     ],
 )
 def test_invalid_values_are_refused_with_a_clear_message(
@@ -105,6 +117,23 @@ def test_unknown_rule_type_is_refused() -> None:
 def test_every_supported_rule_type_has_exactly_one_schema() -> None:
     assert set(RULE_SCHEMAS) == set(RULE_TYPES)
     assert set(DEFAULT_RULE_VALUES) == set(RULE_TYPES) - {"lico_thresholds"}
+
+
+# rule: BR-DOC-001
+# rule: BR-DOC-002
+# rule: BR-DOC-003
+# rule: BR-DOC-004
+# rule: BR-DOC-006
+def test_notice_upload_defaults_match_the_business_rules() -> None:
+    """10 MB files, 5-minute links, tax years from 2000, reasons up to 500 characters,
+    incomes up to 500,000 $."""
+    assert DEFAULT_RULE_VALUES["notice_upload"] == {
+        "max_bytes": 10_485_760,
+        "link_minutes": 5,
+        "earliest_tax_year": 2000,
+        "reason_max_length": 500,
+        "max_income_cents": 50_000_000,
+    }
 
 
 # rule: BR-HH-001

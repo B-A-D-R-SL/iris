@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from functools import partial
 from typing import Any, cast
 
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.core.validators import validate_email
 from django.db import DatabaseError, transaction
@@ -128,6 +129,21 @@ def send(
             partial(_enqueue, str(email_log.pk), values, policy["retry_delays_seconds"])
         )
     return email_log
+
+
+def queue_set_password_email(*, email: str, token: str, language: str) -> EmailLog:
+    """Queue the US-18 walk-in password link through the shared delivery path.
+
+    A missing or invalid ``PUBLIC_APP_ORIGIN`` is recorded as a failed
+    ``EmailLog`` instead of undoing the committed approval.
+    """
+    origin = getattr(settings, "PUBLIC_APP_ORIGIN", None)
+    link = f"{origin.rstrip('/')}/invitation/{token}" if isinstance(origin, str) else ""
+    return send(
+        email,
+        "walk_in_set_password",
+        {"language": "en" if language == "en" else "fr", "invitation_url": link},
+    )
 
 
 def queue_household_status_email(

@@ -52,3 +52,11 @@ export function formatMoney(cents: number, language: string): string {
     currencyDisplay: "narrowSymbol",
   }).format(centsToDollars(cents));
 }
+
+/** "14 novembre 2026" (fr) or "November 14, 2026" (en), on the Montréal calendar. */
+export function formatDate(iso: string, language: string): string {
+  return new Intl.DateTimeFormat(language === "en" ? "en-CA" : "fr-CA", {
+    dateStyle: "long",
+    timeZone: "America/Montreal",
+  }).format(new Date(iso));
+}

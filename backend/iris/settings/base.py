@@ -208,6 +208,9 @@ AZURE_STORAGE_ACCOUNT_NAME = env("AZURE_STORAGE_ACCOUNT_NAME", default="")
 AZURE_STORAGE_ACCOUNT_KEY = env("AZURE_STORAGE_ACCOUNT_KEY", default="")
 AZURE_STORAGE_CONTAINER_NAME = env("AZURE_STORAGE_CONTAINER_NAME", default="")
 AZURE_STORAGE_CONNECTION_STRING = env("AZURE_STORAGE_CONNECTION_STRING", default="")
+# Dotted path of a zero-argument callable returning an adapters.file_store FileStore.
+# Empty means no storage: notice uploads and downloads fail closed (503).
+FILE_STORE_BACKEND = env("FILE_STORE_BACKEND", default="")
 AZURE_STORAGE_BLOB_ENDPOINT = env("AZURE_STORAGE_BLOB_ENDPOINT", default="")
 AZURE_STORAGE_PUBLIC_BLOB_ENDPOINT = env(
     "AZURE_STORAGE_PUBLIC_BLOB_ENDPOINT", default=""

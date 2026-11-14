@@ -9,6 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from modules.accounts.tests.factories import UserFactory
+from modules.documents.tests.factories import IncomeNoticeFactory
 from modules.households.models import Household, HouseholdDraftEvent, Member
 from modules.households.services import submit_walk_in
 from modules.households.tests.factories import HouseholdFactory, MemberFactory
@@ -152,7 +153,7 @@ def test_incomplete_registration_stays_a_draft(
 
 
 def test_holder_is_required(ready_household_factory, submission_worker):
-    household = ready_household_factory()
+    household = ready_household_factory(notice=False)
     household.members.all().delete()
     with pytest.raises(ValidationError, match="holder"):
         submit_walk_in(household.pk, submission_worker)
@@ -190,9 +191,24 @@ def test_more_than_fifteen_members_cannot_be_submitted(
 
 
 # rule: BR-HH-001
+# rule: BR-DOC-007
+def test_each_adult_needs_a_notice_or_reason_before_submission(
+    ready_household_factory, submission_worker
+):
+    household = ready_household_factory()
+    adult = MemberFactory(household=household, date_of_birth="1992-05-05")
+    with pytest.raises(ValidationError) as refused:
+        submit_walk_in(household.pk, submission_worker)
+    assert set(refused.value.message_dict) == {"notices"}
+    household.refresh_from_db()
+    assert household.status == Household.Status.DRAFT
+    IncomeNoticeFactory(member=adult, did_not_file=True)
+    assert submit_walk_in(household.pk, submission_worker).status == "submitted"
+
+
 def test_exactly_fifteen_people_can_submit(ready_household_factory, submission_worker):
     household = ready_household_factory()
-    MemberFactory.create_batch(14, household=household)
+    MemberFactory.create_batch(14, household=household, date_of_birth="2015-01-01")
     result = submit_walk_in(household.pk, submission_worker)
     household.refresh_from_db()
     assert household.members.count() == 15
