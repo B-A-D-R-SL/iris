@@ -11,10 +11,6 @@ from datetime import date
 from enum import StrEnum
 from typing import NamedTuple, cast
 
-# Oldest tax year Iris accepts; the rules schema uses the same lower bound.
-EARLIEST_TAX_YEAR = 2000
-MAX_REASON_LENGTH = 500
-
 NOTICE_FIELDS: tuple[str, ...] = (
     "tax_year",
     "total_income_cents",
@@ -39,6 +35,14 @@ class Problem(StrEnum):
     FILE_EMPTY = "file_empty"
     FILE_TOO_LARGE = "file_too_large"
     FILE_TYPE = "file_type"
+
+
+@dataclass(frozen=True)
+class NoticeLimits:
+    """Entry limits from the active notice_upload rule (review rule 2), given by services."""
+
+    earliest_tax_year: int
+    reason_max_length: int
 
 
 class NoticeRulesBroken(ValueError):
@@ -93,21 +97,23 @@ def _raise_if(problems: dict[str, Problem]) -> None:
 
 
 def parse_entry(
-    values: Mapping[str, object], *, has_file: bool, today: date
+    values: Mapping[str, object], *, has_file: bool, today: date, limits: NoticeLimits
 ) -> FiledNotice | DidNotFile:
     """Check a staff entry: a filed notice (BR-DOC-001/002) or a non-filer (BR-DOC-003)."""
     if values.get("did_not_file"):
-        return _did_not_file(values, has_file=has_file)
-    return _filed(values, has_file=has_file, today=today)
+        return _did_not_file(values, has_file=has_file, limits=limits)
+    return _filed(values, has_file=has_file, today=today, limits=limits)
 
 
-def _did_not_file(values: Mapping[str, object], *, has_file: bool) -> DidNotFile:
+def _did_not_file(
+    values: Mapping[str, object], *, has_file: bool, limits: NoticeLimits
+) -> DidNotFile:
     problems: dict[str, Problem] = {}
     reason = values.get("did_not_file_reason")
     text = reason.strip() if isinstance(reason, str) else ""
     if not text:
         problems["did_not_file_reason"] = Problem.REASON_REQUIRED
-    elif len(text) > MAX_REASON_LENGTH:
+    elif len(text) > limits.reason_max_length:
         problems["did_not_file_reason"] = Problem.REASON_TOO_LONG
     if has_file:
         problems["file"] = Problem.NOT_ALLOWED
@@ -121,7 +127,9 @@ def _did_not_file(values: Mapping[str, object], *, has_file: bool) -> DidNotFile
     return DidNotFile(text)
 
 
-def _filed(values: Mapping[str, object], *, has_file: bool, today: date) -> FiledNotice:
+def _filed(
+    values: Mapping[str, object], *, has_file: bool, today: date, limits: NoticeLimits
+) -> FiledNotice:
     problems = {
         field: Problem.REQUIRED
         for field in NOTICE_FIELDS
@@ -131,7 +139,7 @@ def _filed(values: Mapping[str, object], *, has_file: bool, today: date) -> File
         problems["file"] = Problem.REQUIRED
     if not _missing(values.get("did_not_file_reason")):
         problems["did_not_file_reason"] = Problem.REASON_NOT_ALLOWED
-    problems.update(_value_problems(values, today))
+    problems.update(_value_problems(values, today, limits))
     _raise_if(problems)
     return FiledNotice(
         tax_year=cast(int, values["tax_year"]),
@@ -143,7 +151,9 @@ def _filed(values: Mapping[str, object], *, has_file: bool, today: date) -> File
     )
 
 
-def _value_problems(values: Mapping[str, object], today: date) -> dict[str, Problem]:
+def _value_problems(
+    values: Mapping[str, object], today: date, limits: NoticeLimits
+) -> dict[str, Problem]:
     """BR-DOC-001 income and BR-DOC-002 tax year and notice date, for given values."""
     problems: dict[str, Problem] = {}
     income = values.get("total_income_cents")
@@ -152,7 +162,7 @@ def _value_problems(values: Mapping[str, object], today: date) -> dict[str, Prob
     tax_year = values.get("tax_year")
     valid_year: int | None = None
     if isinstance(tax_year, int):
-        if tax_year < EARLIEST_TAX_YEAR:
+        if tax_year < limits.earliest_tax_year:
             problems["tax_year"] = Problem.TAX_YEAR_TOO_EARLY
         elif tax_year >= today.year:
             problems["tax_year"] = Problem.TAX_YEAR_NOT_ENDED

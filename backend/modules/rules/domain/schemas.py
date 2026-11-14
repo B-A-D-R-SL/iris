@@ -184,11 +184,15 @@ RULE_SCHEMAS: Final[dict[str, JSONSchema]] = {
             "photo_max_dimension": {"type": "integer", "minimum": 1},
         }
     ),
-    # Notice of assessment files (BR-DOC-004) and their staff links (BR-DOC-006).
+    # Notice of assessment files (BR-DOC-004), their staff links (BR-DOC-006), the
+    # oldest tax year (BR-DOC-002) and the non-filing reason length (BR-DOC-003).
     "notice_upload": _object_schema(
         {
             "max_bytes": {"type": "integer", "minimum": 1},
             "link_minutes": {"type": "integer", "minimum": 1, "maximum": 60},
+            "earliest_tax_year": {"type": "integer", "minimum": 1900, "maximum": 9999},
+            # The reason column holds at most 500 characters.
+            "reason_max_length": {"type": "integer", "minimum": 1, "maximum": 500},
         }
     ),
     "file_validity": _object_schema(
@@ -280,6 +284,8 @@ DEFAULT_RULE_VALUES: Final[dict[str, dict[str, Any]]] = {
     "notice_upload": {
         "max_bytes": 10 * 1024 * 1024,
         "link_minutes": 5,
+        "earliest_tax_year": 2000,
+        "reason_max_length": 500,
     },
     "file_validity": {
         "approved_months": 12,

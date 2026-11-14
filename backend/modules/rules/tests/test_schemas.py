@@ -119,13 +119,17 @@ def test_every_supported_rule_type_has_exactly_one_schema() -> None:
     assert set(DEFAULT_RULE_VALUES) == set(RULE_TYPES) - {"lico_thresholds"}
 
 
+# rule: BR-DOC-002
+# rule: BR-DOC-003
 # rule: BR-DOC-004
 # rule: BR-DOC-006
-def test_notice_upload_defaults_are_10_mb_and_5_minutes() -> None:
-    """BR-DOC-004 and BR-DOC-006: the issue's 10 MB files and 5-minute links."""
+def test_notice_upload_defaults_match_the_business_rules() -> None:
+    """10 MB files, 5-minute links, tax years from 2000, reasons up to 500 characters."""
     assert DEFAULT_RULE_VALUES["notice_upload"] == {
         "max_bytes": 10_485_760,
         "link_minutes": 5,
+        "earliest_tax_year": 2000,
+        "reason_max_length": 500,
     }
 
 

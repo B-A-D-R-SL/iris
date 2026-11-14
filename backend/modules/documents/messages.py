@@ -8,12 +8,7 @@ and this module gives each one its French or English text.
 from django.utils.functional import Promise
 from django.utils.translation import gettext_lazy as _
 
-from modules.documents.domain.notice import (
-    EARLIEST_TAX_YEAR,
-    MAX_REASON_LENGTH,
-    NoticeRulesBroken,
-    Problem,
-)
+from modules.documents.domain.notice import NoticeLimits, NoticeRulesBroken, Problem
 
 _MESSAGES: dict[Problem, Promise] = {
     Problem.REQUIRED: _("Enter this information."),
@@ -37,12 +32,13 @@ _MESSAGES: dict[Problem, Promise] = {
     Problem.FILE_TYPE: _("Choose a JPEG, PNG or PDF file."),
 }
 
-_PARAMETERS = {"year": EARLIEST_TAX_YEAR, "count": MAX_REASON_LENGTH}
 
-
-def problem_messages(error: NoticeRulesBroken) -> dict[str, list[str]]:
-    """Each field's message in the active language, ready for a ValidationError."""
+def problem_messages(
+    error: NoticeRulesBroken, limits: NoticeLimits
+) -> dict[str, list[str]]:
+    """Each field's message in the active language, with the rule's own limits."""
+    parameters = {"year": limits.earliest_tax_year, "count": limits.reason_max_length}
     return {
-        field: [str(_MESSAGES[problem]) % _PARAMETERS]
+        field: [str(_MESSAGES[problem]) % parameters]
         for field, problem in error.problems.items()
     }

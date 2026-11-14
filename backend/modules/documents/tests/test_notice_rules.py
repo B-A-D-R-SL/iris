@@ -12,6 +12,7 @@ from modules.documents.domain.notice import (
     DidNotFile,
     FiledNotice,
     FileType,
+    NoticeLimits,
     NoticeRulesBroken,
     Problem,
     detect_file_type,
@@ -22,6 +23,8 @@ from modules.documents.messages import problem_messages
 
 TODAY = date(2026, 11, 6)
 PDF = b"%PDF-1.7 notice"
+# The notice_upload rule's defaults (rules/domain/schemas.py).
+LIMITS = NoticeLimits(earliest_tax_year=2000, reason_max_length=500)
 
 
 def _filed(**changes: Any) -> dict[str, Any]:
@@ -39,13 +42,15 @@ def _filed(**changes: Any) -> dict[str, Any]:
 
 def _problems(values: dict[str, Any], *, has_file: bool = True) -> dict[str, Problem]:
     with pytest.raises(NoticeRulesBroken) as caught:
-        parse_entry(values, has_file=has_file, today=TODAY)
+        parse_entry(values, has_file=has_file, today=TODAY, limits=LIMITS)
     return caught.value.problems
 
 
 # rule: BR-DOC-001
 def test_br_doc_001_complete_filed_notice_is_accepted() -> None:
-    assert parse_entry(_filed(), has_file=True, today=TODAY) == FiledNotice(
+    assert parse_entry(
+        _filed(), has_file=True, today=TODAY, limits=LIMITS
+    ) == FiledNotice(
         tax_year=2025,
         total_income_cents=1_234_500,
         name_on_notice="Example Holder",
@@ -79,7 +84,9 @@ def test_br_doc_001_all_missing_values_are_reported_together() -> None:
 
 # rule: BR-DOC-001
 def test_br_doc_001_zero_income_is_accepted() -> None:
-    entry = parse_entry(_filed(total_income_cents=0), has_file=True, today=TODAY)
+    entry = parse_entry(
+        _filed(total_income_cents=0), has_file=True, today=TODAY, limits=LIMITS
+    )
 
     assert isinstance(entry, FiledNotice)
     assert entry.total_income_cents == 0
@@ -103,7 +110,9 @@ def test_br_doc_001_reason_on_a_filed_notice_is_refused() -> None:
 def test_br_doc_002_notice_dated_january_first_after_the_tax_year_is_accepted() -> None:
     values = _filed(tax_year=2025, notice_date=date(2026, 1, 1))
 
-    assert isinstance(parse_entry(values, has_file=True, today=TODAY), FiledNotice)
+    assert isinstance(
+        parse_entry(values, has_file=True, today=TODAY, limits=LIMITS), FiledNotice
+    )
 
 
 # rule: BR-DOC-002
@@ -117,7 +126,9 @@ def test_br_doc_002_notice_dated_december_31_of_the_tax_year_is_refused() -> Non
 def test_br_doc_002_notice_dated_today_is_accepted() -> None:
     values = _filed(notice_date=TODAY)
 
-    assert isinstance(parse_entry(values, has_file=True, today=TODAY), FiledNotice)
+    assert isinstance(
+        parse_entry(values, has_file=True, today=TODAY, limits=LIMITS), FiledNotice
+    )
 
 
 # rule: BR-DOC-002
@@ -148,7 +159,9 @@ def test_br_doc_002_impossible_early_tax_year_is_refused_without_crashing(
 def test_br_doc_002_tax_year_2000_is_accepted() -> None:
     values = _filed(tax_year=2000, notice_date=date(2001, 5, 1))
 
-    assert isinstance(parse_entry(values, has_file=True, today=TODAY), FiledNotice)
+    assert isinstance(
+        parse_entry(values, has_file=True, today=TODAY, limits=LIMITS), FiledNotice
+    )
 
 
 # rule: BR-DOC-002
@@ -169,9 +182,9 @@ def test_br_doc_002_impossible_tax_year_is_refused_without_crashing() -> None:
 def test_br_doc_003_did_not_file_with_reason_is_accepted() -> None:
     values = {"did_not_file": True, "did_not_file_reason": "  Pas de revenu  "}
 
-    assert parse_entry(values, has_file=False, today=TODAY) == DidNotFile(
-        "Pas de revenu"
-    )
+    assert parse_entry(
+        values, has_file=False, today=TODAY, limits=LIMITS
+    ) == DidNotFile("Pas de revenu")
 
 
 # rule: BR-DOC-003
@@ -188,7 +201,9 @@ def test_br_doc_003_reason_blank_or_spaces_is_required(reason: Any) -> None:
 def test_br_doc_003_reason_of_500_characters_is_accepted() -> None:
     values = {"did_not_file": True, "did_not_file_reason": "a" * 500}
 
-    assert parse_entry(values, has_file=False, today=TODAY) == DidNotFile("a" * 500)
+    assert parse_entry(
+        values, has_file=False, today=TODAY, limits=LIMITS
+    ) == DidNotFile("a" * 500)
 
 
 # rule: BR-DOC-003
@@ -218,9 +233,9 @@ def test_br_doc_003_did_not_file_ignores_empty_values() -> None:
         "seen_in_person": None,
     }
 
-    assert parse_entry(values, has_file=False, today=TODAY) == DidNotFile(
-        "No income in 2025"
-    )
+    assert parse_entry(
+        values, has_file=False, today=TODAY, limits=LIMITS
+    ) == DidNotFile("No income in 2025")
 
 
 # rule: BR-DOC-003
@@ -231,7 +246,9 @@ def test_br_doc_003_unticked_seen_in_person_is_accepted_on_did_not_file() -> Non
         "seen_in_person": False,
     }
 
-    assert parse_entry(values, has_file=False, today=TODAY) == DidNotFile("None")
+    assert parse_entry(
+        values, has_file=False, today=TODAY, limits=LIMITS
+    ) == DidNotFile("None")
 
 
 # rule: BR-DOC-003
@@ -297,9 +314,9 @@ def test_every_problem_has_a_french_and_english_message(problem: Problem) -> Non
     error = NoticeRulesBroken({"field": problem})
 
     with translation.override("en"):
-        english = problem_messages(error)["field"]
+        english = problem_messages(error, LIMITS)["field"]
     with translation.override("fr"):
-        french = problem_messages(error)["field"]
+        french = problem_messages(error, LIMITS)["field"]
 
     assert english and french
     assert english != french
@@ -324,6 +341,6 @@ def test_reason_on_a_filed_notice_has_its_own_message() -> None:
     error = NoticeRulesBroken({"did_not_file_reason": Problem.REASON_NOT_ALLOWED})
 
     with translation.override("en"):
-        message = problem_messages(error)["did_not_file_reason"][0]
+        message = problem_messages(error, LIMITS)["did_not_file_reason"][0]
 
     assert message == "Leave the reason empty when the person filed a tax return."

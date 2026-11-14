@@ -28,6 +28,7 @@ from modules.audit import services as audit_services
 from modules.documents.domain.notice import (
     DidNotFile,
     FiledNotice,
+    NoticeLimits,
     NoticeRulesBroken,
     detect_file_type,
     extension_for,
@@ -79,6 +80,7 @@ class NoticeFile:
 class UploadLimits:
     max_bytes: int
     link_minutes: int
+    entry: NoticeLimits
 
 
 def _require_staff(user: AbstractBaseUser) -> None:
@@ -89,14 +91,26 @@ def _require_staff(user: AbstractBaseUser) -> None:
 
 
 def _upload_limits() -> UploadLimits:
-    """BR-DOC-004 and BR-DOC-006 limits from the notice_upload rule; fail closed."""
+    """BR-DOC-002 to BR-DOC-006 limits from the notice_upload rule; fail closed.
+
+    A version published before a limit existed lacks its key: it counts as missing.
+    """
     rule = rule_queries.active("notice_upload")
-    if rule is None:
+    try:
+        if rule is None:
+            raise KeyError("notice_upload")
+        values = rule.values
+        return UploadLimits(
+            max_bytes=values["max_bytes"],
+            link_minutes=values["link_minutes"],
+            entry=NoticeLimits(
+                earliest_tax_year=values["earliest_tax_year"],
+                reason_max_length=values["reason_max_length"],
+            ),
+        )
+    except KeyError as exc:
         logger.error("Notice rule missing", extra={"event": "notice_rule_missing"})
-        raise NoticeSettingsMissing
-    return UploadLimits(
-        max_bytes=rule.values["max_bytes"], link_minutes=rule.values["link_minutes"]
-    )
+        raise NoticeSettingsMissing from exc
 
 
 def _file_store() -> FileStore:
@@ -107,18 +121,18 @@ def _file_store() -> FileStore:
         raise NoticeServiceUnavailable from exc
 
 
-def _field_errors(error: NoticeRulesBroken) -> ValidationError:
-    return ValidationError(problem_messages(error))
+def _field_errors(error: NoticeRulesBroken, limits: UploadLimits) -> ValidationError:
+    return ValidationError(problem_messages(error, limits.entry))
 
 
-def _store_upload(upload: UploadedFile, max_bytes: int, store: FileStore) -> str:
+def _store_upload(upload: UploadedFile, limits: UploadLimits, store: FileStore) -> str:
     """BR-DOC-004: read at most one byte over the limit, check it, store it privately."""
     upload.seek(0)
-    content = upload.read(max_bytes + 1)
+    content = upload.read(limits.max_bytes + 1)
     try:
-        file_type = detect_file_type(content, max_bytes)
+        file_type = detect_file_type(content, limits.max_bytes)
     except NoticeRulesBroken as exc:
-        raise _field_errors(exc) from exc
+        raise _field_errors(exc, limits) from exc
     try:
         return store.put(
             content, content_type=file_type.content_type, prefix=NOTICE_PREFIX
@@ -194,15 +208,18 @@ def prepare_staff_notice(
     limits = _upload_limits()
     try:
         entry = parse_entry(
-            values, has_file=upload is not None, today=timezone.localdate()
+            values,
+            has_file=upload is not None,
+            today=timezone.localdate(),
+            limits=limits.entry,
         )
     except NoticeRulesBroken as exc:
-        raise _field_errors(exc) from exc
+        raise _field_errors(exc, limits) from exc
     fields = _entry_fields(entry)
     if not isinstance(entry, FiledNotice) or upload is None:
         return PreparedNotice(fields)
     store = file_store if file_store is not None else _file_store()
-    fields["file_ref"] = _store_upload(upload, limits.max_bytes, store)
+    fields["file_ref"] = _store_upload(upload, limits, store)
     return PreparedNotice(fields, store)
 
 
