@@ -508,10 +508,23 @@ def test_system_audit_rows_remain_append_only(eligibility_inputs, sql):
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("system_event", [False, True])
 def test_household_event_migration_preserves_history_and_append_only_protection(
     event_inputs,
+    system_event,
 ):
+    if system_event:
+        event_inputs.update(
+            actor=None,
+            action="decision",
+            metadata={
+                "decision_id": str(uuid4()),
+                "outcome": "eligible",
+                "rule_version": 1,
+            },
+        )
     event = services.record(**event_inputs)
+    original = AuditEvent.objects.values().get(pk=event.pk)
     executor = MigrationExecutor(connection)
     previous = [("audit", "0005_merge_publication_and_suspension_actions")]
     latest = executor.loader.graph.leaf_nodes()
@@ -521,12 +534,22 @@ def test_household_event_migration_preserves_history_and_append_only_protection(
             "audit", "AuditEvent"
         )
         assert not old._meta.get_field("actor").null
-        assert old.objects.get(pk=event.pk).actor_id == event.actor_id
+        assert old.objects.values().get(pk=event.pk) == original
+        with connection.cursor() as cursor:
+            columns = connection.introspection.get_table_description(
+                cursor, "audit_auditevent"
+            )
+        assert next(column for column in columns if column.name == "actor_id").null_ok
+        # Rolling back model state must not remove database history protection.
+        with pytest.raises(IntegrityError, match="append-only"), transaction.atomic():
+            old.objects.filter(pk=event.pk).update(actor_role="admin")
+        with pytest.raises(IntegrityError, match="append-only"), transaction.atomic():
+            old.objects.filter(pk=event.pk).delete()
     finally:
         executor = MigrationExecutor(connection)
         executor.migrate(latest)
     event.refresh_from_db()
-    assert event.metadata == {}
+    assert AuditEvent.objects.values().get(pk=event.pk) == original
     assert AuditEvent._meta.get_field("actor").null
     with pytest.raises(IntegrityError, match="append-only"), transaction.atomic():
         AuditEvent.objects.filter(pk=event.pk).delete()

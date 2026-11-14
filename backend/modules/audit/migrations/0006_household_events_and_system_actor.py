@@ -29,14 +29,25 @@ class Migration(migrations.Migration):
                 max_length=20,
             ),
         ),
-        migrations.AlterField(
-            model_name="auditevent",
-            name="actor",
-            field=models.ForeignKey(
-                blank=True,
-                null=True,
-                on_delete=django.db.models.deletion.PROTECT,
-                to=settings.AUTH_USER_MODEL,
-            ),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql="ALTER TABLE audit_auditevent ALTER COLUMN actor_id DROP NOT NULL;",
+                    # Preserve append-only system events when rolling back.
+                    reverse_sql=migrations.RunSQL.noop,
+                ),
+            ],
+            state_operations=[
+                migrations.AlterField(
+                    model_name="auditevent",
+                    name="actor",
+                    field=models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+            ],
         ),
     ]

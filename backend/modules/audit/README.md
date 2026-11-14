@@ -57,10 +57,10 @@ docker compose exec backend python manage.py migrate --noinput
 Requires the US-01 accounts migrations. Audit setup needs no manual SQL.
 Migration `0006_household_events_and_system_actor` adds household actions and
 permits null system actors, preserving existing rows and the append-only trigger.
-Its schema operations are reversible without deleting data while all actors are
-non-null. Once system events exist, reverting the actor column to NOT NULL is
-not possible without changing history; keep this additive schema when rolling
-back application code. Never delete or reassign audit events to force reversal.
+Reversing it restores Django's earlier model state but deliberately leaves the
+database actor column nullable. Existing system events survive rollback without
+deletion or reassignment, and the foreign key and append-only trigger remain in
+place. Reapplying the migration is safe with those preserved rows.
 ## Admin search
 
 `GET /api/staff/audit/` is restricted to active administrators.

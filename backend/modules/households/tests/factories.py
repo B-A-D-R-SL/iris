@@ -7,6 +7,42 @@ from modules.accounts.tests.factories import UserFactory
 from modules.households.models import Household, Member
 
 
+class WalkInPayloadFactory(factory.DictFactory):
+    """Build nested API input without creating users, households or members."""
+
+    holder = factory.Dict(
+        {
+            "first_name": factory.Sequence(lambda n: "Synthetic" + chr(65 + n % 26)),
+            "last_name": "Holder",
+            "date_of_birth": "1990-02-03",
+            "phone": factory.Sequence(lambda n: f"+1514555{100 + n % 100:04d}"),
+            "email": factory.Sequence(lambda n: f"synthetic-holder-{n}@example.test"),
+        }
+    )
+    address = factory.Dict(
+        {
+            "street_number": factory.Sequence(lambda n: str(1000 + n)),
+            "street_name": "rue Exemple",
+            "city": "Montréal",
+            "postal_code": "H2X 1Y4",
+        }
+    )
+    members = factory.List(
+        [
+            factory.Dict(
+                {
+                    "first_name": factory.Sequence(
+                        lambda n: "Synthetic" + chr(65 + n % 26)
+                    ),
+                    "last_name": "Child",
+                    "date_of_birth": "2020-03-04",
+                    "relation": Member.Relation.CHILD,
+                }
+            )
+        ]
+    )
+
+
 class HouseholdFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Household

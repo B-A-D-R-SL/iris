@@ -12,35 +12,14 @@ from modules.audit.queries import search_events
 from modules.households.api.serializers import WalkInDraftReadSerializer
 from modules.households.models import Household, HouseholdDraftEvent, Member
 from modules.households.services import create_walk_in, submit_walk_in, update_draft
+from modules.households.tests.factories import WalkInPayloadFactory
 
 pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
 def data():
-    return {
-        "holder": {
-            "first_name": "Synthetic",
-            "last_name": "Holder",
-            "date_of_birth": "1990-02-03",
-            "phone": "+15145550101",
-            "email": "synthetic@example.test",
-        },
-        "address": {
-            "street_number": "123",
-            "street_name": "rue Exemple",
-            "city": "Montréal",
-            "postal_code": "H2X 1Y4",
-        },
-        "members": [
-            {
-                "first_name": "Synthetic",
-                "last_name": "Child",
-                "date_of_birth": "2020-03-04",
-                "relation": "child",
-            }
-        ],
-    }
+    return WalkInPayloadFactory()
 
 
 def client_for(actor):
