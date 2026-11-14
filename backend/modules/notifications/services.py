@@ -5,6 +5,7 @@ import logging
 from collections.abc import Mapping
 from functools import partial
 from typing import Any, cast
+from uuid import UUID
 
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.core.validators import validate_email
@@ -18,6 +19,30 @@ from modules.notifications.tasks import send_email
 from modules.rules import queries as rule_queries
 
 logger = logging.getLogger("iris.notifications")
+
+
+def fail_interrupted_delivery(email_log_id: object) -> None:
+    """Reconcile ambiguous provider outcomes before a stalled job is retried.
+
+    SENDING may mean the provider accepted mail before the worker died. Mark it
+    FAILED rather than automatically resend. Other states retain their behavior.
+    """
+    if not isinstance(email_log_id, str):
+        raise TypeError("invalid_email_log_id")
+    try:
+        log_id = UUID(email_log_id)
+    except ValueError:
+        raise ValueError("invalid_email_log_id") from None
+    changed = EmailLog.objects.filter(pk=log_id, status=EmailLog.Status.SENDING).update(
+        status=EmailLog.Status.FAILED,
+        error="delivery_outcome_unknown",
+        updated_at=timezone.now(),
+    )
+    if changed:
+        logger.warning(
+            "email_delivery_outcome_unknown",
+            extra={"event": "email_delivery_outcome_unknown"},
+        )
 
 
 def _enqueue(

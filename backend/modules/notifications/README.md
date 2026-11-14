@@ -350,3 +350,22 @@ in the [production handoff](../../../docs/guides/production-settings.md#email-de
 and verify a controlled queued email, its metadata and inbox receipt. Log-stream
 and heartbeat checks apply once that hosting exists. Keep this follow-up visible
 in the PR without describing local tests as a live staging test.
+
+
+### Interrupted staging worker delivery (SET-17 / PR #700)
+
+SET-17 registers `iris.recover_stalled_jobs` through the installed Iris app's
+Procrastinate task discovery. Every ten minutes it detects jobs belonging to
+workers with missing/stale heartbeats using the library default (30 seconds).
+A long-running job with a current heartbeat is not treated as abandoned.
+
+Before retrying an abandoned `notifications.send_email` job, the public
+`fail_interrupted_delivery` service atomically changes only `SENDING` logs to
+`FAILED`, with `delivery_outcome_unknown`. `SENT` and `FAILED` remain terminal;
+`PENDING` and `RETRYING` retain normal delivery behavior. This avoids automatic
+duplicates when the provider may already have accepted mail. It can leave an
+unsent email failed for operator investigation and explicit reissue; it does not
+establish exactly-once delivery. Legacy raw email jobs have no matching EmailLog
+and are failed instead of blindly retried. Recovery logs contain no job payloads,
+recipient, subject, message text or IDs. A failed native retry leaves reconciled
+ambiguous delivery terminal, and a future recovery pass can finish queue cleanup.
