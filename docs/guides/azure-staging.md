@@ -7,9 +7,12 @@ can reach it, how it was created, and what is left to finish
 [SET-17](https://github.com/B-A-D-R-SL/iris/issues/408). It is the handover
 for whoever continues SET-17.
 
-**Status on 12 November 2026:** the resource group, Key Vault, email service
-and budget alert exist and work. The database, photo storage, App Service and
-deploy workflow are not created yet.
+**Status on 13 November 2026:** the resource group, Key Vault, email service
+and original budget alert are recorded as provisioned by Ammar. The SET-17 branch
+now implements the release image, supervised worker, migration/seed startup, CI
+image smoke and deployment workflow. Hosting resources and live Azure checks
+remain to be activated by the owner using the [operations guide](azure-staging-operations.md).
+No paid resources were created during repository implementation.
 
 ## Subscription and region
 
@@ -107,13 +110,9 @@ Notes:
 Sign in at <https://portal.azure.com> with your Concordia account and choose
 the **Azure for Students** subscription.
 
-Read the email connection string into your local, git-ignored `backend/.env`:
-
-```bash
-az login
-az account set --subscription "Azure for Students"
-az keyvault secret show --vault-name iris-stg-kv-ar1 -n acs-connection-string --query value -o tsv
-```
+Keep email credentials in Key Vault references for App Service. For optional
+local provider testing, use your own git-ignored `backend/.env`; do not print
+connection strings into the terminal/chat. Normal local tests use Mailpit/fakes.
 
 Send a test email from the portal: `iris-stg-acs-ar1` → **Email** → **Try
 Email**. Send real test emails to your own address only. Unit tests and CI use
@@ -190,127 +189,50 @@ Concordia IT subscription that must not be touched.
     on the vault for Danial and Leon, through the portal (see
     [Adding someone](#adding-someone)).
 
-## What is left for SET-17
+## Completing SET-17
 
-SET-17's done-when list: resource group with App Service (Linux container, B1),
-PostgreSQL Flexible Server B1ms, private Blob container, Communication Services
-email and Key Vault; `deploy-staging.yml` that deploys `main` after CI passes,
-runs migrations and seeds staging; budget alert at 60 USD.
+Follow [Connect GitHub and activate staging](azure-staging-operations.md) in order:
+verify the cost/free-allowance gate; merge reviewed code; publish the first
+public GHCR image; create the database, private storage and one-instance B1 app;
+resolve Key Vault references; configure scoped OIDC; then enable deployment and
+record live application/worker/email/photo/proxy checks.
 
 | Item | Status |
 | --- | --- |
-| Resource group | Done |
-| Communication Services email | Done |
-| Key Vault | Done |
-| Budget alert at 60 USD | Done |
-| Production settings (FIX-04, #630) | Merged in #683 |
-| Azure mailer adapter (T-08.57.2, #540) | Not started; production refuses console email, so staging needs it |
-| PostgreSQL Flexible Server B1ms | To do |
-| Private Blob container for listing photos | To do |
-| Release image (web server, built React app, worker) | To do |
-| App Service (Linux container, B1) | To do, create last because it bills from creation |
-| `deploy-staging.yml` | To do |
-| Architecture section 5 and an ADR for the region | To do once the region is final |
+| Resource group, Key Vault and ACS email | Existing resources recorded above |
+| Original USD 60/month budget | Existing; add early USD 15 budget before hosting |
+| Azure mailer and queued email system (US-57) | Merged on main; included in this branch |
+| Production settings (FIX-04) | Merged; staging inherits their security guards |
+| Release image and React/static serving | Implemented in this branch |
+| Worker supervision, serialized migrations and fictional seed | Implemented in this branch |
+| CI release-image boot and smoke | Implemented; local validation recorded in AI_USAGE |
+| Deploy workflow after successful main push CI | Implemented; disabled until owner opt-in |
+| Database, private Blob storage and App Service | Owner activation still required |
+| GitHub environment, public image package and OIDC roles | Owner configuration still required |
+| Canadian region exception | [Proposed ADR](../04-architecture/adr-set17-student-staging.md) |
+| Live Azure smoke and cost/free-meter evidence | Required before closing #408 |
 
-### Remaining steps
+## Cost correction for six months
 
-Create the database, storage and App Service in **West US 2**, in
-`iris-staging`, and put each secret straight into `iris-stg-kv-ar1`.
+The original handover estimated USD 30–35/month with a paid PostgreSQL server,
+which would exhaust USD 100 in about three months. The six-month plan therefore
+requires **confirmed student PostgreSQL free allowances for all six months**
+and an actual total quote within USD 15/month, reserving USD 10 of the credit.
+If that cannot be confirmed, leave hosting/deployment disabled and revise the
+architecture with the team. Published allowances do not prove eligibility.
 
-1. **Database.**
-
-   ```powershell
-   $hex    = -join ([Security.Cryptography.RandomNumberGenerator]::GetBytes(20) | ForEach-Object { $_.ToString("x2") })
-   $dbPass = "Iris-$hex"
-   az postgres flexible-server create -g iris-staging -n iris-stg-db-ar1 -l westus2 --tier Burstable --sku-name Standard_B1ms --storage-size 32 --version 17 --admin-user irisadmin --admin-password $dbPass --public-access 0.0.0.0 --backup-retention 7 --yes
-   az postgres flexible-server db create -g iris-staging -s iris-stg-db-ar1 -d iris
-   az keyvault secret set --vault-name iris-stg-kv-ar1 -n database-url --value "postgresql://irisadmin:$dbPass@iris-stg-db-ar1.postgres.database.azure.com:5432/iris?sslmode=require" --output none
-   ```
-
-   `--public-access 0.0.0.0` admits Azure services only. That is acceptable
-   for fictional staging data; production uses private networking.
-
-2. **Django secret key and seed password** (FIX-04 requires at least 50
-   characters).
-
-   ```powershell
-   $djKey = -join ([Security.Cryptography.RandomNumberGenerator]::GetBytes(40) | ForEach-Object { $_.ToString("x2") })
-   az keyvault secret set --vault-name iris-stg-kv-ar1 -n django-secret-key --value $djKey --output none
-   $seed = "Seed-" + (-join ([Security.Cryptography.RandomNumberGenerator]::GetBytes(12) | ForEach-Object { $_.ToString("x2") }))
-   az keyvault secret set --vault-name iris-stg-kv-ar1 -n seed-password --value $seed --output none
-   ```
-
-3. **Private photo storage.**
-
-   ```powershell
-   az storage account create -g iris-staging -n irisstgfilesar1 -l westus2 --sku Standard_LRS --kind StorageV2 --allow-blob-public-access false --min-tls-version TLS1_2
-   $stConn = az storage account show-connection-string -g iris-staging -n irisstgfilesar1 --query connectionString -o tsv
-   az storage container create --name listing-photos --connection-string $stConn --public-access off
-   az keyvault secret set --vault-name iris-stg-kv-ar1 -n storage-connection-string --value $stConn --output none
-   ```
-
-4. **Release image** (code, in this branch):
-   - Add `gunicorn` and `whitenoise` with `uv add`.
-   - Multi-stage Dockerfile at the repository root: build the frontend with
-     `pnpm build`, copy `dist` into the backend image, run `collectstatic`,
-     run as a non-root user (keep FIX-24's rules).
-   - Settings: WhiteNoise middleware, `STATIC_ROOT`, the built React app
-     served by Django with a fallback to `index.html` outside `api/`,
-     `admin/`, `accounts/` and `static/`.
-   - `backend/scripts/start.sh`: `migrate --noinput`; seed when
-     `IRIS_SEED_ON_START=1`; start `procrastinate worker` in the background;
-     `exec gunicorn` on port 8000. Running the worker in the web container is
-     a Release 1 limitation to record in the architecture document.
-
-5. **App Service** with a system-assigned identity that can read the vault.
-
-   ```powershell
-   az appservice plan create -g iris-staging -n iris-stg-plan --is-linux --sku B1 -l westus2
-   az webapp create -g iris-staging -p iris-stg-plan -n iris-staging-ar1 --container-image-name ghcr.io/b-a-d-r-sl/iris:latest
-   $principal = az webapp identity assign -g iris-staging -n iris-staging-ar1 --query principalId -o tsv
-   az role assignment create --assignee-object-id $principal --assignee-principal-type ServicePrincipal --role "Key Vault Secrets User" --scope $kvId
-   az webapp config set -g iris-staging -n iris-staging-ar1 --always-on true
-   ```
-
-   App settings: `DJANGO_SETTINGS_MODULE=iris.settings.production`,
-   `WEBSITES_PORT=8000`, `DJANGO_ALLOWED_HOSTS=iris-staging-ar1.azurewebsites.net`,
-   `ALLAUTH_TRUSTED_PROXY_COUNT=1`, and each secret as a Key Vault reference,
-   for example
-   `DJANGO_SECRET_KEY=@Microsoft.KeyVault(SecretUri=https://iris-stg-kv-ar1.vault.azure.net/secrets/django-secret-key/)`.
-   Set the health check path to `/api/health/`. See
-   [production settings](production-settings.md) for every required variable.
-
-6. **`deploy-staging.yml`:** runs when the CI workflow succeeds on `main`;
-   builds and pushes the image to `ghcr.io` with `GITHUB_TOKEN`; signs in to
-   Azure (OIDC with `azure/login`, or a publish profile if app registration is
-   blocked in the Concordia directory); deploys with `azure/webapps-deploy`;
-   then calls `/api/health/` until it answers.
-
-7. **Check:** sign in with a seeded account, post a listing with a photo,
-   trigger an email, and record the URL and date for SET-21 (#412).
-
-## Cost
-
-| Resource | About per month (USD) |
-| --- | --- |
-| Key Vault, email service, budget | Under 1 |
-| PostgreSQL Flexible Server B1ms, 32 GB | 15 to 18 |
-| App Service plan B1 | 13 to 15 |
-| Storage account | Under 1 |
-| **Total once complete** | **About 30 to 35** |
-
-The 100 USD credit lasts about three months once everything runs. Stop the
-database when it is not used:
-
-```powershell
-az postgres flexible-server stop -g iris-staging -n iris-stg-db-ar1
-```
+Use one Linux B1 plan, existing vault/email, public GHCR and Standard LRS storage;
+no ACR, paid deployment slots, scale-out or telemetry workspace. Retain the USD
+60 alert for the issue and add early USD 15 notifications. Alerts do not cap
+spend. Stopping the app does not stop B1 plan charges; stopped PostgreSQL still
+bills storage and automatically restarts after seven days. See the
+[operations cost check](azure-staging-operations.md#1-cost-check-before-creating-anything)
+for verification, pricing sources and shutdown limits.
 
 ## Related
 
-- [SET-17 Azure staging environment and deploy workflow (#408)](https://github.com/B-A-D-R-SL/iris/issues/408)
-- [T-08.57.2 Azure and fake mailers (#540)](https://github.com/B-A-D-R-SL/iris/issues/540)
-- [SET-24 Production environment and release workflow (#415)](https://github.com/B-A-D-R-SL/iris/issues/415)
-- [LLL spike: keyless secret access (#682)](https://github.com/B-A-D-R-SL/iris/issues/682)
+- [SET-17 (#408)](https://github.com/B-A-D-R-SL/iris/issues/408)
+- [SET-24 production (#415)](https://github.com/B-A-D-R-SL/iris/issues/415)
 - [Production settings](production-settings.md)
 - [Architecture, section 5](../04-architecture/architecture.md)
+- [Student staging ADR](../04-architecture/adr-set17-student-staging.md)

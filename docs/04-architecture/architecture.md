@@ -325,16 +325,18 @@ Release 1 targets staging.
 Production is a later release in the supplied release plan and is not
 represented as an active Release 1 environment here.
 
-The diagram specifies the intended deployment. It does not claim that
-CI, resources or worker supervision are already configured.
+The diagram describes the SET-17 branch's implementation and proposed student
+staging topology; it is not evidence that hosting or deployment is active.
 
-Status (12 November 2026): the `iris-staging` resource group, Key Vault and
-Communication Services email exist; the database, Blob Storage, App Service and
-deploy workflow do not yet. The student subscription used for staging cannot
-deploy to Canadian regions, so the Key Vault is in West US 2 (keys only) and
-email data is stored in Canada. Staging holds fictional data only, and is
-rebuilt in Canada East on B.A.D.R.'s subscription once its nonprofit grant is
-active. See [Azure staging setup](../guides/azure-staging.md).
+Status (13 November 2026): the resource group, Key Vault and ACS email were
+provisioned by Ammar. The branch now includes a non-root release image,
+serialized migrations/seeding, coupled web/worker supervision, CI image smoke
+and a disabled-by-default main-after-CI deploy workflow. Database, storage,
+App Service, OIDC and live verification remain owner activation steps. The
+student policy excludes Canadian compute regions: fictional staging uses
+West US 2; ACS data remains in Canada. B.A.D.R.'s Canadian production target
+stays under SET-24. Review the [temporary staging ADR](adr-set17-student-staging.md)
+and [budget-gated activation guide](../guides/azure-staging-operations.md).
 
 ```mermaid
 
@@ -343,13 +345,13 @@ flowchart LR
     Git["GitHub<br/>feature branch and pull request"]
     CI["CI checks<br/>review and merge to main"]
 
-    subgraph Stage["iris-staging — Azure Canada East"]
+    subgraph Stage["iris-staging — temporary West US 2 compute; ACS Canada data"]
         App["Azure App Service<br/>Iris release image: web application and worker"]
         DB[("PostgreSQL Flexible Server")]
         Blob[("Private Blob Storage")]
         Mail["Communication Services email"]
         Vault["Key Vault"]
-        Telemetry["Application Insights<br/>operational telemetry"]
+        Logs["Structured container logs<br/>no paid telemetry workspace for SET-17"]
     end
 
     Users["Release 1 testers and users"]
@@ -362,7 +364,7 @@ flowchart LR
     App --> Blob
     App --> Mail
     App --> Vault
-    App --> Telemetry
+    App --> Logs
 ```
 
 
@@ -690,7 +692,7 @@ database fields or relationships to fill these gaps.
 | Household flags and reasons | Agree the minimum Release 1 handling for `review_required` files and where rejection/suspension reasons are stored. The full review queue is deferred. |
 | Lifecycle timing | Confirm the configured approval-validity and late-confirmation settings. The team draft supplies twelve months and twenty-four hours respectively. |
 | Cancellation/no-show stock | Agree when stock is released and how late pickup confirmation interacts with release. No counter behavior is invented by the state diagram. |
-| Worker deployment | Confirm worker startup, supervision and scaling within the shared-image App Service deployment. A running web process alone does not establish that a worker is running. |
+| Worker deployment | SET-17 proposes one shared-image instance with coupled Gunicorn/Procrastinate supervision and worker-process readiness. Queue progress and real email delivery still require live checks; scale-out/production isolation remain later decisions. |
 | Dependency contracts | Align the supplied architecture and diagram collection where their permitted arrows differ. Public service/query access must not introduce domain import cycles. |
 
 ### Failed pickup attempts and no-shows — proposed handling
