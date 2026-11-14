@@ -17,8 +17,9 @@ from adapters.file_store.base import (
 class AzureBlobFileStore:
     """Stores each file as a new blob in one private container.
 
-    Blobs are never overwritten, and the container is created without public
-    access the first time a file is stored.
+    Blobs are never overwritten. The container is created without public
+    access the first time a file is stored, and an existing container is
+    refused unless it is private.
     """
 
     def __init__(self, container: ContainerClient) -> None:
@@ -65,6 +66,9 @@ class AzureBlobFileStore:
             self._container.create_container()
         except ResourceExistsError:
             pass
+        # An existing container keeps its own access level: notices must stay private.
+        if self._container.get_container_access_policy().get("public_access"):
+            raise FileStoreUnavailable("The notice container must be private.")
         self._container_ready = True
 
 

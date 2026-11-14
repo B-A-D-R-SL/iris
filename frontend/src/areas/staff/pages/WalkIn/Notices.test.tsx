@@ -107,7 +107,7 @@ function mockApi(
   record: () => Response = () => Response.json(recorded(), { status: 201 }),
   approve: () => Response = () => Response.json(decision()),
   saved: RecordedNotice[] = [],
-  file: { status?: string; statusReason?: string; submitTo?: string } = {},
+  file: { status?: string; statusReason?: string; submitTo?: string; expiresAt?: string } = {},
 ) {
   // The file's status, as the server would report it after a submission.
   const state = { status: file.status ?? "draft", reason: file.statusReason ?? "" };
@@ -117,7 +117,10 @@ function mockApi(
     const method = init?.method ?? "GET";
     if (url.endsWith("/api/me/")) return Response.json(testUser("intake_worker"));
     if (url.endsWith(`/api/staff/households/${ID}/`) && method === "GET") {
-      return Response.json(draft(state.status, state.reason));
+      return Response.json({
+        ...draft(state.status, state.reason),
+        expires_at: file.expiresAt ?? null,
+      });
     }
     if (url.endsWith(SUBMIT_URL) && method === "POST") {
       state.status = file.submitTo ?? "submitted";
@@ -287,6 +290,25 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
 
     expect(await nadia.findByText("Le motif est trop court.")).toBeVisible();
     expect(within(summary()).getByText("À enregistrer")).toBeVisible();
+  });
+
+  it("explains a refused save that has no field errors", async () => {
+    mockApi(() =>
+      Response.json(
+        { code: "parse_error", message: "Malformed request.", fields: {} },
+        { status: 400 },
+      ),
+    );
+    await openPage();
+    const nadia = within(card("Nadia Démo"));
+
+    await userEvent.click(nadia.getByRole("checkbox", { name: /n'a pas produit de déclaration/ }));
+    await userEvent.type(nadia.getByLabelText("Expliquez pourquoi"), "Aucun revenu en 2025");
+    await userEvent.click(nadia.getByRole("button", { name: "Enregistrer l'avis" }));
+
+    expect(
+      await nadia.findByText("Le serveur a refusé d'enregistrer le dossier. Réessayez."),
+    ).toBeVisible();
   });
   // rule: BR-DOC-007
   it("keeps Submit disabled until every adult has a notice or a reason", async () => {
@@ -461,5 +483,37 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
 
     expect(screen.queryByRole("button", { name: "Soumettre le dossier" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Approuver le dossier" })).toBeNull();
+  });
+
+  it("still shows a saved approval and its date after a reload", async () => {
+    mockApi(undefined, undefined, [recorded()], {
+      status: "approved",
+      expiresAt: "2027-11-10T14:00:00Z",
+    });
+    await openPage();
+
+    expect(await screen.findByText(/Dossier approuvé jusqu'au 10 novembre 2027/)).toBeVisible();
+  });
+
+  it("still shows a saved rejection and its reason after a reload", async () => {
+    mockApi(undefined, undefined, [recorded()], {
+      status: "rejected",
+      statusReason: "INCOME_ABOVE_LICO",
+    });
+    await openPage();
+
+    expect(await screen.findByText("Dossier refusé")).toBeVisible();
+    expect(screen.getByText(/dépasse le seuil de faible revenu/)).toBeVisible();
+  });
+
+  it("keeps the approve action, not a saved outcome, for a file in review", async () => {
+    mockApi(undefined, undefined, [recorded()], {
+      status: "review_required",
+      statusReason: "POSSIBLE_DUPLICATE",
+    });
+    await openPage();
+
+    expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeVisible();
+    expect(screen.queryByText("Dossier envoyé en révision")).toBeNull();
   });
 });

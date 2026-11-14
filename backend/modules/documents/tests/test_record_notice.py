@@ -62,6 +62,7 @@ class BrokenStore:
         raise FileStoreUnavailable("down")
 
 
+# rule: BR-DOC-001
 @pytest.mark.usefixtures("notice_rule")
 def test_br_doc_001_filed_notice_is_saved_with_staff_source(
     member: Any, worker: Any
@@ -84,6 +85,7 @@ def test_br_doc_001_filed_notice_is_saved_with_staff_source(
     )
 
 
+# rule: BR-DOC-003
 @pytest.mark.usefixtures("notice_rule")
 def test_br_doc_003_did_not_file_is_saved_without_a_file(
     member: Any, worker: Any
@@ -98,6 +100,7 @@ def test_br_doc_003_did_not_file_is_saved_without_a_file(
     assert InMemoryFileStore.references() == []
 
 
+# rule: BR-DOC-005
 @pytest.mark.usefixtures("notice_rule")
 def test_br_doc_005_new_entry_supersedes_and_keeps_history(
     member: Any, worker: Any
@@ -112,6 +115,7 @@ def test_br_doc_005_new_entry_supersedes_and_keeps_history(
     assert current_notices([member.pk]) == {member.pk: second}
 
 
+# rule: BR-DOC-004
 def test_br_doc_004_limit_comes_from_the_rule(
     publish_notice_rule: Callable[..., None], member: Any, worker: Any
 ) -> None:

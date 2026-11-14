@@ -86,11 +86,13 @@ def test_default_values_satisfy_each_rule_schema(rule_type: str) -> None:
             {**DEFAULT_RULE_VALUES["retention"], "unexpected": 1},
             "Additional properties are not allowed",
         ),
+        # rule: BR-DOC-006
         (
             "notice_upload",
             {**DEFAULT_RULE_VALUES["notice_upload"], "link_minutes": 61},
             "maximum of 60",
         ),
+        # rule: BR-DOC-004
         (
             "notice_upload",
             {**DEFAULT_RULE_VALUES["notice_upload"], "max_bytes": 0},
@@ -117,6 +119,8 @@ def test_every_supported_rule_type_has_exactly_one_schema() -> None:
     assert set(DEFAULT_RULE_VALUES) == set(RULE_TYPES) - {"lico_thresholds"}
 
 
+# rule: BR-DOC-004
+# rule: BR-DOC-006
 def test_notice_upload_defaults_are_10_mb_and_5_minutes() -> None:
     """BR-DOC-004 and BR-DOC-006: the issue's 10 MB files and 5-minute links."""
     assert DEFAULT_RULE_VALUES["notice_upload"] == {

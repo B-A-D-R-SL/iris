@@ -87,6 +87,7 @@ def test_staff_get_a_link_and_download_the_same_bytes(
     assert download["Cache-Control"] == "private, no-store"
 
 
+# rule: BR-DOC-006
 def test_br_doc_006_link_issue_is_audited_without_metadata(
     notice: IncomeNotice, worker: Any
 ) -> None:
@@ -125,6 +126,7 @@ def test_signed_out_visitors_are_refused(notice: IncomeNotice, worker: Any) -> N
     assert client.get(url).status_code == 401
 
 
+# rule: BR-DOC-006
 def test_br_doc_006_link_of_another_staff_user_is_refused(
     notice: IncomeNotice, worker: Any
 ) -> None:
@@ -146,6 +148,7 @@ class _SignerClock:
         return self.now
 
 
+# rule: BR-DOC-006
 @pytest.mark.parametrize(("age", "status"), [(299, 200), (300, 200), (301, 404)])
 def test_br_doc_006_link_expires_after_five_minutes(
     notice: IncomeNotice,

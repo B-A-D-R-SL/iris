@@ -83,6 +83,16 @@ def _notice_reasons(
     return reasons
 
 
+def require_adult_notices(household: Household) -> None:
+    """BR-DOC-007: submission needs a current notice or non-filing reason per adult."""
+    today = timezone.localdate(timezone=ZoneInfo("America/Montreal"))
+    adults = [m.pk for m in household.members.all() if is_adult(m.date_of_birth, today)]
+    if len(document_queries.current_notices(adults)) != len(adults):
+        raise ValidationError(
+            {"notices": _("Record a notice or non-filing reason for every adult.")}
+        )
+
+
 @transaction.atomic
 def eligibility_inputs(household_id: UUID) -> EligibilityInputs:
     # Eligibility and staff edits share the household lock for a stable snapshot.

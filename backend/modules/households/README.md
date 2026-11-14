@@ -98,7 +98,10 @@ signed-out or deactivated sessions return 401.
 
 Submission needs a complete address, one holder, an identity check, and consent.
 The household limit comes from `household_size.max_people`; the seed default is
-15 people, including the holder. Income notices and approval belong to US-18.
+15 people, including the holder. Income notices and approval belong to US-18:
+submission also requires a current notice or non-filing reason for every adult
+(BR-DOC-007, `queries.require_adult_notices`) and returns a `notices` field error
+otherwise, so a submitted file can always reach approval.
 
 A clean file becomes `submitted`. A matching address (including unit) or person
 (first name, last name and birth date) sends it to `review_required` with reason

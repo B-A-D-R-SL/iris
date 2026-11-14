@@ -143,7 +143,8 @@ Adapters keep provider-specific calls outside `domain/`.
 
 `file_store` (`backend/adapters/file_store/`) stores notices of assessment in
 one private container under random names (`income-notices/<uuid>`); the
-container has no public access and Iris never hands out a storage URL. Staff
+container has no public access (an existing container that allows public access
+is refused before any upload) and Iris never hands out a storage URL. Staff
 open a file in two steps: `GET /api/staff/notices/{id}/file/` returns a link to
 Iris itself, signed for that staff user and valid `notice_upload.link_minutes`
 (5) as set when the link is issued; `GET /api/staff/notice-files/{token}/`

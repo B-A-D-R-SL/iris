@@ -148,7 +148,7 @@ function NoticesPage({ draft, saved }: { draft: WalkInDraft; saved: RecordedNoti
       <div>
         <Text className={classes.eyebrow}>{t("staff.walkIn.eyebrow")}</Text>
         <Title order={1}>{t("staff.walkInNotices.title")}</Title>
-        <Text c="gray.7">
+        <Text c="dimmed">
           {t("staff.walkInNotices.description", { name: holder ? fullName(holder) : "" })}
         </Text>
       </div>
@@ -176,6 +176,7 @@ function NoticesPage({ draft, saved }: { draft: WalkInDraft; saved: RecordedNoti
         householdId={draft.id}
         status={draft.status}
         statusReason={draft.status_reason}
+        expiresAt={draft.expires_at}
         replacing={replacing.size > 0}
         adultMembers={adultMembers}
         notices={notices}
@@ -231,7 +232,7 @@ function NoticeCard({
       if (error instanceof WalkInFailed && error.status === 400) {
         const { errors, other } = noticeServerErrors(error.fields);
         form.setErrors(errors);
-        setProblem(other.length > 0 ? other.join(" ") : null);
+        setProblem(formProblem(other, error.fields, t("staff.walkIn.saveError")));
       } else if (error instanceof WalkInFailed) {
         setProblem(error.message || t("staff.walkIn.saveError"));
       } else {
@@ -388,10 +389,10 @@ const STATE_LABELS: Record<AdultState, string> = {
 };
 
 const STATE_COLORS: Record<AdultState, string> = {
-  missing: "gray",
-  filed: "green",
-  notSeen: "yellow",
-  didNotFile: "yellow",
+  missing: "neutral",
+  filed: "success",
+  notSeen: "warning",
+  didNotFile: "warning",
 };
 
 function StateBadge({ state }: { state: AdultState }) {
@@ -438,6 +439,8 @@ interface DecisionSummaryProps {
   /** draft: submit first; submitted or review_required: approve; anything else is decided. */
   status: string;
   statusReason: string;
+  /** The saved expiry, so an approved file still shows its date after a reload. */
+  expiresAt: string | null;
   /** A saved notice is being replaced: the old values must not reach the decision. */
   replacing: boolean;
   adultMembers: Member[];
@@ -449,6 +452,7 @@ function DecisionSummary({
   householdId,
   status,
   statusReason,
+  expiresAt,
   replacing,
   adultMembers,
   notices,
@@ -488,7 +492,7 @@ function DecisionSummary({
     },
     onError: (error) => setProblem(failureText(error)),
   });
-  const decision = mutation.data;
+  const decision = shownDecision(mutation.data, status, statusReason, expiresAt);
   const possibleDuplicate =
     status === "review_required" && statusReason.includes("POSSIBLE_DUPLICATE");
 
@@ -507,8 +511,8 @@ function DecisionSummary({
           </List.Item>
         ))}
       </List>
-      {!complete && <Text c="gray.7">{t("staff.walkInNotices.notReady")}</Text>}
-      {complete && replacing && <Text c="gray.7">{t("staff.walkInNotices.finishReplacing")}</Text>}
+      {!complete && <Text c="dimmed">{t("staff.walkInNotices.notReady")}</Text>}
+      {complete && replacing && <Text c="dimmed">{t("staff.walkInNotices.finishReplacing")}</Text>}
       {ready && !review && (
         <Group gap="xs">
           <IconCircleCheck size={20} aria-hidden />
@@ -541,7 +545,7 @@ function DecisionSummary({
           >
             {t("staff.walkInNotices.submit")}
           </Button>
-          <Text size="sm" c="gray.7">
+          <Text size="sm" c="dimmed">
             {t("staff.walkInNotices.submitHelp")}
           </Text>
         </Stack>
@@ -555,7 +559,7 @@ function DecisionSummary({
             >
               {t("staff.walkInNotices.approve")}
             </Button>
-            <Text size="sm" c="gray.7">
+            <Text size="sm" c="dimmed">
               {t("staff.walkInNotices.approveHelp")}
             </Text>
           </Stack>
@@ -587,8 +591,31 @@ function reasonKeys(statusReason: string): string[] {
     .map((code) => REASON_KEYS[code] ?? code);
 }
 
+type ShownDecision = Pick<WalkInDecision, "status" | "status_reason" | "expires_at">;
+
+/**
+ * The decision just made, or after a reload the saved final outcome. A review_required
+ * file shows its approve action instead, so it never falls back to a saved outcome.
+ */
+function shownDecision(
+  made: WalkInDecision | undefined,
+  status: string,
+  statusReason: string,
+  expiresAt: string | null,
+): ShownDecision | undefined {
+  if (made) return made;
+  if (status !== "approved" && status !== "rejected") return undefined;
+  return { status, status_reason: statusReason, expires_at: expiresAt };
+}
+
+/** Field errors show under their fields; a 400 without any (e.g. a parse error) still explains itself. */
+function formProblem(other: string[], fields: Record<string, string[]>, fallback: string) {
+  if (other.length > 0) return other.join(" ");
+  return Object.keys(fields).length > 0 ? null : fallback;
+}
+
 /** Approved until a date, rejected with its reason, or sent to review with its reasons. */
-function DecisionOutcome({ decision }: { decision: WalkInDecision }) {
+function DecisionOutcome({ decision }: { decision: ShownDecision }) {
   const { t } = useTranslation();
   const language = useLanguage();
   if (decision.status === "approved") {

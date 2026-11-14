@@ -28,7 +28,11 @@ from modules.households.policies import (
     can_suspend_households,
     is_editable_walk_in,
 )
-from modules.households.queries import find_possible_duplicates, walk_ins_for_staff
+from modules.households.queries import (
+    find_possible_duplicates,
+    require_adult_notices,
+    walk_ins_for_staff,
+)
 from modules.notifications import services as notification_services
 from modules.privacy import services as privacy_services
 from modules.reservations import services as reservation_services
@@ -496,6 +500,7 @@ def locked_duplicate_check(
 def submit_walk_in(household_id: UUID, staff_user: AbstractBaseUser) -> Household:
     """Submit a draft or send a possible duplicate for review."""
     with locked_duplicate_check(household_id, staff_user) as (household, duplicate):
+        require_adult_notices(household)
         household.status = (
             Household.Status.REVIEW_REQUIRED
             if duplicate

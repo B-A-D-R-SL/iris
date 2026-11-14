@@ -17,6 +17,7 @@ from modules.documents.tests.factories import (
 pytestmark = pytest.mark.django_db
 
 
+# rule: BR-DOC-005
 def test_br_doc_005_one_current_notice_per_member() -> None:
     first = make_confirmed_notice()
 

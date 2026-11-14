@@ -83,6 +83,7 @@ class StubContainer:
         self.blobs: dict[str, tuple[bytes, str]] = {}
         self.calls: list[tuple[str, dict[str, Any]]] = []
         self.create_error: Exception | None = None
+        self.public_access: str | None = None
 
     def _call(self, operation: str, /, **kwargs: Any) -> None:
         self.calls.append((operation, kwargs))
@@ -93,6 +94,10 @@ class StubContainer:
         self._call("create_container")
         if self.create_error is not None:
             raise self.create_error
+
+    def get_container_access_policy(self) -> dict[str, Any]:
+        self._call("get_container_access_policy")
+        return {"public_access": self.public_access, "signed_identifiers": []}
 
     def upload_blob(self, name: str, data: bytes, **kwargs: Any) -> None:
         self._call("upload_blob", name=name, **kwargs)
@@ -149,6 +154,18 @@ def test_azure_put_tolerates_existing_container() -> None:
 
     assert len(_calls(container, "create_container")) == 1
     assert len(_calls(container, "upload_blob")) == 2
+
+
+@pytest.mark.parametrize("access", ["blob", "container"])
+def test_azure_put_refuses_an_existing_public_container(access: str) -> None:
+    container = StubContainer()
+    container.create_error = ResourceExistsError("exists")
+    container.public_access = access
+
+    with pytest.raises(FileStoreUnavailable, match="must be private"):
+        _store(container).put(b"a", content_type="image/png", prefix="income-notices")
+
+    assert _calls(container, "upload_blob") == []
 
 
 def test_azure_read_returns_content_and_type() -> None:
