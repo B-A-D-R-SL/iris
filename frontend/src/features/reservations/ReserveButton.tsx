@@ -39,6 +39,7 @@ export function ReserveButton(props: ReserveButtonProps) {
     onError: (error) => onRefused(refusalCode(error)),
   });
   const changeQuantity = (value: number | string) => {
+    if (mutation.isPending) return; // a reset would unlock the button for a second POST
     setQuantity(value);
     mutation.reset();
     onRefused(null);
@@ -56,6 +57,7 @@ export function ReserveButton(props: ReserveButtonProps) {
           maxPerHousehold={maxPerHousehold}
           cap={cap}
           onChange={changeQuantity}
+          disabled={mutation.isPending}
         />
       )}
       <Button

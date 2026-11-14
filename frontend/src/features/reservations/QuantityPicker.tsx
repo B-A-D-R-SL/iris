@@ -23,9 +23,12 @@ export interface QuantityPickerProps {
   /** The most the picker allows: the household maximum or the units left, if fewer. */
   cap: number;
   onChange: (quantity: number | string) => void;
+  /** True while a reservation is being sent, so the quantity cannot change under it. */
+  disabled?: boolean;
 }
 
-export function QuantityPicker({ value, maxPerHousehold, cap, onChange }: QuantityPickerProps) {
+export function QuantityPicker(props: QuantityPickerProps) {
+  const { value, maxPerHousehold, cap, onChange, disabled = false } = props;
   const { t } = useTranslation();
   const id = useId();
   const label = t("reservation.reserve.quantity");
@@ -37,7 +40,7 @@ export function QuantityPicker({ value, maxPerHousehold, cap, onChange }: Quanti
       aria-label={t(delta < 0 ? "shared.integerField.decrease" : "shared.integerField.increase", {
         label,
       })}
-      disabled={delta < 0 ? current <= 1 : current >= cap}
+      disabled={disabled || (delta < 0 ? current <= 1 : current >= cap)}
       onClick={() => onChange(quantityToSend(current + delta, cap))}
     >
       {delta < 0 ? <IconMinus size={20} stroke={2} /> : <IconPlus size={20} stroke={2} />}
@@ -59,6 +62,7 @@ export function QuantityPicker({ value, maxPerHousehold, cap, onChange }: Quanti
           classNames={{ root: classes.value, input: classes.input }}
           value={value}
           onChange={onChange}
+          disabled={disabled}
           min={1}
           max={cap}
           allowDecimal={false}

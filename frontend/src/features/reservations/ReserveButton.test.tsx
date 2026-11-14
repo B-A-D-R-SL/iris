@@ -25,7 +25,7 @@ const refused = (status: number, code: string) =>
   Response.json({ code, message: "server text", fields: {} }, { status });
 
 /** Fakes /api/me/ (a household) and POST /api/reservations/. */
-function mockApi(post: () => Response = () => reserved()) {
+function mockApi(post: () => Response | Promise<Response> = () => reserved()) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input instanceof Request ? input.url : String(input);
     if (url.endsWith("/api/me/")) return Response.json(testUser("beneficiary"));
@@ -189,6 +189,27 @@ describe("ReserveButton", () => {
     await userEvent.click(reserveButton());
     await waitFor(() => expect(onReserved).toHaveBeenCalled());
     expect(onRefused.mock.calls).toEqual([[null]]);
+  });
+
+  it("keeps the quantity and the button locked until the answer comes back", async () => {
+    let answer: (response: Response) => void = () => undefined;
+    const fetchMock = mockApi(() => new Promise<Response>((resolve) => (answer = resolve)));
+    const { onReserved } = renderButton({ maxPerHousehold: 3, unitsLeft: 3 });
+    const plus = screen.getByRole("button", { name: "Augmenter (Quantité)" });
+    await userEvent.click(reserveButton());
+
+    // The first request is still out: the quantity cannot change, nor be sent again.
+    expect(plus).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "Quantité" })).toBeDisabled();
+    await userEvent.click(plus);
+    await userEvent.click(reserveButton());
+    const posts = () => fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
+    expect(posts()).toHaveLength(1);
+
+    answer(reserved());
+    await waitFor(() => expect(onReserved).toHaveBeenCalledTimes(1));
+    expect(posts()).toHaveLength(1);
+    expect(postedBody(fetchMock)).toEqual({ listing_id: LISTING_ID, quantity: 1 });
   });
 
   it("reports a lost connection as a generic refusal", async () => {
