@@ -366,7 +366,12 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {"iris_json": {"()": "iris.observability.JsonLogFormatter"}},
-    "filters": {"queue_privacy": {"()": "iris.observability.QueueLogPrivacyFilter"}},
+    "filters": {
+        "queue_privacy": {"()": "iris.observability.QueueLogPrivacyFilter"},
+        "expected_session_check": {
+            "()": "iris.observability.ExpectedSessionCheckFilter"
+        },
+    },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
@@ -403,10 +408,16 @@ LOGGING = {
         "modules.reservations.services": {"level": "INFO"},
         "django.request": {
             "handlers": ["console"],
+            "filters": ["expected_session_check"],
             "level": "WARNING",
             "propagate": False,
         },
-        "django.server": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "django.server": {
+            "handlers": ["console"],
+            "filters": ["expected_session_check"],
+            "level": "INFO",
+            "propagate": False,
+        },
         # HTTP diagnostics can contain recipient addresses and message content.
         "azure.communication.email": {"level": "CRITICAL", "propagate": False},
         "azure.core.pipeline.policies.http_logging_policy": {

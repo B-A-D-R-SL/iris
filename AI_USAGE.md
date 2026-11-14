@@ -504,6 +504,16 @@ verification evidence are preserved in
   - Server errors were first retried with back-off, which delayed the error screen by seconds; a server answer now shows at once with « Réessayer », and only a lost connection is retried.
   - Running Prettier on whole folders converted the line endings of teammates' files; those files were restored, leaving only the intended changes.
 
+### FIX-05 Request and email failure diagnostics (#631)
+
+- **Tool and contribution level:** OpenAI Codex; 50% or more AI-generated. Implemented safe exception/reason diagnostics, typed SMTP failures and INFO-level signed-out session checks across Iris, Django and runserver.
+- **AI-assisted files:** `backend/iris/observability.py`, `backend/iris/settings/base.py`, `backend/adapters/mailer/base.py`, `backend/adapters/mailer/smtp.py`, `backend/tests/test_failure_logging.py`, `backend/tests/test_mailer.py`, `docs/guides/observability.md`, `AI_USAGE.md`.
+- **Initial verification:** 1,967 backend tests passed across two isolated regression groups and the separate load check (5 skipped; slow-expiry excluded); focused suite 97 passed with 98.77% observability/mailer coverage. Ruff, mypy (401 files), four import contracts, Django/migration checks and 36 PR-policy tests pass.
+- **Corrections:** covered Django-converted exceptions and duplicate framework/runserver warnings; rejected exception strings and unregistered reasons to protect personal data; corrected an SMTP fixture to protocol bytes. The load check missed its target in a combined run but passed independently on both unchanged main and FIX-05, with no threshold changes.
+- **Owner review, commits, push and PR:** Reviewed by owner and made sure all is good and aligned then pushed
+
+- **PR #688 merge/review validation:** preserved US-57 sanitized retryable errors, queue privacy, Azure logging restrictions and FIX-03 event fields; added the requested Django default reason and strict numeric SMTP codes. On main `35892e5`, 2,446 regression tests and 438 focused tests pass (96.33% focused coverage); Ruff, mypy (424 files), four import contracts, Django checks and 46 policy-script tests pass. The isolated search-load test misses 500 ms on both unchanged main (880 ms) and the merged branch (601 ms); its threshold remains unchanged. Existing development-database migration history is inconsistent; validation used isolated databases without modifying that data.
+
 ### FIX-12 Split the listing posting screen and log posting failures (#638)
 
 - **What the AI produced:** with Claude Code, under Anthony Monaco's direction: `NewListingForm` (244 lines) split into a `useNewListingMutation` hook, a `usePostingFeedback` hook and section components (notices, photo, details, pickup window, final checks); `CategoryPicker` (97) split into a grouping hook, the sheet and its parts; `FileUpload` (90) into the chosen-file row and the drop zone; `IntegerField` (57) and `TextField` (55) shortened by moving the props every field forwards into the shared `useFieldWrapper`; a `listing_post_failed` logger event carrying only the status code, with tests.
