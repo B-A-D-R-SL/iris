@@ -1,6 +1,7 @@
 # AI contribution: 50% or more AI-generated
 """Django adapters for the shared pure contact rules."""
 
+import logging
 from collections.abc import Callable, Collection, Mapping
 
 from django.core.exceptions import ValidationError
@@ -8,6 +9,8 @@ from django.db.models import Model
 from django.utils.translation import gettext_lazy as _
 
 from modules.common.domain.contact import normalize_phone, normalize_postal_code
+
+logger = logging.getLogger("iris.validation")
 
 
 def validate_phone(value: str) -> None:
@@ -37,4 +40,7 @@ def normalize_model_contacts(
                 setattr(instance, name, normalize(str(value)))
             except ValueError:
                 # clean_fields should collect every field error, not stop at one.
-                pass
+                logger.info(
+                    "contact_normalization_rejected",
+                    extra={"event": "contact_normalization_rejected", "field": name},
+                )

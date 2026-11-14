@@ -50,6 +50,9 @@ async function fillForm(user: ReturnType<typeof userEvent.setup>) {
     screen.getByLabelText("J'accepte que B.A.D.R. communique avec moi au sujet de cette demande"),
   );
 }
+// Suite size exception: this callback only registers cases for one submission
+// form. The shared bakery fixture, API dispatcher and filling helper keep invalid
+// input, translated consent, server refusals and successful requests aligned.
 describe("Partner application", () => {
   it("shows the specified messages for invalid business name, postal code and email in both languages", async () => {
     const fetchMock = mockApi();

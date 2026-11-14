@@ -1,4 +1,8 @@
 // AI contribution: 50% or more AI-generated
+// File length exception (500 lines): posting, safety refusals and failure logs
+// share one endpoint dispatcher plus routed-form, category and date helpers.
+// Keeping the three groups beside those fixtures makes their UI/HTTP contracts
+// use the same setup when fields, category responses or request payloads change.
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -358,6 +362,9 @@ const refused = (fields: Record<string, string[]>) => () =>
     { status: 400 },
   );
 
+// Suite size exception: this callback registers independent safety cases under
+// one French-locale reset, reusing the posting helpers to verify category lists,
+// field refusals and the English switch against the same form/API contract.
 describe("Listing safety checks (US-34)", () => {
   beforeEach(async () => {
     await act(async () => {

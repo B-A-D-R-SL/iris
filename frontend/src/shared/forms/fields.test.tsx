@@ -82,6 +82,8 @@ describe("TextField", () => {
   });
 });
 
+// Suite size exception: this callback only registers cases using the same
+// Controlled harness, so typed, pasted and corrected values share one state path.
 describe("PostalCodeField", () => {
   it("stores the code in uppercase with one space", async () => {
     const onValue = vi.fn();
@@ -98,25 +100,27 @@ describe("PostalCodeField", () => {
     expect(onValue).toHaveBeenLastCalledWith("H2X 1Y4");
   });
 
-  it.each(["H2X-1Y4", "H2X 1Y45", "H٢X 1Y4"])(
-    "keeps pasted %j invalid instead of submitting a different code",
-    async (value) => {
-      const onValue = vi.fn();
-      renderWithProviders(
-        <Controlled initial="" onValue={onValue}>
-          {(code, setValue) => (
-            <PostalCodeField label="Code postal" value={code} onChange={setValue} />
-          )}
-        </Controlled>,
-      );
-      const user = userEvent.setup();
-      await user.click(screen.getByLabelText("Code postal"));
-      await user.paste(value);
-      const stored = onValue.mock.lastCall?.[0] as string;
-      expect(isPostalCode()(stored)).not.toBeNull();
-      expect(screen.getByLabelText("Code postal")).toHaveValue(stored);
-    },
-  );
+  it.each([
+    ["H2X-1Y4", "H2X -1Y4"],
+    ["H2X 1Y45", "H2X 1Y45"],
+    ["H٢X 1Y4", "H٢X 1Y4"],
+  ])("keeps pasted %j as %j instead of submitting a different code", async (value, expected) => {
+    const onValue = vi.fn();
+    renderWithProviders(
+      <Controlled initial="" onValue={onValue}>
+        {(code, setValue) => (
+          <PostalCodeField label="Code postal" value={code} onChange={setValue} />
+        )}
+      </Controlled>,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText("Code postal"));
+    await user.paste(value);
+    const stored = onValue.mock.lastCall?.[0] as string;
+    expect(stored).toBe(expected);
+    expect(isPostalCode()(stored)).not.toBeNull();
+    expect(screen.getByLabelText("Code postal")).toHaveValue(expected);
+  });
 
   it("folds pasted compatibility characters and lets the user delete and correct a code", async () => {
     const onValue = vi.fn();
@@ -141,6 +145,8 @@ describe("PostalCodeField", () => {
   });
 });
 
+// Suite size exception: registration only; the shared Controlled harness checks
+// display text and stored E.164 together for typing, pasting and invalid input.
 describe("PhoneField", () => {
   it("shows (514) 555-0123 and stores E.164", async () => {
     const onValue = vi.fn();

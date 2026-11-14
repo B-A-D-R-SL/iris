@@ -1,9 +1,12 @@
 <!-- AI contribution: 50% or more AI-generated -->
-<!-- File-length exception: the container/module diagrams and walk-in, partner
-onboarding and reservation/pickup sequences share module ownership and transaction
-boundaries. Keep their household/reservation state diagrams beside the sequences
-so reviewers can verify which persisted state authorizes each transition and
-which email work starts only after the business transaction commits. -->
+<!-- File-length exception (500-line limit): this is the Release 1 architecture
+reference for one modular monolith. The module-ownership table and dependency graph
+define the participants used by the walk-in, partner-onboarding and pickup sequences;
+the household/reservation state diagrams define the persisted states that authorize
+those sequence transitions. Keep these diagrams and their review-point notes together
+so transaction ownership, after-commit notification timing and unresolved schema/lookup
+decisions can be checked against the same module and state definitions. The API
+reference and listing-posting guide link here, including the stable #scope anchor. -->
 
 # Iris architecture — Release 1 draft
 

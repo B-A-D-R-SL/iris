@@ -1,8 +1,12 @@
 <!-- AI contribution: 50% or more AI-generated -->
-<!-- File-length exception: keep authentication conventions, the cross-module
-endpoint catalog with role/status columns, and implementation-gap notes together
-so routing, access rules and generated-schema coverage can be reviewed against
-one contract. Existing module guides link to its stable endpoint-section anchors. -->
+<!-- File-length exception (500-line limit): the shared REST conventions,
+endpoint tables and implementation-gap notes form one cross-module API contract.
+Each route's method/path, allowed roles and implementation status must be reviewed
+with the authentication and schema-coverage notes: OpenAPI omits allauth routes
+and planned endpoints. The listing-posting/API-generation guides and Stores README
+link to this reference, including its #conventions and partner-endpoint headings.
+Keep the central route catalogue and these section anchors stable for those
+consumers while reviewing served, partial and planned operations together. -->
 
 # API
 

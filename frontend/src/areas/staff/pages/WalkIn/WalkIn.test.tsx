@@ -108,6 +108,9 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+// Suite size exception: registration only; create and PATCH/resume cases share
+// staged API responses, holder/consent helpers and the fixed-date lifecycle so
+// both paths exercise the same wizard and draft-persistence contract.
 describe("Walk-in registration (US-17)", () => {
   it("refuses a pasted foreign phone without creating a different Canadian contact", async () => {
     const fetchMock = mockApi();

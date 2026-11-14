@@ -34,6 +34,10 @@ beforeEach(() => {
   document.cookie = "csrftoken=ready; path=/";
 });
 
+// Suite size/complexity exception: this callback registers independent cases;
+// nested request-fake branches model CSRF, sessions and role redirects, rather
+// than control flow in the registration callback. The cases share the routed
+// render and credential helpers to keep the simulated sign-in protocol aligned.
 describe("US-01 sign-in screen", () => {
   it("shows a bilingual accessible form and refuses missing or malformed email", async () => {
     const { container } = renderSignIn();
