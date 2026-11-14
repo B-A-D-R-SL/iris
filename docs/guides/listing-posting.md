@@ -334,8 +334,8 @@ How it works:
 - `Refusal` has optional `params`. The service formats a date parameter in the
   user's language with a short month, as in the mockup ("10 oct. 2026" /
   "Oct. 10, 2026").
-- Malformed `listing_safety` values give a 503 ("Listing safety rules need
-  configuration.") instead of a crash.
+- Malformed `listing_safety` values give a generic translated 503
+  ("Posting is temporarily unavailable."); logs retain `safety_rules_invalid`.
 - The rule repeats the safe-and-allowed check that `check_posting` already
   makes, so later edit and repost stories can reuse all three rules at once.
 
@@ -357,3 +357,17 @@ Tests:
 | [Safety through the service](../../backend/modules/listings/tests/test_safety_service.py) | The real rule with PostgreSQL: who and when, the Montreal-day case, a newer rule version's margin, prohibited categories, French messages, and 503 on bad rules. |
 | [Safety through the API](../../backend/modules/listings/tests/test_safety_api.py) | The main path over HTTP, French and English messages, and the categories endpoint: allowed and refused for every role, read-only, prohibited codes left out, missing or malformed rules. |
 | [Posting form](../../frontend/src/areas/store/pages/NewListing.test.tsx) and [client](../../frontend/src/features/listings/api.test.ts) | Only the server's categories are offered, safety messages appear under their fields in both languages, and the placeholder links. |
+
+
+## FIX-01 failure handling and naming
+
+Posting dependencies return the same translated 503 message,
+"Posting is temporarily unavailable." Internal reasons appear only in
+structured logs; validation refusals keep their existing field messages.
+Publication success is logged after transaction commit. Photo cleanup retains
+the original posting failure and its opaque orphan reference.
+
+The existing API `quantity` field maps to `Listing.quantity_total` in storage.
+It is retained for compatibility with store clients and generated API types.
+This compatibility exception should also be recorded on the wiki's Naming
+Conventions page when preparing the FIX-01 pull request.

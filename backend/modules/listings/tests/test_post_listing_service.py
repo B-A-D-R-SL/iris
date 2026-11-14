@@ -181,7 +181,9 @@ def test_us33_never_publishes_when_safety_dependency_is_missing(
 ) -> None:
     case = posting_case
     monkeypatch.setitem(sys.modules, "modules.listings.domain.safety", None)
-    with pytest.raises(services.PostingUnavailable, match="safety"):
+    with pytest.raises(
+        services.PostingUnavailableError, match="Posting is temporarily unavailable"
+    ):
         services.post_listing(case.store.pk, case.user, case.data)
     assert not Listing.objects.exists()
 
@@ -200,7 +202,9 @@ def test_us33_requires_effective_rule_versions(
 
     monkeypatch.setattr(services.rule_queries, "active", active)
     checker = Mock(return_value=[])
-    with pytest.raises(services.PostingUnavailable, match="seeded"):
+    with pytest.raises(
+        services.PostingUnavailableError, match="Posting is temporarily unavailable"
+    ):
         services.post_listing(case.store.pk, case.user, case.data, safety_check=checker)
     checker.assert_not_called()
     assert not Listing.objects.exists()
@@ -225,7 +229,9 @@ def test_us33_refuses_malformed_posting_rule_configuration(
         created_by=case.user,
     )
     checker = Mock(return_value=[])
-    with pytest.raises(services.PostingUnavailable, match="rules need configuration"):
+    with pytest.raises(
+        services.PostingUnavailableError, match="Posting is temporarily unavailable"
+    ):
         services.post_listing(case.store.pk, case.user, case.data, safety_check=checker)
     checker.assert_not_called()
     assert not Listing.objects.exists()
@@ -260,7 +266,7 @@ def test_us33_preserves_safety_refusals(
 def test_us33_rejects_unknown_safety_contract(posting_case: SimpleNamespace) -> None:
     case = posting_case
     checker = Mock(return_value=["not the agreed contract"])
-    with pytest.raises(services.PostingUnavailable):
+    with pytest.raises(services.PostingUnavailableError):
         services.post_listing(
             case.store.pk,
             case.user,
@@ -397,7 +403,9 @@ def test_us33_missing_photo_storage_does_not_publish(
     case = posting_case
     photo = SimpleUploadedFile("photo.png", PNG_CONTENT, content_type="image/png")
     checker = Mock(return_value=[])
-    with pytest.raises(services.PostingUnavailable, match="photo storage"):
+    with pytest.raises(
+        services.PostingUnavailableError, match="Posting is temporarily unavailable"
+    ):
         services.post_listing(
             case.store.pk,
             case.user,

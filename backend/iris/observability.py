@@ -26,7 +26,39 @@ _HTTP_METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPT
 _PHOTO_REFERENCE = re.compile(r"listing-photos/[0-9a-f]{32}\.(?:jpg|png)")
 _EXCEPTION_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,127}")
 _REASON_CODES = frozenset(
-    {"unhandled_exception", "smtp_error", "connection_error", "transport_error"}
+    {
+        "unhandled_exception",
+        "smtp_error",
+        "connection_error",
+        "transport_error",
+        "title_length",
+        "description_length",
+        "quantity_range",
+        "unit_choice",
+        "household_range",
+        "value_range",
+        "confirmation_required",
+        "timezone_required",
+        "pickup_start_range",
+        "pickup_duration",
+        "unsafe_listing",
+        "category_prohibited",
+        "best_before_required",
+        "best_before_too_early",
+        "category_inactive",
+        "photo_type",
+        "photo_size",
+        "photo_invalid",
+        "listing_validation_failed",
+        "store_access_denied",
+        "safety_contract_invalid",
+        "safety_checker_missing",
+        "photo_store_unconfigured",
+        "photo_store_failed",
+        "listing_rules_missing",
+        "posting_rules_invalid",
+        "safety_rules_invalid",
+    }
 )
 _SESSION_CHECK_PATH = "/api/auth/browser/v1/auth/session"
 _SESSION_REQUEST_LINE = re.compile(
@@ -233,6 +265,18 @@ def _add_partner_application(
     payload["application_id"] = str(application_id)
 
 
+def _add_listing_fields(
+    payload: dict[str, str | int], record: logging.LogRecord, event: str
+) -> None:
+    """Permit only opaque publication IDs on the listings success event."""
+    if record.name != "iris.listings" or event != "listing_published":
+        return
+    for field in ("listing_id", "store_id"):
+        value = getattr(record, field, None)
+        if isinstance(value, UUID):
+            payload[field] = str(value)
+
+
 class JsonLogFormatter(logging.Formatter):
     """Serialize an allowlist of fields instead of arbitrary log message text."""
 
@@ -256,6 +300,7 @@ class JsonLogFormatter(logging.Formatter):
         _add_smtp_code(payload, record, event)
         _add_eligibility_fields(payload, record, event)
         _add_partner_application(payload, record, event)
+        _add_listing_fields(payload, record, event)
         return json.dumps(payload, separators=(",", ":"))
 
 
