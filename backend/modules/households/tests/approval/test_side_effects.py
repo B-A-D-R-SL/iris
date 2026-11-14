@@ -1,6 +1,7 @@
 # AI contribution: 50% or more AI-generated
 """US-18 approval side effects: email, rollback, concurrency, states and logs."""
 
+import json
 from concurrent.futures import ThreadPoolExecutor
 from hashlib import sha256
 from threading import Barrier
@@ -13,6 +14,7 @@ from django.db import close_old_connections, transaction
 from django.utils.translation import gettext
 
 from adapters.mailer.fake import get_fake_mailer
+from iris.observability import JsonLogFormatter
 from modules.accounts import services as account_services
 from modules.audit import services as audit_services
 from modules.households.approval_services import approve_walk_in
@@ -23,6 +25,7 @@ from modules.households.tests.approval.helpers import (
     audit_events,
     decisions,
     invitations,
+    notices,
     submit,
     submit_and_approve,
 )
@@ -215,5 +218,27 @@ def test_the_decision_is_logged_after_commit(
     ):
         approve_walk_in(household, staff)
     event = next(r for r in caplog.records if r.getMessage() == "walk_in_decision")
-    assert event.__dict__["outcome"] == "approved"
-    assert event.__dict__["household_id"] == str(household.pk)
+    payload = json.loads(JsonLogFormatter().format(event))
+    assert payload["household_id"] == str(household.pk)
+    assert payload["outcome"] == "approved"
+    assert "reason_codes" not in payload
+
+
+def test_a_review_decision_logs_its_reason_codes(
+    household: Any,
+    staff: Any,
+    caplog: pytest.LogCaptureFixture,
+    django_capture_on_commit_callbacks: Any,
+) -> None:
+    """The production formatter keeps the outcome and codes (Massimo's review)."""
+    notices(household).update(name_on_notice="Different Person", seen_in_person=False)
+    submit(household)
+    with (
+        caplog.at_level("INFO", logger="iris.households"),
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        approve_walk_in(household, staff)
+    event = next(r for r in caplog.records if r.getMessage() == "walk_in_decision")
+    payload = json.loads(JsonLogFormatter().format(event))
+    assert payload["outcome"] == "review_required"
+    assert payload["reason_codes"] == "NAME_MISMATCH,NOTICE_NOT_SEEN"

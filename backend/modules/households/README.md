@@ -253,7 +253,9 @@ unaccepted or unverified evidence goes to review without an income decision;
 it is never treated as zero. Accepted tax years come from
 `auto_approval.accepted_tax_years`. The income-ratio rule for online automatic
 approval does not apply to this staff workflow. Each decision is logged after commit as
-`walk_in_decision` with the household ID, outcome and reason codes only.
+`walk_in_decision` with the household ID, outcome and reason codes only; the JSON
+formatter in `iris/observability.py` allows exactly these fields (see
+`docs/guides/observability.md`).
 
 With complete verified income, `eligibility.services.decide_for_household`
 records the calculation. Income above LICO gives `rejected` with

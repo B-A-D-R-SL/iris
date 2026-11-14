@@ -72,10 +72,10 @@ def apply_outcome(household: Household, staff: Any) -> None:
 
 def _log_outcome(household: Household) -> None:
     """Log the outcome once the transaction commits; codes only, no personal data."""
-    outcome, reason, household_id = (
-        household.status,
-        household.status_reason,
-        str(household.pk),
+    outcome, household_id = household.status, household.pk
+    # Stored as "A, B"; the log formatter accepts only registered codes.
+    codes = (
+        tuple(household.status_reason.split(", ")) if household.status_reason else ()
     )
     transaction.on_commit(
         lambda: logger.info(
@@ -84,14 +84,14 @@ def _log_outcome(household: Household) -> None:
                 "event": "walk_in_decision",
                 "household_id": household_id,
                 "outcome": outcome,
-                "reason_codes": reason,
+                "reason_codes": codes,
             },
         )
     )
 
 
 def _log_invitation_skipped(household: Household) -> None:
-    household_id = str(household.pk)
+    household_id = household.pk
     transaction.on_commit(
         lambda: logger.info(
             "walk_in_invitation_skipped",
