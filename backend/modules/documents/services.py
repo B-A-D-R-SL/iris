@@ -168,19 +168,27 @@ def _save(
     return notice
 
 
-def record_staff_notice(
-    member_id: UUID,
+@dataclass(frozen=True)
+class PreparedNotice:
+    """A checked entry whose file, if any, is already in private storage."""
+
+    fields: dict[str, Any]
+    store: FileStore | None = None
+
+
+def prepare_staff_notice(
     values: Mapping[str, Any],
     upload: UploadedFile | None,
     recorded_by: AbstractBaseUser,
     *,
     file_store: FileStore | None = None,
-) -> IncomeNotice:
-    """Record a staff-entered notice or non-filing reason for one member.
+) -> PreparedNotice:
+    """Check an entry (BR-DOC-001 to 004) and store its file, before any lock is taken.
 
-    The caller (households) has checked that the member is an adult of a draft
-    walk-in. `file_store` is for trusted callers and tests; otherwise the
-    FILE_STORE_BACKEND setting chooses the store.
+    Storing can take seconds, so callers hold no database lock meanwhile. Pass the
+    result to save_prepared_notice, or to discard_prepared_notice if it is not saved.
+    `file_store` is for trusted callers and tests; otherwise the FILE_STORE_BACKEND
+    setting chooses the store.
     """
     _require_staff(recorded_by)
     limits = _upload_limits()
@@ -191,15 +199,44 @@ def record_staff_notice(
     except NoticeRulesBroken as exc:
         raise _field_errors(exc) from exc
     fields = _entry_fields(entry)
-    store: FileStore | None = None
-    if isinstance(entry, FiledNotice) and upload is not None:
-        store = file_store if file_store is not None else _file_store()
-        fields["file_ref"] = _store_upload(upload, limits.max_bytes, store)
+    if not isinstance(entry, FiledNotice) or upload is None:
+        return PreparedNotice(fields)
+    store = file_store if file_store is not None else _file_store()
+    fields["file_ref"] = _store_upload(upload, limits.max_bytes, store)
+    return PreparedNotice(fields, store)
+
+
+def save_prepared_notice(
+    member_id: UUID, prepared: PreparedNotice, recorded_by: AbstractBaseUser
+) -> IncomeNotice:
+    """Save a prepared entry as the member's current notice (BR-DOC-005).
+
+    The caller has checked that the member is an adult of a draft walk-in.
+    """
+    _require_staff(recorded_by)
+    return _save(member_id, prepared.fields, recorded_by)
+
+
+def discard_prepared_notice(prepared: PreparedNotice) -> None:
+    """Remove the stored file of an entry that will not be saved."""
+    if prepared.store is not None:
+        _delete_quietly(prepared.store, prepared.fields["file_ref"])
+
+
+def record_staff_notice(
+    member_id: UUID,
+    values: Mapping[str, Any],
+    upload: UploadedFile | None,
+    recorded_by: AbstractBaseUser,
+    *,
+    file_store: FileStore | None = None,
+) -> IncomeNotice:
+    """Prepare and save a staff-entered notice or non-filing reason for one member."""
+    prepared = prepare_staff_notice(values, upload, recorded_by, file_store=file_store)
     try:
-        return _save(member_id, fields, recorded_by)
+        return save_prepared_notice(member_id, prepared, recorded_by)
     except Exception:
-        if store is not None:
-            _delete_quietly(store, fields["file_ref"])
+        discard_prepared_notice(prepared)
         raise
 
 

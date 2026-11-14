@@ -18,7 +18,7 @@ through `services.py`.
 | `domain/notice.py` | Pure rules BR-DOC-001 to BR-DOC-004: required values, tax year and notice date, non-filing reason, file type from its first bytes and size |
 | `messages.py` | French and English text for each rule problem |
 | `models.py` | `IncomeNotice`, with the one-current-notice and shape constraints |
-| `services.py` | `record_staff_notice`, `issue_file_link`, `open_file` |
+| `services.py` | `prepare_staff_notice`, `save_prepared_notice`, `discard_prepared_notice`, `record_staff_notice`, `issue_file_link`, `open_file` |
 | `queries.py` | `current_notices` |
 | `api/` | Staff file link and download endpoints, `{code, message, fields}` errors |
 | `tests/` | Rules, model, service and API tests (#467) |
@@ -35,6 +35,11 @@ the reverse; see the import-linter contracts in `backend/pyproject.toml`).
   `PermissionDenied` (not active staff) or `NoticeServiceUnavailable` (no
   `notice_upload` rule or no storage). Callers check the member first
   (`households.services.record_walk_in_notice`).
+- `services.prepare_staff_notice(values, upload, recorded_by, *, file_store=None) -> PreparedNotice`,
+  `services.save_prepared_notice(member_id, prepared, recorded_by) -> IncomeNotice` and
+  `services.discard_prepared_notice(prepared)`: the same steps split in two, so a caller
+  stores the file (which can take seconds) before taking its own lock, then saves under
+  the lock, or discards the stored file when it refuses the entry.
 - `services.issue_file_link(notice_id, staff_user) -> FileLink(token, expires_at)`:
   a link signed for that staff user, recorded in the audit log as a `view` of
   `income_notice`. Raises `NoticeFileNotFound` when the notice has no file.

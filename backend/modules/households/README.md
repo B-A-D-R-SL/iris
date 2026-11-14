@@ -15,9 +15,10 @@ account. The record also preserves staff verification and creation timestamps.
 - `services.approve_walk_in(household, staff) -> Household`: checks current
   evidence, records the outcome and prepares a beneficiary invitation when needed
 - `services.record_walk_in_notice(household_id, data, staff_user) -> IncomeNotice`:
-  checks the household is a draft walk-in and the member is one of its adults
-  (BR-DOC-007), records the draft change, then calls
-  `documents.services.record_staff_notice` (T-03.18.2)
+  checks the household is a draft walk-in (not anonymized) and the member is one of
+  its adults (BR-DOC-007), stores the file with `documents.services.prepare_staff_notice`
+  before locking, then locks the household, checks again, records the draft change and
+  saves with `save_prepared_notice`; a refusal removes the stored file (T-03.18.2)
 - `queries.walk_in_for_staff(household_id) -> Household | None`
 - `queries.eligibility_inputs(household_id) -> EligibilityInputs`: verified
   adult incomes and the full member count for the eligibility service
