@@ -373,9 +373,8 @@ def record_walk_in_notice(
     entries for the same file cannot interleave. documents is called last.
     """
     _require_staff(staff_user)
-    household = Household.objects.select_for_update().get(
-        id=household_id, channel=Household.Channel.WALK_IN
-    )
+    # Same scope as every walk-in path: walk-in channel, not anonymized.
+    household = walk_ins_for_staff(staff_user).select_for_update().get(pk=household_id)
     if household.status != Household.Status.DRAFT:
         raise ValidationError(
             {"status": _("Notices can only be added to a draft file.")}
