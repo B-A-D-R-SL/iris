@@ -1,4 +1,5 @@
 {
+  "_meta": "AI contribution: 50% or more AI-generated",
   "phone": [
     {"input": "+15145550123", "expected": "+15145550123"},
     {"input": "5145550123", "expected": "+15145550123"},
