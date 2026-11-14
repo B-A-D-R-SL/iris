@@ -5,11 +5,13 @@ import logging
 from uuid import UUID
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
 from modules.accounts.queries import STAFF_ROLES
+from modules.audit import services as audit_services
 from modules.eligibility.domain.eligibility import decide
 from modules.eligibility.models import EligibilityDecision
 from modules.households import queries as household_queries
@@ -45,15 +47,17 @@ def _validated_thresholds(values: object) -> tuple[int, dict[int, int]]:
     return year, {size: raw[str(size)] for size in range(1, 8)}
 
 
-def _validate_decider(decided_by: object | None) -> None:
+def _validate_decider(decided_by: object | None) -> AbstractBaseUser | None:
     """Allow automatic decisions or a persisted, active staff actor."""
     if decided_by is not None and (
         not isinstance(decided_by, get_user_model())
+        or decided_by._state.adding
         or getattr(decided_by, "pk", None) is None
         or getattr(decided_by, "role", None) not in STAFF_ROLES
         or not getattr(decided_by, "is_active", False)
     ):
         raise PermissionDenied("Only active intake staff may record staff decisions.")
+    return decided_by
 
 
 def _validated_evidence(household_id: UUID) -> tuple[int, list[int]]:
@@ -116,7 +120,7 @@ def decide_for_household(
     """Append a decision from verified adult evidence and the active LICO rule."""
     if not isinstance(household_id, UUID):
         raise ValidationError("A valid household UUID is required.")
-    _validate_decider(decided_by)
+    decided_by = _validate_decider(decided_by)
     household_size, incomes = _validated_evidence(household_id)
 
     rule = rule_queries.active("lico_thresholds", at=timezone.now())
@@ -144,5 +148,16 @@ def decide_for_household(
     )
     decision.full_clean()
     decision.save(force_insert=True)
+    audit_services.record(
+        decided_by,
+        "decision",
+        "household",
+        household_id,
+        {
+            "decision_id": str(decision.pk),
+            "outcome": "eligible" if decision.eligible else "ineligible",
+            "rule_version": rule.version,
+        },
+    )
     _log_decision_after_commit(decision, rule.version)
     return decision

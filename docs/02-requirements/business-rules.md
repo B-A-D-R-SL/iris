@@ -17,6 +17,8 @@ household files across staff; the registering staff member does not own the file
 | BR-HH-ACCESS-001 | Active intake workers and administrators can search all non-anonymized households, including files created by another staff member and unassigned files. Other roles, inactive users and anonymous callers are refused. `created_by` records provenance and never restricts staff search scope. |
 | BR-HH-ACCESS-002 | Anonymized households are excluded before counting and pagination and cannot be read, edited or offered for resuming through the walk-in endpoints. |
 | BR-HH-AUDIT-001 | Search results disclose household details. Persist a view event for each returned household before disclosing the response; an audit failure prevents disclosure. Events contain household IDs and empty metadata, never search text or personal details. |
+| SEC-08 | Walk-in creation, detail reads, edits and submission append central audit events with actor, household ID and action. Each eligibility decision appends an event containing decision ID, eligible/ineligible outcome and LICO rule version. Mutations and audit events share one transaction: either failure rolls back both. Automatic decisions have a null actor and system role. Detail audit failure prevents disclosure. |
+| SEC-09 | Walk-in audit metadata is empty. Eligibility audit metadata accepts only a canonical decision UUID, a closed eligible/ineligible outcome and a positive integer rule version. Never include names, contact/address details, birth dates, income amounts, thresholds or document contents. |
 
 These access and privacy rules have no configurable numeric threshold. The API
 enforces them; the frontend uses the search API's authorization response to decide

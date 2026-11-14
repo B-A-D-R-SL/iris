@@ -78,7 +78,18 @@ PostgreSQL trigger enforcing this rule.
 
 ## Audit events
 
-Eligibility decision audit events must be recorded through audit.services.record() once US-62 is integrated. This is pending; decision records alone do not satisfy SEC-08.
+FIX-08 records every successful decision through `audit.services.record` in the
+same transaction as the `EligibilityDecision` insert (SEC-08). The event uses
+action `decision`, targets the household UUID for household audit searches, and
+contains exactly `decision_id` (UUID), `outcome` (`eligible` or `ineligible`), and
+`rule_version` (the LICO version number). No income, threshold, evidence or
+personal details enter audit metadata (SEC-09). Staff decisions retain the saved
+actor and role; automatic decisions use a null actor and role `system`.
+
+An audit failure rolls back the decision; a failed calculation or decision save
+creates no audit event. An outer rollback removes both and prevents the existing
+after-commit success log. Recalculation appends another decision/event without
+rewriting history. Audit persistence does not depend on the application log.
 
 ## Sensitive income snapshots and erasure
 

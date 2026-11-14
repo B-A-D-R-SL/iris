@@ -7,12 +7,17 @@ from django.db import models
 class AuditEvent(models.Model):
     class Action(models.TextChoices):
         VIEW = "view"
+        CREATE = "create"
+        UPDATE = "update"
+        SUBMIT = "submit"
         DECISION = "decision"
         RULE_PUBLISHED = "rule_published"
         SUSPEND = "suspend"
         REACTIVATE = "reactivate"
 
-    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True
+    )
     actor_role = models.CharField(max_length=20)
     action = models.CharField(max_length=20, choices=Action.choices)
     target_type = models.CharField(

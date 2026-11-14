@@ -199,10 +199,18 @@ class WalkInDetailView(WalkInErrorHandlingMixin, GenericAPIView):
         summary="View a household file (staff)",
     )
     def get(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
-        household = queries.household_for_staff(id, request.user)
-        if household is None:
-            raise Http404
-        return Response(self.get_read_serializer(household).data)
+        with transaction.atomic():
+            household = queries.household_for_staff(id, request.user)
+            if household is None:
+                raise Http404
+            data = self.get_read_serializer(household).data
+            if request.method == "GET":
+                audit_services.record(
+                    request.user, "view", "household", household.pk, {}
+                )
+        response = Response(data)
+        response["Cache-Control"] = "private, no-store"
+        return response
 
     def get_read_serializer(self, household: Household) -> WalkInDraftReadSerializer:
         return WalkInDraftReadSerializer(

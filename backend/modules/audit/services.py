@@ -12,7 +12,7 @@ from modules.privacy import services as privacy_services
 from modules.rules import queries as rule_queries
 
 
-def _actor_role(actor: AbstractBaseUser) -> str:
+def _actor_role(actor: AbstractBaseUser | None) -> str:
     """Require a persisted account and capture its validated role for the event."""
     if not isinstance(actor, get_user_model()) or actor._state.adding:
         raise ValidationError({"actor": "A saved user is required."})
@@ -72,6 +72,29 @@ def _validate_rule_publication(
         raise ValidationError({"metadata": "Unsupported audit metadata."})
 
 
+def _validate_eligibility_decision(
+    target_type: str, metadata: dict[str, str | int]
+) -> None:
+    """Allow only a decision UUID, a closed outcome and a rule version."""
+    try:
+        identifier = metadata.get("decision_id")
+        valid_identifier = (
+            isinstance(identifier, str) and str(UUID(identifier)) == identifier
+        )
+    except ValueError:
+        valid_identifier = False
+    version = metadata.get("rule_version")
+    if not (
+        target_type == "household"
+        and set(metadata) == {"decision_id", "outcome", "rule_version"}
+        and valid_identifier
+        and metadata.get("outcome") in ("eligible", "ineligible")
+        and type(version) is int
+        and version > 0
+    ):
+        raise ValidationError({"metadata": "Unsupported eligibility audit metadata."})
+
+
 def _validate_metadata(
     action: str, target_type: str, metadata: dict[str, str | int]
 ) -> None:
@@ -82,6 +105,9 @@ def _validate_metadata(
         _validate_rule_publication(target_type, metadata)
         return
     if action == AuditEvent.Action.DECISION:
+        if "decision_id" in metadata or "rule_version" in metadata:
+            _validate_eligibility_decision(target_type, metadata)
+            return
         if not metadata:
             return
         if set(metadata) != {"outcome"} or metadata["outcome"] not in (
@@ -106,17 +132,24 @@ def _validate_metadata(
 
 @transaction.atomic
 def record(
-    actor: AbstractBaseUser,
+    actor: AbstractBaseUser | None,
     action: str,
     target_type: str,
     target_id: str | int | UUID,
     metadata: dict[str, str | int],
 ) -> AuditEvent:
     """Record a validated event in the caller's transaction."""
-    role = _actor_role(actor)
     _validate_metadata(action, target_type, metadata)
+    # Automatic eligibility decisions have no human actor. Other callers still
+    # require a saved user, including staff searches and legacy decisions.
+    system_decision = (
+        actor is None
+        and action == AuditEvent.Action.DECISION
+        and "decision_id" in metadata
+    )
+    role = "system" if system_decision else _actor_role(actor)
     event = AuditEvent(
-        actor_id=actor.pk,
+        actor_id=actor.pk if actor is not None else None,
         actor_role=role,
         action=action,
         target_type=target_type,
