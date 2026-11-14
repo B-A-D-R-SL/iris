@@ -82,15 +82,17 @@ directly modifying Category records.
 
 ### Domain
 
-`validate_best_before_date(...)`
+`validate_default_value(value_cents, *, max_cents)`
 - Contains no Django imports.
-- Requires food categories to have a best-before date.
-- Checks the date against the pickup end date.
-- Accepts a configurable safety margin.
-- Does not query settings or the database.
+- Checks a category's default value is from 0 to the listing
+  value limit (BR-CAT-001).
+- Receives the limit from the caller; does not query settings
+  or the database.
 
-The calling Listings service will eventually supply the
-category information and active listing-safety rule values.
+The food best-before rule (BR-LIST-003) is not a category rule.
+It lives in `backend/modules/listings/domain/safety.py`, which
+listing posting calls with the category's `is_food` flag and the
+active `listing_safety` rule values.
 
 ## Category model
 

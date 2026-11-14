@@ -2,11 +2,18 @@
 """Read-only access to versioned business-rule settings."""
 
 from datetime import datetime
+from typing import TypedDict
 
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
+from modules.rules.domain.schemas import RuleValidationError, validate_rule_values
 from modules.rules.models import RuleSetVersion
+
+
+class NotificationPolicy(TypedDict):
+    retry_delays_seconds: list[int]
+    job_retention_hours: int
 
 
 def active(rule_type: str, at: datetime | None = None) -> RuleSetVersion | None:
@@ -44,3 +51,18 @@ def household_suspension_reason_max_length() -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value < 1:
         raise ValidationError("Household suspension rules are invalid.")
     return value
+
+
+def notification_policy() -> NotificationPolicy:
+    """Return validated active notification rules; never silently invent a policy."""
+    rule = active("notifications")
+    if rule is None or not isinstance(rule.values, dict):
+        raise ValidationError("Notification rules are unavailable.")
+    try:
+        validate_rule_values("notifications", rule.values)
+    except RuleValidationError:
+        raise ValidationError("Notification rules are invalid.") from None
+    return {
+        "retry_delays_seconds": list(rule.values["retry_delays_seconds"]),
+        "job_retention_hours": rule.values["job_retention_hours"],
+    }

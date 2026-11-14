@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}A strike has been added to your household file. Sign in to Iris to see the details and the next steps.{% endautoescape %}

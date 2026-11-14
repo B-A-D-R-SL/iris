@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}Your reservation is confirmed. Sign in to Iris to see your pickup code, location and pickup window.{% endautoescape %}

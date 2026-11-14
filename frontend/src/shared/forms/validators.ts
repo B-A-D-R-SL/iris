@@ -15,7 +15,9 @@ import { centsToDollars } from "./formats";
 
 export type Rule<T> = (value: T) => ReactNode;
 
-const POSTAL_CODE = /^[A-Z]\d[A-Z] \d[A-Z]\d$/;
+// Canada Post letters, as in the backend's normalize_postal_code (US-17, shared by FIX-14):
+// no D, F, I, O, Q or U, and no W or Z in first place. Checked without the space.
+const POSTAL_CODE = /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z]\d[ABCEGHJ-NPRSTV-Z]\d$/;
 const E164_CANADA = /^\+1[2-9]\d{9}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -74,17 +76,28 @@ export function hasLength({ min = 0, max }: { min?: number; max: number }): Rule
   };
 }
 
+/** "h2x1y4", "H2X 1Y4" and " h2x 1y4 " are the same code: case and spaces don't count. */
 export function isPostalCode(): Rule<string> {
   return (value) =>
-    isEmpty(value) || POSTAL_CODE.test(value)
+    isEmpty(value) || POSTAL_CODE.test(value.replace(/\s+/g, "").toUpperCase())
       ? null
       : validationMessage("shared.validation.postalCode");
 }
 
-/** PhoneField gives E.164 once 10 digits are typed; anything else is incomplete. */
+/** "(514) 555-0123", "514 555 0123" and "+1 514-555-0123" all become "+15145550123". */
+function compactPhone(value: string): string {
+  const compact = value.replace(/[\s().-]/g, "");
+  if (/^\d{10}$/.test(compact)) return `+1${compact}`;
+  if (/^1\d{10}$/.test(compact)) return `+${compact}`;
+  return compact;
+}
+
+/** A Canadian number of 10 digits, however it is spaced; PhoneField already gives E.164. */
 export function isPhone(): Rule<string> {
   return (value) =>
-    isEmpty(value) || E164_CANADA.test(value) ? null : validationMessage("shared.validation.phone");
+    isEmpty(value) || E164_CANADA.test(compactPhone(value))
+      ? null
+      : validationMessage("shared.validation.phone");
 }
 
 export function isMoneyInRange({

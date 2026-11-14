@@ -64,9 +64,21 @@ def test_us34_refuses_food_without_best_before() -> None:
 @pytest.mark.parametrize(
     ("margin", "best_before", "earliest"),
     [
-        (0, date(2026, 11, 12), date(2026, 11, 13)),
-        (1, date(2026, 11, 13), date(2026, 11, 14)),
-        (2, date(2026, 11, 14), date(2026, 11, 15)),
+        pytest.param(
+            0, date(2026, 11, 12), date(2026, 11, 13), id="day_before_pickup_end"
+        ),
+        pytest.param(
+            1, date(2026, 11, 13), date(2026, 11, 14), id="one_day_short_margin_1"
+        ),
+        pytest.param(
+            2, date(2026, 11, 14), date(2026, 11, 15), id="one_day_short_margin_2"
+        ),
+        pytest.param(
+            2,
+            date(2026, 11, 12),
+            date(2026, 11, 15),
+            id="before_pickup_end_with_margin",
+        ),
     ],
 )
 def test_us34_refuses_best_before_earlier_than_pickup_end_plus_margin(
@@ -83,10 +95,10 @@ def test_us34_refuses_best_before_earlier_than_pickup_end_plus_margin(
 @pytest.mark.parametrize(
     ("margin", "best_before"),
     [
-        (0, date(2026, 11, 13)),  # on the pickup end date: accepted
-        (0, date(2026, 11, 20)),
-        (1, date(2026, 11, 14)),
-        (2, date(2026, 11, 15)),
+        pytest.param(0, date(2026, 11, 13), id="same_day"),
+        pytest.param(0, date(2026, 11, 20), id="after_margin"),
+        pytest.param(1, date(2026, 11, 14), id="exact_margin_1"),
+        pytest.param(2, date(2026, 11, 15), id="exact_margin_2"),
     ],
 )
 def test_us34_accepts_best_before_on_or_after_pickup_end_plus_margin(
@@ -103,7 +115,13 @@ def test_us34_accepts_best_before_on_or_after_pickup_end_plus_margin(
 
 
 # rule: BR-LIST-003 non-food ignores the best-before date
-@pytest.mark.parametrize("best_before", [None, date(2026, 1, 1)])
+@pytest.mark.parametrize(
+    "best_before",
+    [
+        pytest.param(None, id="no_date"),
+        pytest.param(date(2026, 1, 1), id="date_long_past"),
+    ],
+)
 def test_us34_non_food_ignores_best_before(best_before: date | None) -> None:
     assert check(listing(best_before=best_before), NON_FOOD, rules()) == []
 

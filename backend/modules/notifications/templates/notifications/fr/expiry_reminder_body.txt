@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}Votre dossier de foyer arrive à expiration. Connectez-vous à Iris pour consulter les étapes de renouvellement.{% endautoescape %}

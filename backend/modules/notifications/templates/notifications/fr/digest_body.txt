@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}Consultez les nouvelles offres disponibles pour votre foyer en vous connectant à Iris.{% endautoescape %}

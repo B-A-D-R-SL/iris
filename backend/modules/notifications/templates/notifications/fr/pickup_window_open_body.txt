@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}La plage de cueillette de votre réservation est ouverte. Connectez-vous à Iris pour consulter votre code et les détails de la cueillette.{% endautoescape %}

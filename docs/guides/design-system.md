@@ -11,24 +11,51 @@ How to build a screen that fits Iris. Everything here follows the
 
 | Folder | What it holds |
 | --- | --- |
-| `frontend/src/app/` | Routes (`App.tsx`), theme, providers, layouts per area, navigation and role guards |
+| `frontend/src/app/` | Routes, one module per area in `routes/` (`App.tsx` puts them together), theme, providers, layouts, navigation and role guards |
 | `frontend/src/areas/<area>/` | Screens: `public`, `household`, `store`, `staff` |
-| `frontend/src/features/<module>/` | API hooks per module, for example `accounts/currentUser.ts` |
+| `frontend/src/features/<module>/` | API calls and hooks per backend module, for example `listings/api.ts` |
+| `frontend/src/shared/auth/` | The signed-in user (`currentUser.ts`), roles and their groups (`roles.ts`), sign-in and sign-out |
 | `frontend/src/shared/forms/` | Shared form fields and validation rules |
-| `frontend/src/shared/ui/` | Loading, empty and error states, `Notice`, `LanguageSwitch` |
+| `frontend/src/shared/ui/` | `AppBar`, loading, empty and error states, `Notice`, `LanguageSwitch` |
 | `frontend/src/test/render.tsx` | Test helpers: render with providers, fake signed-in user, accessibility check |
+
+## Layers
+
+The four folders are layers, from top to bottom: **`app`, then `areas`, then `features`, then
+`shared`**. A file imports from its own layer or from the layers below it, never from a layer
+above. So `shared` knows nothing about screens, and a screen never reaches into the app shell.
+When code in a lower layer needs something from above, move that thing down. That is why
+`AppBar` lives in `shared/ui` and `homePathFor` in `shared/auth/roles.ts`.
+
+ESLint enforces the rule (`no-restricted-imports` in `frontend/eslint.config.js`) and fails CI
+on an upward import. Tests are exempt, because they render the whole app.
+
+## Size
+
+ESLint also fails a function in `src/` that is longer than 50 lines or has a complexity above
+15, as the code review rule asks. Tests are exempt. Files that were already over the limits are
+listed in `OVER_THE_LIMIT` in `frontend/eslint.config.js` with their size today, so they cannot
+grow. The pull request that splits a file removes its line; do not add a new file to the list.
 
 ## Add your screen
 
 1. Create it in `src/areas/<area>/`.
-2. In `src/app/App.tsx`, replace the `PlaceholderScreen` of your route with your screen.
-3. Household and store screens start with their own app bar: `<AppBar title={t("…")} />`.
-   A sub-screen adds a back arrow to its parent screen in the same area, for example
-   `backTo="/listings"` on a household listing detail and `backTo="/store/listings"` on a store
-   listing edit. Staff and public screens start with `<Title order={1}>`.
+2. Add its route to your area's module in `src/app/routes/`: `publicRoutes.tsx`,
+   `householdRoutes.tsx`, `storeRoutes.tsx` or `staffRoutes.tsx`. A screen that is not built has
+   no route and no tab, so there are no placeholder screens. The one exception is `/privacy`,
+   which the partner form's consent text links to until the policy text exists.
+3. If your screen has a tab, add it to `src/app/navigation.ts` with the roles that may open it.
+4. Household and store screens start with their own app bar: `<AppBar title={t("…")} />` from
+   `shared/ui`. A sub-screen adds a back arrow to its parent screen in the same area, for
+   example `backTo="/listings"` on a household listing detail. Staff and public screens start
+   with `<Title order={1}>`.
 
-Menus and guards already exist. `src/app/navigation.ts` decides which roles see which tab;
-`RequireRole` sends signed-out visitors to `/sign-in` and other roles to their own home.
+Menus and guards already exist. `src/app/navigation.ts` decides which roles see which tab. The
+role groups come from `src/shared/auth/roles.ts`, built from the generated API `Role` type: a
+role added to the API must be given an area there before the app compiles. `RequireRole` sends
+signed-out visitors to `/sign-in` and other roles to their own home (`homePathFor`), which is
+the first built screen of their area: `/listings`, `/store/listings/new` or `/staff/households`.
+The story that builds an area's home screen changes it there.
 After sign-in, it returns a visitor to the requested protected path when the role permits it.
 These only shape the interface: **every endpoint must still check permissions on the server.**
 
@@ -166,6 +193,9 @@ const form = useForm({
 - Fields are required unless `optional`; the label then ends with « (facultatif) ».
 - Rules return messages that translate themselves, so errors follow the language switch.
   Empty values pass every rule except `isRequired()`.
+- `isPostalCode()` and `isPhone()` follow the backend rule: case and spaces don't count, so
+  `h2x1y4` and `(514) 555-0123` pass. Postal codes use Canada Post letters (no D, F, I, O, Q
+  or U), like `normalize_postal_code` on the server.
 - Put server field errors in `form.setErrors({ field: message })`; they get the same style.
 - Count errors at the top with `<Notice type="error" title={…} />` (forms-and-fields.md).
 

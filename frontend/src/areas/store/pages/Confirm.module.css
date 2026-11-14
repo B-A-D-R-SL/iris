@@ -1,0 +1,63 @@
+/* AI contribution: 50% or more AI-generated */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-md);
+  padding: var(--mantine-spacing-md);
+  padding-bottom: calc(var(--mantine-spacing-md) + var(--app-shell-footer-offset, 0rem));
+}
+
+.facts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-sm);
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: var(--mantine-spacing-xs);
+  font-size: var(--mantine-font-size-md);
+}
+
+.fact dt {
+  margin: 0;
+  color: var(--iris-text-muted);
+  font-weight: 600;
+}
+
+.fact dd {
+  margin: 0;
+  color: var(--iris-text);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-sm);
+  margin-top: var(--mantine-spacing-sm);
+}
+
+.successIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  margin-inline: auto;
+  border-radius: 50%;
+  background-color: var(--iris-success-light);
+  color: var(--iris-success-strong);
+}
+
+.codeField :global(input) {
+  font-size: var(--mantine-font-size-md);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}

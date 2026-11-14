@@ -2,9 +2,9 @@
 import type { ReactNode } from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
 
-import { useCurrentUser, type Role } from "../features/accounts/currentUser";
+import { useCurrentUser } from "../shared/auth/currentUser";
+import { homePathFor, type Role } from "../shared/auth/roles";
 import { ErrorState, LoadingState } from "../shared/ui";
-import { homePathFor } from "./navigation";
 
 interface RequireRoleProps {
   roles: readonly Role[];

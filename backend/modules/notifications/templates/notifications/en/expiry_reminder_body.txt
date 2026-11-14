@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}Your household file will expire soon. Sign in to Iris to see the renewal steps.{% endautoescape %}

@@ -2,7 +2,7 @@
 import { AppShell } from "@mantine/core";
 import { Outlet } from "react-router";
 
-import { useCurrentUser } from "../../features/accounts/currentUser";
+import { useCurrentUser } from "../../shared/auth/currentUser";
 import { navFor } from "../navigation";
 import { BottomNav } from "./BottomNav";
 import classes from "./layouts.module.css";

@@ -6,18 +6,26 @@ from typing import Any
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.core import mail
 from django.core.cache import cache
 from django.test import Client
 from django.urls import reverse
 from django.utils import translation
 from rest_framework.test import APIClient
 
+from adapters.mailer.fake import get_fake_mailer
 from modules.accounts.tests.factories import UserFactory
 from modules.categories.tests.factories import CategoryFactory
+from modules.notifications.models import EmailLog
+from modules.notifications.tasks import send_email
 from modules.stores.api.views import _without_port
 from modules.stores.models import ApplicationStatus, PartnerApplication
 from modules.stores.tests.factories import PartnerApplicationFactory, StoreFactory
+
+# Direct tests intentionally run without a worker-injected JobContext.
+DIRECT_CONTEXT: Any = None
+
+
+pytestmark = pytest.mark.usefixtures("notification_rules")
 
 URL = "/api/partner-applications/"
 ROLES = ("beneficiary", "store_staff", "store_manager", "intake_worker", "admin")
@@ -67,10 +75,16 @@ def post(
 
 def test_submission_is_saved_and_confirmed_by_email(
     django_capture_on_commit_callbacks: Any,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # rule: AC1 + AC2 main path through the API, the database and the email
+    queued: list[dict[str, Any]] = []
+    monkeypatch.setattr(send_email, "configure", lambda **kwargs: send_email)
+    monkeypatch.setattr(send_email, "defer", lambda **kwargs: queued.append(kwargs))
     with django_capture_on_commit_callbacks(execute=True):
         response = post(APIClient(), payload())
+        assert queued == []
+        assert get_fake_mailer().sent == []
     assert response.status_code == 201
     body = response.json()
     assert set(body) == {"id", "status", "created_at"}
@@ -84,10 +98,65 @@ def test_submission_is_saved_and_confirmed_by_email(
     assert application.goods_categories == ["bakery", "dairy_eggs"]
     assert application.neq is None and application.unit is None
     assert application.language == "en"
-    assert [message.subject for message in mail.outbox] == [
-        "We received your partner application"
-    ]
-    assert mail.outbox[0].to == ["owner@example.test"]
+    [job] = queued
+    email_log = EmailLog.objects.get(pk=job["email_log_id"])
+    assert email_log.template_key == "partner_application_received"
+    assert email_log.to_email == application.contact_email
+    assert email_log.language == application.language
+    assert email_log.attempts == 0
+    assert get_fake_mailer().sent == []
+    send_email(DIRECT_CONTEXT, **job)
+    [message] = get_fake_mailer().sent
+    assert message["subject"] == "We received your partner application"
+    assert message["to"] == ["owner@example.test"]
+    email_log.refresh_from_db()
+    assert email_log.status == "sent"
+    assert email_log.sent_at is not None
+
+
+@pytest.mark.parametrize(
+    ("name", "display"),
+    [
+        ("Boulangerie\u00a0Exemple", "Boulangerie Exemple"),
+        ("Boulangerie\u202fExemple", "Boulangerie Exemple"),
+        ("Boulangerie\tExemple", "Boulangerie Exemple"),
+        ("Boulangerie\nExemple", "Boulangerie Exemple"),
+        ("Boulangerie\u200dExemple", "BoulangerieExemple"),
+        ("\u200d\u200d", "Nous avons bien reçu votre demande."),
+    ],
+)
+def test_business_name_is_preserved_while_the_receipt_uses_a_safe_display_copy(
+    name: str,
+    display: str,
+    django_capture_on_commit_callbacks: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Email rendering must not add restrictions to the existing name field."""
+    queued: list[dict[str, Any]] = []
+    monkeypatch.setattr(send_email, "configure", lambda **kwargs: send_email)
+    monkeypatch.setattr(send_email, "defer", lambda **kwargs: queued.append(kwargs))
+    with django_capture_on_commit_callbacks(execute=True):
+        response = post(APIClient(), payload(business_name=name), language="fr")
+        assert queued == []
+    assert response.status_code == 201
+    application = PartnerApplication.objects.get(pk=response.json()["id"])
+    assert application.business_name == name
+    [job] = queued
+    email_log = EmailLog.objects.get(pk=job["email_log_id"])
+    assert email_log.template_key == "partner_application_received"
+    assert email_log.language == "fr"
+    assert job["context"] == {"business_name": name}
+    assert get_fake_mailer().sent == []
+    send_email(DIRECT_CONTEXT, **job)
+    [message] = get_fake_mailer().sent
+    assert display in message["text"]
+    assert display in message["html"]
+    assert name not in message["text"] + message["html"]
+    email_log.refresh_from_db()
+    assert email_log.status == "sent"
+    assert email_log.sent_at is not None
+    application.refresh_from_db()
+    assert application.business_name == name
 
 
 @pytest.mark.parametrize("role", ROLES)

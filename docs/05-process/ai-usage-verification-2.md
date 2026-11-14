@@ -328,3 +328,38 @@ AI-assisted files for this entry:
 - `frontend/src/shared/ui/toneIcons.ts`
 - `frontend/src/test/i18n.test.ts`
 - `frontend/src/test/render.tsx`
+
+### FIX-16 One best-before rule for listings (#642)
+
+- **Tool and level:** Claude Code, 50% or more AI-generated.
+- **What the AI produced:** removal of the unused `validate_best_before_date` and
+  `BestBeforeDateError` from `categories/domain/rules.py` and of their tests in
+  `categories/tests/test_rules.py`; named test cases in `listings/tests/test_safety.py`
+  (same day, exact margin, one day short, non-food) plus one new case carried over from
+  the deleted tests (a date before the pickup end with a margin above 0); and the
+  reference-module guide now pointing at `listings/domain/safety.py`.
+- **Developer direction:** Ryan chose to keep the US-34 rule in `listings/domain/safety.py`,
+  which posting already uses and which also checks rule values and date types, and to
+  delete the categories copy. He reviewed the written plan, set the branch name
+  (`fix/FIX-16-one-best-before-rule`) and asked to review the changes before committing.
+- **How we verified it:** every deleted test case was matched to an existing or new case in
+  `test_safety.py` (food without a date, same day, exact margin, one day short, before the
+  pickup end, non-food with and without a date, negative margin through `read_settings`).
+  A search finds no remaining reference to the deleted names. In the local Docker
+  backend: Ruff lint and format, mypy, the four import-linter contracts and the
+  missing-migration check pass; the safety and categories tests pass (104); the full
+  suite passes 2,022 tests at 95.65% coverage. One unrelated test,
+  `test_wsgi_reuses_database_connection_between_http_requests`, fails locally because
+  `settings/local.py` sets `CONN_MAX_AGE = 0`; this change touches neither settings nor
+  households, and CI runs it with the test settings.
+- **Problems found and corrections:** the first plan named the branch after the bare
+  `FIX-xx-name` branches on the remote instead of the team pack's `fix/` prefix; Ryan
+  corrected it before the branch was created.
+
+AI-assisted files for this entry:
+
+- `backend/modules/categories/domain/rules.py`
+- `backend/modules/categories/tests/test_rules.py` (deleted)
+- `backend/modules/listings/tests/test_safety.py`
+- `docs/guides/reference-module.md`
+- `docs/05-process/ai-usage-verification-2.md`

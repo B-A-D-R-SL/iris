@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "../../../../app/App";
-import type { Role } from "../../../../features/accounts/currentUser";
+import type { Role } from "../../../../shared/auth/roles";
 import type { WalkInDraft } from "../../../../features/households/walkInApi";
 import i18n from "../../../../shared/i18n";
 import { expectNoAxeViolations, renderWithProviders, testUser } from "../../../../test/render";

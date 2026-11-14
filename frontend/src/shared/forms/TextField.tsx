@@ -1,5 +1,6 @@
 // AI contribution: 50% or more AI-generated
 import { Textarea, TextInput } from "@mantine/core";
+import type { ChangeEvent, ReactNode } from "react";
 
 import { useFieldWrapper, type BaseFieldProps } from "./fieldProps";
 import classes from "./fields.module.css";
@@ -16,58 +17,44 @@ export interface TextFieldProps extends BaseFieldProps {
   autoComplete?: string;
 }
 
-export function TextField(props: TextFieldProps) {
-  const {
-    value = "",
-    onChange,
-    placeholder,
-    maxLength,
-    multiline = false,
-    readOnly,
-    type = "text",
-    autoComplete,
-  } = props;
-  const wrapper = useFieldWrapper(props);
-  const counter = multiline && maxLength !== undefined ? `${value.length} / ${maxLength}` : null;
-  const description = counter ? (
+/** The helper text with the "0 / 500" counter at its end. */
+function CountedHelp({ help, counter }: { help: ReactNode; counter: string }) {
+  return (
     <span className={classes.helper}>
-      <span>{props.description}</span>
+      <span>{help}</span>
       <span className={classes.counter}>{counter}</span>
     </span>
-  ) : (
-    props.description
   );
+}
+
+export function TextField(props: TextFieldProps) {
+  const { value = "", onChange, placeholder, maxLength, multiline = false, readOnly } = props;
+  const counter = multiline && maxLength !== undefined ? `${value.length} / ${maxLength}` : null;
   const shared = {
-    ...wrapper,
-    description,
+    ...useFieldWrapper(props),
+    description: counter ? (
+      <CountedHelp help={props.description} counter={counter} />
+    ) : (
+      props.description
+    ),
     value,
     placeholder,
     maxLength,
     readOnly,
-    disabled: props.disabled,
-    name: props.name,
-    id: props.id,
-    onBlur: props.onBlur,
-    onFocus: props.onFocus,
     classNames: readOnly ? { input: classes.readOnly } : undefined,
   };
+  const change = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    onChange(event.currentTarget.value);
 
   if (multiline) {
-    return (
-      <Textarea
-        {...shared}
-        autosize
-        minRows={3}
-        onChange={(event) => onChange(event.currentTarget.value)}
-      />
-    );
+    return <Textarea {...shared} autosize minRows={3} onChange={change} />;
   }
   return (
     <TextInput
       {...shared}
-      type={type}
-      autoComplete={autoComplete}
-      onChange={(event) => onChange(event.currentTarget.value)}
+      type={props.type ?? "text"}
+      autoComplete={props.autoComplete}
+      onChange={change}
     />
   );
 }
