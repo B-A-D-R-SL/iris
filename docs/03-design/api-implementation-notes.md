@@ -24,14 +24,15 @@ lists keys rather than a complete JSON payload.
 
 ### Authentication and permissions
 
-The backend mounts django-allauth headless once at `/api/auth/`; its actual
-subpaths include `/api/auth/browser/v1/...` and `/api/auth/app/v1/...`.
+The backend mounts django-allauth headless once at `/api/auth/` with
+`HEADLESS_CLIENTS = ("browser",)`. Only `/api/auth/browser/v1/...` routes are
+enabled; app-client routes under `/api/auth/app/v1/...` are disabled and return 404.
 The browser frontend uses the browser/v1 sign-in and session routes with a
 session cookie and the CSRF cookie's value in `X-CSRFToken`. DRF uses the
 accounts module's session authentication class; BasicAuthentication is disabled.
 
-**Team decision pending:** confirm whether the versioned app authentication
-surface should remain public. See [authentication routing](../guides/auth-routing.md).
+**Team decision pending:** whether to enable app-client authentication in a future
+release. See [authentication routing](../guides/auth-routing.md).
 
 DRF defaults to `IsAuthenticated`, but this is not the role-and-ownership
 matrix required by the draft. The [business rules permission matrix](../02-requirements/business-rules.md)
