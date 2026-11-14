@@ -28,6 +28,8 @@ from modules.households.models import Household, HouseholdDraftEvent, Member
 from modules.households.policies import (
     can_suspend_households,
     is_editable_walk_in,
+)
+from modules.households.policies import (
     require_walk_in_staff as _require_staff,
 )
 from modules.households.queries import (

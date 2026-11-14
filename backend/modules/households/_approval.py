@@ -15,9 +15,9 @@ from modules.accounts import services as account_services
 from modules.accounts.roles import UserRole
 from modules.audit import services as audit_services
 from modules.eligibility import services as eligibility_services
+from modules.households import queries
 from modules.households.domain.expiry import InvalidApprovedMonths, approved_expiry
 from modules.households.models import Household, Member
-from modules.households import queries
 from modules.households.queries import HouseholdEvidenceUnavailable
 from modules.notifications import services as notification_services
 from modules.rules import queries as rule_queries

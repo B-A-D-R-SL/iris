@@ -526,16 +526,16 @@ def test_a_draft_must_be_submitted_before_approval(household: Any, staff: Any) -
 
 
 # rule: BR-DUP-002
-def test_a_file_in_review_cannot_be_approved_again(
-    household: Any, staff: Any
-) -> None:
+def test_a_file_in_review_cannot_be_approved_again(household: Any, staff: Any) -> None:
     """Approving again could not change the outcome; it would only repeat rows."""
     Household.objects.filter(pk=household.pk).update(
         status="review_required", status_reason="POSSIBLE_DUPLICATE"
     )
     with pytest.raises(ValidationError) as refused:
         approve_walk_in(household, staff)
-    assert refused.value.messages == [gettext("This file is already waiting for review.")]
+    assert refused.value.messages == [
+        gettext("This file is already waiting for review.")
+    ]
     household.refresh_from_db()
     assert household.status_reason == "POSSIBLE_DUPLICATE"
     assert not decisions(household).exists()
