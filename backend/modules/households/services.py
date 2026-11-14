@@ -410,11 +410,13 @@ def submit_walk_in(household_id: UUID, staff_user: AbstractBaseUser) -> Househol
     return household
 
 
-def lock_approved_household(household_id: UUID, *, at: datetime) -> bool:
+def lock_approved_household(household_id: UUID, *, at: datetime | None = None) -> bool:
     """Lock a household's row until the caller's transaction ends (US-41).
 
     Returns whether the household is approved and not expired at ``at``, the
     same test as ``queries.approved_household_id``, read under the lock.
+    Without ``at``, the clock is read once the lock is held, so a request that
+    waited for it is not judged by the time it arrived.
 
     Reserving calls this first, so two reservations for one household (two
     phones, a double tap) run one after the other: the second counts the
@@ -429,9 +431,10 @@ def lock_approved_household(household_id: UUID, *, at: datetime) -> bool:
         .values("status", "expires_at")
         .first()
     )
+    moment = timezone.now() if at is None else at
     return (
         row is not None
         and row["status"] == Household.Status.APPROVED
         and row["expires_at"] is not None
-        and row["expires_at"] > at
+        and row["expires_at"] > moment
     )

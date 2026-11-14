@@ -138,6 +138,43 @@ def test_some_units_taken_meanwhile_says_not_enough_units(
     assert _refusal(case, quantity=2) == services.NOT_ENOUGH_UNITS
 
 
+def _lock_wait_ends_at(monkeypatch: pytest.MonkeyPatch, later: datetime) -> None:
+    """The clock reads NOW until reserve() asks for the household lock, which
+    only comes at ``later`` (another request of the same household held it)."""
+    clock = {"now": NOW}
+    monkeypatch.setattr(timezone, "now", lambda: clock["now"])
+    lock = services.household_services.lock_approved_household
+
+    def wait_then_lock(*args: Any, **kwargs: Any) -> bool:
+        clock["now"] = later
+        return lock(*args, **kwargs)
+
+    monkeypatch.setattr(
+        services.household_services, "lock_approved_household", wait_then_lock
+    )
+
+
+# rule: BR-RES-006
+def test_a_file_that_expires_while_waiting_for_the_lock_is_refused(
+    case: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case.household.expires_at = NOW + timedelta(minutes=1)
+    case.household.save()
+    _lock_wait_ends_at(monkeypatch, NOW + timedelta(minutes=2))
+    assert _refusal(case, now=None) == services.HOUSEHOLD_NOT_APPROVED
+
+
+# rule: BR-RES-009
+def test_a_pickup_that_ends_while_waiting_for_the_lock_is_refused(
+    case: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case.listing.pickup_start = NOW - timedelta(hours=1)
+    case.listing.pickup_end = NOW + timedelta(minutes=1)
+    case.listing.save()
+    _lock_wait_ends_at(monkeypatch, NOW + timedelta(minutes=2))
+    assert _refusal(case, now=None) == services.LISTING_NOT_AVAILABLE
+
+
 # rule: BR-RES-009
 def test_listing_closed_meanwhile_says_not_available(
     case: SimpleNamespace, monkeypatch: pytest.MonkeyPatch

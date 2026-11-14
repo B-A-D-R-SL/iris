@@ -228,12 +228,14 @@ def reserve(
     """
     if quantity < 1:
         raise ValueError("quantity must be 1 or more.")
-    moment = timezone.now() if now is None else now
 
     # 1. Lock the household first, so its reservations run one at a time.
     # rule: BR-RES-006 only an approved household that has not expired.
-    if not household_services.lock_approved_household(household_id, at=moment):
+    if not household_services.lock_approved_household(household_id, at=now):
         raise ReservationRefused(HOUSEHOLD_NOT_APPROVED)
+    # The time is read after the lock: waiting for it must not let a request
+    # pass a file expiry or a pickup end that came meanwhile.
+    moment = timezone.now() if now is None else now
     # TODO(strikes story): refuse a household blocked by strikes here.
 
     # 2. Every check that needs no change. Nothing has been changed yet.
