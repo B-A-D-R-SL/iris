@@ -379,6 +379,45 @@ jobs:
             zap/zap-report.json
           if-no-files-found: warn
 
+  release-image:
+    name: Release image smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: iris_release
+          POSTGRES_USER: iris
+          POSTGRES_PASSWORD: iris_ci_password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U iris -d iris_release"
+          --health-interval 5s --health-timeout 5s --health-retries 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - name: Build the non-root release image
+        run: docker build --build-arg "IRIS_RELEASE_SHA=$GITHUB_SHA" --tag iris-release:ci .
+      - name: Boot, migrate and seed the isolated release
+        run: |
+          docker run --detach --name iris-release --network host \
+            --env DJANGO_SECRET_KEY=ci-release-only-0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ-abcdef \
+            --env DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1 \
+            --env DATABASE_URL=postgresql://iris:iris_ci_password@localhost:5432/iris_release \
+            --env DEFAULT_FROM_EMAIL=noreply@iris.example.org \
+            --env PUBLIC_APP_ORIGIN=https://iris.example.org \
+            --env IRIS_SEED_ON_START=1 --env SEED_PASSWORD=ci-release-seed-only \
+            iris-release:ci
+      - name: Verify release over the trusted-proxy HTTPS header
+        run: python3 .github/scripts/staging_smoke.py http://localhost:8000 "$GITHUB_SHA"
+      - name: Show startup diagnostics and remove the test container
+        if: always()
+        run: |
+          docker logs iris-release
+          docker rm -f iris-release
+
   sonar:
     name: SonarQube Cloud
     needs: [backend, frontend]
