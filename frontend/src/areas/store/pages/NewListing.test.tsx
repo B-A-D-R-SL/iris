@@ -379,6 +379,7 @@ describe("Listing safety checks (US-34)", () => {
     expect(urls).not.toContain("/api/categories/");
   });
 
+  // Full form interactions (plus axe in French) can exceed the 5s default on VMs.
   it("shows each safety refusal under its field, in French", async () => {
     mockApi({
       post: refused({
@@ -403,7 +404,7 @@ describe("Listing safety checks (US-34)", () => {
     );
     expect(screen.getByText("Cochez cette case pour publier.")).toBeVisible();
     await expectNoAxeViolations(container);
-  });
+  }, 15000);
 
   it("shows the server's English safety messages after switching language", async () => {
     const fetchMock = mockApi({
@@ -428,7 +429,7 @@ describe("Listing safety checks (US-34)", () => {
     ).toBeVisible();
     const call = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
     expect(call?.[1]?.headers).toMatchObject({ "Accept-Language": "en" });
-  });
+  }, 15000);
 
   it("shows the prohibited-items links as unavailable placeholders", async () => {
     mockApi();

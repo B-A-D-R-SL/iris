@@ -123,7 +123,7 @@ The approved scope is implemented. These details changed or became more specific
 - Added reversible validator-state migrations `stores.0005_shared_contact_validation` and `households.0007_shared_contact_validation`; existing records are not rewritten or deleted.
 - The formerly 52-line admin test is now 19 lines with a 15-line form-data helper. `SignOutButton` is 33 lines and its action hook is 22 lines; its size exception is removed. The placeholder Store API test file is deleted.
 
-**Verification results**
+**Historical verification before the four-CPU run**
 
 The later backend runs below used temporary test-only MD5 fixture hashing,
 with real Argon2 hashing retained in the security test, and a reused isolated
@@ -148,3 +148,12 @@ Tests used cached Docker images, refreshed locked frontend dependencies and a
 separate temporary PostgreSQL database. The running application and its database
 were untouched. Remote CI remains unverified, and the load benchmark remains a
 failed performance check on this VM.
+
+**Latest verification on the four-CPU VM (November 14, 2026)**
+
+- With standard Argon2 settings and one test runner, whole-backend coverage completed: **2,484 passed, 1 failed, 1 deselected** in **961.44 seconds**. Combined line/branch coverage is **96.10%** (97.42% lines, 89.51% branches), exceeding the unchanged 70% gate. The separate real-expiry test passed in **301.28 seconds**, bringing distinct backend results to **2,485 passed out of 2,486**.
+- The sole backend failure remains search load: **4,649.66 ms p95** against the unchanged **500 ms** limit at 100 requests/second; all 300 requests completed. Backend lint, formatting, types, import boundaries, migrations, production deployment checks, dependency audit and all **46 policy-script tests** passed. The two branch commits passed the secret scan.
+- The full frontend run completed **824 passed and 2 timed out** in **391.11 seconds**. Frontend lint, formatting, TypeScript, build and production dependency audit passed. The subsequent full coverage rerun was stopped at the user's request; there is no completed whole-frontend coverage result.
+- The two failures were Vitest's default five-second limit in the French and English listing safety-message tests. Only those two [test cases](../../frontend/src/areas/store/pages/NewListing.test.tsx) now receive individual **15,000 ms** limits; interactions, assertions and global test settings are unchanged.
+- At the user's request, only those two cases were rerun with V8 coverage, one worker and a name filter: **2 passed, 19 excluded**, in **13.80 seconds**. French took **5.683 seconds** and English **3.019 seconds**. Focused coverage is under `frontend/coverage/listing-timeouts/`; it is not whole-frontend coverage. No full suite was restarted for this timeout fix. Formatting and ESLint were checked only for the edited test file.
+- Remote CI remains unverified; these local results do not establish green CI. No test assertions, performance thresholds or password hashers were weakened.
