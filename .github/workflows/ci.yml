@@ -400,6 +400,29 @@ jobs:
           persist-credentials: false
       - name: Build the non-root release image
         run: docker build --build-arg "IRIS_RELEASE_SHA=$GITHUB_SHA" --tag iris-release:ci .
+      - name: Verify private worker runtime directory
+        run: |
+          docker run --rm --entrypoint python iris-release:ci -c '
+          import os
+          import stat
+          from pathlib import Path
+          directory = Path("/run/iris")
+          assert os.getuid() == 10001
+          assert directory.stat().st_uid == os.getuid()
+          assert stat.S_IMODE(directory.stat().st_mode) == 0o700
+          marker = directory / "worker.pid"
+          marker.write_text("12345")
+          assert marker.read_text() == "12345"
+          '
+          docker run --rm --user 10002:10002 --entrypoint python iris-release:ci -c '
+          from pathlib import Path
+          try:
+              Path("/run/iris/worker.pid").write_text("1")
+          except PermissionError:
+              print("Unrelated user correctly denied worker PID access")
+          else:
+              raise SystemExit("Unrelated user can forge worker readiness")
+          '
       - name: Boot, migrate and seed the isolated release
         run: |
           docker run --detach --name iris-release --network host \

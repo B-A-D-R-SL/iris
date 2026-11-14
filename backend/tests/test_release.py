@@ -83,6 +83,28 @@ def test_web_spawn_failure_still_stops_worker(tmp_path):
     kill.assert_called_once_with(101, signal.SIGTERM)
 
 
+def test_private_pid_write_failure_stops_both_children():
+    worker, web = MagicMock(pid=101), MagicMock(pid=102)
+    worker.poll.return_value = web.poll.return_value = None
+    pid_file = MagicMock()
+    pid_file.write_text.side_effect = PermissionError(
+        "runtime directory is not writable"
+    )
+    with (
+        patch.object(release, "WORKER_PID_FILE", pid_file),
+        patch.object(release.signal, "signal"),
+        patch.object(release.subprocess, "Popen", side_effect=[worker, web]),
+        patch.object(release.os, "killpg") as kill,
+        pytest.raises(PermissionError, match="runtime directory is not writable"),
+    ):
+        release._serve()
+    assert [call.args for call in kill.call_args_list] == [
+        (101, signal.SIGTERM),
+        (102, signal.SIGTERM),
+    ]
+    pid_file.unlink.assert_called_once_with(missing_ok=True)
+
+
 @pytest.mark.parametrize("code", [0, 1])
 def test_failed_setup_never_starts_web_or_worker(tmp_path, code):
     with (

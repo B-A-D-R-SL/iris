@@ -12,7 +12,8 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_safe
 
 logger = logging.getLogger("iris.deployment")
-WORKER_PID_FILE = Path("/tmp/iris-worker.pid")
+# Built as UID 10001's mode-0700 directory; other users cannot plant PID files.
+WORKER_PID_FILE = Path("/run/iris/worker.pid")
 
 
 @never_cache
