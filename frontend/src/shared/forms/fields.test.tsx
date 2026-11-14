@@ -97,6 +97,48 @@ describe("PostalCodeField", () => {
     expect(input).toHaveValue("H2X 1Y4");
     expect(onValue).toHaveBeenLastCalledWith("H2X 1Y4");
   });
+
+  it.each(["H2X-1Y4", "H2X 1Y45", "H٢X 1Y4"])(
+    "keeps pasted %j invalid instead of submitting a different code",
+    async (value) => {
+      const onValue = vi.fn();
+      renderWithProviders(
+        <Controlled initial="" onValue={onValue}>
+          {(code, setValue) => (
+            <PostalCodeField label="Code postal" value={code} onChange={setValue} />
+          )}
+        </Controlled>,
+      );
+      const user = userEvent.setup();
+      await user.click(screen.getByLabelText("Code postal"));
+      await user.paste(value);
+      const stored = onValue.mock.lastCall?.[0] as string;
+      expect(isPostalCode()(stored)).not.toBeNull();
+      expect(screen.getByLabelText("Code postal")).toHaveValue(stored);
+    },
+  );
+
+  it("folds pasted compatibility characters and lets the user delete and correct a code", async () => {
+    const onValue = vi.fn();
+    renderWithProviders(
+      <Controlled initial="" onValue={onValue}>
+        {(value, setValue) => (
+          <PostalCodeField label="Code postal" value={value} onChange={setValue} />
+        )}
+      </Controlled>,
+    );
+    const user = userEvent.setup();
+    const input = screen.getByLabelText("Code postal");
+    await user.click(input);
+    await user.paste("Ｈ２Ｘ１Ý４");
+    expect(input).toHaveValue("H2X 1Y4");
+    await user.keyboard("{Backspace}{Backspace}");
+    expect(input).toHaveValue("H2X 1");
+    await user.type(input, "y4");
+    expect(onValue).toHaveBeenLastCalledWith("H2X 1Y4");
+    await user.clear(input);
+    expect(onValue).toHaveBeenLastCalledWith("");
+  });
 });
 
 describe("PhoneField", () => {
@@ -128,6 +170,42 @@ describe("PhoneField", () => {
   it("displays a stored number", () => {
     renderWithProviders(<PhoneField label="Téléphone" value="+15145550123" onChange={() => {}} />);
     expect(screen.getByLabelText("Téléphone")).toHaveValue("(514) 555-0123");
+  });
+
+  it.each(["+447911123456", "51455501234", "5145550123 ext 4", "5145550123a"])(
+    "keeps pasted %j invalid instead of submitting a different number",
+    async (value) => {
+      const onValue = vi.fn();
+      renderWithProviders(
+        <Controlled initial="" onValue={onValue}>
+          {(phone, setValue) => <PhoneField label="Téléphone" value={phone} onChange={setValue} />}
+        </Controlled>,
+      );
+      const user = userEvent.setup();
+      await user.click(screen.getByLabelText("Téléphone"));
+      await user.paste(value);
+      expect(onValue).toHaveBeenLastCalledWith(value);
+      expect(screen.getByLabelText("Téléphone")).toHaveValue(value);
+      expect(isPhone()(value)).not.toBeNull();
+    },
+  );
+
+  it("allows deletion, correction and clearing of a complete phone", async () => {
+    const onValue = vi.fn();
+    renderWithProviders(
+      <Controlled initial="+15145550123" onValue={onValue}>
+        {(value, setValue) => <PhoneField label="Téléphone" value={value} onChange={setValue} />}
+      </Controlled>,
+    );
+    const user = userEvent.setup();
+    const input = screen.getByLabelText("Téléphone");
+    await user.click(input);
+    await user.keyboard("{Backspace}{Backspace}");
+    expect(input).toHaveValue("(514) 555-01");
+    await user.type(input, "23");
+    expect(onValue).toHaveBeenLastCalledWith("+15145550123");
+    await user.clear(input);
+    expect(onValue).toHaveBeenLastCalledWith("");
   });
 });
 

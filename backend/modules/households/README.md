@@ -34,7 +34,8 @@ account. The record also preserves staff verification and creation timestamps.
   reads only and excludes anonymized files. Blank input returns no files.
 - `queries.search_for_staff(q, actor) -> QuerySet[Household]`: the API entry point;
   validates shared staff permission before pagination.
-- `domain/address.py`: `normalize_address`, `normalize_postal_code`
+- `domain/address.py`: `normalize_address`; postal normalization is shared in
+  `modules.common.domain.contact.normalize_postal_code` (FIX-14).
 - `domain/person.py`: `normalize_person`, age/name validation
 - `domain/names.py`: `short_name`, `short_full_name` ("Fatou D.")
 

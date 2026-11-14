@@ -1,3 +1,5 @@
+<!-- AI contribution: 50% or more AI-generated -->
+
 # Forms and fields
 
 Every form in Iris, field by field. **Field** is the name used in the API and the database; it is also the layer name in the Figma wireframes. Labels are the exact text shown on screen (French first, English second). Validation runs in the front end for quick feedback **and** in the back end, which is the authority.
@@ -18,6 +20,17 @@ Field types:
 | `date` | Calendar picker; shown and typed as YYYY-MM-DD | date |
 | `time` | 24-hour clock, HH:MM | combined with a date into a date-time |
 | `money` | Dollars and cents, 0 or more, at most 2 decimals; shown as `0,00 $` in French | integer cents |
+
+Phone input accepts ten national digits, an optional leading `1` or `+1`, and
+spaces, parentheses, periods and hyphens. The national number starts with 2–9;
+other country prefixes, extensions, letters and extra digits are refused.
+Postal input ignores case and whitespace and preserves US-17's Unicode
+compatibility/accent folding before checking Canadian letters and ASCII digits.
+Letters D, F, I, O, Q and U are excluded; W and Z cannot be first. Postal
+punctuation and extra characters are refused. Formatting never truncates invalid
+input into a different valid value. Requiredness remains specific to each field.
+The backend rules live in `modules.common.domain.contact`; both languages test
+the cases in `mock-data/validation/contact-values.json` (FIX-14).
 
 On every form:
 

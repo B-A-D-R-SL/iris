@@ -13,6 +13,11 @@ Django URL namespaces. US-01 uses the browser sign-in and sign-out operations;
 `/api/me/` supplies the current profile. Public registration stays closed until
 US-02 adds email verification. Password reset and MFA enrollment remain later work.
 
+FIX-14 removes the dormant frontend two-factor API request and code-entry step
+until US-09 supplies the server flow. `allauth.mfa` is not installed. An unexpected
+`mfa_authenticate` challenge shows the translated unavailable error, leaves the
+user on sign-in and sends no request to an unsupported two-factor endpoint.
+
 The frontend calls `/api/auth/browser/v1/auth/login` and
 `/api/auth/browser/v1/auth/session`. It sends the CSRF cookie value in
 `X-CSRFToken` for state-changing requests, and the backend uses HttpOnly,

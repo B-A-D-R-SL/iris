@@ -188,36 +188,27 @@ describe("US-01 sign-in screen", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Réessayez dans 15 minutes");
   });
 
-  it("shows the code field only after an MFA challenge, then signs in", async () => {
-    let signedIn = false;
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
+  it("stays signed out on an unexpected MFA challenge without calling another endpoint", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === "/api/me/") {
-        return signedIn ? Response.json(testUser("admin")) : new Response(null, { status: 401 });
-      }
+      if (url === "/api/me/") return new Response(null, { status: 401 });
       if (url.endsWith("/auth/login")) {
         return Response.json({ data: { flows: [{ id: "mfa_authenticate" }] } }, { status: 401 });
-      }
-      if (url.endsWith("/auth/2fa/authenticate")) {
-        signedIn = true;
-        return Response.json({});
-      }
-      if (url === "/api/staff/households/" && options?.method === "HEAD") {
-        return new Response(null, { status: signedIn ? 200 : 401 });
       }
       return new Response(null, { status: 404 });
     });
     vi.stubGlobal("fetch", fetchMock);
     renderSignIn();
     await screen.findByRole("heading", { name: "Connexion" });
-    expect(screen.queryByRole("textbox", { name: "Code de vérification" })).not.toBeInTheDocument();
     await enterCredentials();
-    const code = await screen.findByRole("textbox", { name: "Code de vérification" });
-    await userEvent.type(code, "123456");
-    await userEvent.click(screen.getByRole("button", { name: "Vérifier le code" }));
-    await waitFor(() =>
-      expect(screen.getByTestId("current-path")).toHaveTextContent("/staff/households"),
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("La connexion est indisponible");
+    expect(screen.getByTestId("current-path")).toHaveTextContent("/sign-in");
+    expect(screen.getByRole("textbox", { name: "Courriel" })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Code de vérification" })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      "/api/me/",
+      "/api/auth/browser/v1/auth/login",
+    ]);
   });
 
   it("revokes the session from the staff layout and returns to sign-in", async () => {
@@ -426,22 +417,6 @@ describe("US-01 sign-in screen", () => {
     await screen.findByRole("heading", { name: "Connexion" });
     await enterCredentials();
     await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/listings"));
-  });
-
-  it("lets the user leave the MFA code step", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL) => {
-        if (String(input) === "/api/me/") return new Response(null, { status: 401 });
-        return Response.json({ data: { flows: [{ id: "mfa_authenticate" }] } }, { status: 401 });
-      }),
-    );
-    renderSignIn();
-    await screen.findByRole("heading", { name: "Connexion" });
-    await enterCredentials();
-    await screen.findByRole("textbox", { name: "Code de vérification" });
-    await userEvent.click(screen.getByRole("button", { name: "Utiliser un autre compte" }));
-    expect(screen.getByRole("textbox", { name: "Courriel" })).toBeInTheDocument();
   });
 
   it("links to the partner application, and not to screens that are not built", async () => {

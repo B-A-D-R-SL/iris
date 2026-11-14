@@ -227,7 +227,12 @@ optional fields may be empty or omitted. Any other field, such as `status`, is r
 ```
 
 `goods_categories` holds codes from `GET /api/categories/`. `contact_phone` is
-E.164, as produced by the shared `PhoneField`.
+stored in E.164, as produced by the shared `PhoneField`. Direct requests also
+accept ten national digits, optional `1`/`+1`, and familiar phone punctuation;
+the backend normalizes before checking canonical lengths. Postal codes accept
+lowercase/unspaced input and whitespace, returning uppercase with one space in
+stored records. Partner and walk-in fields use the same contact rules documented
+in [forms-and-fields.md](../02-requirements/forms-and-fields.md#shared-rules).
 
 | Status | Body |
 | --- | --- |

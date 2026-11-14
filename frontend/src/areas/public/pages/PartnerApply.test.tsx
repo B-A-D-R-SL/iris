@@ -114,6 +114,34 @@ describe("Partner application", () => {
     });
     expect(post?.[1]?.headers).toMatchObject({ "Accept-Language": "fr" });
   }, 15000);
+
+  it.each([
+    ["Téléphone", "+447911123456"],
+    ["Code postal", "H2X 1Y45"],
+  ])(
+    "refuses pasted %s input without sending an altered value",
+    async (label, invalid) => {
+      const fetchMock = mockApi();
+      const user = userEvent.setup();
+      renderWithProviders(<PartnerApply />);
+      await screen.findByLabelText("Boulangerie");
+      await fillForm(user);
+      const input = screen.getByLabelText(label);
+      await user.clear(input);
+      await user.click(input);
+      await user.paste(invalid);
+      await user.click(screen.getByRole("button", { name: "Envoyer ma demande" }));
+      expect(input).toHaveAttribute("aria-invalid", "true");
+      expect(input).toHaveValue(invalid);
+      expect(
+        fetchMock.mock.calls.some(
+          ([url, init]) =>
+            String(url).includes("/api/partner-applications/") && init?.method === "POST",
+        ),
+      ).toBe(false);
+    },
+    15000,
+  );
   it("keeps entered values and shows field-level server errors", async () => {
     mockApi(
       Response.json(

@@ -118,6 +118,12 @@ gates. The Release 1 deployment scope below remains staging.
 Django, allauth and Procrastinate also manage framework tables.
 These are not additional business models in the 14-model ERD.
 
+`modules.common` holds shared contact-value utilities, with no tables or Django
+app registration. Its `domain.contact` normalization is pure Python; Django,
+DRF and form adapters delegate to it outside `domain/`. Stores and households
+use this neutral package without importing each other's internals. Import-linter
+continues to enforce the business-module boundaries and domain purity (FIX-14).
+
 Reporting is not introduced into the Release 1 workflows here.
 
 ## Frontend and adapters

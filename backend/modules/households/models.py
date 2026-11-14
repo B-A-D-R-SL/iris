@@ -2,17 +2,23 @@
 """Household records and registration history."""
 
 import uuid
+from collections.abc import Collection
 
 from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from modules.households.domain.address import normalize_address, normalize_postal_code
+from modules.common.domain.contact import normalize_phone, normalize_postal_code
+from modules.common.validators import (
+    normalize_model_contacts,
+    validate_phone,
+    validate_postal_code,
+)
+from modules.households.domain.address import normalize_address
 from modules.households.domain.expiry import (
     STATUS_APPROVED,
     STATUS_RENEWAL_NEEDED,
@@ -28,10 +34,6 @@ from modules.households.search_expressions import (
     SearchKey,
     address_search_key,
     member_name_key,
-)
-
-PHONE_VALIDATOR = RegexValidator(
-    r"^\+1\d{10}$", _("Enter a Canadian telephone number.")
 )
 
 
@@ -70,12 +72,14 @@ class Household(models.Model):
     preferred_language = models.CharField(
         max_length=2, choices=[("fr", "Français"), ("en", "English")], default="fr"
     )
-    phone = models.CharField(max_length=16, validators=[PHONE_VALIDATOR])
+    phone = models.CharField(max_length=16, validators=[validate_phone])
     street_number = models.CharField(max_length=10, blank=True)
     street_name = models.CharField(max_length=120, blank=True)
     unit = models.CharField(max_length=10, blank=True)
     city = models.CharField(max_length=80, blank=True)
-    postal_code = models.CharField(max_length=7, blank=True)
+    postal_code = models.CharField(
+        max_length=7, blank=True, validators=[validate_postal_code]
+    )
     address_key = models.CharField(max_length=200, blank=True, db_index=True)
     # PostgreSQL maintains these stored keys, including bulk writes and old rows.
     search_email_key = models.GeneratedField(
@@ -163,22 +167,20 @@ class Household(models.Model):
             ),
         ]
 
-    def clean(self) -> None:
-        """Normalize contact/address keys and keep identity verification fields consistent."""
-        super().clean()
-        if self.email:
-            self.email = self.email.strip().lower()
-        if self.channel == self.Channel.WALK_IN and self.holder_id is not None:
-            raise ValidationError(
-                {"holder": _("Walk-in files cannot link an online account yet.")}
-            )
+    def clean_fields(self, exclude: Collection[str] | None = None) -> None:
+        normalize_model_contacts(
+            self,
+            {"phone": normalize_phone, "postal_code": normalize_postal_code},
+            exclude,
+        )
+        super().clean_fields(exclude=exclude)
+        address_fields = {"street_number", "street_name", "unit", "city", "postal_code"}
+        if address_fields.intersection(exclude or ()):
+            return
         fields = (self.street_number, self.street_name, self.city, self.postal_code)
-        if any(fields) and not all(fields):
-            # Partial draft addresses can be saved while the user completes step 2.
-            self.address_key = ""
-        elif all(fields):
+        # Partial draft addresses have no duplicate key until step 2 is complete.
+        if all(fields):
             try:
-                self.postal_code = normalize_postal_code(self.postal_code)
                 self.address_key = normalize_address(
                     self.street_number, self.street_name, self.unit, self.postal_code
                 )
@@ -188,6 +190,16 @@ class Household(models.Model):
                 ) from exc
         else:
             self.address_key = ""
+
+    def clean(self) -> None:
+        """Normalize email and keep identity verification fields consistent."""
+        super().clean()
+        if self.email:
+            self.email = self.email.strip().lower()
+        if self.channel == self.Channel.WALK_IN and self.holder_id is not None:
+            raise ValidationError(
+                {"holder": _("Walk-in files cannot link an online account yet.")}
+            )
         if self.identity_checked_in_person and (
             not self.verified_by_id or not self.verified_at
         ):

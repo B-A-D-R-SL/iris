@@ -109,6 +109,38 @@ afterEach(() => {
 });
 
 describe("Walk-in registration (US-17)", () => {
+  it("refuses a pasted foreign phone without creating a different Canadian contact", async () => {
+    const fetchMock = mockApi();
+    renderWithProviders(<App />, { route: "/staff/walk-in" });
+    await screen.findByRole("heading", { name: "1. Personne responsable" });
+    await fillHolder();
+    const user = userEvent.setup();
+    const input = screen.getByLabelText("Téléphone");
+    await user.clear(input);
+    await user.click(input);
+    await user.paste("+447911123456");
+    await user.click(button("Enregistrer le brouillon"));
+    expect(input).toHaveValue("+447911123456");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(sent(fetchMock, "POST")).toBe(false);
+  });
+
+  it("refuses an overlong pasted postal code without patching a different address", async () => {
+    const fetchMock = mockApi();
+    renderWithProviders(<App />, { route: `/staff/walk-in/${ID}` });
+    await screen.findByRole("heading", { name: "2. Adresse" });
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/^Numéro civique/), "123");
+    await user.type(screen.getByLabelText("Rue"), "rue Exemple");
+    const input = screen.getByLabelText("Code postal");
+    await user.click(input);
+    await user.paste("H2X 1Y45");
+    await user.click(button("Continuer"));
+    expect(input).toHaveValue("H2X 1Y45");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(sent(fetchMock, "PATCH")).toBe(false);
+  });
+
   it("creates the draft from the holder step and moves to the address", async () => {
     const fetchMock = mockApi();
     renderWithProviders(<App />, { route: "/staff/walk-in" });

@@ -8,7 +8,8 @@ this module gives each one its French or English message for API responses.
 from django.utils.functional import Promise
 from django.utils.translation import gettext_lazy as _
 
-from modules.households.domain.address import IncompleteAddress, InvalidPostalCode
+from modules.common.domain.contact import InvalidPostalCode
+from modules.households.domain.address import IncompleteAddress
 from modules.households.domain.person import (
     BirthDateOutOfRange,
     HolderTooYoung,
