@@ -1,0 +1,371 @@
+<!-- AI contribution: 50% or more AI-generated -->
+
+# Release 1 workflows and lifecycle decisions
+
+These sequences and state diagrams continue the [Release 1 architecture](architecture.md).
+The [scope](architecture.md#scope), [module ownership](architecture.md#module-ownership)
+and [dependency graph](architecture.md#4-release-1-module-dependencies) define their shared context.
+
+## Diagrams
+
+### 6. Sequence — walk-in registration
+
+Flagged households remain unapproved. The full review queue is outside
+Release 1.
+
+US-17 built the first part (draft creation and step-by-step saving,
+React screens at `/staff/walk-in`). Its creation and edit events are
+recorded locally in `HouseholdDraftEvent` until the central audit log
+(US-62) supports them. The notices and approval part is US-18.
+
+
+```mermaid
+sequenceDiagram
+    actor IW as Intake worker
+    participant H as Households service
+    participant D as Documents service
+    participant E as Eligibility service
+    participant AC as Accounts service
+    participant A as Audit service
+    participant N as Notification job
+    actor HC as Household contact
+
+    Note over IW,H: React and DRF authenticate staff and check permissions before service calls
+
+    IW->>H: create_walk_in(holder, identity check, consent) — first "Continue" or "Save draft"
+    H->>H: Save draft household and holder as member 1, consent time and text version
+    H->>H: Record HouseholdDraftEvent "created" (local until US-62)
+    H-->>IW: Draft id; the screen moves to /staff/walk-in/{id}
+
+    loop Each later step (address, members, review)
+        IW->>H: update_draft(id, step values)
+        H->>H: Save draft changes, replace other members
+        H->>H: Record HouseholdDraftEvent "updated"
+    end
+
+    loop Each adult
+        IW->>D: Record staff-entered notice or non-filing reason
+        D->>D: Save evidence and private file reference when supplied
+    end
+
+    IW->>H: approve_walk_in()
+    H->>H: Check completeness, verification and duplicate flags
+
+    rect rgb(24, 42, 62)
+        Note over H,A: Approval outcome and associated writes share a database transaction
+
+        H->>H: Prepare household and member decision inputs
+        H->>D: Read recorded income evidence through public query
+        D-->>H: Income evidence and verification status
+        H->>E: decide_for_household(household_id, decision_inputs)
+        E->>E: Save decision inputs, result and applied rule version
+        E-->>H: Eligibility result and threshold
+
+        alt Eligible, verified and no review reason
+            H->>H: Save approval and validity dates
+
+            opt Holder has email and account setup is needed
+                H->>AC: Prepare set-password invitation
+            end
+
+            H->>A: Record approval
+        else Requires clarification or review
+            H->>H: Set review_required
+            H->>A: Record flagged outcome
+        else Not eligible
+            H->>H: Set rejected
+            H->>A: Record rejection outcome
+        end
+    end
+
+    opt Approval committed and invitation prepared
+        H-->>N: Queue setup email after commit
+    end
+
+    H-->>IW: Return saved outcome and permitted explanation
+
+    opt Invitation email queued
+        N-->>HC: Deliver setup link independently
+    end
+```
+
+
+
+### 7. Sequence — partner onboarding
+
+The proposed store manager is the contact designated in the partner
+application. Approval and rejection notifications use that person's
+recorded email address. Receiving a rejection email does not require
+an Iris account or invitation.
+
+```mermaid
+sequenceDiagram
+    actor B as Business applicant
+    actor AD as Administrator
+    participant API as Staff applications API
+    participant S as Stores service
+    participant AC as Accounts service
+    participant A as Audit service
+    participant N as Notification job
+    actor M as Proposed store manager
+
+    B->>S: submit_application(form)
+    S->>S: Validate and save submitted application
+    S-->>N: Queue confirmation email after commit
+
+    AD->>API: GET /api/staff/partner-applications/?status=submitted
+    API->>API: Check active admin (else 401 or 403)
+    API->>S: partner_applications(status), oldest first
+    S-->>API: Page of applications
+    API-->>AD: 200 list
+
+    alt Approve
+        AD->>API: POST /api/staff/partner-applications/{id}/approve/
+        API->>S: approve_application(application, admin)
+        rect rgb(24, 42, 62)
+            Note over S,A: One transaction, failure rolls back all approval writes
+            S->>S: Create active Store
+            S->>AC: create_invitation(role=store_manager, store)
+            AC-->>S: Invitation prepared
+            S->>S: Save approved application and decision information
+            S->>A: Record approval
+        end
+        S-->>API: Approved application (409 if already decided)
+        API-->>AD: 200 application
+
+        S-->>N: Queue invitation email after commit
+        N-->>M: Deliver invitation link
+
+        M->>AC: accept_invitation(token, password)
+        AC->>AC: Verify expiry and one-use token, refuse an already registered email
+        AC->>AC: Create active User with invited identity, role and Store and mark invitation accepted
+        AC-->>M: Account ready for sign-in
+    else Reject
+        AD->>API: POST /api/staff/partner-applications/{id}/reject/ {reason}
+        API->>S: reject_application(application, admin, reason)
+        S->>S: Save rejected status and required reason (400 if blank or over 500)
+        S->>A: Record rejection
+        API-->>AD: 200 application
+        S-->>N: Queue decision email after commit
+        N-->>M: Notify proposed store manager of rejection
+    end
+```
+
+The US-04 backend creates new accounts only: an existing active or inactive
+account with the same email is refused case-insensitively. Acceptance commits
+user creation and invitation consumption together and does not sign the user in
+or change an existing browser session. Issuance stores only the unique SHA-256
+hash of a token generated from 32 random bytes and saves an expiry from the active
+`invitations.expires_after_days` rule (default seven days); later rule versions
+affect only new invitations. The raw token is returned for the calling workflow's
+email. US-13 partner approval, rejection and operator invitation reissue now use
+US-57's shared queue/templates/EmailLog; links use `PUBLIC_APP_ORIGIN`. Reissue
+invalidates previous unaccepted links atomically, and the worker checks stale
+invitation jobs before transport without claiming recall of in-flight messages.
+Staff/team issuing screens and household linking remain US-05, US-06 and US-18;
+the acceptance page is #431.
+
+
+
+### 8. Sequence — reserve and pickup
+
+The Listings module owns the stock UPDATE.
+Reservations owns the reservation INSERT.
+
+Code uniqueness remains per listing in the earlier ERD, so
+store-and-code lookup must not assume global uniqueness.
+
+Rejecting ambiguous matches is the proposed safe error branch pending
+the final lookup policy.
+
+Invalid or duplicate confirmations do not create a second pickup.
+
+```mermaid
+
+sequenceDiagram
+    actor HH as Household user
+    participant R as Reservations service
+    participant H as Households queries
+    participant L as Listings service and queries
+    participant DB as PostgreSQL
+    participant A as Audit service
+    actor ST as Store staff
+
+    HH->>R: reserve(listing, quantity)
+    R->>H: Check approved, valid and not suspended
+    H-->>R: Current household eligibility
+    R->>R: Validate quantity and configured reservation limits
+
+    break Invalid request, ineligible household or limit reached
+        R-->>HH: Reject reservation before changing stock
+    end
+
+    rect rgb(24, 42, 62)
+        Note over R,A: One PostgreSQL transaction for stock, reservation and audit
+
+        R->>L: take_units(listing, quantity)
+        L->>DB: Conditional UPDATE of own listing stock counter
+        DB-->>L: Number of rows changed
+        L-->>R: Allocation result
+
+        alt One row changed
+            R->>DB: INSERT reservation with pickup code
+            R->>A: Record reservation
+            R->>R: Commit
+        else No stock
+            R->>R: Roll back
+        end
+    end
+
+    Note over R,DB: An insert or code-uniqueness failure also rolls back the stock change
+
+    alt Committed
+        R-->>HH: Pickup code and QR
+    else Failed
+        R-->>HH: Sold-out or validation outcome
+    end
+
+    ST->>R: lookup(permitted_store, code)
+    R->>L: Query listings in the staff member's permitted store
+    R->>R: Resolve a unique reservation match
+
+    alt Unique authorized match
+        R->>H: Get permitted pickup display name
+        R-->>ST: First name and last initial, item and quantity
+
+        ST->>R: confirm_pickup(reservation)
+        R->>R: Recheck store, state and timing, save pickup once
+        R->>A: Record pickup in the same transaction
+        R-->>ST: Confirmation outcome
+    else Missing, ambiguous or unauthorized match
+        R-->>ST: Reject lookup without exposing household details
+    end
+```
+
+
+
+### 9. State — household file
+
+This is the staff-led Release 1 subset of the supplied state diagram.
+
+Online registration, awaiting-visit routing and the full review
+workflow are not introduced.
+
+Validity and suspension remain visible because reservation eligibility
+uses them.
+
+Each reservation checks expiry even if a scheduled status update has
+not run.
+
+Rejection/suspension reason storage must be aligned with the selected
+schema.
+
+```mermaid
+
+stateDiagram-v2
+    [*] --> draft
+    draft --> submitted: Staff submits complete walk-in file
+    submitted --> approved: Staff verifies eligibility and no review reason
+    submitted --> review_required: Duplicate or other clarification flag
+    submitted --> rejected: Not eligible
+    approved --> renewal_needed: Configured validity expires
+    approved --> suspended: Admin suspends with reason
+    suspended --> approved: Admin reactivates while valid
+
+    note right of review_required
+        Flag stored on Household.
+        Full review queue is deferred.
+        Resolution policy needs agreement.
+    end note
+
+    note right of renewal_needed
+        Approval validity follows RuleSet.
+        Baseline duration is twelve months.
+        Renewal workflow is not expanded here.
+    end note
+```
+
+
+
+### 10. State — reservation
+
+
+```mermaid
+
+stateDiagram-v2
+    [*] --> reserved: Atomic stock allocation and reservation commit
+    reserved --> picked_up: Authorized store confirms
+    reserved --> cancelled: Household cancels
+    reserved --> cancelled_by_store: Listing cancelled or store deactivated
+    reserved --> no_show: Pickup window ends without confirmation
+    no_show --> picked_up: Staff confirms within configured grace
+
+    picked_up --> [*]
+    cancelled --> [*]
+    cancelled_by_store --> [*]
+
+    note right of cancelled
+        late_cancel is a flag,
+        not a separate state.
+    end note
+
+    note right of no_show
+        No strike table is introduced.
+        Source grace is twenty-four hours.
+        Confirm and configure the rule.
+        Stock release timing needs agreement.
+    end note
+```
+
+
+
+## Review points
+
+These decisions remain open. The diagrams do not select missing
+database fields or relationships to fill these gaps.
+
+| Area | Decision needed |
+| --- | --- |
+| Holder/account linkage | Confirm how the household contact connects to their Member and optional User records. Do not require an account for every walk-in or assume a particular foreign key while this remains open. |
+| Partner form storage | Resolved by US-12 (#445): flat address columns as on Store, `goods_categories` as a text array of category codes, plus `expected_frequency`, `opening_hours`, `consent_contact` and `language` columns. See [PartnerApplication](../03-design/database-schema.md#partnerapplication). |
+| Pickup lookup | The earlier uniqueness rule is `(listing, pickup_code)`. Agree code collision handling or lookup identifiers for a store containing multiple listings. QR payload format is not selected here. |
+| Household flags and reasons | Agree the minimum Release 1 handling for `review_required` files and where rejection/suspension reasons are stored. The full review queue is deferred. |
+| Lifecycle timing | Confirm the configured approval-validity and late-confirmation settings. The team draft supplies twelve months and twenty-four hours respectively. |
+| Cancellation/no-show stock | Agree when stock is released and how late pickup confirmation interacts with release. No counter behavior is invented by the state diagram. |
+| Worker deployment | Confirm worker startup, supervision and scaling within the shared-image App Service deployment. A running web process alone does not establish that a worker is running. |
+| Dependency contracts | Align the supplied architecture and diagram collection where their permitted arrows differ. Public service/query access must not introduce domain import cycles. |
+
+### Failed pickup attempts and no-shows — proposed handling
+
+The following handling is proposed for Release 1 and requires team
+agreement. These decisions can be finalized before implementing the
+reservation and pickup features.
+
+| Situation | Proposed handling |
+| --- | --- |
+| Incorrect, missing or ambiguous pickup code | Refuse pickup without changing stock or cancelling a reservation. |
+| Identity cannot be verified | Refuse pickup and keep the reservation until its collection deadline, including any agreed grace period. The accepted verification method remains to be decided. |
+| Pickup window ends without collection | Mark the reservation as `no_show`. |
+| Agreed grace period expires without collection | Release the reservation's allocated quantity exactly once and prevent further pickup confirmation against that released reservation. |
+
+The supplied diagrams allow late pickup confirmation within a
+24-hour grace period. Confirm whether this rule applies to Release 1
+before implementation.
+
+If a grace period is retained, stock must not be released while the
+same reservation can still be confirmed for pickup.
+
+Releasing an allocation does not automatically reopen the listing.
+Whether the goods can be offered again depends on the listing's status,
+collection window and the goods' continued availability and suitability.
+
+Before implementation, agree on:
+
+- What information is required to verify pickup identity.
+- Whether a grace period applies and its duration.
+- When reserved stock is released.
+- How stock release prevents duplicate releases or conflicting pickup
+  confirmations.
+
+Once agreed, update the reserve-and-pickup sequence, reservation state
+diagram and relevant business rules together.

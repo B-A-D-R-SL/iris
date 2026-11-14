@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { CURRENT_USER_QUERY_KEY, fetchCurrentUser, useCurrentUser } from "./currentUser";
 import { logger } from "../logger";
-import { AuthError, loginWithCode, loginWithPassword, logout } from "./api";
+import { AuthError, loginWithPassword, logout } from "./api";
 import { AuthContext, type AuthContextValue } from "./authContext";
 
 const AUTH_EVENT_KEY = "iris:auth-change";
@@ -85,11 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextValue = {
     user,
     async signIn(email, password) {
-      const result = await loginWithPassword(email, password, language);
-      return result === "mfa_required" ? result : loadUser();
-    },
-    async verifyCode(code) {
-      await loginWithCode(code, language);
+      await loginWithPassword(email, password, language);
       return loadUser();
     },
     retryProfile: loadUser,

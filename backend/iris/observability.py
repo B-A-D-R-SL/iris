@@ -22,6 +22,7 @@ _STANDARD_LOG_FIELDS = frozenset(logging.LogRecord("", 0, "", 0, "", (), None)._
 
 _request_id: ContextVar[str | None] = ContextVar("iris_request_id", default=None)
 _AUTH_USER_EVENTS = frozenset({"sign_in_succeeded", "signed_out"})
+_CONTACT_FIELDS = frozenset({"phone", "contact_phone", "postal_code"})
 _HTTP_METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"})
 _PHOTO_REFERENCE = re.compile(r"listing-photos/[0-9a-f]{32}\.(?:jpg|png)")
 _EXCEPTION_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,127}")
@@ -195,6 +196,20 @@ def _add_photo_reference(
         payload["photo_ref"] = photo_ref
 
 
+def _add_contact_field(
+    payload: dict[str, str | int], record: logging.LogRecord, event: str
+) -> None:
+    """Allow only a known field name for rejected contact normalization."""
+    field = getattr(record, "field", None)
+    if (
+        record.name == "iris.validation"
+        and event == "contact_normalization_rejected"
+        and isinstance(field, str)
+        and field in _CONTACT_FIELDS
+    ):
+        payload["field"] = field
+
+
 def _add_eligibility_fields(
     payload: dict[str, str | int], record: logging.LogRecord, event: str
 ) -> None:
@@ -253,6 +268,7 @@ class JsonLogFormatter(logging.Formatter):
         _add_auth_user(payload, record, event)
         _add_request_fields(payload, record)
         _add_photo_reference(payload, record, event)
+        _add_contact_field(payload, record, event)
         _add_smtp_code(payload, record, event)
         _add_eligibility_fields(payload, record, event)
         _add_partner_application(payload, record, event)

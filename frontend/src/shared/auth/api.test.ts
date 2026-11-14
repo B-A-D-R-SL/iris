@@ -1,7 +1,7 @@
 // AI contribution: 50% or more AI-generated
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AuthError, loginWithCode, loginWithPassword, logout } from "./api";
+import { AuthError, loginWithPassword, logout } from "./api";
 
 const authBase = "/api/auth/browser/v1/auth";
 
@@ -29,9 +29,7 @@ describe("allauth password sign-in", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(loginWithPassword("user@example.test", "secret", "fr")).resolves.toBe(
-      "authenticated",
-    );
+    await expect(loginWithPassword("user@example.test", "secret", "fr")).resolves.toBeUndefined();
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       `${authBase}/session`,
       `${authBase}/login`,
@@ -63,42 +61,32 @@ describe("allauth sign-in errors and challenges", () => {
     });
   });
 
-  it("recognizes lockout and requests a code only for a real MFA challenge", async () => {
+  it("recognizes failed-credential lockouts", async () => {
     document.cookie = "csrftoken=ready; path=/";
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        Response.json({ errors: [{ code: "too_many_login_attempts" }] }, { status: 400 }),
-      )
-      .mockResolvedValueOnce(
-        Response.json({ data: { flows: [{ id: "mfa_authenticate" }] } }, { status: 401 }),
-      );
+    const fetchMock = vi.fn(async () =>
+      Response.json({ errors: [{ code: "too_many_login_attempts" }] }, { status: 400 }),
+    );
     vi.stubGlobal("fetch", fetchMock);
     await expect(loginWithPassword("person@example.test", "bad", "fr")).rejects.toMatchObject({
       code: "locked",
     });
-    await expect(loginWithPassword("person@example.test", "correct", "fr")).resolves.toBe(
-      "mfa_required",
-    );
+  });
+
+  it("refuses an unexpected MFA challenge until US-09 supplies the server flow", async () => {
+    document.cookie = "csrftoken=ready; path=/";
+    const fetchMock = vi.fn(async (url: string) => {
+      expect(url).toBe(`${authBase}/login`);
+      return Response.json({ data: { flows: [{ id: "mfa_authenticate" }] } }, { status: 401 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(loginWithPassword("person@example.test", "secret", "fr")).rejects.toMatchObject({
+      code: "unavailable",
+    });
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([`${authBase}/login`]);
   });
 });
 
-describe("allauth code verification and sign-out", () => {
-  it("sends the six digit code to allauth and handles an invalid code", async () => {
-    document.cookie = "csrftoken=ready; path=/";
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(Response.json({ errors: [] }, { status: 400 }))
-      .mockResolvedValueOnce(Response.json({}));
-    vi.stubGlobal("fetch", fetchMock);
-    await expect(loginWithCode("123456", "fr")).rejects.toMatchObject({ code: "invalid_code" });
-    await expect(loginWithCode("654321", "en")).resolves.toBeUndefined();
-    expect(fetchMock).toHaveBeenCalledWith(
-      `${authBase}/2fa/authenticate`,
-      expect.objectContaining({ method: "POST", body: JSON.stringify({ code: "654321" }) }),
-    );
-  });
-
+describe("allauth sign-out", () => {
   it("accepts allauth's signed-out 401 and rejects a failed logout", async () => {
     document.cookie = "csrftoken=ready; path=/";
     const fetchMock = vi

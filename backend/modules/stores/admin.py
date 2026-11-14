@@ -5,17 +5,41 @@
 
 from typing import Any
 
+from django import forms
 from django.contrib import admin
 from django.http import HttpRequest
+from django.utils.translation import gettext_lazy as _
 
+from modules.common.domain.contact import normalize_phone, normalize_postal_code
+from modules.common.forms import ContactField
 from modules.stores.models import PartnerApplication, Store
 from modules.stores.services import save_store
+
+
+class StoreAdminForm(forms.ModelForm):
+    """Accept formatted contact input before ModelForm's model-length checks."""
+
+    phone = ContactField(
+        normalize=normalize_phone,
+        message=_("Enter a Canadian telephone number."),
+        label=Store._meta.get_field("phone").verbose_name,
+    )
+    postal_code = ContactField(
+        normalize=normalize_postal_code,
+        message=_("Enter a Canadian postal code."),
+        label=Store._meta.get_field("postal_code").verbose_name,
+    )
+
+    class Meta:
+        model = Store
+        fields = "__all__"
 
 
 @admin.register(Store)
 class StoreAdmin(admin.ModelAdmin):
     """Let administrators view and edit Store details."""
 
+    form = StoreAdminForm
     list_display = ("name", "city", "postal_code", "is_badr", "is_active")
     list_filter = ("is_badr", "is_active")
     search_fields = ("name", "city", "postal_code", "email")

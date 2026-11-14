@@ -34,7 +34,7 @@ beforeEach(() => {
   document.cookie = "csrftoken=ready; path=/";
 });
 
-describe("US-01 sign-in screen", () => {
+describe("US-01 sign-in form", () => {
   it("shows a bilingual accessible form and refuses missing or malformed email", async () => {
     const { container } = renderSignIn();
     await screen.findByRole("heading", { name: "Connexion" });
@@ -51,7 +51,9 @@ describe("US-01 sign-in screen", () => {
     expect(screen.getByRole("textbox", { name: "Email address" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
   });
+});
 
+describe("US-01 role landing pages", () => {
   it.each([
     ["beneficiary", "/listings"],
     ["store_staff", "/store/listings/new"],
@@ -86,7 +88,9 @@ describe("US-01 sign-in screen", () => {
     );
     expect(fetchMock.mock.calls.filter(([url]) => String(url) === "/api/me/")).toHaveLength(2);
   });
+});
 
+describe("US-01 rejected credentials", () => {
   it("shows the same generic response for rejected credentials", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       if (String(input) === "/api/me/") return new Response(null, { status: 401 });
@@ -116,7 +120,9 @@ describe("US-01 sign-in screen", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Corrigez 1 champ.");
     expect(fetchMock.mock.calls.every(([url]) => String(url) === "/api/me/")).toBe(true);
   });
+});
 
+describe("US-01 account cache before sign-in", () => {
   it("clears previous-user cached responses before loading a new profile", async () => {
     let signedIn = false;
     vi.stubGlobal(
@@ -144,7 +150,9 @@ describe("US-01 sign-in screen", () => {
     await screen.findByRole("heading", { name: "Offres" });
     expect(queryClient.getQueryData(["private-list"])).toBeUndefined();
   });
+});
 
+describe("US-01 profile recovery", () => {
   it("retries the profile lookup without submitting the password again", async () => {
     let signedIn = false;
     let profileAvailable = false;
@@ -175,7 +183,9 @@ describe("US-01 sign-in screen", () => {
       fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/auth/login")),
     ).toHaveLength(1);
   });
+});
 
+describe("US-01 sign-in refusals", () => {
   it("shows the lockout notice returned by allauth", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       if (String(input) === "/api/me/") return new Response(null, { status: 401 });
@@ -188,38 +198,31 @@ describe("US-01 sign-in screen", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Réessayez dans 15 minutes");
   });
 
-  it("shows the code field only after an MFA challenge, then signs in", async () => {
-    let signedIn = false;
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
+  it("stays signed out on an unexpected MFA challenge without calling another endpoint", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === "/api/me/") {
-        return signedIn ? Response.json(testUser("admin")) : new Response(null, { status: 401 });
-      }
+      if (url === "/api/me/") return new Response(null, { status: 401 });
       if (url.endsWith("/auth/login")) {
         return Response.json({ data: { flows: [{ id: "mfa_authenticate" }] } }, { status: 401 });
-      }
-      if (url.endsWith("/auth/2fa/authenticate")) {
-        signedIn = true;
-        return Response.json({});
-      }
-      if (url === "/api/staff/households/" && options?.method === "HEAD") {
-        return new Response(null, { status: signedIn ? 200 : 401 });
       }
       return new Response(null, { status: 404 });
     });
     vi.stubGlobal("fetch", fetchMock);
     renderSignIn();
     await screen.findByRole("heading", { name: "Connexion" });
-    expect(screen.queryByRole("textbox", { name: "Code de vérification" })).not.toBeInTheDocument();
     await enterCredentials();
-    const code = await screen.findByRole("textbox", { name: "Code de vérification" });
-    await userEvent.type(code, "123456");
-    await userEvent.click(screen.getByRole("button", { name: "Vérifier le code" }));
-    await waitFor(() =>
-      expect(screen.getByTestId("current-path")).toHaveTextContent("/staff/households"),
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("La connexion est indisponible");
+    expect(screen.getByTestId("current-path")).toHaveTextContent("/sign-in");
+    expect(screen.getByRole("textbox", { name: "Courriel" })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Code de vérification" })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      "/api/me/",
+      "/api/auth/browser/v1/auth/login",
+    ]);
   });
+});
 
+describe("US-01 staff sign-out", () => {
   it("revokes the session from the staff layout and returns to sign-in", async () => {
     let signedIn = true;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
@@ -253,7 +256,9 @@ describe("US-01 sign-in screen", () => {
       expect.objectContaining({ method: "DELETE" }),
     );
   });
+});
 
+describe("US-01 mobile sign-out", () => {
   it.each([
     ["beneficiary", "/listings"],
     ["store_staff", "/store/listings/new"],
@@ -286,7 +291,9 @@ describe("US-01 sign-in screen", () => {
     await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/sign-in"));
     expect(signedIn).toBe(false);
   });
+});
 
+describe("US-01 sign-out failures and tab changes", () => {
   it("keeps a failed sign-out message visible in the account menu", async () => {
     vi.stubGlobal(
       "fetch",
@@ -329,7 +336,9 @@ describe("US-01 sign-in screen", () => {
     );
     await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/sign-in"));
   });
+});
 
+describe("US-01 cached data after sign-out", () => {
   it("clears cached account data after local sign-out", async () => {
     let signedIn = true;
     vi.stubGlobal(
@@ -373,7 +382,9 @@ describe("US-01 sign-in screen", () => {
     );
     await waitFor(() => expect(queryClient.getQueryData(["private-list"])).toBeUndefined());
   });
+});
 
+describe("US-01 protected sign-in destinations", () => {
   it("returns to a protected deep link after sign-in", async () => {
     let signedIn = false;
     vi.stubGlobal(
@@ -404,7 +415,9 @@ describe("US-01 sign-in screen", () => {
       expect(screen.getByTestId("current-path")).toHaveTextContent("/store/listings/new"),
     );
   });
+});
 
+describe("US-01 existing browser sessions", () => {
   it("continues from an already-authenticated login response", async () => {
     let signedIn = false;
     vi.stubGlobal(
@@ -427,23 +440,9 @@ describe("US-01 sign-in screen", () => {
     await enterCredentials();
     await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/listings"));
   });
+});
 
-  it("lets the user leave the MFA code step", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL) => {
-        if (String(input) === "/api/me/") return new Response(null, { status: 401 });
-        return Response.json({ data: { flows: [{ id: "mfa_authenticate" }] } }, { status: 401 });
-      }),
-    );
-    renderSignIn();
-    await screen.findByRole("heading", { name: "Connexion" });
-    await enterCredentials();
-    await screen.findByRole("textbox", { name: "Code de vérification" });
-    await userEvent.click(screen.getByRole("button", { name: "Utiliser un autre compte" }));
-    expect(screen.getByRole("textbox", { name: "Courriel" })).toBeInTheDocument();
-  });
-
+describe("US-01 available sign-in links", () => {
   it("links to the partner application, and not to screens that are not built", async () => {
     renderSignIn();
     await screen.findByRole("heading", { name: "Connexion" });

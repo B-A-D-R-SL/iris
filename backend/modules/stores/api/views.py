@@ -98,6 +98,7 @@ def application_exception_handler(
 
 class PartnerApplicationCreateView(GenericAPIView):
     serializer_class = PartnerApplicationSerializer
+    # Public by design: prospective partners apply before they have an account.
     permission_classes = (AllowAny,)
     throttle_classes = (PartnerApplicationThrottle,)
     http_method_names = ("post", "options")

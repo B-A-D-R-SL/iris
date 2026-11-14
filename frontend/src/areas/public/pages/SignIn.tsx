@@ -1,5 +1,5 @@
 // AI contribution: 50% or more AI-generated
-import { Anchor, Button, PasswordInput, Stack, TextInput, Title } from "@mantine/core";
+import { Anchor, Button, PasswordInput, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -14,19 +14,15 @@ import { Notice } from "../../../shared/ui";
 import { AuthError, type AuthErrorCode } from "../../../shared/auth/api";
 import { useAuth, type AuthContextValue } from "../../../shared/auth/authContext";
 
-type Step = "password" | "code";
-type ErrorKey =
-  "required" | "invalidEmail" | "invalidCode" | "invalidCredentials" | "locked" | "unavailable";
+type ErrorKey = "required" | "invalidEmail" | "invalidCredentials" | "locked" | "unavailable";
 
 const ERROR_KEYS: Partial<Record<AuthErrorCode, ErrorKey>> = {
   locked: "locked",
-  invalid_code: "invalidCode",
   invalid_credentials: "invalidCredentials",
 };
 
-/** Check the visible step before sending credentials to the server. */
-function validateStep(step: Step, email: string, password: string, code: string): ErrorKey | null {
-  if (step === "code") return /^\d{6}$/.test(code) ? null : "invalidCode";
+/** Check the credentials before sending them to the server. */
+function validateCredentials(email: string, password: string): ErrorKey | null {
   if (!email.trim() || !password.trim()) return "required";
   return isEmail()(email) ? "invalidEmail" : null;
 }
@@ -38,25 +34,18 @@ function errorKeyFor(caught: unknown): ErrorKey {
 }
 
 function useSignInState() {
-  const [step, setStep] = useState<Step>("password");
   const form = useForm({
-    initialValues: { email: "", password: "", code: "" },
+    initialValues: { email: "", password: "" },
     validateInputOnBlur: true,
     validate: {
-      email: (value) => (step === "password" ? isRequired()(value) || isEmail()(value) : null),
-      password: (value) => (step === "password" ? isRequired()(value) : null),
-      code: (value) =>
-        step === "code" && !/^\d{6}$/.test(value)
-          ? validationMessage("auth.login.invalidCode")
-          : null,
+      email: (value) => isRequired()(value) || isEmail()(value),
+      password: isRequired(),
     },
   });
   const [error, setError] = useState<ErrorKey | null>(null);
   const [profileUnavailable, setProfileUnavailable] = useState(false);
   const [pending, setPending] = useState(false);
   return {
-    step,
-    setStep,
     form,
     error,
     setError,
@@ -82,8 +71,6 @@ function handleSignInError(caught: unknown, state: SignInState) {
   const key = errorKeyFor(caught);
   if (key === "invalidCredentials") {
     state.form.setFieldError("email", validationMessage("auth.login.invalidCredentials"));
-  } else if (key === "invalidCode") {
-    state.form.setFieldError("code", validationMessage("auth.login.invalidCode"));
   }
   state.setError(key);
 }
@@ -105,29 +92,18 @@ async function recoverProfile({ state, auth, destination, navigate }: SignInActi
 async function submitCredentials(event: FormEvent<HTMLFormElement>, actions: SignInActions) {
   event.preventDefault();
   const { state, auth, destination, navigate } = actions;
-  const { step, form } = state;
+  const { form } = state;
   state.setError(null);
   const { hasErrors } = await form.validate();
-  const invalid = validateStep(step, form.values.email, form.values.password, form.values.code);
+  const invalid = validateCredentials(form.values.email, form.values.password);
   if (hasErrors || invalid) {
     state.setError(invalid ?? "required");
     return;
   }
   state.setPending(true);
   try {
-    if (step === "code") {
-      const current = await auth.verifyCode(form.values.code);
-      navigate(destination(current.role), { replace: true });
-    } else {
-      const result = await auth.signIn(form.values.email.trim(), form.values.password);
-      if (result === "mfa_required") {
-        form.setFieldValue("password", "");
-        form.clearErrors();
-        state.setStep("code");
-      } else {
-        navigate(destination(result.role), { replace: true });
-      }
-    }
+    const current = await auth.signIn(form.values.email.trim(), form.values.password);
+    navigate(destination(current.role), { replace: true });
   } catch (caught) {
     handleSignInError(caught, state);
   } finally {
@@ -149,18 +125,12 @@ function useSignInFlow() {
     destination,
     submit: (event: FormEvent<HTMLFormElement>) => submitCredentials(event, actions),
     recover: () => recoverProfile(actions),
-    useAnotherAccount: () => {
-      state.form.setFieldValue("code", "");
-      state.form.clearErrors();
-      state.setError(null);
-      state.setStep("password");
-    },
   };
 }
 
 type SignInFlow = ReturnType<typeof useSignInFlow>;
 
-function PasswordStep({ flow }: { flow: SignInFlow }) {
+function CredentialFields({ flow }: { flow: SignInFlow }) {
   const { t } = useTranslation();
   const passwordWrapper = useFieldWrapper({ label: t("auth.login.password") });
   return (
@@ -184,42 +154,15 @@ function PasswordStep({ flow }: { flow: SignInFlow }) {
   );
 }
 
-function CodeStep({ flow }: { flow: SignInFlow }) {
-  const { t } = useTranslation();
-  const codeWrapper = useFieldWrapper({ label: t("auth.login.code") });
-  return (
-    <TextInput
-      {...codeWrapper}
-      name="code"
-      inputMode="numeric"
-      autoComplete="one-time-code"
-      maxLength={6}
-      {...flow.form.getInputProps("code")}
-      disabled={flow.pending}
-      description={t("auth.login.codeHelp")}
-    />
-  );
-}
-
 function SignInForm({ flow }: { flow: SignInFlow }) {
   const { t } = useTranslation();
   return (
     <form onSubmit={(event) => void flow.submit(event)} noValidate>
       <Stack gap="md">
-        {flow.step === "password" ? <PasswordStep flow={flow} /> : <CodeStep flow={flow} />}
+        <CredentialFields flow={flow} />
         <Button type="submit" loading={flow.pending} fullWidth>
-          {t(flow.step === "password" ? "auth.common.signIn" : "auth.login.verify")}
+          {t("auth.common.signIn")}
         </Button>
-        {flow.step === "code" && (
-          <Button
-            type="button"
-            variant="subtle"
-            disabled={flow.pending}
-            onClick={flow.useAnotherAccount}
-          >
-            {t("auth.login.useAnotherAccount")}
-          </Button>
-        )}
       </Stack>
     </form>
   );
@@ -237,7 +180,7 @@ function SignInLinks() {
   );
 }
 
-/** The code step appears only when allauth reports a pending MFA challenge. */
+/** Password sign-in uses the current allauth browser session endpoints. */
 export function SignIn() {
   const { t } = useTranslation();
   const flow = useSignInFlow();
