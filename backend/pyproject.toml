@@ -135,8 +135,8 @@ ignore_imports = [
     "modules.households.tests.test_suspension_api -> modules.notifications.models",
     "modules.households.tests.test_suspension_api -> modules.notifications.tasks",
     # US-18 walk-in approval follows the set-password email into the queue.
-    "modules.households.tests.test_walk_in_approval -> modules.notifications.models",
-    "modules.households.tests.test_walk_in_approval -> modules.notifications.tasks",
+    "modules.households.tests.approval.** -> modules.notifications.models",
+    "modules.households.tests.approval.** -> modules.notifications.tasks",
     "modules.notifications.tests.test_services -> modules.accounts.tests.factories",
     "modules.audit.tests.** -> modules.stores.tests.factories",
     "modules.rules.tests.test_rule_set_versions -> modules.accounts.tests.factories",

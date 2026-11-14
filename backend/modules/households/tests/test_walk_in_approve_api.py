@@ -1,7 +1,7 @@
 # AI contribution: 50% or more AI-generated
 """POST /api/staff/households/{id}/approve/ (US-18).
 
-approve_walk_in has its own tests (test_walk_in_approval.py); these check
+approve_walk_in has its own tests (tests/approval/); these check
 access, the HTTP contract and that each outcome reaches the response.
 """
 

@@ -5,125 +5,41 @@ The main path runs through the API, the database and the file store, then
 opens the stored file through its signed link.
 """
 
-from copy import deepcopy
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
-from rest_framework.test import APIClient
 
 from adapters.file_store.memory import InMemoryFileStore
-from modules.accounts.tests.factories import UserFactory
 from modules.documents.queries import current_notices
 from modules.households.models import Household, HouseholdDraftEvent
 from modules.households.notice_services import record_walk_in_notice
-from modules.households.tests.factories import HouseholdFactory, MemberFactory
-from modules.rules.domain.schemas import DEFAULT_RULE_VALUES
-from modules.rules.services import publish
-from modules.stores.tests.factories import StoreFactory
-
-pytestmark = pytest.mark.django_db
-
-CONTENT = b"%PDF-1.7 walk-in"
-NOTICE_FIELDS = (
-    "tax_year",
-    "total_income_cents",
-    "name_on_notice",
-    "postal_code_on_notice",
-    "notice_date",
-    "seen_in_person",
+from modules.households.tests.factories import MemberFactory
+from modules.households.tests.notices.helpers import (
+    CONTENT,
+    NOTICE_FIELDS,
+    api_client,
+    filed_notice,
+    make_user,
+    pdf_upload,
+    post_notice,
+    publish_notice_rule,
 )
 
-
-# Fixed, not relative to timezone.now(): tests that pin the clock still find the rule.
-RULE_EFFECTIVE_FROM = datetime(2020, 1, 1, tzinfo=UTC)
-
-
-def _publish_rule(**changes: Any) -> None:
-    values = deepcopy(DEFAULT_RULE_VALUES["notice_upload"]) | changes
-    # A version with changes takes effect after the default one.
-    effective = RULE_EFFECTIVE_FROM + timedelta(minutes=len(changes))
-    publisher: Any = UserFactory(role="admin")
-    publish("notice_upload", values, publisher, effective_from=effective)
-
-
-@pytest.fixture(autouse=True)
-def _notice_rule() -> None:
-    _publish_rule()
-
-
-@pytest.fixture
-def worker() -> Any:
-    return UserFactory(role="intake_worker")
-
-
-@pytest.fixture
-def household() -> Any:
-    return HouseholdFactory()
-
-
-@pytest.fixture
-def holder(household: Any) -> Any:
-    return MemberFactory(
-        household=household, relation="holder", date_of_birth="1990-01-01"
-    )
-
-
-@pytest.fixture
-def child(household: Any) -> Any:
-    return MemberFactory(
-        household=household, relation="child", date_of_birth="2016-03-01"
-    )
-
-
-def _client(user: Any | None) -> APIClient:
-    client = APIClient()
-    if user is not None:
-        client.force_authenticate(user=user)
-    return client
-
-
-def _pdf(content: bytes = CONTENT, name: str = "scan.pdf") -> SimpleUploadedFile:
-    return SimpleUploadedFile(name, content, content_type="application/pdf")
-
-
-def _filed(member: Any, **changes: Any) -> dict[str, Any]:
-    values: dict[str, Any] = {
-        "member": str(member.pk),
-        "file": _pdf(),
-        "tax_year": "2025",
-        "total_income_cents": "2345600",
-        "name_on_notice": "Example Holder",
-        "postal_code_on_notice": "H2X 1Y4",
-        "notice_date": "2026-04-30",
-        "seen_in_person": "true",
-    }
-    values.update(changes)
-    return {key: value for key, value in values.items() if value is not None}
-
-
-def _post(client: APIClient, household: Any, data: dict[str, Any], **extra: Any) -> Any:
-    url = reverse("staff-households-notices", kwargs={"id": household.pk})
-    return client.post(url, data, format="multipart", **extra)
-
-
-def _make_user(role: str, *, active: bool = True) -> Any:
-    store = StoreFactory() if role.startswith("store_") else None
-    return UserFactory(role=role, is_active=active, store=store)
+pytestmark = pytest.mark.django_db
 
 
 @pytest.mark.parametrize("role", ["intake_worker", "admin"])
 def test_staff_record_a_notice_end_to_end(
     household: Any, holder: Any, role: str
 ) -> None:
-    client = _client(_make_user(role))
+    client = api_client(make_user(role))
 
-    response = _post(client, household, _filed(holder))
+    response = post_notice(client, household, filed_notice(holder))
 
     assert response.status_code == 201, response.data
     assert response.data["member"] == str(holder.pk)
@@ -152,7 +68,7 @@ def test_did_not_file_is_recorded(household: Any, holder: Any, worker: Any) -> N
         "did_not_file_reason": "No income in 2025",
     }
 
-    response = _post(_client(worker), household, data)
+    response = post_notice(api_client(worker), household, data)
 
     assert response.status_code == 201, response.data
     assert response.data["status"] == "did_not_file"
@@ -176,7 +92,7 @@ def test_did_not_file_with_empty_form_fields_is_accepted(
         "seen_in_person": "false",
     }
 
-    response = _post(_client(worker), household, data)
+    response = post_notice(api_client(worker), household, data)
 
     assert response.status_code == 201, response.data
     assert response.data["status"] == "did_not_file"
@@ -186,7 +102,9 @@ def test_did_not_file_with_empty_form_fields_is_accepted(
 def test_br_doc_001_each_missing_field_is_reported(
     household: Any, holder: Any, worker: Any, field: str
 ) -> None:
-    response = _post(_client(worker), household, _filed(holder, **{field: None}))
+    response = post_notice(
+        api_client(worker), household, filed_notice(holder, **{field: None})
+    )
 
     assert response.status_code == 400
     assert field in response.data["fields"]
@@ -196,7 +114,9 @@ def test_br_doc_001_each_missing_field_is_reported(
 def test_seen_in_person_false_is_an_answer(
     household: Any, holder: Any, worker: Any
 ) -> None:
-    response = _post(_client(worker), household, _filed(holder, seen_in_person="false"))
+    response = post_notice(
+        api_client(worker), household, filed_notice(holder, seen_in_person="false")
+    )
 
     assert response.status_code == 201, response.data
     assert response.data["seen_in_person"] is False
@@ -205,9 +125,11 @@ def test_seen_in_person_false_is_an_answer(
 def test_br_doc_004_disguised_file_is_refused(
     household: Any, holder: Any, worker: Any
 ) -> None:
-    disguised = _pdf(b"<html><script>alert(1)</script>")
+    disguised = pdf_upload(b"<html><script>alert(1)</script>")
 
-    response = _post(_client(worker), household, _filed(holder, file=disguised))
+    response = post_notice(
+        api_client(worker), household, filed_notice(holder, file=disguised)
+    )
 
     assert response.status_code == 400
     assert "file" in response.data["fields"]
@@ -217,9 +139,9 @@ def test_br_doc_004_disguised_file_is_refused(
 def test_br_doc_004_file_over_the_rule_limit_is_refused(
     household: Any, holder: Any, worker: Any
 ) -> None:
-    _publish_rule(max_bytes=8)
+    publish_notice_rule(max_bytes=8)
 
-    response = _post(_client(worker), household, _filed(holder))
+    response = post_notice(api_client(worker), household, filed_notice(holder))
 
     assert response.status_code == 400
     assert "file" in response.data["fields"]
@@ -228,7 +150,7 @@ def test_br_doc_004_file_over_the_rule_limit_is_refused(
 def test_br_doc_007_child_is_refused(
     household: Any, holder: Any, child: Any, worker: Any
 ) -> None:
-    response = _post(_client(worker), household, _filed(child))
+    response = post_notice(api_client(worker), household, filed_notice(child))
 
     assert response.status_code == 400
     assert "member" in response.data["fields"]
@@ -252,7 +174,7 @@ def test_br_doc_007_eighteenth_birthday_today_is_adult(
         household=household, relation="spouse_partner", date_of_birth=birth
     )
 
-    response = _post(_client(worker), household, _filed(member))
+    response = post_notice(api_client(worker), household, filed_notice(member))
 
     assert response.status_code == status, response.data
 
@@ -262,7 +184,7 @@ def test_member_of_another_household_is_refused(
 ) -> None:
     other: Any = MemberFactory(relation="spouse_partner", date_of_birth="1980-01-01")
 
-    response = _post(_client(worker), household, _filed(other))
+    response = post_notice(api_client(worker), household, filed_notice(other))
 
     assert response.status_code == 400
     assert "member" in response.data["fields"]
@@ -275,7 +197,7 @@ def test_unknown_household_is_404(holder: Any, worker: Any) -> None:
         kwargs={"id": "00000000-0000-0000-0000-000000000000"},
     )
 
-    response = _client(worker).post(url, _filed(holder), format="multipart")
+    response = api_client(worker).post(url, filed_notice(holder), format="multipart")
 
     assert response.status_code == 404
 
@@ -295,7 +217,7 @@ def test_non_draft_household_is_refused(
 ) -> None:
     Household.objects.filter(pk=household.pk).update(status=status)
 
-    response = _post(_client(worker), household, _filed(holder))
+    response = post_notice(api_client(worker), household, filed_notice(holder))
 
     assert response.status_code == 400
     assert "status" in response.data["fields"]
@@ -304,11 +226,11 @@ def test_non_draft_household_is_refused(
 def test_name_and_postal_code_are_normalized(
     household: Any, holder: Any, worker: Any
 ) -> None:
-    data = _filed(
+    data = filed_notice(
         holder, name_on_notice="Émilie D’Amours", postal_code_on_notice="h2x1y4"
     )
 
-    response = _post(_client(worker), household, data)
+    response = post_notice(api_client(worker), household, data)
 
     assert response.status_code == 201, response.data
     notice = current_notices([holder.pk])[holder.pk]
@@ -317,7 +239,9 @@ def test_name_and_postal_code_are_normalized(
 
 
 def test_unknown_fields_are_refused(household: Any, holder: Any, worker: Any) -> None:
-    response = _post(_client(worker), household, _filed(holder, status="confirmed"))
+    response = post_notice(
+        api_client(worker), household, filed_notice(holder, status="confirmed")
+    )
 
     assert response.status_code == 400
     assert "status" in response.data["fields"]
@@ -335,8 +259,8 @@ def test_unknown_fields_are_refused(household: Any, holder: Any, worker: Any) ->
 def test_other_roles_are_refused(
     household: Any, holder: Any, role: str, active: bool
 ) -> None:
-    response = _post(
-        _client(_make_user(role, active=active)), household, _filed(holder)
+    response = post_notice(
+        api_client(make_user(role, active=active)), household, filed_notice(holder)
     )
 
     assert response.status_code == 403
@@ -344,7 +268,7 @@ def test_other_roles_are_refused(
 
 
 def test_signed_out_visitors_are_refused(household: Any, holder: Any) -> None:
-    response = _post(_client(None), household, _filed(holder))
+    response = post_notice(api_client(None), household, filed_notice(holder))
 
     assert response.status_code == 401
     assert not current_notices([holder.pk])
@@ -352,7 +276,7 @@ def test_signed_out_visitors_are_refused(household: Any, holder: Any) -> None:
 
 @override_settings(FILE_STORE_BACKEND="")
 def test_storage_down_answers_503(household: Any, holder: Any, worker: Any) -> None:
-    response = _post(_client(worker), household, _filed(holder))
+    response = post_notice(api_client(worker), household, filed_notice(holder))
 
     assert response.status_code == 503
     assert response.data["code"] == "storage_unavailable"
@@ -363,10 +287,10 @@ def test_storage_down_answers_503(household: Any, holder: Any, worker: Any) -> N
 def test_errors_follow_the_request_language(
     household: Any, holder: Any, worker: Any
 ) -> None:
-    response = _post(
-        _client(worker),
+    response = post_notice(
+        api_client(worker),
         household,
-        _filed(holder, tax_year=None),
+        filed_notice(holder, tax_year=None),
         HTTP_ACCEPT_LANGUAGE="fr",
     )
 
@@ -377,15 +301,15 @@ def test_errors_follow_the_request_language(
 def test_a_second_entry_replaces_the_current_notice(
     household: Any, holder: Any, worker: Any
 ) -> None:
-    client = _client(worker)
-    first = _post(client, household, _filed(holder))
+    client = api_client(worker)
+    first = post_notice(client, household, filed_notice(holder))
     data = {
         "member": str(holder.pk),
         "did_not_file": "true",
         "did_not_file_reason": "Typed by mistake before",
     }
 
-    second = _post(client, household, data)
+    second = post_notice(client, household, data)
 
     assert second.status_code == 201
     current = current_notices([holder.pk])[holder.pk]
@@ -397,7 +321,9 @@ def test_notice_date_is_checked_against_today(
 ) -> None:
     tomorrow = (timezone.localdate() + timedelta(days=1)).isoformat()
 
-    response = _post(_client(worker), household, _filed(holder, notice_date=tomorrow))
+    response = post_notice(
+        api_client(worker), household, filed_notice(holder, notice_date=tomorrow)
+    )
 
     assert response.status_code == 400
     assert "notice_date" in response.data["fields"]
@@ -407,8 +333,8 @@ def test_notice_date_is_checked_against_today(
 def test_household_errors_are_translated(
     household: Any, holder: Any, child: Any, worker: Any
 ) -> None:
-    response = _post(
-        _client(worker), household, _filed(child), HTTP_ACCEPT_LANGUAGE="fr"
+    response = post_notice(
+        api_client(worker), household, filed_notice(child), HTTP_ACCEPT_LANGUAGE="fr"
     )
 
     assert response.data["fields"]["member"] == [
@@ -428,131 +354,3 @@ def test_schema_documents_the_notice_file_as_binary(client: Any) -> None:
 
     schema = response.json()["components"]["schemas"]["WalkInNoticeInput"]
     assert schema["properties"]["file"]["format"] == "binary"
-
-
-SPOUSE = {
-    "first_name": "Example",
-    "last_name": "Spouse",
-    "date_of_birth": "1985-02-03",
-    "relation": "spouse_partner",
-}
-
-
-def _spouse_with_notice(household: Any, worker: Any) -> Any:
-    spouse: Any = MemberFactory(household=household, **SPOUSE)
-    data = {
-        "member": str(spouse.pk),
-        "did_not_file": "true",
-        "did_not_file_reason": "No income in 2025",
-    }
-    assert _post(_client(worker), household, data).status_code == 201
-    return spouse
-
-
-def _save_members(worker: Any, household: Any, members: list[dict[str, Any]]) -> Any:
-    url = reverse("staff-households-detail", kwargs={"id": household.pk})
-    return _client(worker).patch(url, {"members": members}, format="json")
-
-
-def test_adding_a_member_keeps_members_with_notices(
-    household: Any, holder: Any, worker: Any
-) -> None:
-    spouse = _spouse_with_notice(household, worker)
-    newborn = {
-        "first_name": "Example",
-        "last_name": "Baby",
-        "date_of_birth": "2026-01-15",
-        "relation": "child",
-    }
-
-    response = _save_members(worker, household, [SPOUSE, newborn])
-
-    assert response.status_code == 200, response.data
-    assert household.members.count() == 3
-    assert household.members.filter(pk=spouse.pk).exists()
-    assert spouse.pk in current_notices([spouse.pk])
-
-
-def test_removing_a_member_with_a_notice_is_refused(
-    household: Any, holder: Any, worker: Any
-) -> None:
-    spouse = _spouse_with_notice(household, worker)
-
-    response = _save_members(worker, household, [])
-
-    assert response.status_code == 400
-    assert "members" in response.data["fields"]
-    assert household.members.filter(pk=spouse.pk).exists()
-
-
-def test_missing_notice_settings_answer_503_even_without_a_file(
-    household: Any, holder: Any, worker: Any, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr("modules.rules.queries.active", lambda rule_type, at=None: None)
-    data = {
-        "member": str(holder.pk),
-        "did_not_file": "true",
-        "did_not_file_reason": "No income in 2025",
-    }
-
-    response = _post(_client(worker), household, data, HTTP_ACCEPT_LANGUAGE="fr")
-
-    assert response.status_code == 503
-    assert response.data["code"] == "notice_settings_missing"
-    assert "administrat" in response.data["message"]
-    assert not current_notices([holder.pk])
-
-
-def _list(client: APIClient, household_id: Any) -> Any:
-    url = reverse("staff-households-notices", kwargs={"id": household_id})
-    return client.get(url)
-
-
-def test_list_returns_only_the_current_notice_of_each_member(
-    household: Any, holder: Any, worker: Any
-) -> None:
-    """Staff resuming the file see what was saved; a replaced entry is not shown."""
-    client = _client(worker)
-    _post(client, household, _filed(holder))
-    replacement = _post(
-        client,
-        household,
-        {
-            "member": str(holder.pk),
-            "did_not_file": "true",
-            "did_not_file_reason": "No income in 2025",
-        },
-    )
-
-    response = _list(client, household.pk)
-
-    assert response.status_code == 200
-    assert [notice["id"] for notice in response.data] == [replacement.data["id"]]
-    assert response.data[0]["member"] == str(holder.pk)
-    assert "file_ref" not in response.data[0]
-
-
-def test_list_is_empty_before_any_notice(household: Any, worker: Any) -> None:
-    response = _list(_client(worker), household.pk)
-
-    assert response.status_code == 200
-    assert response.data == []
-
-
-def test_list_of_an_unknown_household_is_404(worker: Any) -> None:
-    response = _list(_client(worker), "00000000-0000-4000-8000-000000000000")
-
-    assert response.status_code == 404
-
-
-@pytest.mark.parametrize("role", ["beneficiary", "store_manager"])
-def test_list_is_refused_to_other_roles(household: Any, role: str) -> None:
-    response = _list(_client(_make_user(role)), household.pk)
-
-    assert response.status_code == 403
-
-
-def test_list_is_refused_to_signed_out_visitors(household: Any) -> None:
-    response = _list(_client(None), household.pk)
-
-    assert response.status_code == 401
