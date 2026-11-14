@@ -34,11 +34,7 @@ beforeEach(() => {
   document.cookie = "csrftoken=ready; path=/";
 });
 
-// Suite size/complexity exception: this callback registers independent cases;
-// nested request-fake branches model CSRF, sessions and role redirects, rather
-// than control flow in the registration callback. The cases share the routed
-// render and credential helpers to keep the simulated sign-in protocol aligned.
-describe("US-01 sign-in screen", () => {
+describe("US-01 sign-in form", () => {
   it("shows a bilingual accessible form and refuses missing or malformed email", async () => {
     const { container } = renderSignIn();
     await screen.findByRole("heading", { name: "Connexion" });
@@ -55,7 +51,9 @@ describe("US-01 sign-in screen", () => {
     expect(screen.getByRole("textbox", { name: "Email address" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
   });
+});
 
+describe("US-01 role landing pages", () => {
   it.each([
     ["beneficiary", "/listings"],
     ["store_staff", "/store/listings/new"],
@@ -90,7 +88,9 @@ describe("US-01 sign-in screen", () => {
     );
     expect(fetchMock.mock.calls.filter(([url]) => String(url) === "/api/me/")).toHaveLength(2);
   });
+});
 
+describe("US-01 rejected credentials", () => {
   it("shows the same generic response for rejected credentials", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       if (String(input) === "/api/me/") return new Response(null, { status: 401 });
@@ -120,7 +120,9 @@ describe("US-01 sign-in screen", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Corrigez 1 champ.");
     expect(fetchMock.mock.calls.every(([url]) => String(url) === "/api/me/")).toBe(true);
   });
+});
 
+describe("US-01 account cache before sign-in", () => {
   it("clears previous-user cached responses before loading a new profile", async () => {
     let signedIn = false;
     vi.stubGlobal(
@@ -148,7 +150,9 @@ describe("US-01 sign-in screen", () => {
     await screen.findByRole("heading", { name: "Offres" });
     expect(queryClient.getQueryData(["private-list"])).toBeUndefined();
   });
+});
 
+describe("US-01 profile recovery", () => {
   it("retries the profile lookup without submitting the password again", async () => {
     let signedIn = false;
     let profileAvailable = false;
@@ -179,7 +183,9 @@ describe("US-01 sign-in screen", () => {
       fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/auth/login")),
     ).toHaveLength(1);
   });
+});
 
+describe("US-01 sign-in refusals", () => {
   it("shows the lockout notice returned by allauth", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       if (String(input) === "/api/me/") return new Response(null, { status: 401 });
@@ -214,7 +220,9 @@ describe("US-01 sign-in screen", () => {
       "/api/auth/browser/v1/auth/login",
     ]);
   });
+});
 
+describe("US-01 staff sign-out", () => {
   it("revokes the session from the staff layout and returns to sign-in", async () => {
     let signedIn = true;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
@@ -248,7 +256,9 @@ describe("US-01 sign-in screen", () => {
       expect.objectContaining({ method: "DELETE" }),
     );
   });
+});
 
+describe("US-01 mobile sign-out", () => {
   it.each([
     ["beneficiary", "/listings"],
     ["store_staff", "/store/listings/new"],
@@ -281,7 +291,9 @@ describe("US-01 sign-in screen", () => {
     await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/sign-in"));
     expect(signedIn).toBe(false);
   });
+});
 
+describe("US-01 sign-out failures and tab changes", () => {
   it("keeps a failed sign-out message visible in the account menu", async () => {
     vi.stubGlobal(
       "fetch",
@@ -324,7 +336,9 @@ describe("US-01 sign-in screen", () => {
     );
     await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/sign-in"));
   });
+});
 
+describe("US-01 cached data after sign-out", () => {
   it("clears cached account data after local sign-out", async () => {
     let signedIn = true;
     vi.stubGlobal(
@@ -368,7 +382,9 @@ describe("US-01 sign-in screen", () => {
     );
     await waitFor(() => expect(queryClient.getQueryData(["private-list"])).toBeUndefined());
   });
+});
 
+describe("US-01 protected sign-in destinations", () => {
   it("returns to a protected deep link after sign-in", async () => {
     let signedIn = false;
     vi.stubGlobal(
@@ -399,7 +415,9 @@ describe("US-01 sign-in screen", () => {
       expect(screen.getByTestId("current-path")).toHaveTextContent("/store/listings/new"),
     );
   });
+});
 
+describe("US-01 existing browser sessions", () => {
   it("continues from an already-authenticated login response", async () => {
     let signedIn = false;
     vi.stubGlobal(
@@ -422,7 +440,9 @@ describe("US-01 sign-in screen", () => {
     await enterCredentials();
     await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/listings"));
   });
+});
 
+describe("US-01 available sign-in links", () => {
   it("links to the partner application, and not to screens that are not built", async () => {
     renderSignIn();
     await screen.findByRole("heading", { name: "Connexion" });

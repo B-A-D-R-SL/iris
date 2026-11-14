@@ -4,7 +4,7 @@ import { useForm } from "@mantine/form";
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 
 import { expectNoAxeViolations, renderWithProviders } from "../../test/render";
 import i18n from "../i18n";
@@ -41,70 +41,67 @@ function Controlled<T>({
   });
 }
 
-describe("TextField", () => {
-  it("marks optional fields in the label and required ones for assistive technology", () => {
-    renderWithProviders(
-      <>
-        <TextField label="Titre" value="" onChange={() => {}} />
-        <TextField label="Description" optional value="" onChange={() => {}} />
-      </>,
-    );
-    expect(screen.getByLabelText("Titre")).toHaveAttribute("aria-required", "true");
-    expect(screen.getByLabelText("Description (facultatif)")).not.toHaveAttribute("aria-required");
-  });
-
-  it("returns the typed text and counts characters on long text", async () => {
-    const onValue = vi.fn();
-    renderWithProviders(
-      <Controlled initial="" onValue={onValue}>
-        {(value, setValue) => (
-          <TextField
-            label="Description"
-            multiline
-            maxLength={500}
-            value={value}
-            onChange={setValue}
-          />
-        )}
-      </Controlled>,
-    );
-    await userEvent.type(screen.getByLabelText("Description"), "Pains d'hier");
-    expect(onValue).toHaveBeenLastCalledWith("Pains d'hier");
-    expect(screen.getByText("12 / 500")).toBeInTheDocument();
-  });
-
-  it("shows a server message with the same error style", () => {
-    renderWithProviders(
-      <TextField label="Titre" value="" onChange={() => {}} error="Titre déjà utilisé." />,
-    );
-    expect(screen.getByLabelText("Titre")).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByText("Titre déjà utilisé.")).toBeInTheDocument();
-  });
+it("TextField marks optional fields in the label and required ones for assistive technology", () => {
+  renderWithProviders(
+    <>
+      <TextField label="Titre" value="" onChange={() => {}} />
+      <TextField label="Description" optional value="" onChange={() => {}} />
+    </>,
+  );
+  expect(screen.getByLabelText("Titre")).toHaveAttribute("aria-required", "true");
+  expect(screen.getByLabelText("Description (facultatif)")).not.toHaveAttribute("aria-required");
 });
 
-// Suite size exception: this callback only registers cases using the same
-// Controlled harness, so typed, pasted and corrected values share one state path.
-describe("PostalCodeField", () => {
-  it("stores the code in uppercase with one space", async () => {
-    const onValue = vi.fn();
-    renderWithProviders(
-      <Controlled initial="" onValue={onValue}>
-        {(value, setValue) => (
-          <PostalCodeField label="Code postal" value={value} onChange={setValue} />
-        )}
-      </Controlled>,
-    );
-    const input = screen.getByLabelText("Code postal");
-    await userEvent.type(input, "h2x1y4");
-    expect(input).toHaveValue("H2X 1Y4");
-    expect(onValue).toHaveBeenLastCalledWith("H2X 1Y4");
-  });
+it("TextField returns the typed text and counts characters on long text", async () => {
+  const onValue = vi.fn();
+  renderWithProviders(
+    <Controlled initial="" onValue={onValue}>
+      {(value, setValue) => (
+        <TextField
+          label="Description"
+          multiline
+          maxLength={500}
+          value={value}
+          onChange={setValue}
+        />
+      )}
+    </Controlled>,
+  );
+  await userEvent.type(screen.getByLabelText("Description"), "Pains d'hier");
+  expect(onValue).toHaveBeenLastCalledWith("Pains d'hier");
+  expect(screen.getByText("12 / 500")).toBeInTheDocument();
+});
 
-  it.each([
-    ["H2X-1Y4", "H2X -1Y4"],
-    ["H2X 1Y45", "H2X 1Y45"],
-    ["H٢X 1Y4", "H٢X 1Y4"],
-  ])("keeps pasted %j as %j instead of submitting a different code", async (value, expected) => {
+it("TextField shows a server message with the same error style", () => {
+  renderWithProviders(
+    <TextField label="Titre" value="" onChange={() => {}} error="Titre déjà utilisé." />,
+  );
+  expect(screen.getByLabelText("Titre")).toHaveAttribute("aria-invalid", "true");
+  expect(screen.getByText("Titre déjà utilisé.")).toBeInTheDocument();
+});
+
+it("PostalCodeField stores the code in uppercase with one space", async () => {
+  const onValue = vi.fn();
+  renderWithProviders(
+    <Controlled initial="" onValue={onValue}>
+      {(value, setValue) => (
+        <PostalCodeField label="Code postal" value={value} onChange={setValue} />
+      )}
+    </Controlled>,
+  );
+  const input = screen.getByLabelText("Code postal");
+  await userEvent.type(input, "h2x1y4");
+  expect(input).toHaveValue("H2X 1Y4");
+  expect(onValue).toHaveBeenLastCalledWith("H2X 1Y4");
+});
+
+it.each([
+  ["H2X-1Y4", "H2X -1Y4"],
+  ["H2X 1Y45", "H2X 1Y45"],
+  ["H٢X 1Y4", "H٢X 1Y4"],
+])(
+  "PostalCodeField keeps pasted %j as %j instead of submitting a different code",
+  async (value, expected) => {
     const onValue = vi.fn();
     renderWithProviders(
       <Controlled initial="" onValue={onValue}>
@@ -120,235 +117,221 @@ describe("PostalCodeField", () => {
     expect(stored).toBe(expected);
     expect(isPostalCode()(stored)).not.toBeNull();
     expect(screen.getByLabelText("Code postal")).toHaveValue(expected);
-  });
+  },
+);
 
-  it("folds pasted compatibility characters and lets the user delete and correct a code", async () => {
+it("PostalCodeField folds pasted compatibility characters and lets the user delete and correct a code", async () => {
+  const onValue = vi.fn();
+  renderWithProviders(
+    <Controlled initial="" onValue={onValue}>
+      {(value, setValue) => (
+        <PostalCodeField label="Code postal" value={value} onChange={setValue} />
+      )}
+    </Controlled>,
+  );
+  const user = userEvent.setup();
+  const input = screen.getByLabelText("Code postal");
+  await user.click(input);
+  await user.paste("Ｈ２Ｘ１Ý４");
+  expect(input).toHaveValue("H2X 1Y4");
+  await user.keyboard("{Backspace}{Backspace}");
+  expect(input).toHaveValue("H2X 1");
+  await user.type(input, "y4");
+  expect(onValue).toHaveBeenLastCalledWith("H2X 1Y4");
+  await user.clear(input);
+  expect(onValue).toHaveBeenLastCalledWith("");
+});
+
+it("PhoneField shows (514) 555-0123 and stores E.164", async () => {
+  const onValue = vi.fn();
+  renderWithProviders(
+    <Controlled initial="" onValue={onValue}>
+      {(value, setValue) => <PhoneField label="Téléphone" value={value} onChange={setValue} />}
+    </Controlled>,
+  );
+  const input = screen.getByLabelText("Téléphone");
+  await userEvent.type(input, "5145550123");
+  expect(input).toHaveValue("(514) 555-0123");
+  expect(onValue).toHaveBeenLastCalledWith("+15145550123");
+});
+
+it("PhoneField accepts a pasted number with the country code", async () => {
+  const onValue = vi.fn();
+  renderWithProviders(
+    <Controlled initial="" onValue={onValue}>
+      {(value, setValue) => <PhoneField label="Téléphone" value={value} onChange={setValue} />}
+    </Controlled>,
+  );
+  await userEvent.click(screen.getByLabelText("Téléphone"));
+  await userEvent.paste("+1 514 555 0123");
+  expect(onValue).toHaveBeenLastCalledWith("+15145550123");
+});
+
+it("PhoneField displays a stored number", () => {
+  renderWithProviders(<PhoneField label="Téléphone" value="+15145550123" onChange={() => {}} />);
+  expect(screen.getByLabelText("Téléphone")).toHaveValue("(514) 555-0123");
+});
+
+it.each(["+447911123456", "51455501234", "5145550123 ext 4", "5145550123a"])(
+  "PhoneField keeps pasted %j invalid instead of submitting a different number",
+  async (value) => {
     const onValue = vi.fn();
     renderWithProviders(
       <Controlled initial="" onValue={onValue}>
-        {(value, setValue) => (
-          <PostalCodeField label="Code postal" value={value} onChange={setValue} />
-        )}
+        {(phone, setValue) => <PhoneField label="Téléphone" value={phone} onChange={setValue} />}
       </Controlled>,
     );
     const user = userEvent.setup();
-    const input = screen.getByLabelText("Code postal");
-    await user.click(input);
-    await user.paste("Ｈ２Ｘ１Ý４");
-    expect(input).toHaveValue("H2X 1Y4");
-    await user.keyboard("{Backspace}{Backspace}");
-    expect(input).toHaveValue("H2X 1");
-    await user.type(input, "y4");
-    expect(onValue).toHaveBeenLastCalledWith("H2X 1Y4");
-    await user.clear(input);
-    expect(onValue).toHaveBeenLastCalledWith("");
-  });
+    await user.click(screen.getByLabelText("Téléphone"));
+    await user.paste(value);
+    expect(onValue).toHaveBeenLastCalledWith(value);
+    expect(screen.getByLabelText("Téléphone")).toHaveValue(value);
+    expect(isPhone()(value)).not.toBeNull();
+  },
+);
+
+it("PhoneField allows deletion, correction and clearing of a complete phone", async () => {
+  const onValue = vi.fn();
+  renderWithProviders(
+    <Controlled initial="+15145550123" onValue={onValue}>
+      {(value, setValue) => <PhoneField label="Téléphone" value={value} onChange={setValue} />}
+    </Controlled>,
+  );
+  const user = userEvent.setup();
+  const input = screen.getByLabelText("Téléphone");
+  await user.click(input);
+  await user.keyboard("{Backspace}{Backspace}");
+  expect(input).toHaveValue("(514) 555-01");
+  await user.type(input, "23");
+  expect(onValue).toHaveBeenLastCalledWith("+15145550123");
+  await user.clear(input);
+  expect(onValue).toHaveBeenLastCalledWith("");
 });
 
-// Suite size exception: registration only; the shared Controlled harness checks
-// display text and stored E.164 together for typing, pasting and invalid input.
-describe("PhoneField", () => {
-  it("shows (514) 555-0123 and stores E.164", async () => {
-    const onValue = vi.fn();
-    renderWithProviders(
-      <Controlled initial="" onValue={onValue}>
-        {(value, setValue) => <PhoneField label="Téléphone" value={value} onChange={setValue} />}
-      </Controlled>,
-    );
-    const input = screen.getByLabelText("Téléphone");
-    await userEvent.type(input, "5145550123");
-    expect(input).toHaveValue("(514) 555-0123");
-    expect(onValue).toHaveBeenLastCalledWith("+15145550123");
-  });
+it("MoneyField takes dollars in French format and returns cents", async () => {
+  const onValue = vi.fn();
+  renderWithProviders(
+    <Controlled<number | null> initial={null} onValue={onValue}>
+      {(value, setValue) => <MoneyField label="Valeur estimée" value={value} onChange={setValue} />}
+    </Controlled>,
+  );
+  const input = screen.getByLabelText("Valeur estimée");
+  await userEvent.type(input, "12,5");
+  expect(onValue).toHaveBeenLastCalledWith(1250);
+  expect(input).toHaveAttribute("placeholder", "0,00 $");
+});
 
-  it("accepts a pasted number with the country code", async () => {
-    const onValue = vi.fn();
-    renderWithProviders(
-      <Controlled initial="" onValue={onValue}>
-        {(value, setValue) => <PhoneField label="Téléphone" value={value} onChange={setValue} />}
-      </Controlled>,
-    );
-    await userEvent.click(screen.getByLabelText("Téléphone"));
-    await userEvent.paste("+1 514 555 0123");
-    expect(onValue).toHaveBeenLastCalledWith("+15145550123");
-  });
+it("MoneyField uses $0.00 in English and returns null when cleared", async () => {
+  await i18n.changeLanguage("en");
+  const onValue = vi.fn();
+  renderWithProviders(
+    <Controlled<number | null> initial={2500} onValue={onValue}>
+      {(value, setValue) => (
+        <MoneyField label="Estimated value" value={value} onChange={setValue} />
+      )}
+    </Controlled>,
+  );
+  const input = screen.getByLabelText("Estimated value");
+  expect(input).toHaveValue("$25.00");
+  await userEvent.clear(input);
+  expect(onValue).toHaveBeenLastCalledWith(null);
+});
 
-  it("displays a stored number", () => {
-    renderWithProviders(<PhoneField label="Téléphone" value="+15145550123" onChange={() => {}} />);
-    expect(screen.getByLabelText("Téléphone")).toHaveValue("(514) 555-0123");
-  });
+it("DateField returns the typed date as YYYY-MM-DD", async () => {
+  const onValue = vi.fn();
+  renderWithProviders(
+    <Controlled<string | null> initial={null} onValue={onValue}>
+      {(value, setValue) => <DateField label="Meilleur avant" value={value} onChange={setValue} />}
+    </Controlled>,
+  );
+  const input = screen.getByLabelText("Meilleur avant");
+  expect(input).toHaveAttribute("placeholder", "AAAA-MM-JJ");
+  await userEvent.type(input, "2026-10-11");
+  await waitFor(() => expect(onValue).toHaveBeenLastCalledWith("2026-10-11"));
+});
 
-  it.each(["+447911123456", "51455501234", "5145550123 ext 4", "5145550123a"])(
-    "keeps pasted %j invalid instead of submitting a different number",
-    async (value) => {
-      const onValue = vi.fn();
-      renderWithProviders(
-        <Controlled initial="" onValue={onValue}>
-          {(phone, setValue) => <PhoneField label="Téléphone" value={phone} onChange={setValue} />}
-        </Controlled>,
-      );
-      const user = userEvent.setup();
-      await user.click(screen.getByLabelText("Téléphone"));
-      await user.paste(value);
-      expect(onValue).toHaveBeenLastCalledWith(value);
-      expect(screen.getByLabelText("Téléphone")).toHaveValue(value);
-      expect(isPhone()(value)).not.toBeNull();
-    },
+it("DateField lets an optional date be cleared back to null", async () => {
+  const onValue = vi.fn();
+  const { container } = renderWithProviders(
+    <Controlled<string | null> initial="2026-10-11" onValue={onValue}>
+      {(value, setValue) => (
+        <DateField label="Meilleur avant" optional value={value} onChange={setValue} />
+      )}
+    </Controlled>,
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Effacer la date" }));
+  expect(onValue).toHaveBeenLastCalledWith(null);
+  expect(screen.getByLabelText("Meilleur avant (facultatif)")).toHaveValue("");
+  await expectNoAxeViolations(container);
+});
+
+it("DateField keeps a required date and offers no clear button", async () => {
+  const onValue = vi.fn();
+  renderWithProviders(
+    <Controlled<string | null> initial="2026-10-11" onValue={onValue}>
+      {(value, setValue) => (
+        <DateField label="Date de naissance" value={value} onChange={setValue} />
+      )}
+    </Controlled>,
+  );
+  expect(screen.queryByRole("button", { name: "Effacer la date" })).not.toBeInTheDocument();
+  await userEvent.clear(screen.getByLabelText("Date de naissance"));
+  expect(onValue).not.toHaveBeenCalledWith(null);
+});
+
+const photo = new File(["photo"], "pains.jpg", { type: "image/jpeg" });
+
+it("FileUpload shows the limits, then the chosen file with change and remove", async () => {
+  const onValue = vi.fn();
+  const { container } = renderWithProviders(
+    <Controlled<File | null> initial={null} onValue={onValue}>
+      {(value, setValue) => (
+        <FileUpload
+          label="Photo"
+          optional
+          accept={["image/jpeg", "image/png"]}
+          maxMb={5}
+          buttonLabel="Prendre ou choisir une photo"
+          value={value}
+          onChange={setValue}
+        />
+      )}
+    </Controlled>,
+  );
+  expect(screen.getByRole("button", { name: "Photo (facultatif)" })).toHaveTextContent(
+    "JPG, PNG, 5 Mo maximum",
   );
 
-  it("allows deletion, correction and clearing of a complete phone", async () => {
-    const onValue = vi.fn();
-    renderWithProviders(
-      <Controlled initial="+15145550123" onValue={onValue}>
-        {(value, setValue) => <PhoneField label="Téléphone" value={value} onChange={setValue} />}
-      </Controlled>,
-    );
-    const user = userEvent.setup();
-    const input = screen.getByLabelText("Téléphone");
-    await user.click(input);
-    await user.keyboard("{Backspace}{Backspace}");
-    expect(input).toHaveValue("(514) 555-01");
-    await user.type(input, "23");
-    expect(onValue).toHaveBeenLastCalledWith("+15145550123");
-    await user.clear(input);
-    expect(onValue).toHaveBeenLastCalledWith("");
-  });
+  const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+  expect(input).toHaveAttribute("accept", "image/jpeg,image/png");
+  await userEvent.upload(input!, photo);
+  expect(onValue).toHaveBeenLastCalledWith(photo);
+  expect(screen.getByText("pains.jpg")).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole("button", { name: "Retirer" }));
+  expect(onValue).toHaveBeenLastCalledWith(null);
+  expect(screen.getByRole("button", { name: "Photo (facultatif)" })).toBeInTheDocument();
 });
 
-describe("MoneyField", () => {
-  it("takes dollars in French format and returns cents", async () => {
-    const onValue = vi.fn();
-    renderWithProviders(
-      <Controlled<number | null> initial={null} onValue={onValue}>
-        {(value, setValue) => (
-          <MoneyField label="Valeur estimée" value={value} onChange={setValue} />
-        )}
-      </Controlled>,
-    );
-    const input = screen.getByLabelText("Valeur estimée");
-    await userEvent.type(input, "12,5");
-    expect(onValue).toHaveBeenLastCalledWith(1250);
-    expect(input).toHaveAttribute("placeholder", "0,00 $");
-  });
+it("FileUpload links the upload controls to the help text and the error", () => {
+  const props = {
+    label: "Photo",
+    accept: ["image/jpeg"],
+    maxMb: 5,
+    description: "Une photo des produits.",
+    error: "Choisissez un fichier de 5 Mo ou moins.",
+    onChange: () => {},
+  };
+  const empty = renderWithProviders(<FileUpload {...props} value={null} />);
+  expect(screen.getByRole("button", { name: "Photo" })).toHaveAccessibleDescription(
+    "Choisissez un fichier de 5 Mo ou moins. Une photo des produits.",
+  );
+  empty.unmount();
 
-  it("uses $0.00 in English and returns null when cleared", async () => {
-    await i18n.changeLanguage("en");
-    const onValue = vi.fn();
-    renderWithProviders(
-      <Controlled<number | null> initial={2500} onValue={onValue}>
-        {(value, setValue) => (
-          <MoneyField label="Estimated value" value={value} onChange={setValue} />
-        )}
-      </Controlled>,
-    );
-    const input = screen.getByLabelText("Estimated value");
-    expect(input).toHaveValue("$25.00");
-    await userEvent.clear(input);
-    expect(onValue).toHaveBeenLastCalledWith(null);
-  });
-});
-
-describe("DateField", () => {
-  it("returns the typed date as YYYY-MM-DD", async () => {
-    const onValue = vi.fn();
-    renderWithProviders(
-      <Controlled<string | null> initial={null} onValue={onValue}>
-        {(value, setValue) => (
-          <DateField label="Meilleur avant" value={value} onChange={setValue} />
-        )}
-      </Controlled>,
-    );
-    const input = screen.getByLabelText("Meilleur avant");
-    expect(input).toHaveAttribute("placeholder", "AAAA-MM-JJ");
-    await userEvent.type(input, "2026-10-11");
-    await waitFor(() => expect(onValue).toHaveBeenLastCalledWith("2026-10-11"));
-  });
-
-  it("lets an optional date be cleared back to null", async () => {
-    const onValue = vi.fn();
-    const { container } = renderWithProviders(
-      <Controlled<string | null> initial="2026-10-11" onValue={onValue}>
-        {(value, setValue) => (
-          <DateField label="Meilleur avant" optional value={value} onChange={setValue} />
-        )}
-      </Controlled>,
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Effacer la date" }));
-    expect(onValue).toHaveBeenLastCalledWith(null);
-    expect(screen.getByLabelText("Meilleur avant (facultatif)")).toHaveValue("");
-    await expectNoAxeViolations(container);
-  });
-
-  it("keeps a required date and offers no clear button", async () => {
-    const onValue = vi.fn();
-    renderWithProviders(
-      <Controlled<string | null> initial="2026-10-11" onValue={onValue}>
-        {(value, setValue) => (
-          <DateField label="Date de naissance" value={value} onChange={setValue} />
-        )}
-      </Controlled>,
-    );
-    expect(screen.queryByRole("button", { name: "Effacer la date" })).not.toBeInTheDocument();
-    await userEvent.clear(screen.getByLabelText("Date de naissance"));
-    expect(onValue).not.toHaveBeenCalledWith(null);
-  });
-});
-
-describe("FileUpload", () => {
-  const photo = new File(["photo"], "pains.jpg", { type: "image/jpeg" });
-
-  it("shows the limits, then the chosen file with change and remove", async () => {
-    const onValue = vi.fn();
-    const { container } = renderWithProviders(
-      <Controlled<File | null> initial={null} onValue={onValue}>
-        {(value, setValue) => (
-          <FileUpload
-            label="Photo"
-            optional
-            accept={["image/jpeg", "image/png"]}
-            maxMb={5}
-            buttonLabel="Prendre ou choisir une photo"
-            value={value}
-            onChange={setValue}
-          />
-        )}
-      </Controlled>,
-    );
-    expect(screen.getByRole("button", { name: "Photo (facultatif)" })).toHaveTextContent(
-      "JPG, PNG, 5 Mo maximum",
-    );
-
-    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
-    expect(input).toHaveAttribute("accept", "image/jpeg,image/png");
-    await userEvent.upload(input!, photo);
-    expect(onValue).toHaveBeenLastCalledWith(photo);
-    expect(screen.getByText("pains.jpg")).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "Retirer" }));
-    expect(onValue).toHaveBeenLastCalledWith(null);
-    expect(screen.getByRole("button", { name: "Photo (facultatif)" })).toBeInTheDocument();
-  });
-
-  it("links the upload controls to the help text and the error", () => {
-    const props = {
-      label: "Photo",
-      accept: ["image/jpeg"],
-      maxMb: 5,
-      description: "Une photo des produits.",
-      error: "Choisissez un fichier de 5 Mo ou moins.",
-      onChange: () => {},
-    };
-    const empty = renderWithProviders(<FileUpload {...props} value={null} />);
-    expect(screen.getByRole("button", { name: "Photo" })).toHaveAccessibleDescription(
-      "Choisissez un fichier de 5 Mo ou moins. Une photo des produits.",
-    );
-    empty.unmount();
-
-    renderWithProviders(<FileUpload {...props} value={photo} />);
-    expect(screen.getByRole("button", { name: "Photo" })).toHaveAccessibleDescription(
-      "Choisissez un fichier de 5 Mo ou moins. Une photo des produits.",
-    );
-  });
+  renderWithProviders(<FileUpload {...props} value={photo} />);
+  expect(screen.getByRole("button", { name: "Photo" })).toHaveAccessibleDescription(
+    "Choisissez un fichier de 5 Mo ou moins. Une photo des produits.",
+  );
 });
 
 /** A small form like the ones teammates will build, validated on submit. */
@@ -389,25 +372,23 @@ function ContactForm() {
   );
 }
 
-describe("shared fields in a @mantine/form form", () => {
-  it("shows every error under its field, then follows the language switch", async () => {
-    renderWithProviders(<ContactForm />);
-    await userEvent.type(screen.getByLabelText("Code postal"), "h2x");
-    await userEvent.click(screen.getByRole("button", { name: "Publier" }));
+it("shared fields in a @mantine/form form shows every error under its field, then follows the language switch", async () => {
+  renderWithProviders(<ContactForm />);
+  await userEvent.type(screen.getByLabelText("Code postal"), "h2x");
+  await userEvent.click(screen.getByRole("button", { name: "Publier" }));
 
-    expect(screen.getAllByText("Remplissez ce champ.")).toHaveLength(2);
-    expect(screen.getByText(/Entrez un code postal canadien/)).toBeInTheDocument();
-    expect(screen.getByLabelText("Téléphone")).toHaveAttribute("aria-invalid", "true");
+  expect(screen.getAllByText("Remplissez ce champ.")).toHaveLength(2);
+  expect(screen.getByText(/Entrez un code postal canadien/)).toBeInTheDocument();
+  expect(screen.getByLabelText("Téléphone")).toHaveAttribute("aria-invalid", "true");
 
-    await act(() => i18n.changeLanguage("en"));
-    expect(screen.getByText(/Enter a Canadian postal code/)).toBeInTheDocument();
-  });
+  await act(() => i18n.changeLanguage("en"));
+  expect(screen.getByText(/Enter a Canadian postal code/)).toBeInTheDocument();
+});
 
-  it("has no accessibility violations, empty or with errors", async () => {
-    const { container } = renderWithProviders(<ContactForm />);
-    await expectNoAxeViolations(container);
+it("shared fields in a @mantine/form form has no accessibility violations, empty or with errors", async () => {
+  const { container } = renderWithProviders(<ContactForm />);
+  await expectNoAxeViolations(container);
 
-    await userEvent.click(screen.getByRole("button", { name: "Publier" }));
-    await expectNoAxeViolations(container);
-  });
+  await userEvent.click(screen.getByRole("button", { name: "Publier" }));
+  await expectNoAxeViolations(container);
 });
