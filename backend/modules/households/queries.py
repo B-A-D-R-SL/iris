@@ -5,6 +5,7 @@ import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -83,14 +84,24 @@ def _notice_reasons(
     return reasons
 
 
-def require_adult_notices(household: Household) -> None:
-    """BR-DOC-007: submission needs a current notice or non-filing reason per adult."""
+def _adults(members: Iterable[Member]) -> list[Member]:
     today = timezone.localdate(timezone=ZoneInfo("America/Montreal"))
-    adults = [m.pk for m in household.members.all() if is_adult(m.date_of_birth, today)]
-    if len(document_queries.current_notices(adults)) != len(adults):
+    return [m for m in members if is_adult(m.date_of_birth, today)]
+
+
+def _notices_for_adults(adults: list[Member]) -> dict[UUID, Any]:
+    """BR-DOC-007: a current notice or non-filing reason for every adult."""
+    notices = document_queries.current_notices(m.pk for m in adults)
+    if len(notices) != len(adults):
         raise ValidationError(
             {"notices": _("Record a notice or non-filing reason for every adult.")}
         )
+    return notices
+
+
+def require_adult_notices(household: Household) -> None:
+    """BR-DOC-007: submission needs a current notice or non-filing reason per adult."""
+    _notices_for_adults(_adults(household.members.all()))
 
 
 @transaction.atomic
@@ -100,15 +111,10 @@ def eligibility_inputs(household_id: UUID) -> EligibilityInputs:
         pk=household_id, anonymized_at__isnull=True
     )
     members = list(household.members.order_by("pk"))
-    today = timezone.localdate(timezone=ZoneInfo("America/Montreal"))
-    adults = [m for m in members if is_adult(m.date_of_birth, today)]
+    adults = _adults(members)
     if not any(m.relation == Member.Relation.HOLDER for m in adults):
         raise ValidationError(_("An adult holder is required."))
-    notices = document_queries.current_notices(m.pk for m in adults)
-    if len(notices) != len(adults):
-        raise ValidationError(
-            _("Record a notice or non-filing reason for every adult.")
-        )
+    notices = _notices_for_adults(adults)
     years = _accepted_tax_years()
     reasons: set[str] = set()
     for member in adults:
@@ -123,6 +129,32 @@ def eligibility_inputs(household_id: UUID) -> EligibilityInputs:
             raise HouseholdEvidenceUnavailable({"INCOME_NOT_CONFIRMED"})
         incomes.append(amount)
     return EligibilityInputs(household, len(members), len(adults), incomes)
+
+
+@dataclass(frozen=True)
+class DecisionEvidence:
+    """What staff see before asking for the decision; the API decides, not the screen."""
+
+    household_size: int
+    adult_count: int
+    complete: bool  # every adult has a notice or a non-filing reason
+    review_reasons: frozenset[str]
+
+
+def decision_evidence(household: Household) -> DecisionEvidence:
+    members = list(household.members.order_by("pk"))
+    adults = _adults(members)
+    notices = document_queries.current_notices(m.pk for m in adults)
+    has_holder = any(m.relation == Member.Relation.HOLDER for m in adults)
+    complete = has_holder and len(notices) == len(adults)
+    reasons: set[str] = set()
+    if complete:
+        years = _accepted_tax_years()
+        for member in adults:
+            reasons.update(
+                _notice_reasons(member, notices[member.pk], household, years)
+            )
+    return DecisionEvidence(len(members), len(adults), complete, frozenset(reasons))
 
 
 def walk_ins_for_staff(staff_user: AbstractBaseUser) -> QuerySet[Household]:

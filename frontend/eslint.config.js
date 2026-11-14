@@ -59,8 +59,6 @@ const OVER_THE_LIMIT = {
   "src/areas/staff/pages/WalkIn/ReviewStep.tsx": { lines: 57 },
   "src/areas/staff/pages/WalkIn/WalkIn.tsx": { lines: 177, complexity: 18 },
   "src/features/categories/CategoryDialog.tsx": { lines: 111 },
-  // US-18 (#470): written before FIX-13; NoticeCard and DecisionSummary to be split.
-  "src/areas/staff/pages/WalkIn/Notices.tsx": { lines: 175, complexity: 18 },
 };
 
 function sizeRules({ lines = 50, complexity = 15 } = {}) {

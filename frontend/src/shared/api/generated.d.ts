@@ -87,6 +87,13 @@ export interface paths {
      */
     post: operations["staff_households_approve_create"];
   };
+  "/api/staff/households/{id}/decision-summary/": {
+    /**
+     * What the decision would use and whether it goes to review
+     * @description Read-only. Household size, total income and the LICO threshold.
+     */
+    get: operations["staff_households_decision_summary_retrieve"];
+  };
   "/api/staff/households/{id}/notices/": {
     /** List the current notice of each member of a walk-in file */
     get: operations["staff_households_notices_list"];
@@ -789,8 +796,22 @@ export interface components {
       expires_at: string | null;
       /** Format: uuid */
       id: string;
+      /** @description True when the email already has an account: approved, but no invitation sent. */
+      invitation_not_sent: boolean;
       status: string;
       status_reason: string;
+    };
+    /** @description Numbers and next step the API works out before the decision. */
+    WalkInDecisionSummary: {
+      adult_count: number;
+      approved_months: number | null;
+      eligible: boolean | null;
+      household_size: number;
+      ready_for_decision: boolean;
+      threshold_cents: number | null;
+      total_income_cents: number | null;
+      valid_until: string | null;
+      will_go_to_review: boolean;
     };
     WalkInDraftInput: {
       address?: components["schemas"]["AddressInput"];
@@ -1328,6 +1349,24 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["WalkInDecision"];
+        };
+      };
+    };
+  };
+  /**
+   * What the decision would use and whether it goes to review
+   * @description Read-only. Household size, total income and the LICO threshold.
+   */
+  staff_households_decision_summary_retrieve: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["WalkInDecisionSummary"];
         };
       };
     };

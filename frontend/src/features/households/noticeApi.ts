@@ -143,3 +143,24 @@ export async function approveWalkIn(
   const body = errorBody(await response.json().catch(() => null));
   throw new WalkInFailed(response.status, body?.message ?? "", body?.fields ?? {});
 }
+
+export type DecisionSummary = components["schemas"]["WalkInDecisionSummary"];
+
+export const decisionSummaryQueryKey = (householdId: string) =>
+  ["walk-in", householdId, "decision-summary"] as const;
+
+/** What the decision would use (size, income, threshold) and whether it goes to review. */
+export async function getDecisionSummary(
+  householdId: string,
+  language: "fr" | "en",
+): Promise<DecisionSummary> {
+  const response = await fetch(`/api/staff/households/${householdId}/decision-summary/`, {
+    method: "GET",
+    headers: { Accept: "application/json", "Accept-Language": language },
+    credentials: "same-origin",
+  });
+  if (response.ok) return (await response.json()) as DecisionSummary;
+
+  const body = errorBody(await response.json().catch(() => null));
+  throw new WalkInFailed(response.status, body?.message ?? "", body?.fields ?? {});
+}

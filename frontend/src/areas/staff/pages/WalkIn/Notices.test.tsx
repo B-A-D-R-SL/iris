@@ -15,6 +15,7 @@ const ROUTE = `/staff/walk-in/${ID}/notices`;
 const NOTICES_URL = `/api/staff/households/${ID}/notices/`;
 const APPROVE_URL = `/api/staff/households/${ID}/approve/`;
 const SUBMIT_URL = `/api/staff/households/${ID}/submit/`;
+const SUMMARY_URL = `/api/staff/households/${ID}/decision-summary/`;
 
 /** A walk-in draft with one adult holder and one child (generated data only). */
 function draft(status = "draft", statusReason = ""): WalkInDraft {
@@ -89,6 +90,7 @@ function decision(overrides: Partial<WalkInDecision> = {}): WalkInDecision {
     status_reason: "",
     approved_at: "2026-11-10T14:00:00Z",
     expires_at: "2027-11-10T14:00:00Z",
+    invitation_not_sent: false,
     ...overrides,
   };
 }
@@ -100,6 +102,26 @@ async function recordDidNotFile() {
   await userEvent.type(nadia.getByLabelText("Expliquez pourquoi"), "Aucun revenu en 2025");
   await userEvent.click(nadia.getByRole("button", { name: "Enregistrer l'avis" }));
   await waitFor(() => expect(within(summary()).getByText("N'a pas produit")).toBeVisible());
+}
+
+/** What the API works out for this file: one adult and one child, so a household of two. */
+function summaryFor(stored: RecordedNotice[]) {
+  const mine = stored.find((entry) => entry.member === "m1");
+  const review = Boolean(mine && (mine.did_not_file_reason || !mine.seen_in_person));
+  const decided = Boolean(mine) && !review;
+  const eligible = decided ? (mine?.total_income_cents ?? 0) <= 3_000_000 : null;
+  return {
+    household_size: 2,
+    adult_count: 1,
+    ready_for_decision: Boolean(mine),
+    will_go_to_review: review,
+    total_income_cents: decided ? (mine?.total_income_cents ?? null) : null,
+    threshold_cents: 3_000_000,
+    eligible,
+    // Only a file that approval would approve has a length and an end date.
+    approved_months: eligible ? 12 : null,
+    valid_until: eligible ? "2027-11-14T12:00:00Z" : null,
+  };
 }
 
 /** Fakes /api/me/, the file read, the notice list and record, and the submit and approve endpoints. */
@@ -143,6 +165,7 @@ function mockApi(
       return response;
     }
     if (url.endsWith(APPROVE_URL) && method === "POST") return approve();
+    if (url.endsWith(SUMMARY_URL) && method === "GET") return Response.json(summaryFor(stored));
     return new Response(null, { status: 404 });
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -157,18 +180,29 @@ function sentForm(fetchMock: ReturnType<typeof mockApi>): FormData {
   return call[1]?.body as FormData;
 }
 
-const card = (name: string) => screen.getByRole("region", { name });
+// The card is titled "Adulte 1 · name (personne responsable)": match on the name.
+const card = (name: string) => screen.getByRole("region", { name: new RegExp(name) });
 const summary = () => screen.getByRole("region", { name: "Résumé pour la décision" });
 
 /** Every notice is in: submit the draft (duplicate check) so approval is offered. */
 async function submitFile() {
   await userEvent.click(screen.getByRole("button", { name: "Soumettre le dossier" }));
-  await screen.findByRole("button", { name: "Approuver le dossier" });
+  await screen.findByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ });
+}
+
+/** Approval is final: it asks first (Figma W6.3 S26), then the server decides. */
+async function approve() {
+  await userEvent.click(
+    screen.getByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ }),
+  );
+  await userEvent.click(await screen.findByRole("button", { name: "Confirmer l'approbation" }));
 }
 
 async function openPage() {
   renderWithProviders(<App />, { route: ROUTE });
-  await screen.findByRole("heading", { level: 1, name: "Avis de cotisation" });
+  await screen.findByRole("heading", { level: 1, name: "Avis et décision · Nadia Démo" });
+  // The numbers come from the API, so wait for them before acting.
+  await screen.findByText("Taille du foyer");
 }
 
 beforeEach(() => {
@@ -244,7 +278,7 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     expect(form.get("postal_code_on_notice")).toBe("H2X 1Y4");
     expect(form.get("notice_date")).toBe("2026-04-30");
     expect(form.get("seen_in_person")).toBe("true");
-    expect(screen.getByText(/Le dossier est prêt pour la décision/)).toBeVisible();
+    expect(await screen.findByText(/Le dossier est prêt pour la décision/)).toBeVisible();
     expect(screen.getByRole("button", { name: "Remplacer cet avis" })).toBeVisible();
   });
 
@@ -267,7 +301,7 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     expect(form.get("did_not_file")).toBe("true");
     expect(form.get("did_not_file_reason")).toBe("Aucun revenu en 2025");
     expect(form.has("file")).toBe(false);
-    expect(screen.getByText(/envoie le dossier en révision/)).toBeVisible();
+    expect(await screen.findByText(/envoie le dossier en révision/)).toBeVisible();
   });
 
   it("shows the server's message on the field it refused", async () => {
@@ -330,7 +364,7 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     );
     await submitFile();
 
-    await userEvent.click(screen.getByRole("button", { name: "Approuver le dossier" }));
+    await approve();
 
     expect(await screen.findByText(/Dossier approuvé jusqu'au 10 novembre 2027/)).toBeVisible();
     expect(
@@ -358,7 +392,7 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     await recordDidNotFile();
     await submitFile();
 
-    await userEvent.click(screen.getByRole("button", { name: "Approuver le dossier" }));
+    await approve();
 
     expect(await screen.findByText("Dossier envoyé en révision")).toBeVisible();
     expect(screen.getByText("Un adulte n'a pas produit de déclaration de revenus.")).toBeVisible();
@@ -383,7 +417,7 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     await recordDidNotFile();
     await submitFile();
 
-    await userEvent.click(screen.getByRole("button", { name: "Approuver le dossier" }));
+    await approve();
 
     expect(await screen.findByText("Dossier refusé")).toBeVisible();
     expect(screen.getByText(/dépasse le seuil de faible revenu/)).toBeVisible();
@@ -407,11 +441,13 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     await recordDidNotFile();
     await submitFile();
 
-    await userEvent.click(screen.getByRole("button", { name: "Approuver le dossier" }));
+    await approve();
 
     expect(await screen.findByText("Aucune décision n'a été prise")).toBeVisible();
     expect(screen.getByText("Complétez l'adresse et le téléphone du foyer.")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ }),
+    ).toBeVisible();
   });
 
   it("shows the notices saved earlier, so a reloaded file can still be submitted", async () => {
@@ -443,10 +479,14 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     const fetchMock = mockApi(undefined, undefined, [recorded()], { status: "draft" });
     await openPage();
 
-    expect(screen.queryByRole("button", { name: "Approuver le dossier" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ }),
+    ).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Soumettre le dossier" }));
 
-    expect(await screen.findByRole("button", { name: "Approuver le dossier" })).toBeEnabled();
+    expect(
+      await screen.findByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ }),
+    ).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Soumettre le dossier" })).toBeNull();
     expect(
       fetchMock.mock.calls.some(
@@ -456,14 +496,19 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
   });
 
   // rule: BR-DUP-002
-  it("warns when submission finds a possible duplicate", async () => {
+  it("sends a possible duplicate to review and offers no approval", async () => {
     mockApi(undefined, undefined, [recorded()], { status: "draft", submitTo: "review_required" });
     await openPage();
 
     await userEvent.click(screen.getByRole("button", { name: "Soumettre le dossier" }));
 
-    expect(await screen.findByText(/Doublon possible/)).toBeVisible();
-    expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeVisible();
+    expect(await screen.findByText("Dossier envoyé en révision")).toBeVisible();
+    expect(
+      screen.getByText("Un foyer avec la même adresse ou la même personne est déjà inscrit."),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ }),
+    ).toBeNull();
   });
 
   // rule: BR-DOC-007
@@ -474,7 +519,9 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     expect(screen.getByText(/n'est plus un brouillon/)).toBeVisible();
     expect(screen.getByRole("button", { name: "Remplacer cet avis" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Soumettre le dossier" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ }),
+    ).toBeEnabled();
   });
 
   it("offers nothing once the file is decided", async () => {
@@ -482,7 +529,9 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     await openPage();
 
     expect(screen.queryByRole("button", { name: "Soumettre le dossier" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Approuver le dossier" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ }),
+    ).toBeNull();
   });
 
   it("still shows a saved approval and its date after a reload", async () => {
@@ -506,14 +555,101 @@ describe("Walk-in notices (US-18, T-03.18.4)", () => {
     expect(screen.getByText(/dépasse le seuil de faible revenu/)).toBeVisible();
   });
 
-  it("keeps the approve action, not a saved outcome, for a file in review", async () => {
+  // Approving again could not change the outcome, so the screen does not offer it.
+  it("shows a file in review with its reasons and no approve action", async () => {
     mockApi(undefined, undefined, [recorded()], {
       status: "review_required",
       statusReason: "POSSIBLE_DUPLICATE",
     });
     await openPage();
 
-    expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeVisible();
-    expect(screen.queryByText("Dossier envoyé en révision")).toBeNull();
+    expect(await screen.findByText("Dossier envoyé en révision")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /Approuver (le dossier|pour 12 mois)/ }),
+    ).toBeNull();
+  });
+
+  it("asks for confirmation before approving, and approves nothing when cancelled", async () => {
+    const fetchMock = mockApi(undefined, undefined, [recorded()], { status: "submitted" });
+    await openPage();
+
+    expect(await screen.findByText("Admissible : le revenu est sous le seuil")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Approuver pour 12 mois" }));
+    const dialog = await screen.findByRole("dialog", { name: "Approuver ce dossier ?" });
+    expect(
+      within(dialog).getByText("Le dossier sera valide jusqu'au 14 novembre 2027."),
+    ).toBeVisible();
+    expect(within(dialog).getByText(/La décision est définitive/)).toBeVisible();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Annuler" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(
+      fetchMock.mock.calls.some(
+        ([input, init]) => String(input).endsWith(APPROVE_URL) && init?.method === "POST",
+      ),
+    ).toBe(false);
+  });
+
+  it("says when the income is above the threshold, before anyone approves", async () => {
+    mockApi(undefined, undefined, [recorded({ total_income_cents: 3_500_000 })], {
+      status: "submitted",
+    });
+    await openPage();
+
+    expect(await screen.findByText("Non admissible : le revenu dépasse le seuil")).toBeVisible();
+    expect(screen.getByText(/Si vous continuez, le dossier sera refusé/)).toBeVisible();
+    // No validity to promise: the button does not mention months.
+    expect(screen.getByRole("button", { name: "Approuver le dossier" })).toBeEnabled();
+  });
+
+  it("shows the header, the card title and the numbers the API worked out", async () => {
+    mockApi(undefined, undefined, [recorded()]);
+    await openPage();
+
+    expect(screen.getByText(/Au comptoir · Visite du/)).toBeVisible();
+    expect(screen.getByText("Adultes : 1 · Personnes à charge : 1")).toBeVisible();
+    expect(
+      screen.getByRole("region", { name: "Adulte 1 · Nadia Démo (personne responsable)" }),
+    ).toBeVisible();
+    const facts = within(summary());
+    expect(facts.getByText("Taille du foyer").nextSibling).toHaveTextContent("2");
+    expect(facts.getByText("Revenu total du foyer").nextSibling).toHaveTextContent(/18\s?500/);
+    expect(facts.getByText("Seuil de faible revenu").nextSibling).toHaveTextContent(/30\s?000/);
+  });
+
+  it("writes the colon in the translation: French puts a space before it", async () => {
+    mockApi(undefined, undefined, [recorded()]);
+    await openPage();
+
+    expect(within(card("Nadia Démo")).getByText(/^Année d'imposition : 2025$/)).toBeVisible();
+  });
+
+  it("does not show a zero income when the notice has none", async () => {
+    mockApi(undefined, undefined, [recorded({ total_income_cents: null })]);
+    await openPage();
+
+    expect(within(card("Nadia Démo")).getByText(/Non fournie/)).toBeVisible();
+  });
+
+  it("tells staff when no invitation was sent because the email has an account", async () => {
+    mockApi(undefined, () => Response.json(decision({ invitation_not_sent: true })), [recorded()], {
+      status: "submitted",
+    });
+    await openPage();
+
+    await approve();
+
+    expect(await screen.findByText(/Dossier approuvé jusqu'au/)).toBeVisible();
+    expect(screen.getByText(/Aucun courriel n'a été envoyé/)).toBeVisible();
+  });
+
+  it("explains a file sent to review because an adult has no notice", async () => {
+    mockApi(undefined, undefined, [recorded()], {
+      status: "review_required",
+      statusReason: "NOTICE_MISSING",
+    });
+    await openPage();
+
+    expect(await screen.findByText(/ni avis ni motif de non-production/)).toBeVisible();
   });
 });

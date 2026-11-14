@@ -2,6 +2,8 @@
 """Public service for persistent household eligibility decisions."""
 
 import logging
+from dataclasses import dataclass
+from typing import Any
 from uuid import UUID
 
 from django.contrib.auth import get_user_model
@@ -108,6 +110,38 @@ def _log_decision_after_commit(
     )
 
 
+def _active_thresholds() -> tuple[Any, int, dict[int, int]]:
+    rule = rule_queries.active("lico_thresholds", at=timezone.now())
+    if rule is None:
+        raise ValidationError("No active LICO threshold rule is published.")
+    year, thresholds = _validated_thresholds(rule.values)
+    return rule, year, thresholds
+
+
+@dataclass(frozen=True)
+class EligibilityPreview:
+    """What a decision would use and conclude, without saving anything."""
+
+    household_size: int
+    household_income_cents: int
+    threshold_cents: int
+    eligible: bool
+
+
+@transaction.atomic
+def preview_for_household(household_id: UUID) -> EligibilityPreview:
+    """Compute the outcome for the summary screen; nothing is recorded."""
+    household_size, incomes = _validated_evidence(household_id)
+    _, _, thresholds = _active_thresholds()
+    result = decide(household_size, incomes, thresholds)
+    return EligibilityPreview(
+        household_size=household_size,
+        household_income_cents=result.household_income_cents,
+        threshold_cents=result.threshold_cents,
+        eligible=result.eligible,
+    )
+
+
 @transaction.atomic
 def decide_for_household(
     household_id: UUID,
@@ -119,11 +153,7 @@ def decide_for_household(
     _validate_decider(decided_by)
     household_size, incomes = _validated_evidence(household_id)
 
-    rule = rule_queries.active("lico_thresholds", at=timezone.now())
-    if rule is None:
-        raise ValidationError("No active LICO threshold rule is published.")
-
-    threshold_year, thresholds = _validated_thresholds(rule.values)
+    rule, threshold_year, thresholds = _active_thresholds()
     result = decide(household_size, incomes, thresholds)
 
     decision = EligibilityDecision(

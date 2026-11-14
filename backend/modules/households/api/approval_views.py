@@ -17,7 +17,7 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from modules.households import queries, services
+from modules.households import approval_services, queries
 from modules.households.api.views import (
     IsIntakeWorkerOrAdmin,
     WalkInErrorHandlingMixin,
@@ -35,6 +35,47 @@ class WalkInDecisionSerializer(serializers.Serializer):
     status_reason = serializers.CharField(read_only=True)
     approved_at = serializers.DateTimeField(read_only=True, allow_null=True)
     expires_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    # True when the email already has an account: approved, but no invitation sent.
+    invitation_not_sent = serializers.BooleanField(read_only=True)
+
+
+class WalkInDecisionSummarySerializer(serializers.Serializer):
+    """Numbers and next step the API works out before the decision."""
+
+    household_size = serializers.IntegerField(read_only=True)
+    adult_count = serializers.IntegerField(read_only=True)
+    # Null until every adult has a notice the rules can add up.
+    total_income_cents = serializers.IntegerField(read_only=True, allow_null=True)
+    threshold_cents = serializers.IntegerField(read_only=True, allow_null=True)
+    ready_for_decision = serializers.BooleanField(read_only=True)
+    will_go_to_review = serializers.BooleanField(read_only=True)
+    # Income within the threshold; null when the file goes to review or is not ready.
+    eligible = serializers.BooleanField(read_only=True, allow_null=True)
+    # Set only when approving would approve the file: from file_validity.
+    approved_months = serializers.IntegerField(read_only=True, allow_null=True)
+    valid_until = serializers.DateTimeField(read_only=True, allow_null=True)
+
+
+class WalkInDecisionSummaryView(WalkInErrorHandlingMixin, GenericAPIView):
+    serializer_class = WalkInDecisionSummarySerializer
+    permission_classes = (IsIntakeWorkerOrAdmin,)
+
+    @extend_schema(
+        responses={200: WalkInDecisionSummarySerializer},
+        tags=["staff households"],
+        summary="What the decision would use and whether it goes to review",
+        description="Read-only. Household size, total income and the LICO threshold.",
+    )
+    def get(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
+        """Summarize one walk-in file before the decision."""
+        household = queries.walk_in_for_staff(id, request.user)
+        if household is None:
+            raise Http404
+        try:
+            summary = approval_services.decision_summary(household, request.user)
+        except DjangoValidationError as exc:
+            raise _service_validation(exc) from exc
+        return Response(WalkInDecisionSummarySerializer(summary).data)
 
 
 class WalkInApproveView(WalkInErrorHandlingMixin, GenericAPIView):
@@ -57,7 +98,7 @@ class WalkInApproveView(WalkInErrorHandlingMixin, GenericAPIView):
         if household is None:
             raise Http404
         try:
-            household = services.approve_walk_in(household, request.user)
+            household = approval_services.approve_walk_in(household, request.user)
         except DjangoValidationError as exc:
             raise _service_validation(exc) from exc
         return Response(WalkInDecisionSerializer(household).data)
