@@ -216,6 +216,9 @@ describe("Walk-in notices: saved files and the decision (US-18, T-03.18.4)", () 
 
     expect(await screen.findByText(/Dossier approuvé jusqu'au/)).toBeVisible();
     expect(screen.getByText(/Aucun courriel n'a été envoyé/)).toBeVisible();
+    // US-93 (#704): the account cannot be linked yet, so the note promises no access.
+    expect(screen.getByText(/ne peut pas encore être lié à ce dossier/)).toBeVisible();
+    expect(screen.queryByText(/connecter|réinitialiser/)).not.toBeInTheDocument();
   });
 
   it("explains a file sent to review because an adult has no notice", async () => {

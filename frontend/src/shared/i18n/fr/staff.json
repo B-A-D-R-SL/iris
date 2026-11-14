@@ -145,7 +145,7 @@
       "confirmTitle": "Approuver ce dossier ?",
       "confirmValidUntil": "Le dossier sera valide jusqu'au {{date}}.",
       "confirmBody": "La décision est définitive. Si le foyer a donné un courriel, une invitation à créer son compte lui sera envoyée.",
-      "invitationNotSent": "Aucun courriel n'a été envoyé : l'adresse du foyer est déjà liée à un compte. Le foyer peut s'y connecter ou réinitialiser son mot de passe.",
+      "invitationNotSent": "Aucun courriel n'a été envoyé : cette adresse a déjà un compte Iris, qui ne peut pas encore être lié à ce dossier. Servez le foyer au comptoir en attendant.",
       "reasonNoticeMissing": "Un adulte n'a ni avis ni motif de non-production (il a eu 18 ans après la soumission).",
       "confirmApprove": "Confirmer l'approbation"
     },
