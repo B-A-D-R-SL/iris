@@ -102,6 +102,14 @@ Canadian compute regions are currently prohibited by the subscription policy.
    Generate a strong password and store it only in the vault/your password
    manager. Enable public networking with **no public firewall rules yet**.
    Leave **Allow Azure services** off; app-specific IP rules are added below.
+   Creating the server supplies `postgres`, not the application's `iris` DB.
+   Create **`iris`** before adding its URL to Key Vault. In Azure Cloud Shell
+   (PowerShell), explicitly target the student subscription and staging server:
+
+   ```powershell
+   az postgres flexible-server db create --subscription "Azure for Students" --resource-group iris-staging --server-name iris-stg-db-ar1 --database-name iris --output none
+   ```
+
 2. Vault **`iris-stg-kv-ar1` → Secrets**: add **`database-url`** with a URL-encoded
    password, for example the structure below (replace all angle brackets):
 
@@ -213,7 +221,20 @@ az role assignment create --subscription $stagingSubscription --assignee-object-
 The last assignment needs Ammar/Access Administrator. **Do not** give the GitHub
 identity Owner, subscription Contributor, or Key Vault Secrets User. It only
 updates/restarts this existing web app. The separate app runtime identity reads
-the vault. If identity creation or federation is blocked by university policy,
+the vault. **This is still a privileged deployment identity:** changing the
+container image lets deployed code read all secrets available to that runtime
+identity, including resolved vault references. Lack of a direct Key Vault role
+does not prevent this indirect access.
+
+Protect `main` with required review and passing checks; limit repository write,
+workflow-edit and environment-administration access to trusted maintainers.
+Restrict the `staging` environment to `main`, require deployment reviewers where
+supported, prevent self-approval/admin bypass where supported, and review any
+change to its branch policies, OIDC subject or variables. Do not allow untrusted
+PR code or fork runs to receive the deployment identity. Keep its OIDC subject
+scoped to this repository's `staging` environment; never broaden it to another
+repository or grant subscription Contributor/Owner or direct Key Vault access.
+ If identity creation or federation is blocked by university policy,
 ask the directory administrator for this exact federation; do not weaken the
 workflow by committing a publish profile/client secret.
 
@@ -262,8 +283,29 @@ the manual checks above; do not mark them passed from local tests.
 
 The new image runs a strict deployment check, takes a PostgreSQL advisory lock,
 runs migrations, optionally seeds, then supervises Gunicorn and Procrastinate.
-Either child exiting stops both and fails the container. A failed setup starts
-neither. Repeated seed runs preserve edits. B1 has **no paid swap slot** here;
+Either child exiting stops both and fails the container. Shutdown handling is
+installed before setup; TERM/INT reaches the setup process group and waits for
+its transaction/connection cleanup. Cancellation never starts web/worker children.
+A failed setup starts neither. Setup emits fixed `iris.deployment` events for
+start, migrations, seed, completion and failure without passwords, DB error text
+or user identifiers. `IRIS_OPERATOR_LANGUAGE=en` (default) or `fr` selects
+translated setup/configuration diagnostics; these use registry-safe lazy gettext
+so an unresolved vault reference can be reported before Django initializes.
+GitHub deployment-gate annotations are intentional CI diagnostics, not app logs.
+
+The registered `iris.recover_stalled_jobs` maintenance task runs every ten
+minutes, using Procrastinate's default heartbeat-based detection (not job age).
+If a dead worker left a templated email in `SENDING`, the notification service
+marks it `FAILED` with `delivery_outcome_unknown` **before** retrying the native
+job. Existing `SENT`/`FAILED` logs are not changed and their tasks do not resend;
+`PENDING`/`RETRYING` deliveries can retry normally. Legacy email jobs without an
+EmailLog are failed rather than blindly resent. Other stalled jobs retry normally.
+A recovery failure logs only a fixed event and preserves the job for another
+recovery pass. This is a conservative unknown-outcome policy: an accepted email
+may have been sent, and an unsent one may require operator investigation/reissue;
+recovery does not claim exactly-once provider delivery. Keep the worker running
+for scheduled recovery and cleanup. See [Procrastinate's recovery guidance](https://procrastinate.readthedocs.io/en/stable/howto/production/retry_stalled_jobs.html).
+ Repeated seed runs preserve edits. B1 has **no paid swap slot** here;
 expect a short restart, and keep schema migrations compatible with the old app
 while Azure replaces containers. One instance is intentional; this is not HA.
 

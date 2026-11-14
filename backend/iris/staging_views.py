@@ -19,7 +19,11 @@ WORKER_PID_FILE = Path("/run/iris/worker.pid")
 @never_cache
 @require_safe
 def ready(request: HttpRequest) -> JsonResponse:
-    """Check DB connectivity and the supervised worker process before smoke passes."""
+    """Check DB connectivity and the supervised worker process before smoke passes.
+
+    Public by design: deployment probes call this without a session. Responses
+    contain availability and the release revision only, never user data.
+    """
     try:
         pid = int(WORKER_PID_FILE.read_text())
         if pid <= 1:

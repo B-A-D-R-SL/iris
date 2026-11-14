@@ -3,6 +3,7 @@
 
 import signal
 import subprocess
+from threading import Event
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -30,7 +31,7 @@ def test_signal_stops_both_process_groups(tmp_path):
     worker, web = MagicMock(pid=101), MagicMock(pid=102)
     worker.poll.return_value = web.poll.return_value = None
     event = MagicMock()
-    event.is_set.side_effect = [False, True]
+    event.is_set.side_effect = [False, False, False, True]
     with (
         patch.object(release, "WORKER_PID_FILE", tmp_path / "worker.pid"),
         patch.object(release, "Event", return_value=event),
@@ -110,10 +111,70 @@ def test_failed_setup_never_starts_web_or_worker(tmp_path, code):
     with (
         patch.object(release, "WORKER_PID_FILE", tmp_path / "worker.pid"),
         patch("django.setup"),
-        patch.object(
-            release.subprocess, "run", return_value=MagicMock(returncode=code)
-        ),
+        patch.object(release, "_shutdown_event", return_value=Event()),
+        patch.object(release, "_prepare", return_value=code),
         patch.object(release, "_serve", return_value=0) as serve,
     ):
         assert release.main() == code
     assert serve.call_count == (0 if code else 1)
+
+
+def test_cancelled_setup_never_starts_web_or_worker(tmp_path):
+    stopping = Event()
+
+    def prepare(event):
+        event.set()
+        return 0
+
+    with (
+        patch.object(release, "WORKER_PID_FILE", tmp_path / "worker.pid"),
+        patch("django.setup"),
+        patch.object(release, "_shutdown_event", return_value=stopping),
+        patch.object(release, "_prepare", side_effect=prepare),
+        patch.object(release, "_serve") as serve,
+    ):
+        assert release.main() == 0
+    serve.assert_not_called()
+
+
+def test_setup_cancellation_reaches_real_child_and_waits_for_cleanup(tmp_path):
+    cleaned = tmp_path / "cleaned"
+    code = (
+        "import signal,sys; from pathlib import Path\n"
+        f"def stop(signum,frame):\n Path({str(cleaned)!r}).write_text('cleaned');sys.exit(0)\n"
+        "signal.signal(signal.SIGTERM,stop)\nprint('ready',flush=True)\nsignal.pause()\n"
+    )
+    stopping = Event()
+    original_popen = subprocess.Popen
+
+    def spawn(*args, **kwargs):
+        child = original_popen(
+            [release.sys.executable, "-c", code],
+            start_new_session=True,
+            stdout=subprocess.PIPE,
+        )
+        assert child.stdout.readline() == b"ready\n"
+        child.stdout.close()
+        stopping.set()
+        return child
+
+    with patch.object(release.subprocess, "Popen", side_effect=spawn):
+        assert release._prepare(stopping) == 0
+    assert cleaned.read_text() == "cleaned"
+
+
+def test_setup_helper_closes_database_connections_when_cancelled():
+    def cancel(*args, **kwargs):
+        raise SystemExit(143)
+
+    with (
+        patch.object(release.signal, "signal") as register,
+        patch("django.setup"),
+        patch("django.core.management.call_command", side_effect=cancel),
+        patch("django.db.connections.close_all") as close,
+        pytest.raises(SystemExit) as exited,
+    ):
+        release._run_setup()
+    assert exited.value.code == 143
+    assert register.call_args_list[0].args[0] == signal.SIGTERM
+    close.assert_called_once()

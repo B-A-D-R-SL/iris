@@ -27,8 +27,10 @@ def smoke(origin: str, revision: str, attempts: int = 90) -> None:
             if payload != {"status": "ok", "revision": revision}:
                 raise ValueError("New release is not ready.")
             html = _get(f"{origin}/sign-in").decode()
-            asset = re.search(r'(?:src|href)="(/assets/[^"<>]+\.(?:js|css))"', html)
-            if asset is None or not _get(f"{origin}{asset[1]}"):
+            assets = re.findall(
+                r"(?:src|href)=[\"\'](/assets/[^\"\'<>]+\.(?:js|css))[\"\']", html
+            )
+            if not assets or any(not _get(f"{origin}{asset}") for asset in assets):
                 raise ValueError("Built frontend is unavailable.")
             if not _get(f"{origin}/static/admin/css/base.css"):
                 raise ValueError("Collected admin assets are unavailable.")

@@ -1,6 +1,7 @@
 # AI contribution: 50% or more AI-generated
 """SET-17: preserve API errors, fail readiness safely and serialize staging setup."""
 
+from unittest import TestCase
 from unittest.mock import patch
 
 import pytest
@@ -156,7 +157,7 @@ def test_prepare_staging_unlocks_and_does_not_seed_failed_migration(
             "call_command",
             side_effect=[None, CommandError("migration failed")],
         ) as command,
-        pytest.raises(CommandError, match="migration failed"),
+        pytest.raises(CommandError, match="Staging setup failed"),
     ):
         call_command("prepare_staging")
     assert [call.args[0] for call in command.call_args_list] == ["check", "migrate"]
@@ -184,3 +185,114 @@ def test_prepare_staging_refuses_bad_config_before_writes(
     ):
         call_command("prepare_staging")
     connection.cursor.assert_not_called()
+
+
+def test_setup_logs_each_successful_stage_without_credentials(settings, monkeypatch):
+    settings.SETTINGS_MODULE = "iris.settings.staging"
+    monkeypatch.setenv("IRIS_SEED_ON_START", "1")
+    monkeypatch.setenv("SEED_PASSWORD", "private-seed-value")
+    with (
+        patch.object(prepare_staging, "connection"),
+        patch.object(prepare_staging, "call_command"),
+        TestCase().assertLogs("iris.deployment", level="INFO") as logs,
+    ):
+        call_command("prepare_staging")
+    assert [record.event for record in logs.records] == [
+        "staging_setup_started",
+        "staging_migrations_completed",
+        "staging_seed_completed",
+        "staging_setup_completed",
+    ]
+    assert "private-seed-value" not in " ".join(logs.output)
+
+
+@pytest.mark.parametrize("stage", ["check", "migrate", "seed"])
+def test_setup_logs_and_sanitizes_each_dependency_failure(settings, monkeypatch, stage):
+    settings.SETTINGS_MODULE = "iris.settings.staging"
+    monkeypatch.setenv("IRIS_SEED_ON_START", "1")
+    monkeypatch.setenv("SEED_PASSWORD", "private-seed-value")
+
+    def command(name, **kwargs):
+        if name == stage:
+            raise DatabaseError("private database/password detail")
+
+    with (
+        patch.object(prepare_staging, "connection"),
+        patch.object(prepare_staging, "call_command", side_effect=command),
+        TestCase().assertLogs("iris.deployment", level="INFO") as logs,
+        pytest.raises(CommandError) as failure,
+    ):
+        call_command("prepare_staging")
+    assert logs.records[-1].event == "staging_setup_failed"
+    assert "private" not in str(failure.value)
+    assert all("private" not in line for line in logs.output)
+
+
+def test_invalid_setup_configuration_logs_failure(settings, monkeypatch):
+    settings.SETTINGS_MODULE = "iris.settings.staging"
+    monkeypatch.setenv("IRIS_SEED_ON_START", "invalid")
+    with (
+        TestCase().assertLogs("iris.deployment", level="INFO") as logs,
+        pytest.raises(CommandError),
+    ):
+        call_command("prepare_staging")
+    assert [record.event for record in logs.records] == [
+        "staging_setup_started",
+        "staging_setup_failed",
+    ]
+
+
+@pytest.mark.parametrize(
+    "language,expected",
+    [
+        ("en", "DJANGO_SECRET_KEY Key Vault reference must resolve."),
+        ("fr", "La référence Key Vault de DJANGO_SECRET_KEY doit être résolue."),
+    ],
+)
+def test_vault_diagnostic_translates_before_app_registry_initializes(
+    language, expected
+):
+    result = _run(
+        ["-c", "import iris.settings.staging"],
+        DJANGO_SETTINGS_MODULE="iris.settings.staging",
+        IRIS_OPERATOR_LANGUAGE=language,
+        DJANGO_SECRET_KEY="@Microsoft.KeyVault(SecretUri=https://example.vault.azure.net/secrets/key/)",
+    )
+    assert result.returncode != 0
+    assert expected in result.stderr
+    assert "AppRegistryNotReady" not in result.stderr
+
+
+@pytest.mark.parametrize(
+    "language,expected",
+    [
+        ("en", "IRIS_SEED_ON_START must be 0 or 1."),
+        ("fr", "IRIS_SEED_ON_START doit valoir 0 ou 1."),
+    ],
+)
+def test_command_diagnostic_uses_operator_language(
+    settings, monkeypatch, language, expected
+):
+    settings.SETTINGS_MODULE = "iris.settings.staging"
+    monkeypatch.setenv("IRIS_OPERATOR_LANGUAGE", language)
+    monkeypatch.setenv("IRIS_SEED_ON_START", "invalid")
+    with pytest.raises(CommandError) as failure:
+        call_command("prepare_staging")
+    assert str(failure.value) == expected
+
+
+@pytest.mark.parametrize(
+    "language,expected",
+    [
+        ("en", "Migrate and optionally seed fictional staging"),
+        ("fr", "Effectuer les migrations"),
+    ],
+)
+def test_command_help_is_translated_in_a_fresh_process(language, expected):
+    result = _run(
+        ["manage.py", "prepare_staging", "--help"],
+        DJANGO_SETTINGS_MODULE="iris.settings.staging",
+        IRIS_OPERATOR_LANGUAGE=language,
+    )
+    assert result.returncode == 0, result.stderr
+    assert expected in result.stdout

@@ -147,6 +147,42 @@ class DeploymentSmokeTest(unittest.TestCase):
             staging_smoke.smoke("https://iris.example", SHA, attempts=2)
         sleep.assert_called_once_with(5)
 
+    def test_requests_every_script_and_stylesheet_in_either_order(self):
+        for assets in [("bundle.js", "styles.css"), ("styles.css", "bundle.js")]:
+            html = f'<script src="/assets/{assets[0]}"></script><link href="/assets/{assets[1]}">'.encode()
+            responses = [
+                json.dumps({"status": "ok", "revision": SHA}).encode(),
+                html,
+                b"first",
+                b"second",
+                b"admin",
+            ]
+            with (
+                self.subTest(assets=assets),
+                patch.object(staging_smoke, "_get", side_effect=responses) as get,
+            ):
+                staging_smoke.smoke("https://iris.example", SHA, attempts=1)
+            self.assertEqual(
+                [c.args[0] for c in get.call_args_list][2:4],
+                [f"https://iris.example/assets/{a}" for a in assets],
+            )
+
+    def test_broken_second_asset_fails_for_both_asset_orders(self):
+        for first, second in [("bundle.js", "styles.css"), ("styles.css", "bundle.js")]:
+            html = f'<script src="/assets/{first}"></script><link href="/assets/{second}">'.encode()
+            responses = [
+                json.dumps({"status": "ok", "revision": SHA}).encode(),
+                html,
+                b"working",
+                URLError("second asset missing"),
+            ]
+            with (
+                self.subTest(first=first),
+                patch.object(staging_smoke, "_get", side_effect=responses),
+                self.assertRaisesRegex(RuntimeError, "smoke check failed"),
+            ):
+                staging_smoke.smoke("https://iris.example", SHA, attempts=1)
+
 
 if __name__ == "__main__":
     unittest.main()

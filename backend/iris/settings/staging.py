@@ -3,6 +3,8 @@
 
 from django.core.exceptions import ImproperlyConfigured
 
+from iris.startup_messages import operator_gettext as _
+
 from .base import BASE_DIR, env
 from .production import *
 from .production import INSTALLED_APPS, MIDDLEWARE
@@ -35,4 +37,6 @@ for _secret_name in (
     "AZURE_COMMUNICATION_CONNECTION_STRING",
 ):
     if env(_secret_name, default="").strip().startswith("@Microsoft.KeyVault("):
-        raise ImproperlyConfigured(f"{_secret_name} Key Vault reference must resolve.")
+        raise ImproperlyConfigured(
+            _("{name} Key Vault reference must resolve.").format(name=_secret_name)
+        )

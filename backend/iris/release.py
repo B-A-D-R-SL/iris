@@ -38,9 +38,8 @@ def _stop(children: Sequence[subprocess.Popen[bytes]]) -> None:
             child.wait()
 
 
-def _serve() -> int:
-    """A dead worker makes the container fail rather than silently dropping jobs."""
-    children: list[subprocess.Popen[bytes]] = []
+def _shutdown_event() -> Event:
+    """Register PID 1 shutdown handling before setup or web processes start."""
     stopping = Event()
 
     def shutdown(signum: int, frame: object) -> None:
@@ -48,6 +47,32 @@ def _serve() -> int:
 
     signal.signal(signal.SIGTERM, shutdown)
     signal.signal(signal.SIGINT, shutdown)
+    return stopping
+
+
+def _prepare(stopping: Event) -> int:
+    """Forward cancellation to setup and wait for its database cleanup."""
+    child = subprocess.Popen(
+        [sys.executable, "-m", "iris.release", "--prepare"], start_new_session=True
+    )
+    try:
+        while (result := child.poll()) is None:
+            if stopping.wait(0.5):
+                logger.info(
+                    "staging_setup_cancelled",
+                    extra={"event": "staging_setup_cancelled"},
+                )
+                return 0
+        return result
+    finally:
+        if child.poll() is None:
+            _stop([child])
+
+
+def _serve(stopping: Event | None = None) -> int:
+    """A dead worker makes the container fail rather than silently dropping jobs."""
+    children: list[subprocess.Popen[bytes]] = []
+    stopping = _shutdown_event() if stopping is None else stopping
     commands = [
         [sys.executable, "manage.py", "procrastinate", "worker", "--concurrency", "2"],
         [
@@ -65,6 +90,8 @@ def _serve() -> int:
     ]
     try:
         for command in commands:
+            if stopping.is_set():
+                return 0
             children.append(subprocess.Popen(command, start_new_session=True))
         WORKER_PID_FILE.write_text(str(children[0].pid))
         while not stopping.is_set():
@@ -82,15 +109,36 @@ def _serve() -> int:
 
 def main() -> int:
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "iris.settings.staging")
+    stopping = _shutdown_event()
     import django
 
     django.setup()
     WORKER_PID_FILE.unlink(missing_ok=True)
-    result = subprocess.run(
-        [sys.executable, "manage.py", "prepare_staging"], check=False
-    )
-    return result.returncode if result.returncode else _serve()
+    if stopping.is_set():
+        return 0
+    result = _prepare(stopping)
+    return result if result or stopping.is_set() else _serve(stopping)
+
+
+def _run_setup() -> int:
+    """Unwind migrations/seed and close DB sessions on setup cancellation."""
+
+    def cancel(signum: int, frame: object) -> None:
+        raise SystemExit(128 + signum)
+
+    signal.signal(signal.SIGTERM, cancel)
+    signal.signal(signal.SIGINT, cancel)
+    import django
+    from django.core.management import call_command
+    from django.db import connections
+
+    try:
+        django.setup()
+        call_command("prepare_staging")
+    finally:
+        connections.close_all()
+    return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(_run_setup() if sys.argv[1:] == ["--prepare"] else main())
