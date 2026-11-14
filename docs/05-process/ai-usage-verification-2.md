@@ -397,5 +397,8 @@ AI-assisted files for this entry:
     - The spelled pickup code used `aria-label` on a paragraph, which ARIA does not allow; it is now visually hidden text.
 
     Its two failed checks were also fixed: the English refusal-message test now compares exact texts, and the browse tests moved to `tests/browse/` so `test_api.py` is under 500 lines. Ruff rejects fixtures imported by name (F811), so they live in that folder's `conftest.py`. Answered without changes: the hex `--h1-peach` colour and its grey fallback follow US-36's scoped H1 palette; the quantity cap only uses limits the API sends, and the server checks them again; the listing-page styling came from matching Figma.
+  - The second review round (CodeRabbit, and leonlolleonlol's peer review) found two more issues, both confirmed and fixed with tests that fail on the old code:
+    - The AI's fix for clearing the refusal notice reset the request whenever the quantity changed, even while a request was still out. That dropped the button's loading lock, so a second tap could create a second reservation. The stepper is now disabled while a request is out.
+    - `reserve()` read the clock before waiting for the household lock, so a request that waited could pass a file expiry or a pickup end that came meanwhile; the clock is now read after the lock.
 - **Remaining:**
   - Choose whether the confirmation keeps its in-place screen or gets its own route; peer review and CI.
