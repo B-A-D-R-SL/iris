@@ -5,6 +5,7 @@ import logging
 from collections import defaultdict
 from collections.abc import Sequence
 from datetime import date, datetime
+from functools import partial
 from importlib import import_module
 from typing import Any, cast
 from uuid import UUID
@@ -84,8 +85,75 @@ def release_units(listing_id: UUID, quantity: int) -> None:
         raise RuntimeError("Reserved listing units are inconsistent.")
 
 
-class PostingUnavailable(Exception):
-    """A required integration or rule version has not been configured."""
+class PostingUnavailableError(Exception):
+    """A dependency failed; the reason is diagnostic and never user-facing."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(str(_("Posting is temporarily unavailable.")))
+
+
+REFUSAL_CODES = frozenset(MESSAGES) | {
+    "category_inactive",
+    "photo_type",
+    "photo_size",
+    "photo_invalid",
+    "listing_validation_failed",
+    "store_access_denied",
+}
+
+
+def log_posting_unavailable(reason: str) -> None:
+    """Use a static reason for service and posting-form dependency failures."""
+    logger.error(
+        "listing_posting_unavailable",
+        extra={"event": "listing_posting_unavailable", "reason": reason},
+    )
+
+
+def log_post_refused(reason: str) -> None:
+    """Record a registered reason for API or service validation failures."""
+    logger.warning(
+        "listing_post_refused",
+        extra={
+            "event": "listing_post_refused",
+            "reason": reason
+            if reason in REFUSAL_CODES
+            else "listing_validation_failed",
+        },
+    )
+
+
+def _log_post_failure(exc: Exception) -> None:
+    """Log only registered codes, never translated validation messages."""
+    if isinstance(exc, PostingUnavailableError):
+        log_posting_unavailable(exc.reason)
+    elif isinstance(exc, PermissionDenied):
+        log_post_refused("store_access_denied")
+    elif isinstance(exc, ValidationError):
+        errors = (
+            [error for group in exc.error_dict.values() for error in group]
+            if hasattr(exc, "error_dict")
+            else exc.error_list
+        )
+        reasons = {
+            error.code if error.code in REFUSAL_CODES else "listing_validation_failed"
+            for error in errors
+        }
+        for reason in sorted(reasons):
+            log_post_refused(reason)
+
+
+def _log_published(listing_id: UUID, store_id: UUID) -> None:
+    """Emit a success only after the surrounding transaction commits."""
+    logger.info(
+        "listing_published",
+        extra={
+            "event": "listing_published",
+            "listing_id": listing_id,
+            "store_id": store_id,
+        },
+    )
 
 
 def _display(value: Any) -> Any:
@@ -96,16 +164,16 @@ def _display(value: Any) -> Any:
 
 
 def _refuse(reasons: Sequence[Refusal], limits: PostingLimits) -> None:
-    errors: dict[str, list[str]] = defaultdict(list)
+    errors: dict[str, list[ValidationError]] = defaultdict(list)
     for reason in reasons:
         if not isinstance(reason, Refusal) or reason.code not in MESSAGES:
-            raise PostingUnavailable(
-                _("The listing safety integration needs configuration.")
-            )
+            raise PostingUnavailableError("safety_contract_invalid")
         values = vars(limits) | {
             key: _display(value) for key, value in reason.params.items()
         }
-        errors[reason.field].append(str(MESSAGES[reason.code]) % values)
+        errors[reason.field].append(
+            ValidationError(str(MESSAGES[reason.code]) % values, code=reason.code)
+        )
     if errors:
         raise ValidationError(dict(errors))
 
@@ -117,27 +185,24 @@ def _safety_checker() -> SafetyChecker:
     except ModuleNotFoundError as exc:
         if exc.name != "modules.listings.domain.safety":
             raise
-        raise PostingUnavailable(
-            _("Listing safety checks are not available yet.")
-        ) from exc
+        raise PostingUnavailableError("safety_checker_missing") from None
     checker = getattr(module, "check", None)
     if not callable(checker):
-        raise PostingUnavailable(
-            _("The listing safety integration needs configuration.")
-        )
+        raise PostingUnavailableError("safety_contract_invalid")
     return cast(SafetyChecker, checker)
 
 
 def _photo_store() -> ListingPhotoStore:
     if not settings.LISTING_PHOTO_STORE_BACKEND:
-        raise PostingUnavailable(_("Listing photo storage is not available yet."))
+        raise PostingUnavailableError("photo_store_unconfigured")
     try:
         return load_store()
-    except PhotoStorageError:
+    except PhotoStorageError as exc:
         logger.error(
-            "listing_photo_store_failed", extra={"event": "listing_photo_store_failed"}
+            "listing_photo_store_failed",
+            extra={"event": "listing_photo_store_failed", "exc_type": type(exc)},
         )
-        raise PostingUnavailable(_("Posting is temporarily unavailable.")) from None
+        raise PostingUnavailableError("photo_store_failed") from None
 
 
 def _posting_inputs(
@@ -150,25 +215,29 @@ def _posting_inputs(
         raise PermissionDenied(_("Your store must be active to post a listing."))
     category = category_queries.for_listing_post(data.category)
     if category is None or not category["is_active"]:
-        raise ValidationError({"category": _("Choose an active category.")})
+        raise ValidationError(
+            {
+                "category": ValidationError(
+                    _("Choose an active category."), code="category_inactive"
+                )
+            }
+        )
     now = timezone.now()
     posting_rules = rule_queries.active("listing_posting", at=now)
     safety_rules = rule_queries.active("listing_safety", at=now)
     if posting_rules is None or safety_rules is None:
-        raise PostingUnavailable(_("Listing rules must be seeded before posting."))
+        raise PostingUnavailableError("listing_rules_missing")
     try:
         limits = PostingLimits(**posting_rules.values)
-    except TypeError as exc:
-        raise PostingUnavailable(
-            _("Listing posting rules need configuration.")
-        ) from exc
+    except TypeError:
+        raise PostingUnavailableError("posting_rules_invalid") from None
     _refuse(check_posting(data, limits, now=now), limits)
     checker = safety_check if safety_check is not None else _safety_checker()
     listing_data = safety_payload(data, local_tz=timezone.get_default_timezone())
     try:
         reasons = checker(listing_data, category, safety_rules.values)
-    except SafetyRulesInvalid as exc:
-        raise PostingUnavailable(_("Listing safety rules need configuration.")) from exc
+    except SafetyRulesInvalid:
+        raise PostingUnavailableError("safety_rules_invalid") from None
     _refuse(reasons, limits)
     return category, limits, now
 
@@ -205,12 +274,30 @@ def _new_listing(
 def _photo_content(photo: UploadedFile, limits: PostingLimits) -> bytes:
     signature = PHOTO_SIGNATURES.get(photo.content_type or "")
     if signature is None:
-        raise ValidationError({"photo": _("Choose a JPEG or PNG image.")})
+        raise ValidationError(
+            {
+                "photo": ValidationError(
+                    _("Choose a JPEG or PNG image."), code="photo_type"
+                )
+            }
+        )
     content = photo.read(limits.photo_max_bytes + 1)
     if len(content) > limits.photo_max_bytes:
-        raise ValidationError({"photo": _("The image exceeds the allowed file size.")})
+        raise ValidationError(
+            {
+                "photo": ValidationError(
+                    _("The image exceeds the allowed file size."), code="photo_size"
+                )
+            }
+        )
     if not content.startswith(signature):
-        raise ValidationError({"photo": _("Choose a JPEG or PNG image.")})
+        raise ValidationError(
+            {
+                "photo": ValidationError(
+                    _("Choose a JPEG or PNG image."), code="photo_type"
+                )
+            }
+        )
     return content
 
 
@@ -230,16 +317,20 @@ def _store_photo(
     except PhotoValidationError:
         raise ValidationError(
             {
-                "photo": _(
-                    "Choose a readable still JPEG or PNG image within the allowed dimensions."
+                "photo": ValidationError(
+                    _(
+                        "Choose a readable still JPEG or PNG image within the allowed dimensions."
+                    ),
+                    code="photo_invalid",
                 )
             }
         ) from None
-    except PhotoStorageError:
+    except PhotoStorageError as exc:
         logger.error(
-            "listing_photo_store_failed", extra={"event": "listing_photo_store_failed"}
+            "listing_photo_store_failed",
+            extra={"event": "listing_photo_store_failed", "exc_type": type(exc)},
         )
-        raise PostingUnavailable(_("Posting is temporarily unavailable.")) from None
+        raise PostingUnavailableError("photo_store_failed") from None
     return reference, storage
 
 
@@ -265,12 +356,11 @@ def post_listing(
     file_store: ListingPhotoStore | None = None,
 ) -> Listing:
     """Publish for the assigned store; injected dependencies are trusted test hooks."""
-    if assigned_store_id(user) != store:
-        raise PermissionDenied(_("You can only post for your own store."))
-
     photo_ref: str | None = None
     storage: ListingPhotoStore | None = None
     try:
+        if assigned_store_id(user) != store:
+            raise PermissionDenied(_("You can only post for your own store."))
         with transaction.atomic():
             category, limits, now = _posting_inputs(store, data, safety_check)
             listing = _new_listing(store, user, data, category, now)
@@ -279,8 +369,11 @@ def post_listing(
                 listing.photo_ref = photo_ref
                 listing.full_clean()
             listing.save()
-    except Exception:
+            transaction.on_commit(
+                partial(_log_published, listing.pk, store), robust=True
+            )
+    except Exception as exc:
         _cleanup_photo(photo_ref, storage)
+        _log_post_failure(exc)
         raise
-    logger.info("listing_published", extra={"event": "listing_published"})
     return listing
