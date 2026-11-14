@@ -30,7 +30,7 @@ Only the questions that apply are asked.
 | --- | --- | --- |
 | Which branch should this PR merge into? | `main`, or a story/epic branch that looks like a parent of yours | You didn't name a target, e.g. `/create-pr main` |
 | What should happen to your uncommitted changes? | Commit them into this PR, stash them and restore at the end, or stop | Tracked files have uncommitted changes |
-| Which tests should run? | **Quick checks** (recommended): lint, format, types, plus tests for the areas you and the merge changed. **Run all tests**: everything CI runs. **Skip**: only if you already ran the full suite on the merged code. It also tells you how many commits the merge brings in. | Always |
+| Which tests should run? | **Quick checks** (recommended): lint, format, types, plus tests for the areas you and the merge changed. **Run all tests**: the CI checks that can run locally; the slow photo-expiry test, dependency audits, `pnpm test:api`, secret scanning, the ZAP scan and SonarQube are left to CI. **Skip**: only if you already ran the full suite on the merged code. It also tells you how many commits the merge brings in. | Always |
 | Ask before pushing, or do it automatically? | **Ask me first** (recommended): you see the title, description and test results before anything leaves your machine. **Automatically**: it pushes and opens once tests and the policy check pass. | Always |
 
 If your GitHub login can't add PRs to projects, it also tells you to run
@@ -73,14 +73,18 @@ its tasks, its milestone and the Iris project. Then it asks:
 - **Merge conflicts it can't settle alone:**
   - It resolves simple ones itself, such as two sides adding different imports or list
     entries.
-  - When both sides changed the same logic, or migrations clash, it shows you both sides and
-    asks: keep yours, keep theirs, combine, or abort the merge.
+  - When both sides changed the same logic, migrations clash, or a lock file conflicts after
+    your branch upgraded a dependency without changing the manifest, it shows you both sides
+    and asks: keep yours, keep theirs, combine, or abort the merge.
 - **Test failures:**
   - A timeout in a file your PR doesn't touch is rerun on its own. If it passes, it's noted
     in the description and the run continues.
   - Any other failure stops the run and is reported. Nothing is pushed unless you say so.
-- **Anything unexpected,** such as a rejected push, `gh` failing, or a PR already open for
-  the branch.
+- **Anything unexpected,** such as a rejected push or `gh` failing.
+
+It does not check for an existing PR before it starts. If a PR is already open for your
+branch, `gh pr create` fails after the push and the skill stops there; your new commits are
+then already on that open PR.
 
 It never merges the PR, rebases, force-pushes or skips commit hooks. A reviewer merges it
 with "Create a merge commit".

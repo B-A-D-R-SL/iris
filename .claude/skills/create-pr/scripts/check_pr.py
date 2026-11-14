@@ -30,7 +30,7 @@ ROOT = Path(
 )
 sys.path.insert(0, str(ROOT / ".github" / "scripts"))
 
-import pr_policy  # noqa: E402
+import pr_policy
 
 # GitHub links these keywords to an issue only when the PR targets the default branch.
 CLOSING = re.compile(

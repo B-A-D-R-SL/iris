@@ -258,8 +258,12 @@ differently, for example:
 - one side only reformatted or renamed something the other side did not touch semantically;
 - `frontend/src/shared/api/generated.d.ts`: take either side, then regenerate it after the
   merge (README "API types" commands) instead of hand-merging;
-- lock files (`backend/uv.lock`, `frontend/pnpm-lock.yaml`): take the target's version and
-  re-run the package manager only if the working branch also changed the manifest.
+- lock files (`backend/uv.lock`, `frontend/pnpm-lock.yaml`) when the working branch also
+  changed the manifest (`backend/pyproject.toml`, `frontend/package.json`): take the target's
+  lock file, then re-run the package manager (`uv lock`, `pnpm install`) so the branch's
+  manifest changes are locked again. If the branch changed the lock file **without** its
+  manifest (a lock-only upgrade such as `uv lock --upgrade-package <name>`), ask instead:
+  taking the target's version would silently drop that upgrade.
 
 **Pause and ask the developer** (AskUserQuestion, all open conflicts in one call where
 possible, each question standing on its own: file, what ours does, what theirs does, a
@@ -297,7 +301,10 @@ Run independent commands in parallel and long ones in the background.
 
 ### Full run
 
-Run the same checks CI runs.
+Run the checks from the `backend` and `frontend` jobs of `.github/workflows/ci.yml` that
+can run locally. Before running, compare this list with the `run:` steps of `ci.yml` on the
+merged code; if CI has gained a step that is not here and not under "Left to CI" below,
+run it too if it can run in Docker, otherwise add it to the left-to-CI list in the report.
 
 Backend:
 
@@ -308,6 +315,14 @@ docker compose exec -T backend ruff format --check .
 docker compose exec -T backend mypy .
 docker compose exec -T backend lint-imports
 docker compose exec -T backend python manage.py makemigrations --check --dry-run
+```
+
+Production deployment check, only if `ci.yml` has the "Production deployment check" step
+(it runs `manage.py check` against the production settings). Pass each variable from that
+step's `env:` block with `-e` (they are synthetic CI values, not secrets):
+
+```sh
+docker compose exec -T -e DJANGO_SECRET_KEY=<from ci.yml> -e DJANGO_ALLOWED_HOSTS=<from ci.yml> ... backend python manage.py check --settings=iris.settings.production --deploy --fail-level WARNING
 ```
 
 Frontend:
@@ -321,13 +336,19 @@ API types and the policy checker:
 
 ```sh
 docker compose exec -T -e PYTHONUTF8=1 backend python -B manage.py spectacular --format openapi-json --validate --fail-on-warn | docker compose run --rm --no-deps -T frontend pnpm gen:api --schema-stdin --check
+docker compose run --rm --no-deps -T -v "$PWD/.github/scripts:/scripts" -w /scripts backend sh -c "ruff check --extend-ignore EXE002 . && ruff format --check ."
 py -m unittest discover -s .github/scripts -p "test_*.py"
 ```
 
-(`py` is the Python launcher on Windows; use `python3` elsewhere.)
+(`py` is the Python launcher on Windows; use `python3` elsewhere. The backend container only
+mounts `backend/`, so the policy checker's Ruff run mounts `.github/scripts` itself; EXE002
+is ignored because Windows bind mounts mark every file executable, as in the backend's Ruff
+config. In Git Bash, set `MSYS_NO_PATHCONV=1` for that command.)
 
-`slow_expiry` (a real five-minute wait) and the `pip-audit` / `pnpm audit` steps are skipped
-locally; say so in the report.
+**Left to CI** (say so in the report): the `slow_expiry` photo test (a real five-minute
+wait), `pip-audit` and `pnpm audit`, `pnpm test:api` (some of its tests start the backend's
+`backend/.venv` Python, which the frontend container does not have), secret scanning
+(gitleaks), the ZAP baseline scan, and SonarQube.
 
 ### Quick checks
 
@@ -340,9 +361,11 @@ git diff --name-only ORIG_HEAD HEAD      # only if step 5 merged new commits
 
 Run only what applies (skip a block when no file in it changed):
 
-- **Backend `.py` changed** (`backend/`):
+- **Backend `.py`, `backend/pyproject.toml` or `backend/uv.lock` changed** (`backend/`):
   - `docker compose exec -T backend ruff check <changed .py files, paths relative to backend/>`
-  - `docker compose exec -T backend ruff format --check <same files>`
+    (skip when no `.py` file changed)
+  - `docker compose exec -T backend ruff format --check <same files>` (skip when no `.py`
+    file changed)
   - `docker compose exec -T backend mypy .` (whole project: types cross files)
   - `docker compose exec -T backend lint-imports`
   - Pytest, chosen as follows (modules depend on each other, so testing only the touched
@@ -374,11 +397,14 @@ Run only what applies (skip a block when no file in it changed):
   changed, or `frontend/src/shared/api/generated.d.ts` changed**: the API types check from
   the full run. Schema changes can come from services, models or settings, not only from
   `api/` folders, and the check is quick.
-- **Policy checker changed** (`.github/scripts/`): its unittest command from the full run.
+- **Settings changed** (`backend/iris/settings/`): the production deployment check from the
+  full run.
+- **Policy checker changed** (`.github/scripts/`): its Ruff and unittest commands from the
+  full run.
 
 Say in one line which checks you picked (no question, just keep going). Afterwards, note
 what ran and what was left to CI (at least the full pytest suite with coverage,
-`pnpm build`, and any block skipped above).
+`pnpm build`, any block skipped above, and the "Left to CI" list of the full run).
 
 ### If anything fails
 
@@ -517,7 +543,9 @@ missing on a file the merge brought in), stop and ask.
 Follow the step 2 answer:
 
 - **Ask me first**: show the target, title, full body, number of commits and the test
-  summary, and ask for confirmation. On no, stop (nothing has been pushed).
+  summary, and ask for confirmation. On no, restore any stash from step 4 (`git stash pop`,
+  as in step 11), then stop. Nothing has been pushed; tell the developer that the commits
+  from step 4, the merge commit and any header commit are still on the local branch.
 - **Do it automatically**: go ahead, but only if step 7 passed (or was skipped/quick as
   chosen) and step 9 passed.
 
