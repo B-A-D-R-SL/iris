@@ -38,7 +38,7 @@ export const NEIGHBOURHOOD_GROCERY = {
   name: "Épicerie du Quartier",
 };
 
-/** Today 16 h – 18 h in Montreal, 7 items left, best before tomorrow. */
+/** Today 16 h – 18 h in Montreal, 7 items left (2 per household), best before tomorrow. */
 export function card(overrides: Partial<ListingCard> = {}): ListingCard {
   return {
     id: "00000000-0000-4000-8000-000000000101",
@@ -48,6 +48,7 @@ export function card(overrides: Partial<ListingCard> = {}): ListingCard {
     pickup_start: "2026-11-12T21:00:00Z",
     pickup_end: "2026-11-12T23:00:00Z",
     units_left: 7,
+    max_per_household: 2,
     unit: "item",
     best_before: "2026-11-13",
     photo_url: null,
@@ -62,14 +63,20 @@ export function page(
   return Response.json({ count, next, previous: null, results: cards });
 }
 
-/** Fakes /api/me/ (an approved household's user), /api/categories/ and /api/listings/. */
-export function mockBrowseApi(listings: (url: URL) => Response) {
-  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+/**
+ * Fakes /api/me/ (an approved household's user), /api/categories/, /api/listings/
+ * and, when `reserve` is given, POST /api/reservations/ (US-41).
+ */
+export function mockBrowseApi(listings: (url: URL) => Response, reserve?: () => Response) {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const href = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const url = new URL(href, "http://localhost");
     if (url.pathname === "/api/me/") return Response.json(testUser("beneficiary"));
     if (url.pathname === "/api/categories/") return Response.json(CATEGORIES);
     if (url.pathname === "/api/listings/") return listings(url);
+    if (url.pathname === "/api/reservations/" && init?.method === "POST" && reserve) {
+      return reserve();
+    }
     return new Response(null, { status: 404 });
   });
   vi.stubGlobal("fetch", fetchMock);

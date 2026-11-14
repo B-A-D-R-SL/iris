@@ -1,14 +1,24 @@
 /* AI contribution: 50% or more AI-generated */
-/* H1.4 "Listing detail": photo, title, category tag, then one line per fact. */
+/* Figma Household > Find and reserve: H1.4 "Listing detail" (108:1268) and
+   H1.5 "Reserved" (108:1304). Photo, title, category tag, one line per fact,
+   then the sticky actions. */
 
+/* H1.4 "Content": 16 px around, 24 px under the last block. */
+.content {
+  padding: 16px 16px 24px;
+}
+
+/* WF/Title: Inter Bold 22/28. */
 .title {
   font-size: var(--mantine-font-size-xl);
+  font-weight: 700;
   line-height: 28px;
   overflow-wrap: anywhere;
 }
 
+/* Figma "Badge": 24 px high, 10 px sides, fully rounded, WF/Caption strong. */
 .category {
-  padding: 2px 10px;
+  padding: 4px 10px;
   border-radius: 999px;
   background-color: var(--h1-sand);
   font-size: var(--mantine-font-size-xs);
@@ -16,19 +26,26 @@
   line-height: 16px;
 }
 
+/* H1.4 "Info": 8 px between lines. */
 .facts {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* H1.5 "Info": 6 px between lines. */
+.facts[data-compact] {
+  gap: 6px;
+}
+
+/* WF/Body (14/20), a 20 px icon, 8 px between icon and text. */
 .fact {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 8px;
   font-size: var(--mantine-font-size-sm);
   line-height: 20px;
 }
@@ -37,6 +54,22 @@
   flex-shrink: 0;
 }
 
+/* WF/Body strong: the pickup window on H1.4, the item on H1.5. */
 .fact[data-strong] {
   font-weight: 600;
+}
+
+/* The address is secondary text in both frames. */
+.fact[data-muted] {
+  color: var(--h1-muted);
+}
+
+/* H1.4 "Sticky actions": stays above the bottom tabs while the listing scrolls. */
+.actions {
+  position: sticky;
+  bottom: var(--app-shell-footer-offset, 0px);
+  z-index: 1;
+  padding: 12px 16px;
+  border-top: 1px solid var(--mantine-color-default-border);
+  background-color: var(--mantine-color-body);
 }
