@@ -203,3 +203,95 @@ def test_a_draft_answers_400_until_it_is_submitted(
     assert response.status_code == 400
     household.refresh_from_db()
     assert household.status == "draft"
+
+
+def summary_url(household_id: object) -> str:
+    """Decision summary route for one walk-in file."""
+    return f"/api/staff/households/{household_id}/decision-summary/"
+
+
+def test_the_summary_gives_size_income_and_threshold(
+    staff_client: APIClient, household: Any
+) -> None:
+    """The numbers come from the API; nothing is saved by asking."""
+    body = staff_client.get(summary_url(household.pk)).json()
+
+    assert body == {
+        "household_size": 1,
+        "adult_count": 1,
+        "total_income_cents": 1_234_500,
+        "threshold_cents": 3_000_000,
+        "ready_for_decision": True,
+        "will_go_to_review": False,
+        "eligible": True,
+        "approved_months": 12,
+        "valid_until": body["valid_until"],
+    }
+    # The same date approval would save (test_eligible_file_is_approved).
+    assert body["valid_until"].startswith("2027-11-08")
+    assert not apps.get_model("eligibility.EligibilityDecision").objects.exists()
+
+
+def test_the_summary_says_when_the_file_will_go_to_review(
+    staff_client: APIClient, household: Any
+) -> None:
+    _notices(household).update(seen_in_person=False)
+
+    body = staff_client.get(summary_url(household.pk)).json()
+
+    assert body["ready_for_decision"] is True
+    assert body["will_go_to_review"] is True
+    assert body["total_income_cents"] is None
+    assert body["eligible"] is None
+
+
+def test_the_summary_says_not_eligible_when_income_is_above_the_threshold(
+    staff_client: APIClient, household: Any
+) -> None:
+    _notices(household).update(total_income_cents=3_000_001)
+
+    body = staff_client.get(summary_url(household.pk)).json()
+
+    assert body["will_go_to_review"] is False
+    assert body["eligible"] is False
+    # Approving would reject the file, so there is no validity to show.
+    assert body["approved_months"] is None
+    assert body["valid_until"] is None
+
+
+def test_the_summary_is_not_ready_while_an_adult_has_no_notice(
+    staff_client: APIClient, household: Any
+) -> None:
+    MemberFactory(household=household, relation="spouse_partner")
+
+    body = staff_client.get(summary_url(household.pk)).json()
+
+    assert body["adult_count"] == 2
+    assert body["ready_for_decision"] is False
+
+
+def test_the_summary_of_an_unknown_file_answers_404(staff_client: APIClient) -> None:
+    assert staff_client.get(summary_url(uuid4())).status_code == 404
+
+
+def test_the_summary_sends_a_submitted_file_with_a_missing_notice_to_review(
+    staff_client: APIClient, household: Any
+) -> None:
+    """A member who turned 18 after submission cannot get a notice: review."""
+    MemberFactory(household=household, relation="spouse_partner")
+
+    body = staff_client.get(summary_url(household.pk)).json()
+
+    assert body["ready_for_decision"] is True
+    assert body["will_go_to_review"] is True
+
+
+def test_the_decision_says_whether_an_invitation_was_not_sent(
+    staff_client: APIClient, staff: Any, household: Any
+) -> None:
+    Household.objects.filter(pk=household.pk).update(email=staff.email)
+
+    body = staff_client.post(approve_url(household.pk)).json()
+
+    assert body["status"] == "approved"
+    assert body["invitation_not_sent"] is True

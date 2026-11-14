@@ -1,5 +1,7 @@
 # AI contribution: 50% or more AI-generated
-"""Create, edit, submit and approve walk-in files, and record their notices, for staff."""
+"""Create, edit, submit and suspend walk-in files for staff.
+
+Notices live in notice_services and approval in approval_services."""
 
 import hashlib
 import logging
@@ -12,22 +14,18 @@ from django.conf import settings
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import OperationalError, connection, transaction
-from django.db.models import QuerySet
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from modules.audit import services as audit_services
-from modules.documents import services as document_services
-from modules.households import _approval
-from modules.households.domain.person import is_adult
 from modules.households.exceptions import DuplicateLockTimeout
 from modules.households.limits import max_household_people
 from modules.households.models import Household, HouseholdDraftEvent, Member
 from modules.households.policies import (
-    can_manage_walk_ins,
     can_suspend_households,
     is_editable_walk_in,
+    require_walk_in_staff as _require_staff,
 )
 from modules.households.queries import (
     find_possible_duplicates,
@@ -40,9 +38,6 @@ from modules.reservations import services as reservation_services
 from modules.rules import queries as rule_queries
 
 logger = logging.getLogger("iris.households")
-
-# BR-DUP-002: approval is a separate step after submission (duplicate check).
-APPROVABLE = frozenset({Household.Status.SUBMITTED, Household.Status.REVIEW_REQUIRED})
 
 ADDRESS_FIELDS = frozenset(
     ("street_number", "street_name", "unit", "city", "postal_code")
@@ -131,42 +126,6 @@ def change_suspension(
         reason=clean_reason,
     )
     return household
-
-
-@transaction.atomic
-def approve_walk_in(household: Household, staff: AbstractBaseUser) -> Household:
-    _require_staff(staff)
-    if getattr(staff, "pk", None) is None or getattr(
-        getattr(staff, "_state", None), "adding", True
-    ):
-        raise PermissionDenied(
-            _("Only active intake workers and admins can manage walk-ins.")
-        )
-    # Draft editing and notice entry take this same lock before changing evidence.
-    locked = Household.objects.select_for_update().get(
-        pk=household.pk,
-        channel=Household.Channel.WALK_IN,
-        anonymized_at__isnull=True,
-    )
-    if locked.status == Household.Status.DRAFT:
-        # BR-DUP-002: approval follows submission, which runs the duplicate check.
-        raise ValidationError(_("Submit the file before approving it."))
-    if locked.status not in APPROVABLE:
-        raise ValidationError(
-            _("This household file cannot be approved in its current status.")
-        )
-    locked.full_clean()
-    _approval.check_complete(locked)
-    _approval.apply_outcome(locked, staff)
-    _approval.record_outcome(locked, staff)
-    return locked
-
-
-def _require_staff(user: AbstractBaseUser) -> None:
-    if not can_manage_walk_ins(user):
-        raise PermissionDenied(
-            _("Only active intake workers and admins can manage walk-ins.")
-        )
 
 
 def _apply_holder(household: Household, values: Mapping[str, Any]) -> None:
@@ -362,71 +321,6 @@ def update_draft(
         action=HouseholdDraftEvent.Action.UPDATED,
     )
     return household
-
-
-def _notice_member(household: Household, data: Mapping[str, Any]) -> Member:
-    """BR-DOC-007: the adult of this draft walk-in that the notice is for."""
-    if household.status != Household.Status.DRAFT:
-        raise ValidationError(
-            {"status": _("Notices can only be added to a draft file.")}
-        )
-    member_id = data.get("member")
-    member = (
-        household.members.filter(pk=member_id).first()
-        if isinstance(member_id, UUID)
-        else None
-    )
-    if member is None:
-        raise ValidationError({"member": _("Choose a person from this household.")})
-    if not is_adult(member.date_of_birth, timezone.localdate()):
-        raise ValidationError({"member": _("Notices are recorded for adults only.")})
-    return member
-
-
-def record_walk_in_notice(
-    household_id: UUID, data: Mapping[str, Any], staff_user: AbstractBaseUser
-) -> document_services.IncomeNotice:
-    """Record an adult's notice or non-filing reason on a draft walk-in (BR-DOC-007).
-
-    The file is checked and stored first, with no lock held, so a slow upload never
-    blocks draft edits or approval of this file. The row is then locked, the draft
-    and member checked again, and the notice saved; on failure the file is removed.
-    """
-    _require_staff(staff_user)
-    # Same scope as every walk-in path: walk-in channel, not anonymized.
-    files = walk_ins_for_staff(staff_user)
-    _notice_member(files.get(pk=household_id), data)  # nothing is stored if refused
-    values = {
-        key: value for key, value in data.items() if key not in ("member", "file")
-    }
-    prepared = document_services.prepare_staff_notice(
-        values, data.get("file"), staff_user
-    )
-    try:
-        return _save_walk_in_notice(files, household_id, data, staff_user, prepared)
-    except Exception:
-        document_services.discard_prepared_notice(prepared)
-        raise
-
-
-@transaction.atomic
-def _save_walk_in_notice(
-    files: QuerySet[Household],
-    household_id: UUID,
-    data: Mapping[str, Any],
-    staff_user: AbstractBaseUser,
-    prepared: document_services.PreparedNotice,
-) -> document_services.IncomeNotice:
-    # Draft edits and approval take this lock too, so the checks hold until saved.
-    household = files.select_for_update().get(pk=household_id)
-    member = _notice_member(household, data)
-    HouseholdDraftEvent.objects.create(
-        household=household,
-        actor_id=staff_user.pk,
-        actor_role=getattr(staff_user, "role", ""),
-        action=HouseholdDraftEvent.Action.UPDATED,
-    )
-    return document_services.save_prepared_notice(member.pk, prepared, staff_user)
 
 
 def _submission_members(household: Household) -> list[Member]:

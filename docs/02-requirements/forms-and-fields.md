@@ -200,7 +200,13 @@ Staff page **Avis de cotisation / Notices of assessment** (`/staff/walk-in/{id}/
 | `notice_date` | Date de l'avis | Notice date | date | Yes, unless `did_not_file` | After December 31 of the tax year, not after today (BR-DOC-002) |
 | `seen_in_person` | Avis vu en personne | Notice seen in person | checkbox | No | Unticked sends the file to review |
 
-Below the cards, **Résumé pour la décision / Decision summary** lists each adult (to record, notice recorded, not seen in person, did not file) and says whether the file is ready for a decision or will go to review. **Approuver le dossier / Approve the file** is enabled once every adult has a notice or a reason and no saved notice is being replaced ("Remplacer cet avis / Replace this notice" disables it until the new notice is saved or cancelled, and approval disables replacing); the answer shows "Dossier approuvé jusqu'au … / File approved until …", "Dossier refusé / File rejected" or "Dossier envoyé en révision / File sent to review", with each reason in plain words.
+The page header reads "Avis et décision · {name}", with the member number, the channel and the visit date, the file's status badge and an adults / dependants count. Each card is titled "Adulte 1 · {name}", followed by "(personne responsable / responsible person)" for the holder.
+
+Below the cards, **Résumé pour la décision / Decision summary** lists each adult (to record, notice recorded, not seen in person, did not file), the household size, the total household income and the low-income threshold, and says whether the file is ready for a decision or will go to review. Those numbers and the ready / review answers come from `GET /api/staff/households/{id}/decision-summary/`; the screen does not work them out. The steps are:
+
+1. **Soumettre le dossier / Submit the file** is enabled once every adult has a notice or a reason and no saved notice is being replaced ("Remplacer cet avis / Replace this notice" disables it until the new notice is saved or cancelled, and submitting disables replacing). Submitting runs the duplicate check and locks the notices. A possible duplicate sends the file to review (BR-DUP-002).
+2. **Approuver le dossier / Approve the file** appears for a submitted file. It opens a confirmation, "Approuver ce dossier ? / Approve this file?", because approval is final and emails an invitation when the household gave an email address. **Confirmer l'approbation / Confirm approval** asks the server to decide.
+3. The answer shows "Dossier approuvé jusqu'au … / File approved until …", "Dossier refusé / File rejected" or "Dossier envoyé en révision / File sent to review", with each reason in plain words. A file in review has no approve action: approving it again could not change the outcome.
 
 ## Categories
 

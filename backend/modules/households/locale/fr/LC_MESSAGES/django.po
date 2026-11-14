@@ -17,9 +17,6 @@ msgstr "Une personne responsable adulte est requise."
 msgid "Record a notice or non-filing reason for every adult."
 msgstr "Enregistrez un avis ou un motif de non-production pour chaque adulte."
 
-msgid "Complete the household address and telephone number."
-msgstr "Complétez l'adresse et le numéro de téléphone du foyer."
-
 msgid "Data-processing consent is required."
 msgstr "Le consentement au traitement des données est requis."
 
@@ -193,6 +190,9 @@ msgstr "Les avis ne peuvent être ajoutés qu'à un dossier en brouillon."
 
 msgid "Submit the file before approving it."
 msgstr "Soumettez le dossier avant de l'approuver."
+
+msgid "This file is already waiting for review."
+msgstr "Ce dossier est déjà en attente de révision."
 
 msgid "Choose a person from this household."
 msgstr "Choisissez une personne de ce foyer."

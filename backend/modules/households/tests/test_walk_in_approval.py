@@ -22,9 +22,10 @@ from modules.accounts import services as account_services
 from modules.accounts.tests.factories import UserFactory
 from modules.audit import services as audit_services
 from modules.documents.tests.factories import IncomeNoticeFactory
+from modules.households.approval_services import approve_walk_in
 from modules.households.models import Household
 from modules.households.queries import HouseholdEvidenceUnavailable, eligibility_inputs
-from modules.households.services import approve_walk_in, update_draft
+from modules.households.services import submit_walk_in, update_draft
 from modules.households.tests.factories import HouseholdFactory, MemberFactory
 from modules.notifications.models import EmailLog
 from modules.notifications.tasks import send_email
@@ -116,10 +117,8 @@ def assert_unapproved(household: Any, status: str) -> None:
 
 
 def submit(household: Any) -> None:
-    """Stand in for the Submit button: approval follows submission (BR-DUP-002)."""
-    Household.objects.filter(pk=household.pk, status="draft").update(
-        status="submitted", submitted_at=NOW
-    )
+    """Press Submit as staff do: approval follows submission (BR-DUP-002)."""
+    submit_walk_in(household.pk, household.created_by)
 
 
 def submit_and_approve(household: Any, actor: Any) -> Any:
@@ -242,7 +241,7 @@ def test_missing_adult_notice_leaves_draft_unchanged(
     assert error.value.messages == [
         gettext("Record a notice or non-filing reason for every adult.")
     ]
-    assert_unapproved(household, "submitted")
+    assert_unapproved(household, "draft")
     assert not decisions(household).exists()
     assert not audit_events(household).exists()
 
@@ -270,27 +269,17 @@ def test_income_snapshot_counts_adults_and_all_members(
     assert decision.threshold_cents == 9_000_000
 
 
-def test_existing_review_flag_takes_priority_over_rejection(
+def test_unchecked_identity_is_refused_at_submission(
     household: Any, staff: Any
 ) -> None:
-    Household.objects.filter(pk=household.pk).update(
-        status="review_required",
-        status_reason="DUPLICATE_PERSON",
-    )
-    notices(household).update(total_income_cents=9_000_000)
-    assert submit_and_approve(household, staff).status_reason == "DUPLICATE_PERSON"
-    assert_unapproved(household, "review_required")
-    assert decisions(household).get().eligible is False
-
-
-def test_unchecked_identity_requires_review(household: Any, staff: Any) -> None:
     Household.objects.filter(pk=household.pk).update(
         identity_checked_in_person=False,
         verified_by=None,
         verified_at=None,
     )
-    assert submit_and_approve(household, staff).status_reason == "IDENTITY_NOT_VERIFIED"
-    assert_unapproved(household, "review_required")
+    with pytest.raises(ValidationError):
+        submit_and_approve(household, staff)
+    assert_unapproved(household, "draft")
 
 
 @pytest.mark.parametrize(
@@ -307,7 +296,7 @@ def test_incomplete_file_cannot_be_approved(
     Household.objects.filter(pk=household.pk).update(**changes)
     with pytest.raises(ValidationError):
         submit_and_approve(household, staff)
-    assert_unapproved(household, "submitted")
+    assert_unapproved(household, "draft")
     assert not decisions(household).exists()
 
 
@@ -417,13 +406,36 @@ def test_email_is_sent_after_commit_and_accepts_invitation(
     assert user.role == "beneficiary"
 
 
-def test_invitation_failure_rolls_back_all_writes(household: Any, staff: Any) -> None:
+def test_an_email_with_an_account_is_approved_without_an_invitation(
+    household: Any,
+    staff: Any,
+    email_jobs: list[dict[str, Any]],
+    django_capture_on_commit_callbacks: Any,
+) -> None:
+    """The household is served at the counter; staff are told no email goes out."""
     Household.objects.filter(pk=household.pk).update(email=staff.email)
-    with pytest.raises(ValidationError):
-        submit_and_approve(household, staff)
-    assert_unapproved(household, "submitted")
+    with django_capture_on_commit_callbacks(execute=True):
+        result = submit_and_approve(household, staff)
+    assert result.status == "approved"
+    assert result.invitation_not_sent is True
+    household.refresh_from_db()
+    assert household.status == "approved"
+    assert not invitations().exists()
+    assert email_jobs == []
+    assert audit_events(household).get().metadata == {"outcome": "approved"}
+
+
+def test_a_member_who_turns_18_after_submission_sends_the_file_to_review(
+    household: Any, staff: Any
+) -> None:
+    """Notices are locked after submission, so the file cannot stay stuck."""
+    submit(household)
+    MemberFactory(household=household, relation="spouse_partner")
+    result = approve_walk_in(household, staff)
+    assert result.status == "review_required"
+    assert result.status_reason == "NOTICE_MISSING"
     assert not decisions(household).exists()
-    assert not audit_events(household).exists()
+    assert audit_events(household).get().metadata == {"outcome": "review_required"}
 
 
 def test_audit_failure_rolls_back_all_writes(
@@ -514,11 +526,34 @@ def test_a_draft_must_be_submitted_before_approval(household: Any, staff: Any) -
 
 
 # rule: BR-DUP-002
-def test_a_possible_duplicate_stays_in_review(household: Any, staff: Any) -> None:
+def test_a_file_in_review_cannot_be_approved_again(
+    household: Any, staff: Any
+) -> None:
+    """Approving again could not change the outcome; it would only repeat rows."""
     Household.objects.filter(pk=household.pk).update(
         status="review_required", status_reason="POSSIBLE_DUPLICATE"
     )
-    decided = approve_walk_in(household, staff)
-    assert decided.status == "review_required"
-    assert "POSSIBLE_DUPLICATE" in decided.status_reason
-    assert decided.approved_at is None
+    with pytest.raises(ValidationError) as refused:
+        approve_walk_in(household, staff)
+    assert refused.value.messages == [gettext("This file is already waiting for review.")]
+    household.refresh_from_db()
+    assert household.status_reason == "POSSIBLE_DUPLICATE"
+    assert not decisions(household).exists()
+    assert not audit_events(household).exists()
+
+
+def test_the_decision_is_logged_after_commit(
+    household: Any,
+    staff: Any,
+    caplog: pytest.LogCaptureFixture,
+    django_capture_on_commit_callbacks: Any,
+) -> None:
+    submit(household)
+    with (
+        caplog.at_level("INFO", logger="iris.households"),
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        approve_walk_in(household, staff)
+    event = next(r for r in caplog.records if r.getMessage() == "walk_in_decision")
+    assert event.__dict__["outcome"] == "approved"
+    assert event.__dict__["household_id"] == str(household.pk)

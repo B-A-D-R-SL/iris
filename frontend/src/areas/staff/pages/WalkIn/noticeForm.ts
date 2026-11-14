@@ -186,16 +186,3 @@ export function adultState(notice: RecordedNotice | undefined): AdultState {
   if (notice.did_not_file_reason) return "didNotFile";
   return notice.seen_in_person ? "filed" : "notSeen";
 }
-
-/** Approval can be asked once every adult has a notice or a non-filing reason. */
-export function readyForDecision(
-  adultMembers: readonly Member[],
-  notices: Readonly<Record<string, RecordedNotice>>,
-): boolean {
-  return adultMembers.length > 0 && adultMembers.every((member) => notices[member.id]);
-}
-
-/** Non-filing or an unseen notice sends the file to review (business-rules.md, #469). */
-export function needsReview(notices: readonly RecordedNotice[]): boolean {
-  return notices.some((notice) => adultState(notice) !== "filed");
-}

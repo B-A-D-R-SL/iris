@@ -12,9 +12,9 @@ account. The record also preserves staff verification and creation timestamps.
 
 - `services.create_walk_in(data, staff_user) -> Household`
 - `services.update_draft(household_id, data, staff_user) -> Household`
-- `services.approve_walk_in(household, staff) -> Household`: checks current
+- `approval_services.approve_walk_in(household, staff) -> Household`: checks current
   evidence, records the outcome and prepares a beneficiary invitation when needed
-- `services.record_walk_in_notice(household_id, data, staff_user) -> IncomeNotice`:
+- `notice_services.record_walk_in_notice(household_id, data, staff_user) -> IncomeNotice`:
   checks the household is a draft walk-in (not anonymized) and the member is one of
   its adults (BR-DOC-007), stores the file with `documents.services.prepare_staff_notice`
   before locking, then locks the household, checks again, records the draft change and
@@ -82,6 +82,13 @@ creator, verifier or internal keys directly.
   expires_at }` with 200, whether the file is approved, rejected or sent to
   review. An incomplete file, or one that cannot be decided in its status,
   answers 400 with the message in `fields.non_field_errors`; unknown IDs 404.
+- `GET /api/staff/households/{uuid}/decision-summary/`: calls
+  `approval_services.decision_summary` and returns `{ household_size, adult_count,
+  total_income_cents, threshold_cents, ready_for_decision, will_go_to_review, eligible, approved_months, valid_until }`.
+  `approved_months` and `valid_until` are set only when approving would approve the file;
+  they come from the same `file_validity` helper the approval uses.
+  Read-only; income and threshold are `null` until every adult has a notice the
+  rules can add up. The screen shows these and works nothing out itself.
 
 Errors use `{ "code", "message", "fields" }`; nested form field paths are
 reported as dotted keys such as `address.postal_code`.
@@ -216,12 +223,13 @@ Income notices are recorded through the endpoint above (T-03.18.2).
 
 ## Walk-in approval (#469)
 
-`approve_walk_in` accepts submitted or review-required walk-ins from an active
-intake worker or admin; a draft is refused with "Submit the file before approving
+`approve_walk_in` accepts submitted walk-ins from an active
+intake worker or admin; a file already in review is refused ("This file is already
+waiting for review.": approving again cannot change the outcome), and a draft is refused with "Submit the file before approving
 it." (BR-DUP-002: the US-25 submission runs the duplicate check first). It reloads and locks the saved file; it does not
 trust unsaved changes on the argument. Anonymized files are hidden. The holder,
-address, phone, consent and every adult's notice or non-filing reason must be
-complete. Missing information raises validation errors without changing the file.
+address, phone, consent and identity check are required by submission; approval requires
+every adult's notice or non-filing reason. Missing information raises validation errors without changing the file.
 
 Only current notices count. Adult ages use Montreal's date at approval. Each
 notice name is checked against the member's current first and last names, including
@@ -229,12 +237,13 @@ holder corrections made after recording the notice. Case and accents are ignored
 extra middle names are allowed. Postal codes must match the household address.
 
 Review reasons are `NAME_MISMATCH`, `ADDRESS_MISMATCH`, `NOTICE_NOT_SEEN`,
-`TAX_YEAR_NOT_ACCEPTED`, `DID_NOT_FILE` and `IDENTITY_NOT_VERIFIED`. Existing
-review flags are preserved and take priority over rejection. Non-filing,
+`TAX_YEAR_NOT_ACCEPTED`, `DID_NOT_FILE`, `INCOME_NOT_CONFIRMED` and `NOTICE_MISSING` (a member who turned 18 after submission, when notices are locked).
+If the household's email already has an account, the file is still approved but no invitation is sent: the response has `invitation_not_sent: true` and the log has `walk_in_invitation_skipped`. Non-filing,
 unaccepted or unverified evidence goes to review without an income decision;
 it is never treated as zero. Accepted tax years come from
 `auto_approval.accepted_tax_years`. The income-ratio rule for online automatic
-approval does not apply to this staff workflow.
+approval does not apply to this staff workflow. Each decision is logged after commit as
+`walk_in_decision` with the household ID, outcome and reason codes only.
 
 With complete verified income, `eligibility.services.decide_for_household`
 records the calculation. Income above LICO gives `rejected` with

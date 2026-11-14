@@ -21,7 +21,7 @@ from adapters.file_store.memory import InMemoryFileStore
 from modules.accounts.tests.factories import UserFactory
 from modules.documents.queries import current_notices
 from modules.households.models import Household, HouseholdDraftEvent
-from modules.households.services import record_walk_in_notice
+from modules.households.notice_services import record_walk_in_notice
 from modules.households.tests.factories import HouseholdFactory, MemberFactory
 from modules.rules.domain.schemas import DEFAULT_RULE_VALUES
 from modules.rules.services import publish

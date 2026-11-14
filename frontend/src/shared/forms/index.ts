@@ -3,7 +3,7 @@ export { DateField, type DateFieldProps } from "./DateField";
 export { useFieldWrapper, type BaseFieldProps } from "./fieldProps";
 export { FieldError } from "./FieldError";
 export { FileUpload, type FileUploadProps } from "./FileUpload";
-export { formatMoney } from "./formats";
+export { formatDate, formatMoney } from "./formats";
 export { IntegerField, type IntegerFieldProps } from "./IntegerField";
 export { MoneyField, type MoneyFieldProps } from "./MoneyField";
 export { PhoneField, type PhoneFieldProps } from "./PhoneField";

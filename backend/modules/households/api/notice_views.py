@@ -14,7 +14,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from modules.documents.services import NoticeServiceUnavailable
-from modules.households import queries, services
+from modules.households import notice_services, queries
 from modules.households.api.notice_serializers import (
     WalkInNoticeInputSerializer,
     WalkInNoticeReadSerializer,
@@ -53,7 +53,7 @@ class WalkInNoticeView(WalkInErrorHandlingMixin, GenericAPIView):
         serializer = WalkInNoticeInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            notice = services.record_walk_in_notice(
+            notice = notice_services.record_walk_in_notice(
                 id, serializer.validated_data, request.user
             )
         except Household.DoesNotExist as exc:

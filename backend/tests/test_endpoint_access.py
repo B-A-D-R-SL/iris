@@ -40,6 +40,7 @@ ACCESS: dict[str, frozenset[str]] = {
     "invitation-accept": EVERY_ROLE,
     "staff-households-approve": frozenset({INTAKE_WORKER, ADMIN}),
     "staff-households-create": frozenset({INTAKE_WORKER, ADMIN}),
+    "staff-households-decision-summary": frozenset({INTAKE_WORKER, ADMIN}),
     "staff-households-detail": frozenset({INTAKE_WORKER, ADMIN}),
     "staff-households-notices": frozenset({INTAKE_WORKER, ADMIN}),
     "staff-households-reactivate": frozenset({ADMIN}),

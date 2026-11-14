@@ -3,9 +3,11 @@
 
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.models import AnonymousUser
+from django.core.exceptions import PermissionDenied
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
-from modules.accounts.queries import STAFF_ROLES
+from modules.accounts.queries import is_intake_staff
 from modules.households.models import Household
 
 StaffActor = AbstractBaseUser | AnonymousUser | None
@@ -13,12 +15,15 @@ StaffActor = AbstractBaseUser | AnonymousUser | None
 
 def can_manage_walk_ins(actor: StaffActor) -> bool:
     """Allow only active intake workers and administrators to manage walk-ins."""
-    return bool(
-        actor is not None
-        and actor.is_authenticated
-        and actor.is_active
-        and getattr(actor, "role", None) in STAFF_ROLES
-    )
+    return is_intake_staff(actor)
+
+
+def require_walk_in_staff(actor: StaffActor) -> None:
+    """Refuse anyone who may not manage walk-ins."""
+    if not can_manage_walk_ins(actor):
+        raise PermissionDenied(
+            _("Only active intake workers and admins can manage walk-ins.")
+        )
 
 
 def can_suspend_households(actor: StaffActor) -> bool:

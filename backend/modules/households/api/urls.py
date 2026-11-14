@@ -3,7 +3,10 @@
 
 from django.urls import path
 
-from modules.households.api.approval_views import WalkInApproveView
+from modules.households.api.approval_views import (
+    WalkInApproveView,
+    WalkInDecisionSummaryView,
+)
 from modules.households.api.notice_views import WalkInNoticeView
 from modules.households.api.views import (
     HouseholdReactivationView,
@@ -48,5 +51,10 @@ urlpatterns = [
         "staff/households/<uuid:id>/approve/",
         WalkInApproveView.as_view(),
         name="staff-households-approve",
+    ),
+    path(
+        "staff/households/<uuid:id>/decision-summary/",
+        WalkInDecisionSummaryView.as_view(),
+        name="staff-households-decision-summary",
     ),
 ]

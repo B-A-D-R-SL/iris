@@ -9,10 +9,8 @@ import {
   adults,
   ageOn,
   montrealToday,
-  needsReview,
   noticeErrors,
   noticeServerErrors,
-  readyForDecision,
   toNoticeInput,
   type Member,
   type NoticeValues,
@@ -151,20 +149,10 @@ describe("API body", () => {
 });
 
 describe("decision summary", () => {
-  const people = [member("m1", "1990-04-12"), member("m2", "1992-06-01")];
-
-  it("is ready only when every adult has a notice or a reason", () => {
-    expect(readyForDecision(people, { m1: notice() })).toBe(false);
-    expect(readyForDecision(people, { m1: notice(), m2: notice({ member: "m2" }) })).toBe(true);
-    expect(readyForDecision([], {})).toBe(false);
-  });
-
-  it("flags review for non-filing or a notice not seen in person", () => {
+  it("describes what each adult has recorded", () => {
     expect(adultState(undefined)).toBe("missing");
     expect(adultState(notice())).toBe("filed");
     expect(adultState(notice({ seen_in_person: false }))).toBe("notSeen");
     expect(adultState(notice({ did_not_file_reason: "No income" }))).toBe("didNotFile");
-    expect(needsReview([notice()])).toBe(false);
-    expect(needsReview([notice(), notice({ seen_in_person: false })])).toBe(true);
   });
 });
