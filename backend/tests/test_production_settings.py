@@ -22,6 +22,9 @@ def _run(
         "DJANGO_SECRET_KEY": TEST_SECRET_KEY,
         "DJANGO_ALLOWED_HOSTS": "staging.example.test",
         "EMAIL_BACKEND": SMTP_BACKEND,
+        "MAILER_ADAPTER": "smtp",
+        "DEFAULT_FROM_EMAIL": "noreply@iris.example",
+        "PUBLIC_APP_ORIGIN": "https://iris.example",
     }
     environment.pop("IRIS_SERVER_INTERFACE", None)
     for name, value in overrides.items():
@@ -81,6 +84,77 @@ def test_production_refuses_non_delivery_mailers(backend: str) -> None:
     assert result.returncode != 0
     assert "ImproperlyConfigured" in result.stderr
     assert "EMAIL_BACKEND must deliver email in production" in result.stderr
+
+
+def test_production_requires_a_real_adapter() -> None:
+    result = _run(["-c", "import iris.settings.production"], MAILER_ADAPTER="fake")
+    assert result.returncode != 0
+    assert "MAILER_ADAPTER must deliver email in production" in result.stderr
+
+
+@pytest.mark.parametrize("sender", ["", "not-an-address", "noreply@iris.local"])
+def test_production_validates_sender(sender: str) -> None:
+    result = _run(["-c", "import iris.settings.production"], DEFAULT_FROM_EMAIL=sender)
+    assert result.returncode != 0
+    assert "DEFAULT_FROM_EMAIL must be" in result.stderr
+
+
+def test_azure_configuration_validates_active_adapter_only() -> None:
+    command = ["-c", "import iris.settings.production; print('configured')"]
+    missing = _run(
+        command, MAILER_ADAPTER="azure", AZURE_COMMUNICATION_CONNECTION_STRING=""
+    )
+    assert missing.returncode != 0
+    assert "AZURE_COMMUNICATION_CONNECTION_STRING is required" in missing.stderr
+    configured = _run(
+        command,
+        MAILER_ADAPTER="azure",
+        AZURE_COMMUNICATION_CONNECTION_STRING="endpoint=https://synthetic.communication.azure.com/;accesskey=synthetic",
+        EMAIL_BACKEND="django.core.mail.backends.console.EmailBackend",
+    )
+    assert configured.returncode == 0, configured.stderr
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "http://iris.example",
+        "https://localhost",
+        "https://127.0.0.1",
+        "https://10.0.0.1",
+    ],
+)
+def test_production_requires_public_https_origin(origin: str) -> None:
+    result = _run(["-c", "import iris.settings.production"], PUBLIC_APP_ORIGIN=origin)
+    assert result.returncode != 0
+    assert "PUBLIC_APP_ORIGIN must use HTTPS with a nonlocal hostname" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "https://user:password@iris.example",
+        "https://iris.example/path",
+        "https://iris.example?token=secret",
+        "https://iris.example#fragment",
+        "https://iris.example:bad",
+    ],
+)
+def test_origin_must_not_contain_credentials_path_query_or_fragment(
+    origin: str,
+) -> None:
+    result = _run(["-c", "import iris.settings.base"], PUBLIC_APP_ORIGIN=origin)
+    assert result.returncode != 0
+    assert "PUBLIC_APP_ORIGIN must be an HTTP(S) origin" in result.stderr
+
+
+@pytest.mark.parametrize("timeout", ["0", "-1", "nan", "inf"])
+def test_email_send_timeout_must_be_positive_and_finite(timeout: str) -> None:
+    result = _run(
+        ["-c", "import iris.settings.base"], AZURE_EMAIL_SEND_TIMEOUT_SECONDS=timeout
+    )
+    assert result.returncode != 0
+    assert "AZURE_EMAIL_SEND_TIMEOUT_SECONDS must be positive" in result.stderr
 
 
 def test_production_requires_allowed_hosts() -> None:

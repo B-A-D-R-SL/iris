@@ -58,13 +58,8 @@ class SafetyRulesInvalid(ValueError):
     """The listing_safety rule values cannot be used by a safety checker."""
 
 
-def check_posting(
-    data: ListingInput, limits: PostingLimits, *, now: datetime
-) -> list[Refusal]:
-    """Check US-33 fields without a framework, database, clock or file store."""
-    if now.utcoffset() is None:
-        raise ValueError("The supplied clock must be timezone-aware.")
-
+def _check_text(data: ListingInput, limits: PostingLimits) -> list[Refusal]:
+    """Validate text lengths without changing the submitted content."""
     refusals: list[Refusal] = []
     if (
         not limits.title_min_length
@@ -77,6 +72,12 @@ def check_posting(
         and len(data.description) > limits.description_max_length
     ):
         refusals.append(Refusal("description", "description_length"))
+    return refusals
+
+
+def _check_amounts(data: ListingInput, limits: PostingLimits) -> list[Refusal]:
+    """Check quantities, unit and optional value, rejecting booleans as integers."""
+    refusals: list[Refusal] = []
     if type(data.quantity) is not int or not (
         MINIMUM_POSITIVE_INTEGER <= data.quantity <= limits.quantity_max
     ):
@@ -92,9 +93,14 @@ def check_posting(
         or not 0 <= data.estimated_value_cents <= limits.estimated_value_max_cents
     ):
         refusals.append(Refusal("estimated_value_cents", "value_range"))
-    if data.safe_and_allowed is not True:
-        refusals.append(Refusal("safe_and_allowed", "confirmation_required"))
+    return refusals
 
+
+def _check_pickup(
+    data: ListingInput, limits: PostingLimits, *, now: datetime
+) -> list[Refusal]:
+    """Check offsets before comparing elapsed pickup times across DST changes."""
+    refusals: list[Refusal] = []
     if data.pickup_start.utcoffset() is None:
         refusals.append(Refusal("pickup_start", "timezone_required"))
     if data.pickup_end.utcoffset() is None:
@@ -115,6 +121,18 @@ def check_posting(
     ):
         refusals.append(Refusal("pickup_end", "pickup_duration"))
     return refusals
+
+
+def check_posting(
+    data: ListingInput, limits: PostingLimits, *, now: datetime
+) -> list[Refusal]:
+    """Collect field refusals in their original order using only supplied rules."""
+    if now.utcoffset() is None:
+        raise ValueError("The supplied clock must be timezone-aware.")
+    refusals = _check_text(data, limits) + _check_amounts(data, limits)
+    if data.safe_and_allowed is not True:
+        refusals.append(Refusal("safe_and_allowed", "confirmation_required"))
+    return refusals + _check_pickup(data, limits, now=now)
 
 
 def safety_payload(data: ListingInput, *, local_tz: tzinfo) -> dict[str, Any]:

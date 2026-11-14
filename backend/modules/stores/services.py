@@ -5,26 +5,16 @@
 
 import logging
 from collections.abc import Mapping
-from ipaddress import ip_address
 from typing import Any, cast
-from urllib.parse import urlsplit
-from uuid import UUID
 
 from django.conf import settings
-from django.core.exceptions import (
-    ImproperlyConfigured,
-    PermissionDenied,
-    ValidationError,
-)
-from django.core.validators import URLValidator
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
-from django.utils import timezone, translation
-from django.utils.translation import gettext
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from adapters.mailer.base import Mailer
-from adapters.mailer.smtp import SmtpMailer
 from modules.categories import queries as category_queries
+from modules.notifications import services as notification_services
 from modules.stores.models import (
     ApplicationLanguage,
     ApplicationStatus,
@@ -85,36 +75,8 @@ def _check_categories(codes: list[str]) -> None:
         raise ValidationError({"goods_categories": [UNKNOWN_CATEGORY_MESSAGE]})
 
 
-def _confirmation_email(application: PartnerApplication) -> tuple[str, str]:
-    """Render the partner_application_received email in the contact's language."""
-    with translation.override(application.language):
-        subject = gettext("We received your partner application")
-        lines = [
-            gettext("Hello,"),
-            gettext(
-                "Thank you for applying to become a B.A.D.R. partner store with "
-                "Iris. We received the application for %(business)s."
-            )
-            % {"business": application.business_name},
-            gettext(
-                "B.A.D.R. will review it and write to you at this address. "
-                "You have nothing else to do for now."
-            ),
-            gettext("The Iris team"),
-        ]
-    return subject, "\n\n".join(lines)
-
-
-def _send_confirmation(mailer: Mailer, to: str, subject: str, body: str) -> None:
-    try:
-        mailer.send([to], subject, text=body)
-    except Exception:  # noqa: BLE001 - the saved application must not be lost.
-        # No address, names or provider error text: logs never hold personal data.
-        logger.error("partner_application_email_failed")
-
-
 def submit_application(
-    values: Mapping[str, Any], *, language: str, mailer: Mailer | None = None
+    values: Mapping[str, Any], *, language: str
 ) -> PartnerApplication:
     """Save a submitted application, then email the contact after the commit.
 
@@ -138,10 +100,13 @@ def submit_application(
     try:
         with transaction.atomic():
             application.save()
-            subject, body = _confirmation_email(application)
-            sender = mailer if mailer is not None else SmtpMailer()
-            transaction.on_commit(
-                lambda: _send_confirmation(sender, email, subject, body)
+            notification_services.send(
+                email,
+                "partner_application_received",
+                {
+                    "language": application.language,
+                    "business_name": application.business_name,
+                },
             )
     except IntegrityError:
         if _has_open_application(email):
@@ -174,39 +139,12 @@ def can_decide_application(application: PartnerApplication, admin: Any) -> bool:
     return application.status == ApplicationStatus.SUBMITTED
 
 
-def _loopback_host(host: str | None) -> bool:
-    """Permit plaintext links only on explicit development loopback hosts."""
-    if host == "localhost":
-        return True
-    try:
-        return ip_address(host or "").is_loopback
-    except ValueError:
-        return False
-
-
-def _frontend_origin() -> str:
-    """Fail explicitly on deployment mistakes before acquiring an application lock."""
-    value = settings.FRONTEND_URL
-    try:
-        if not isinstance(value, str):
-            raise ValidationError("Invalid origin")
-        value = value.rstrip("/")
-        URLValidator(schemes=["https", "http"])(value)
-        parts = urlsplit(value)
-        if (
-            parts.path
-            or "?" in value
-            or "#" in value
-            or parts.username
-            or parts.password
-            or (parts.scheme == "http" and not _loopback_host(parts.hostname))
-        ):
-            raise ValidationError("Invalid origin")
-    except (ValidationError, ValueError) as exc:
-        raise ImproperlyConfigured(
-            "FRONTEND_URL must be an HTTPS origin; HTTP is allowed only for loopback development."
-        ) from exc
-    return value
+def _invitation_url(token: str) -> str | None:
+    """Let notification validation record email configuration failures separately."""
+    origin = getattr(settings, "PUBLIC_APP_ORIGIN", None)
+    return (
+        f"{origin.rstrip('/')}/invitation/{token}" if isinstance(origin, str) else None
+    )
 
 
 def _locked_application(
@@ -217,46 +155,6 @@ def _locked_application(
     if not can_decide_application(locked, admin):
         raise ApplicationAlreadyDecided
     return locked
-
-
-def _send_decision(
-    mailer: Mailer, email: str, subject: str, body: str, application_id: UUID
-) -> None:
-    """Keep committed decisions intact and identify failures without contact data."""
-    try:
-        mailer.send([email], subject, text=body)
-    except Exception:  # noqa: BLE001 - decision must remain committed.
-        logger.error(
-            "partner_application_decision_email_failed",
-            extra={
-                "event": "partner_application_decision_email_failed",
-                "application_id": str(application_id),
-            },
-        )
-
-
-def _approval_email(
-    application: PartnerApplication, base_url: str, token: str
-) -> tuple[str, str]:
-    """Translate initial and replacement invitations in the applicant's language."""
-    with translation.override(application.language):
-        subject = gettext("Your partner application has been approved")
-        body = gettext(
-            "Hello,\n\nYour partner application has been approved. Create your account:\n"
-            "%(link)s\n\nThe Iris team"
-        ) % {"link": f"{base_url}/invitation/{token}"}
-    return subject, body
-
-
-def _rejection_email(application: PartnerApplication, reason: str) -> tuple[str, str]:
-    """Translate the refusal while leaving the admin's supplied reason unchanged."""
-    with translation.override(application.language):
-        subject = gettext("Your partner application has been declined")
-        body = gettext(
-            "Hello,\n\nYour partner application has been declined.\n"
-            "Reason: %(reason)s\n\nThe Iris team"
-        ) % {"reason": reason}
-    return subject, body
 
 
 def _record_decision(application: PartnerApplication, admin: Any) -> None:
@@ -281,13 +179,12 @@ def _record_decision(application: PartnerApplication, admin: Any) -> None:
 
 @transaction.atomic
 def approve_application(
-    application: PartnerApplication, admin: Any, *, mailer: Mailer | None = None
+    application: PartnerApplication, admin: Any
 ) -> PartnerApplication:
-    """Create the store and manager invitation atomically, then email after commit."""
+    """Create the store and manager invitation atomically, then queue email after commit."""
     from modules.accounts import services as account_services
 
     _require_active_admin(admin)
-    base_url = _frontend_origin()
     application = _locked_application(application, admin)
     store = Store(
         name=application.business_name,
@@ -314,25 +211,23 @@ def approve_application(
     application.status = ApplicationStatus.APPROVED
     application.decision_reason = None
     _record_decision(application, admin)
-    subject, body = _approval_email(application, base_url, token)
-    sender = mailer if mailer is not None else SmtpMailer()
-    transaction.on_commit(
-        lambda: _send_decision(
-            sender, application.contact_email, subject, body, application.pk
-        )
+    notification_services.send(
+        application.contact_email,
+        "partner_application_approved",
+        {
+            "language": application.language,
+            "invitation_url": _invitation_url(token),
+        },
     )
     return application
 
 
 @transaction.atomic
-def resend_approval_invitation(
-    application: PartnerApplication, admin: Any, *, mailer: Mailer | None = None
-) -> None:
+def resend_approval_invitation(application: PartnerApplication, admin: Any) -> None:
     """Reissue an approved application's invitation; send only after commit."""
     from modules.accounts import services as account_services
 
     _require_active_admin(admin)
-    base_url = _frontend_origin()
     application = PartnerApplication.objects.select_for_update().get(pk=application.pk)
     if application.status != ApplicationStatus.APPROVED:
         raise ValidationError(
@@ -346,12 +241,13 @@ def resend_approval_invitation(
         store=store,
         invited_by=admin,
     )
-    subject, body = _approval_email(application, base_url, token)
-    sender = mailer if mailer is not None else SmtpMailer()
-    transaction.on_commit(
-        lambda: _send_decision(
-            sender, application.contact_email, subject, body, application.pk
-        )
+    notification_services.send(
+        application.contact_email,
+        "partner_application_approved",
+        {
+            "language": application.language,
+            "invitation_url": _invitation_url(token),
+        },
     )
 
 
@@ -360,8 +256,6 @@ def reject_application(
     application: PartnerApplication,
     admin: Any,
     reason: str,
-    *,
-    mailer: Mailer | None = None,
 ) -> PartnerApplication:
     """Record a rejection and notify the applicant after the transaction commits."""
     application = _locked_application(application, admin)
@@ -381,11 +275,9 @@ def reject_application(
     application.status = ApplicationStatus.REJECTED
     application.decision_reason = reason
     _record_decision(application, admin)
-    subject, body = _rejection_email(application, reason)
-    sender = mailer if mailer is not None else SmtpMailer()
-    transaction.on_commit(
-        lambda: _send_decision(
-            sender, application.contact_email, subject, body, application.pk
-        )
+    notification_services.send(
+        application.contact_email,
+        "partner_application_rejected",
+        {"language": application.language, "reason": reason},
     )
     return application

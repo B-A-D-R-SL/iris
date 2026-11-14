@@ -4,10 +4,10 @@ import { useEffect } from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 
-import { CURRENT_USER_QUERY_KEY, useCurrentUser } from "../features/accounts/currentUser";
 import { checkHouseholdSearchAccess, HouseholdSearchError } from "../features/households/searchApi";
+import { CURRENT_USER_QUERY_KEY, useCurrentUser } from "../shared/auth/currentUser";
+import { homePathFor } from "../shared/auth/roles";
 import { ErrorState, LoadingState } from "../shared/ui";
-import { homePathFor } from "./navigation";
 
 /** Redirect only after the API refuses access; avoid redirecting back to this screen. */
 function RefusedSearch({

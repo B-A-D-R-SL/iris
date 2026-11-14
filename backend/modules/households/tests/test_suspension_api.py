@@ -1,4 +1,8 @@
 # AI contribution: 50% or more AI-generated
+# File-length exception: keep suspension/reactivation and detail-read cases with
+# their shared approved()/post() helpers. The role/status matrices, stock rollback,
+# audits and after-commit reason delivery form one household state-machine contract
+# for BR-HH-SUSPEND-001 through BR-HH-SUSPEND-004 and must be reviewed together.
 """US-32 suspension transitions, reservation cancellation and authorization."""
 
 from datetime import datetime, timedelta
@@ -11,17 +15,22 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from adapters.mailer.fake import get_fake_mailer
 from modules.accounts.tests.factories import UserFactory
 from modules.audit.models import AuditEvent
 from modules.households.models import Household
 from modules.households.tests.factories import HouseholdFactory
 from modules.listings.models import Listing
 from modules.listings.tests.factories import ListingFactory
+from modules.notifications.models import EmailLog
+from modules.notifications.tasks import send_email
 from modules.reservations.models import MadeByType, Reservation, ReservationStatus
 from modules.rules.services import publish
 from modules.stores.tests.factories import StoreFactory
 
-pytestmark = pytest.mark.django_db
+# Direct task calls run without a native worker's injected JobContext.
+DIRECT_CONTEXT: Any = None
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("notification_rules")]
 
 
 def url(household: Household, action: str) -> str:
@@ -224,6 +233,7 @@ def test_counter_only_household_can_be_suspended_br_hh_suspend_003() -> None:
     """A household without email still changes status."""
     household = approved(email=None)
     assert post(UserFactory(role="admin"), household, "suspend").status_code == 200
+    assert not EmailLog.objects.exists()
 
 
 @pytest.mark.parametrize(
@@ -233,25 +243,77 @@ def test_counter_only_household_can_be_suspended_br_hh_suspend_003() -> None:
         ("reactivate", Household.Status.SUSPENDED, "reactivated"),
     ],
 )
+@pytest.mark.parametrize("language", ["fr", "en"])
 def test_holder_is_emailed_after_commit_br_hh_suspend_003(
     action: str,
     status: str,
     subject: str,
+    language: str,
     django_capture_on_commit_callbacks: Any,
-    monkeypatch: pytest.MonkeyPatch,
+    status_email_jobs: list[dict[str, Any]],
+    capfd: pytest.CaptureFixture[str],
 ) -> None:
-    """A localized holder notice is queued after commit."""
-    queued: list[dict[str, str]] = []
-    monkeypatch.setattr(
-        "modules.notifications.services.send_household_status_email.defer",
-        lambda **kwargs: queued.append(kwargs),
-    )
-    household = approved(status=status)
+    """Both localized notices preserve the approved reason through delivery."""
+    reason = "Review <safe> & completed"
+    household = approved(status=status, preferred_language=language)
     with django_capture_on_commit_callbacks(execute=True):
-        assert post(UserFactory(role="admin"), household, action).status_code == 200
-    assert len(queued) == 1
-    assert queued[0]["email"] == "holder@example.test"
-    assert subject in queued[0]["subject"]
+        response = post(
+            UserFactory(role="admin"),
+            household,
+            action,
+            "  Review   <safe> & completed\n",
+        )
+        assert response.status_code == 200
+        assert status_email_jobs == []
+    [job] = status_email_jobs
+    log = EmailLog.objects.get(pk=job["email_log_id"])
+    assert log.to_email == "holder@example.test"
+    assert log.language == language
+    assert log.template_key == "household_" + subject
+    assert job["context"] == {"reason": reason}
+    send_email(DIRECT_CONTEXT, **job)
+    [message] = get_fake_mailer().sent
+    assert reason in message["text"]
+    assert "Review &lt;safe&gt; &amp; completed" in message["html"]
+    assert "&amp;lt;safe&amp;gt;" not in message["html"]
+    assert ("Motif :" if language == "fr" else "Reason:") in message["text"]
+    log.refresh_from_db()
+    assert log.status == EmailLog.Status.SENT
+    assert reason not in repr(EmailLog.objects.values().get(pk=log.pk))
+    captured = capfd.readouterr()
+    assert reason not in captured.out + captured.err
+
+
+@pytest.fixture
+def status_email_jobs(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    """Capture the actual post-commit task arguments without running a worker."""
+    queued: list[dict[str, Any]] = []
+    monkeypatch.setattr(send_email, "configure", lambda **kwargs: send_email)
+    monkeypatch.setattr(send_email, "defer", lambda **kwargs: queued.append(kwargs))
+    return queued
+
+
+def test_captured_reason_survives_a_later_rule_limit_reduction(
+    django_capture_on_commit_callbacks: Any,
+    status_email_jobs: list[dict[str, Any]],
+) -> None:
+    """A valid reason over 500 characters is not rechecked against future rules."""
+    admin = cast(AbstractBaseUser, UserFactory(role="admin"))
+    publish("household_suspension", {"reason_max_length": 1000}, admin)
+    reason = "Review completed safely. " * 30
+    reason = reason.strip()
+    assert 500 < len(reason) <= 1000
+    household = approved(status=Household.Status.SUSPENDED)
+    with django_capture_on_commit_callbacks(execute=True):
+        assert post(admin, household, "reactivate", reason).status_code == 200
+    [job] = status_email_jobs
+    assert job["context"] == {"reason": reason}
+    publish("household_suspension", {"reason_max_length": 5}, admin)
+    send_email(DIRECT_CONTEXT, **job)
+    [message] = get_fake_mailer().sent
+    assert reason in message["text"]
+    assert reason in message["html"]
+    assert EmailLog.objects.get(pk=job["email_log_id"]).status == EmailLog.Status.SENT
 
 
 def make_reservation(
@@ -432,6 +494,13 @@ def test_detail_get_reads_every_non_anonymized_status_br_hh_suspend_001(
 
 
 @pytest.mark.parametrize(
+    ("action", "status"),
+    [
+        ("suspend", Household.Status.APPROVED),
+        ("reactivate", Household.Status.SUSPENDED),
+    ],
+)
+@pytest.mark.parametrize(
     "reason",
     [
         "SIN 123 456 789",
@@ -450,19 +519,23 @@ def test_detail_get_reads_every_non_anonymized_status_br_hh_suspend_001(
 # rule: BR-HH-SUSPEND-001
 # rule: BR-HH-SUSPEND-004
 def test_sensitive_reason_is_refused_before_audit_or_email_br_hh_suspend_004(
-    reason: str, monkeypatch: pytest.MonkeyPatch
+    action: str, status: str, reason: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Sensitive reason text never reaches audit records or notifications."""
-    household = approved()
-    queued: list[dict[str, str]] = []
+    household = approved(status=status)
+    queued: list[dict[str, Any]] = []
+    monkeypatch.setattr(send_email, "configure", lambda **kwargs: send_email)
     monkeypatch.setattr(
-        "modules.notifications.services.send_household_status_email.defer",
+        send_email,
+        "defer",
         lambda **kwargs: queued.append(kwargs),
     )
-    response = post(UserFactory(role="admin"), household, "suspend", reason)
+    response = post(UserFactory(role="admin"), household, action, reason)
     assert response.status_code == 400
     assert "reason" in response.data["fields"]
     household.refresh_from_db()
-    assert household.status == Household.Status.APPROVED
+    assert household.status == status
     assert not AuditEvent.objects.filter(target_id=str(household.pk)).exists()
+    assert not EmailLog.objects.exists()
     assert queued == []
+    assert get_fake_mailer().sent == []

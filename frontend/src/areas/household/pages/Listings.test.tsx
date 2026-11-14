@@ -164,10 +164,10 @@ describe("Browse listings (US-36)", () => {
     expect(
       await screen.findByText("Les offres seront visibles quand votre dossier sera approuvé"),
     ).toBeVisible();
-    expect(screen.getByRole("link", { name: "Voir l'état de mon dossier" })).toHaveAttribute(
-      "href",
-      "/home",
-    );
+    // The household home, where the file's status will be, is not built yet (FIX-13).
+    expect(
+      screen.queryByRole("link", { name: "Voir l'état de mon dossier" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Aujourd'hui" })).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
   });

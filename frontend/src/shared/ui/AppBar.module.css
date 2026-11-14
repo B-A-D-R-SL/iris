@@ -1,0 +1,30 @@
+/* AI contribution: 50% or more AI-generated */
+/* Figma "App bar" (Navigation & utilities): 56 px, sticky above household and store screens. */
+
+.appBar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 56px;
+  padding: 0 8px 0 16px;
+  background-color: var(--mantine-color-body);
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.appBar[data-back] {
+  padding-left: 4px;
+}
+
+.appBarTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--mantine-font-size-lg);
+  font-weight: 600;
+  line-height: 24px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

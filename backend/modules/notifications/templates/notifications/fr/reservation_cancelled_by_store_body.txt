@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}Le commerce a annulé votre réservation. Connectez-vous à Iris pour consulter vos réservations et les offres disponibles.{% endautoescape %}

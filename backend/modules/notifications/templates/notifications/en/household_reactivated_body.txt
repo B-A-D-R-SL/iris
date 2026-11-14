@@ -1,0 +1,6 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}Your household file has been reactivated.
+
+Reason: {{ reason }}
+
+Sign in to Iris to see its status and the next steps.{% endautoescape %}

@@ -5,6 +5,7 @@ version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
     "argon2-cffi>=25.1.0",
+    "azure-communication-email>=1.1,<2",
     "azure-storage-blob>=12.27,<13",
     "django>=6.1,<6.2",
     "django-allauth[headless]>=65.19.7",
@@ -115,6 +116,24 @@ ignore_imports = [
     "modules.accounts.tests.test_invitations -> modules.stores.tests.factories",
     "modules.accounts.tests.test_api -> modules.stores.tests.factories",
     "modules.accounts.tests.conftest -> modules.rules.models",
+    # US-57 integration tests follow owning workflows into the queued delivery.
+    "modules.accounts.tests.test_notification_adapter -> modules.notifications.models",
+    "modules.accounts.tests.test_notification_adapter -> modules.notifications.tasks",
+    "modules.stores.tests.test_partner_application_service -> modules.notifications.models",
+    "modules.stores.tests.test_partner_application_service -> modules.notifications.tasks",
+    "modules.stores.tests.test_partner_application_api -> modules.notifications.models",
+    "modules.stores.tests.test_partner_application_api -> modules.notifications.tasks",
+    # US-13 decision/recovery tests execute the real queued task with the fake.
+    "modules.stores.tests.conftest -> modules.notifications.tasks",
+    "modules.stores.tests.test_application_decisions -> modules.notifications.models",
+    "modules.stores.tests.test_application_decisions -> modules.notifications.tasks",
+    "modules.stores.tests.test_application_recovery -> modules.notifications.models",
+    "modules.stores.tests.test_application_recovery -> modules.notifications.tasks",
+    "modules.stores.tests.test_staff_application_api -> modules.notifications.models",
+    "modules.stores.tests.test_staff_application_api -> modules.notifications.tasks",
+    "modules.households.tests.test_suspension_api -> modules.notifications.models",
+    "modules.households.tests.test_suspension_api -> modules.notifications.tasks",
+    "modules.notifications.tests.test_services -> modules.accounts.tests.factories",
     "modules.audit.tests.** -> modules.stores.tests.factories",
     "modules.rules.tests.test_rule_set_versions -> modules.accounts.tests.factories",
     "modules.households.tests.** -> modules.accounts.tests.factories",

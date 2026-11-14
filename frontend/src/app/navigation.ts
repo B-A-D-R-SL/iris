@@ -2,29 +2,23 @@
 /**
  * Navigation of each area: one place decides which roles see which screen.
  * Tabs come from the Figma bottom navs and staff side nav (SET-11); roles come
- * from the permission matrix in business-rules.md. The server still checks
- * every permission; this only shapes the interface.
+ * from the permission matrix in business-rules.md, grouped in shared/auth/roles.ts.
+ * Only built screens have an entry: each story adds its own tab with its route.
+ * The server still checks every permission; this only shapes the interface.
  */
 import {
-  IconBuilding,
   IconBuildingStore,
-  IconCalendarEvent,
   IconCategory,
-  IconCircleCheck,
   IconCirclePlus,
+  IconClipboardCheck,
   IconClipboardList,
   IconHome,
-  IconPackage,
-  IconScan,
   IconShoppingBag,
-  IconTicket,
   IconUser,
   type TablerIcon,
 } from "@tabler/icons-react";
 
-import type { Role } from "../features/accounts/currentUser";
-
-export type Area = "household" | "store" | "staff";
+import { AREA_ROLES, type Area, type Role } from "../shared/auth/roles";
 
 export interface NavItem {
   path: string;
@@ -33,48 +27,29 @@ export interface NavItem {
   roles: readonly Role[];
 }
 
-export const AREA_ROLES: Record<Area, readonly Role[]> = {
-  household: ["beneficiary"],
-  store: ["store_staff", "store_manager"],
-  staff: ["intake_worker", "admin"],
-};
-
-const BENEFICIARY = AREA_ROLES.household;
-const STORE_TEAM = AREA_ROLES.store;
-const STAFF = AREA_ROLES.staff;
 const ADMIN: readonly Role[] = ["admin"];
 
 export const NAVIGATION: Record<Area, readonly NavItem[]> = {
   household: [
-    { path: "/home", labelKey: "app.householdNav.home", icon: IconHome, roles: BENEFICIARY },
     {
       path: "/listings",
       labelKey: "app.householdNav.listings",
       icon: IconShoppingBag,
-      roles: BENEFICIARY,
+      roles: AREA_ROLES.household,
     },
-    {
-      path: "/reservations",
-      labelKey: "app.householdNav.reservations",
-      icon: IconTicket,
-      roles: BENEFICIARY,
-    },
-    { path: "/profile", labelKey: "app.householdNav.profile", icon: IconUser, roles: BENEFICIARY },
   ],
   store: [
-    { path: "/store", labelKey: "app.storeNav.today", icon: IconCalendarEvent, roles: STORE_TEAM },
-    { path: "/store/confirm", labelKey: "app.storeNav.confirm", icon: IconScan, roles: STORE_TEAM },
+    {
+      path: "/store/confirm",
+      labelKey: "app.storeNav.confirm",
+      icon: IconClipboardCheck,
+      roles: AREA_ROLES.store,
+    },
     {
       path: "/store/listings/new",
       labelKey: "app.storeNav.post",
       icon: IconCirclePlus,
-      roles: STORE_TEAM,
-    },
-    {
-      path: "/store/listings",
-      labelKey: "app.storeNav.myListings",
-      icon: IconPackage,
-      roles: STORE_TEAM,
+      roles: AREA_ROLES.store,
     },
   ],
   staff: [
@@ -82,22 +57,20 @@ export const NAVIGATION: Record<Area, readonly NavItem[]> = {
       path: "/staff/households",
       labelKey: "app.staffNav.households",
       icon: IconHome,
-      roles: STAFF,
+      roles: AREA_ROLES.staff,
     },
     {
-      path: "/staff/review",
-      labelKey: "app.staffNav.reviews",
-      icon: IconCircleCheck,
-      roles: ADMIN,
+      path: "/staff/walk-in",
+      labelKey: "app.staffNav.walkIn",
+      icon: IconUser,
+      roles: AREA_ROLES.staff,
     },
-    { path: "/staff/walk-in", labelKey: "app.staffNav.walkIn", icon: IconUser, roles: STAFF },
     {
       path: "/staff/partners",
       labelKey: "app.staffNav.partners",
       icon: IconBuildingStore,
       roles: ADMIN,
     },
-    { path: "/staff/stores", labelKey: "app.staffNav.stores", icon: IconBuilding, roles: ADMIN },
     {
       path: "/staff/categories",
       labelKey: "app.staffNav.categories",
@@ -118,27 +91,13 @@ export function navFor(area: Area, role: Role): NavItem[] {
   return NAVIGATION[area].filter((item) => item.roles.includes(role));
 }
 
-/** Where each role lands after sign-in, or when it opens a screen it cannot use. */
-export function homePathFor(role: Role): string {
-  switch (role) {
-    case "beneficiary":
-      return "/home";
-    case "store_staff":
-    case "store_manager":
-      return "/store";
-    case "intake_worker":
-    case "admin":
-      return "/staff/households";
-  }
-}
-
 function isWithin(pathname: string, path: string): boolean {
   return pathname === path || pathname.startsWith(`${path}/`);
 }
 
 /**
  * The menu item to highlight: the longest item path that contains the current
- * page, so /store/listings/new highlights "Publier", not "Mes offres".
+ * page, so a sub-screen such as /listings/42 still highlights its tab.
  */
 export function activeNavPath(items: readonly NavItem[], pathname: string): string | null {
   return items.reduce<string | null>(

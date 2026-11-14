@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}Confirm your email address to finish creating your Iris account.{% endautoescape %}

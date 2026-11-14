@@ -5,10 +5,10 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 
-import { useCurrentUser } from "../../features/accounts/currentUser";
-import { SignOutButton } from "../../shared/auth/SignOutButton";
-import { logger } from "../../shared/logger";
-import classes from "./layouts.module.css";
+import { useCurrentUser } from "../auth/currentUser";
+import { SignOutButton } from "../auth/SignOutButton";
+import { logger } from "../logger";
+import classes from "./AppBar.module.css";
 
 export interface AppBarProps {
   /** The screen title, for example "Publier une offre". */

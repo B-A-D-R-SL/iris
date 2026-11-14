@@ -20,7 +20,7 @@ from modules.stores.models import PartnerApplication
 class Command(BaseCommand):
     """Reissue the invitation without printing the recipient or bearer token."""
 
-    help = "Reissue an approved partner application's invitation and email it after commit."
+    help = "Reissue an approved partner application's invitation and queue its email."
 
     def add_arguments(self, parser: ArgumentParser) -> None:
         """Use opaque application/admin identifiers, never contact details."""
@@ -40,5 +40,5 @@ class Command(BaseCommand):
             raise CommandError(str(exc)) from exc
         self.stdout.write(
             f"Invitation reissued for application {application.pk}. "
-            "Check email-failure events for delivery failures."
+            "Check EmailLog for the email delivery outcome."
         )

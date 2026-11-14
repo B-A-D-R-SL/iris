@@ -1,0 +1,21 @@
+# AI contribution: 50% or more AI-generated
+# gitleaks settings for CI (FIX-17, Code Quality Rubric 5.1). The default rules
+# apply everywhere; these two exceptions are the only accepted false positives.
+title = "Iris gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Microsoft's public Azurite emulator key, used only by local Docker Compose"
+regexTarget = "match"
+regexes = ['''Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==''']
+
+[[allowlists]]
+description = "Made-up passwords and keys in tests; provider-specific rules (GitHub, AWS, Azure...) still apply"
+targetRules = ["generic-api-key"]
+paths = [
+  '''(^|/)tests?/''',
+  '''\.test\.tsx?$''',
+  '''(^|/)test_[^/]+\.py$''',
+]

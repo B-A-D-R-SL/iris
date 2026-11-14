@@ -8,7 +8,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import App from "../../app/App";
-import type { Role } from "../accounts/currentUser";
+import type { Role } from "../../shared/auth/roles";
 import i18n from "../../shared/i18n";
 import { expectNoAxeViolations, renderWithProviders, testUser } from "../../test/render";
 import type { StaffCategory } from "./adminApi";

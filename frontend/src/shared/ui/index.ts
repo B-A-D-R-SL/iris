@@ -1,4 +1,5 @@
 // AI contribution: 50% or more AI-generated
+export { AppBar, type AppBarProps } from "./AppBar";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { ErrorState, type ErrorStateProps } from "./ErrorState";
 export { LanguageSwitch } from "./LanguageSwitch";

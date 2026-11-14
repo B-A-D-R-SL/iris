@@ -21,7 +21,6 @@ import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams } from "react-router";
 
-import { AppBar } from "../../../app/layouts/AppBar";
 import { getCategories } from "../../../features/categories/api";
 import {
   BrowseFailed,
@@ -33,7 +32,7 @@ import type { Reservation } from "../../../features/reservations/api";
 import { RefusalNotice } from "../../../features/reservations/RefusalNotice";
 import { ReservationConfirmation } from "../../../features/reservations/ReservationConfirmation";
 import { ReserveButton } from "../../../features/reservations/ReserveButton";
-import { EmptyState, ErrorState, LoadingState } from "../../../shared/ui";
+import { AppBar, EmptyState, ErrorState, LoadingState } from "../../../shared/ui";
 import { ListingPhoto } from "../components/ListingPhoto";
 import { NotApproved } from "../components/NotApproved";
 import household from "../household.module.css";

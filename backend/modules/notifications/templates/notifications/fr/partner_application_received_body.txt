@@ -1,0 +1,8 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}Bonjour,
+
+Merci d’avoir demandé à devenir un magasin partenaire de B.A.D.R. avec Iris. {% if business_name %}Nous avons bien reçu la demande pour {{ business_name }}.{% else %}Nous avons bien reçu votre demande.{% endif %}
+
+B.A.D.R. l’étudiera et vous écrira à cette adresse. Vous n’avez rien d’autre à faire pour l’instant.
+
+L’équipe Iris{% endautoescape %}

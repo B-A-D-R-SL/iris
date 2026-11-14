@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}Confirmez votre adresse courriel pour terminer la création de votre compte Iris.{% endautoescape %}

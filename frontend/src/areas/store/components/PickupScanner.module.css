@@ -1,0 +1,31 @@
+/* AI contribution: 50% or more AI-generated */
+
+.frame {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  max-height: min(52vh, 420px);
+  border-radius: var(--mantine-radius-md);
+  background-color: var(--iris-text);
+}
+
+.frame[data-active] {
+  background-color: var(--iris-text);
+}
+
+.video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reticle {
+  position: absolute;
+  inset: 18% 14%;
+  border: 2px solid var(--mantine-color-body);
+  border-radius: var(--mantine-radius-sm);
+  box-shadow: 0 0 0 9999px color-mix(in srgb, var(--iris-text) 35%, transparent);
+  pointer-events: none;
+}

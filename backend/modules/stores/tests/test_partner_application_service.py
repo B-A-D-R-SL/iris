@@ -1,43 +1,29 @@
 # AI contribution: 50% or more AI-generated
 """US-12 submit_application(): saving, duplicates and the confirmation email."""
 
-from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.core import mail
 from django.core.exceptions import ValidationError
 from django.db import close_old_connections, connection, transaction
 from django.utils import translation
 
+from adapters.mailer.base import MailerError
+from adapters.mailer.fake import get_fake_mailer
 from modules.categories.tests.factories import CategoryFactory
+from modules.notifications.models import EmailLog
+from modules.notifications.tasks import send_email
 from modules.stores import services
 from modules.stores.models import ApplicationStatus, PartnerApplication
 from modules.stores.tests.factories import PartnerApplicationFactory
 
-
-class RecordingMailer:
-    """Test double for the mailer adapter."""
-
-    def __init__(self) -> None:
-        self.sent: list[dict[str, Any]] = []
-
-    def send(
-        self,
-        to: Sequence[str],
-        subject: str,
-        html: str | None = None,
-        text: str | None = None,
-    ) -> int:
-        self.sent.append({"to": list(to), "subject": subject, "text": text})
-        return 1
+# Direct tests intentionally run without a worker-injected JobContext.
+DIRECT_CONTEXT: Any = None
 
 
-class FailingMailer:
-    def send(self, *args: Any, **kwargs: Any) -> int:
-        raise ConnectionError("smtp down for owner@example.test")
+pytestmark = pytest.mark.usefixtures("notification_rules")
 
 
 def values(**overrides: Any) -> dict[str, Any]:
@@ -73,15 +59,22 @@ def categories(db: Any) -> None:
     CategoryFactory(code="retired", is_active=False)
 
 
+@pytest.fixture
+def queued_emails(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    """Record background work without running a worker in the request."""
+    queued: list[dict[str, Any]] = []
+    monkeypatch.setattr(send_email, "configure", lambda **kwargs: send_email)
+    monkeypatch.setattr(send_email, "defer", lambda **kwargs: queued.append(kwargs))
+    return queued
+
+
 @pytest.mark.usefixtures("categories")
 def test_submission_is_saved_as_submitted_without_an_account(
     django_capture_on_commit_callbacks: Any,
 ) -> None:
     users_before = get_user_model()._default_manager.count()
     with django_capture_on_commit_callbacks(execute=True):
-        application = services.submit_application(
-            values(), language="en", mailer=RecordingMailer()
-        )
+        application = services.submit_application(values(), language="en")
     application.refresh_from_db()
     assert application.status == ApplicationStatus.SUBMITTED
     assert application.language == "en"
@@ -100,15 +93,26 @@ def test_submission_is_saved_as_submitted_without_an_account(
     ],
 )
 def test_confirmation_email_is_sent_after_commit_in_the_contact_language(
-    django_capture_on_commit_callbacks: Any, language: str, subject: str, greeting: str
+    django_capture_on_commit_callbacks: Any,
+    queued_emails: list[dict[str, Any]],
+    language: str,
+    subject: str,
+    greeting: str,
 ) -> None:
     # rule: AC2, the applicant gets a confirmation email
-    mailer = RecordingMailer()
+    mailer = get_fake_mailer()
     with django_capture_on_commit_callbacks(execute=False) as callbacks:
-        services.submit_application(values(), language=language, mailer=mailer)
+        services.submit_application(values(), language=language)
+        assert queued_emails == []
         assert mailer.sent == []  # nothing is sent before the commit
     assert len(callbacks) == 1
     callbacks[0]()
+    assert mailer.sent == []  # enqueueing never performs transport
+    [job] = queued_emails
+    log = EmailLog.objects.get(pk=job["email_log_id"])
+    assert log.language == language
+    assert log.template_key == "partner_application_received"
+    send_email(DIRECT_CONTEXT, **job)
     [email] = mailer.sent
     assert email["to"] == ["owner@example.test"]
     assert email["subject"] == subject
@@ -117,43 +121,52 @@ def test_confirmation_email_is_sent_after_commit_in_the_contact_language(
 
 
 @pytest.mark.usefixtures("categories")
-def test_default_mailer_delivers_through_django_mail(
+def test_submission_queues_the_shared_delivery_job(
     django_capture_on_commit_callbacks: Any,
+    queued_emails: list[dict[str, Any]],
 ) -> None:
     with django_capture_on_commit_callbacks(execute=True):
         services.submit_application(values(), language="fr")
-    assert [message.to for message in mail.outbox] == [["owner@example.test"]]
+    [job] = queued_emails
+    log = EmailLog.objects.get(pk=job["email_log_id"])
+    assert log.to_email == "owner@example.test"
+    assert log.user_id is None
+    assert log.attempts == 0
+    assert job["context"] == {"business_name": "Boulangerie Exemple"}
+    assert get_fake_mailer().sent == []
 
 
 @pytest.mark.usefixtures("categories")
 def test_rolled_back_submission_sends_no_email(
     django_capture_on_commit_callbacks: Any,
+    queued_emails: list[dict[str, Any]],
 ) -> None:
-    mailer = RecordingMailer()
     with (
         django_capture_on_commit_callbacks(execute=True) as callbacks,
         pytest.raises(RuntimeError),
         transaction.atomic(),
     ):
-        services.submit_application(values(), language="fr", mailer=mailer)
+        services.submit_application(values(), language="fr")
         raise RuntimeError("caller failed after saving")
     assert callbacks == []
-    assert mailer.sent == []
+    assert queued_emails == []
+    assert get_fake_mailer().sent == []
+    assert not EmailLog.objects.exists()
     assert not PartnerApplication.objects.exists()
 
 
 @pytest.mark.usefixtures("categories")
-def test_email_failure_keeps_the_application_and_logs_no_personal_data(
-    django_capture_on_commit_callbacks: Any, caplog: pytest.LogCaptureFixture
+def test_email_failure_keeps_the_application(
+    django_capture_on_commit_callbacks: Any,
+    queued_emails: list[dict[str, Any]],
 ) -> None:
     with django_capture_on_commit_callbacks(execute=True):
-        application = services.submit_application(
-            values(), language="fr", mailer=FailingMailer()
-        )
+        application = services.submit_application(values(), language="fr")
+    get_fake_mailer().error = MailerError("transport_unavailable", retryable=True)
+    [job] = queued_emails
+    with pytest.raises(MailerError):
+        send_email(DIRECT_CONTEXT, **job)
     assert PartnerApplication.objects.filter(pk=application.pk).exists()
-    assert "partner_application_email_failed" in caplog.text
-    assert "owner@example.test" not in caplog.text
-    assert "smtp down" not in caplog.text
 
 
 @pytest.mark.usefixtures("categories")
@@ -162,9 +175,7 @@ def test_second_open_application_with_same_email_is_refused(email: str) -> None:
     # rule: BR-PARTNER-01 (AC3), refuse a duplicate open application
     PartnerApplicationFactory(contact_email="owner@example.test")
     with pytest.raises(services.ApplicationAlreadyOpen) as refused:
-        services.submit_application(
-            values(contact_email=email), language="fr", mailer=RecordingMailer()
-        )
+        services.submit_application(values(contact_email=email), language="fr")
     assert refused.value.email == email
     assert PartnerApplication.objects.count() == 1
 
@@ -180,7 +191,7 @@ def test_rejected_applicant_may_apply_again(
         decision_reason="Generated reason",
     )
     with django_capture_on_commit_callbacks(execute=True):
-        services.submit_application(values(), language="fr", mailer=RecordingMailer())
+        services.submit_application(values(), language="fr")
     assert PartnerApplication.objects.count() == 2
 
 
@@ -190,9 +201,7 @@ def test_rejected_applicant_may_apply_again(
 )
 def test_goods_categories_must_be_active_codes(codes: list[str]) -> None:
     with pytest.raises(ValidationError) as refused:
-        services.submit_application(
-            values(goods_categories=codes), language="en", mailer=RecordingMailer()
-        )
+        services.submit_application(values(goods_categories=codes), language="en")
     with translation.override("en"):
         assert refused.value.message_dict == {
             "goods_categories": ["Choose types of goods from the list."]
@@ -205,9 +214,7 @@ def test_unsupported_language_falls_back_to_french(
     django_capture_on_commit_callbacks: Any,
 ) -> None:
     with django_capture_on_commit_callbacks(execute=True):
-        application = services.submit_application(
-            values(), language="de", mailer=RecordingMailer()
-        )
+        application = services.submit_application(values(), language="de")
     assert application.language == "fr"
 
 
@@ -219,9 +226,7 @@ def test_simultaneous_submissions_with_one_email_save_exactly_one() -> None:
     def submit(_: int) -> str:
         close_old_connections()
         try:
-            services.submit_application(
-                values(), language="fr", mailer=RecordingMailer()
-            )
+            services.submit_application(values(), language="fr")
             return "saved"
         except services.ApplicationAlreadyOpen:
             return "refused"
