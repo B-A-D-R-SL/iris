@@ -171,12 +171,22 @@ aliases of `Household.Status` and `Household.Channel` for the seed.
 Seeded files have no holder `Member` yet; saving one with complete holder
 details creates it, and incomplete details return a `holder` field error.
 
-## Audit integration / US-62 dependency
+## Audit integration (FIX-08, SEC-08/SEC-09)
 
 `HouseholdDraftEvent` stores create, update and submission actions with the actor,
 role and time. It has no personal-data payload. Events are saved in the same
-transaction as the household change. The central audit service currently accepts
-view and decision actions, so registration actions remain in the household history.
+transaction as the household change. These services also append central
+`audit.services.record` events: `create`, `update`, and `submit`, targeting the
+household UUID with empty metadata. Both histories roll back if either write
+fails. Submission is audited for both submitted and duplicate-review outcomes.
+
+Detail GET requests append a `view` event after successful authorization and
+serialization, before returning data. Audit failure prevents disclosure;
+unknown, anonymized and unauthorized files create no view event. HEAD probes
+return no file body and create no event. Detail responses use
+`Cache-Control: private, no-store`. Query helpers stay read-only; staff search
+keeps its existing one-view-event-per-returned-file batch. No names, contact
+details, addresses, dates of birth, consent values or search text enter metadata.
 
 The walk-in screens (T-03.17.4) are in `frontend/src/areas/staff/pages/WalkIn/`.
 Walk-in approval, income notices, approval/rejection transitions and producing

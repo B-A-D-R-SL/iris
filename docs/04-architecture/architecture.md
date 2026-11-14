@@ -365,8 +365,13 @@ Release 1.
 
 US-17 built the first part (draft creation and step-by-step saving,
 React screens at `/staff/walk-in`). Its creation and edit events are
-recorded locally in `HouseholdDraftEvent` until the central audit log
-(US-62) supports them. The notices and approval part is US-18.
+recorded locally in `HouseholdDraftEvent` and, through FIX-08, in the central
+audit log as `create` and `update`. Submission adds `submit` to both histories.
+All writes share a transaction; audit failure rolls back the household change.
+Detail reads record a `view` before disclosure. Eligibility decisions append
+central `decision` events with only decision ID, outcome and LICO rule version,
+in the decision's transaction. Automatic decisions have a null actor and role
+`system`. The notices and approval part is US-18.
 
 
 ```mermaid

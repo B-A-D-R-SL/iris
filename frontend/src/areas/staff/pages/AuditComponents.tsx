@@ -105,7 +105,7 @@ export function AuditResultsTable({
             return (
               <Table.Tr key={event.id}>
                 <Table.Td>{formatter.format(new Date(event.created_at))}</Table.Td>
-                <Table.Td>{event.actor}</Table.Td>
+                <Table.Td>{event.actor ?? labels.system}</Table.Td>
                 <Table.Td>{labels[event.actor_role] ?? event.actor_role}</Table.Td>
                 <Table.Td>{labels[event.action] ?? event.action}</Table.Td>
                 <Table.Td>

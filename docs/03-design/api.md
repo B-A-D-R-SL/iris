@@ -261,6 +261,15 @@ US-13 staff screens exist.
 | POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`; preserves expiry                    | Implemented (US-32) |
 | GET/POST   | `/api/staff/households/{id}/notes/`                     | Intake worker, admin | Staff notes                                       | Planned |
 
+FIX-08 (SEC-08/SEC-09) records walk-in create, update and submission actions
+with actor, household ID and empty metadata in the same transaction as each
+change. Detail GET records a view before disclosure and returns
+`Cache-Control: private, no-store`; failed audits prevent disclosure. HEAD probes
+create no events. Eligibility decisions also join their write transaction to a
+household audit event containing only decision UUID, eligible/ineligible outcome
+and LICO rule version. Audit search returns `actor: null` and `actor_role: "system"`
+for automatic decisions; existing staff actor IDs remain UUID strings.
+
 US-32 suspension/reactivation emails include the reason after household-service
 whitespace normalization, active RuleSet length validation and sensitive-data
 refusal. The default limit is 500 characters; the schema permits up to 2,000.

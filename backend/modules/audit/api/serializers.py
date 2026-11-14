@@ -1,3 +1,4 @@
+# AI contribution: 50% or more AI-generated
 # Validation and read-only representation for audit search
 
 from datetime import UTC
@@ -26,7 +27,7 @@ class AuditSearchSerializer(serializers.Serializer):
 
 
 class AuditEventSerializer(serializers.ModelSerializer):
-    actor = serializers.UUIDField(source="actor_id", read_only=True)
+    actor = serializers.UUIDField(source="actor_id", read_only=True, allow_null=True)
     created_at = serializers.DateTimeField(default_timezone=UTC, read_only=True)
 
     class Meta:

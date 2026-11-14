@@ -377,3 +377,179 @@ def test_rule_publication_records_valid_metadata(event_inputs):
     event = services.record(**event_inputs)
     assert event.metadata == {"rule_type": "priority", "version": 1}
     assert event.actor == event_inputs["actor"]
+
+
+@pytest.fixture
+def eligibility_inputs(event_inputs):
+    event_inputs.update(
+        action="decision",
+        metadata={
+            "decision_id": str(uuid4()),
+            "outcome": "eligible",
+            "rule_version": 2,
+        },
+    )
+    return event_inputs
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("decision_id", "synthetic@example.test"),
+        ("decision_id", ""),
+        ("decision_id", None),
+        ("decision_id", 123),
+        ("decision_id", {}),
+        ("outcome", "approved"),
+        ("outcome", "private free text"),
+        ("outcome", {}),
+        ("outcome", []),
+        ("rule_version", True),
+        ("rule_version", "2"),
+        ("rule_version", 0),
+        ("rule_version", -1),
+        ("rule_version", None),
+    ],
+)
+def test_eligibility_metadata_rejects_wrong_types_and_unbounded_values(
+    eligibility_inputs, field, value
+):
+    eligibility_inputs["metadata"][field] = value
+    with pytest.raises(ValidationError, match="metadata"):
+        services.record(**eligibility_inputs)
+    assert not AuditEvent.objects.exists()
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "name",
+        "email",
+        "phone",
+        "address",
+        "date_of_birth",
+        "sin",
+        "adult_incomes_cents",
+        "threshold_cents",
+        "document_text",
+    ],
+)
+def test_eligibility_metadata_rejects_every_extra_personal_field(
+    eligibility_inputs, key
+):
+    eligibility_inputs["metadata"][key] = "private value"
+    with pytest.raises(ValidationError, match="metadata"):
+        services.record(**eligibility_inputs)
+    assert not AuditEvent.objects.exists()
+
+
+@pytest.mark.parametrize("key", ["decision_id", "outcome", "rule_version"])
+def test_eligibility_metadata_requires_all_references(eligibility_inputs, key):
+    del eligibility_inputs["metadata"][key]
+    with pytest.raises(ValidationError, match="metadata"):
+        services.record(**eligibility_inputs)
+    assert not AuditEvent.objects.exists()
+
+
+def test_eligibility_audit_requires_a_household_target(eligibility_inputs):
+    eligibility_inputs["target_type"] = "external_record"
+    with pytest.raises(ValidationError, match="metadata"):
+        services.record(**eligibility_inputs)
+    assert not AuditEvent.objects.exists()
+
+
+def test_system_decision_is_returned_by_admin_search(eligibility_inputs, client):
+    from django.urls import reverse
+
+    actor = eligibility_inputs["actor"]
+    actor.role = "admin"
+    actor.save()
+    eligibility_inputs["actor"] = None
+    event = services.record(**eligibility_inputs)
+    client.force_login(actor)
+    response = client.get(reverse("audit-search"), {"household": event.target_id})
+    assert response.status_code == 200
+    item = response.json()["results"][0]
+    assert item["actor"] is None
+    assert item["actor_role"] == "system"
+    assert item["metadata"] == eligibility_inputs["metadata"]
+
+
+@pytest.mark.parametrize("action", ["view", "create", "update", "submit"])
+@pytest.mark.parametrize(
+    "metadata", [{"outcome": "eligible"}, {"email": "private@example.test"}]
+)
+def test_household_operations_reject_all_metadata(event_inputs, action, metadata):
+    event_inputs.update(action=action, metadata=metadata)
+    with pytest.raises(ValidationError, match="metadata"):
+        services.record(**event_inputs)
+    assert not AuditEvent.objects.exists()
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "UPDATE audit_auditevent SET actor_role = 'admin' WHERE id = %s",
+        "DELETE FROM audit_auditevent WHERE id = %s",
+    ],
+)
+def test_system_audit_rows_remain_append_only(eligibility_inputs, sql):
+    eligibility_inputs["actor"] = None
+    event = services.record(**eligibility_inputs)
+    with (
+        pytest.raises(IntegrityError, match="append-only"),
+        transaction.atomic(),
+        connection.cursor() as cursor,
+    ):
+        cursor.execute(sql, [event.pk])
+    event.refresh_from_db()
+    assert event.actor_id is None
+    assert event.actor_role == "system"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("system_event", [False, True])
+def test_household_event_migration_preserves_history_and_append_only_protection(
+    event_inputs,
+    system_event,
+):
+    if system_event:
+        event_inputs.update(
+            actor=None,
+            action="decision",
+            metadata={
+                "decision_id": str(uuid4()),
+                "outcome": "eligible",
+                "rule_version": 1,
+            },
+        )
+    event = services.record(**event_inputs)
+    original = AuditEvent.objects.values().get(pk=event.pk)
+    executor = MigrationExecutor(connection)
+    previous = [("audit", "0005_merge_publication_and_suspension_actions")]
+    latest = executor.loader.graph.leaf_nodes()
+    try:
+        executor.migrate(previous)
+        old = executor.loader.project_state(previous).apps.get_model(
+            "audit", "AuditEvent"
+        )
+        assert not old._meta.get_field("actor").null
+        assert old.objects.values().get(pk=event.pk) == original
+        with connection.cursor() as cursor:
+            columns = connection.introspection.get_table_description(
+                cursor, "audit_auditevent"
+            )
+        assert next(column for column in columns if column.name == "actor_id").null_ok
+        # Rolling back model state must not remove database history protection.
+        with pytest.raises(IntegrityError, match="append-only"), transaction.atomic():
+            old.objects.filter(pk=event.pk).update(actor_role="admin")
+        with pytest.raises(IntegrityError, match="append-only"), transaction.atomic():
+            old.objects.filter(pk=event.pk).delete()
+    finally:
+        executor = MigrationExecutor(connection)
+        executor.migrate(latest)
+    event.refresh_from_db()
+    assert AuditEvent.objects.values().get(pk=event.pk) == original
+    assert AuditEvent._meta.get_field("actor").null
+    with pytest.raises(IntegrityError, match="append-only"), transaction.atomic():
+        AuditEvent.objects.filter(pk=event.pk).delete()
