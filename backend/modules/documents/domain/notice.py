@@ -28,6 +28,7 @@ class Problem(StrEnum):
     NOTICE_DATE_TOO_EARLY = "notice_date_too_early"
     NOTICE_DATE_IN_FUTURE = "notice_date_in_future"
     NEGATIVE_INCOME = "negative_income"
+    INCOME_TOO_HIGH = "income_too_high"
     REASON_REQUIRED = "reason_required"
     REASON_TOO_LONG = "reason_too_long"
     REASON_NOT_ALLOWED = "reason_not_allowed"
@@ -43,6 +44,7 @@ class NoticeLimits:
 
     earliest_tax_year: int
     reason_max_length: int
+    max_income_cents: int
 
 
 class NoticeRulesBroken(ValueError):
@@ -154,11 +156,13 @@ def _filed(
 def _value_problems(
     values: Mapping[str, object], today: date, limits: NoticeLimits
 ) -> dict[str, Problem]:
-    """BR-DOC-001 income and BR-DOC-002 tax year and notice date, for given values."""
+    """BR-DOC-001 income range and BR-DOC-002 tax year and notice date, for given values."""
     problems: dict[str, Problem] = {}
     income = values.get("total_income_cents")
     if isinstance(income, int) and income < 0:
         problems["total_income_cents"] = Problem.NEGATIVE_INCOME
+    elif isinstance(income, int) and income > limits.max_income_cents:
+        problems["total_income_cents"] = Problem.INCOME_TOO_HIGH
     tax_year = values.get("tax_year")
     valid_year: int | None = None
     if isinstance(tax_year, int):

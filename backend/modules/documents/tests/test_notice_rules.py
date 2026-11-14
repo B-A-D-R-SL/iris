@@ -24,7 +24,9 @@ from modules.documents.messages import problem_messages
 TODAY = date(2026, 11, 6)
 PDF = b"%PDF-1.7 notice"
 # The notice_upload rule's defaults (rules/domain/schemas.py).
-LIMITS = NoticeLimits(earliest_tax_year=2000, reason_max_length=500)
+LIMITS = NoticeLimits(
+    earliest_tax_year=2000, reason_max_length=500, max_income_cents=50_000_000
+)
 
 
 def _filed(**changes: Any) -> dict[str, Any]:

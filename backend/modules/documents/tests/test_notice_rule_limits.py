@@ -1,6 +1,7 @@
 # AI contribution: 50% or more AI-generated
 """Notice entry limits come from the notice_upload rule (review rule 2, T-03.18.2)."""
 
+import re
 from collections.abc import Callable
 from datetime import date
 from types import SimpleNamespace
@@ -83,3 +84,57 @@ def test_a_rule_without_the_entry_limits_is_treated_as_missing(
 
     with pytest.raises(NoticeSettingsMissing):
         record_staff_notice(member.pk, entry, None, worker)
+
+
+# rule: BR-DOC-001
+def test_an_income_above_the_rule_maximum_is_refused_in_both_languages(
+    member: Any, worker: Any, notice_rule: None
+) -> None:
+    """forms-and-fields.md: total income is 0 to 500,000 $ (max_income_cents)."""
+    entry = _filed(total_income_cents=50_000_001)
+    messages = {}
+    for language in ("en", "fr"):
+        with translation.override(language), pytest.raises(ValidationError) as refused:
+            record_staff_notice(
+                member.pk, entry, _pdf(), worker, file_store=InMemoryFileStore()
+            )
+        messages[language] = refused.value.message_dict
+
+    assert messages["en"] == {
+        "total_income_cents": ["Enter an amount of at most $500,000."]
+    }
+    [french] = messages["fr"]["total_income_cents"]
+    assert re.fullmatch(r"Entrez un montant d'au plus 500\s000 \$\.", french)
+
+
+# rule: BR-DOC-001
+def test_an_income_at_the_rule_maximum_is_recorded(
+    member: Any, worker: Any, notice_rule: None
+) -> None:
+    entry = _filed(total_income_cents=50_000_000)
+
+    notice = record_staff_notice(
+        member.pk, entry, _pdf(), worker, file_store=InMemoryFileStore()
+    )
+
+    assert notice.total_income_cents == 50_000_000
+
+
+# rule: BR-DOC-001
+def test_the_income_maximum_comes_from_the_notice_rule(
+    member: Any, worker: Any, publish_notice_rule: Callable[..., None]
+) -> None:
+    publish_notice_rule(max_income_cents=100_000)
+
+    with translation.override("en"), pytest.raises(ValidationError) as refused:
+        record_staff_notice(
+            member.pk,
+            _filed(total_income_cents=100_001),
+            _pdf(),
+            worker,
+            file_store=InMemoryFileStore(),
+        )
+
+    assert refused.value.message_dict == {
+        "total_income_cents": ["Enter an amount of at most $1,000."]
+    }

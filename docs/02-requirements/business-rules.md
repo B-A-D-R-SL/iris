@@ -183,7 +183,7 @@ them before merge.
 
 | Rule ID | Business rule |
 | --- | --- |
-| BR-DOC-001 | A filed notice needs the file, the tax year, the line-199 total income in integer cents (0 or more), the name on the notice, the postal code on the notice, the notice date and the "seen in person" answer. |
+| BR-DOC-001 | A filed notice needs the file, the tax year, the line-199 total income in integer cents (0 to `max_income_cents` in rule type `notice_upload`, default 500,000 $ *(setting)*), the name on the notice, the postal code on the notice, the notice date and the "seen in person" answer. |
 | BR-DOC-002 | The notice date is after December 31 of the tax year and not after today (Montreal); the tax year is `earliest_tax_year` in rule type `notice_upload` (default 2000 *(setting)*) or later and has ended. Which tax years count for eligibility is decided at approval (`auto_approval.accepted_tax_years`, #469). |
 | BR-DOC-003 | "Did not file" needs a reason of 1 to `reason_max_length` characters after trimming (rule type `notice_upload`, default 500 *(setting)*, at most 500) and refuses a file or any notice value. |
 | BR-DOC-004 | The file is a JPEG, PNG or PDF recognized from its first bytes (never its name or declared type), not empty, and at most `max_bytes` in rule type `notice_upload` (default 10 MB *(setting)*). |

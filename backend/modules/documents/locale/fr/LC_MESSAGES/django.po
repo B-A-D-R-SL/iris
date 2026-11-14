@@ -27,6 +27,10 @@ msgstr "La date de l'avis ne peut pas être dans le futur."
 msgid "Enter an amount of 0 or more."
 msgstr "Entrez un montant de 0 ou plus."
 
+#, python-format
+msgid "Enter an amount of at most $%(max_income)s."
+msgstr "Entrez un montant d'au plus %(max_income)s $."
+
 msgid "Explain why this person did not file a tax return."
 msgstr "Expliquez pourquoi cette personne n'a pas produit de déclaration de revenus."
 

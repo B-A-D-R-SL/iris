@@ -106,6 +106,7 @@ def _upload_limits() -> UploadLimits:
             entry=NoticeLimits(
                 earliest_tax_year=values["earliest_tax_year"],
                 reason_max_length=values["reason_max_length"],
+                max_income_cents=values["max_income_cents"],
             ),
         )
     except KeyError as exc:
