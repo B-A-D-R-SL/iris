@@ -25,6 +25,9 @@ account. The record also preserves staff verification and creation timestamps.
 - `services.change_suspension(household_id, reason, actor, reactivate=...) -> Household`:
   administrators suspend approved files or reactivate unexpired suspended files
 - `services.submit_walk_in(household_id, staff_user) -> Household`
+- `services.require_complete_file(household) -> list[Member]`: the checks a file
+  must pass to be submitted (address, identity check, consent, one holder, size
+  limit); approval runs them again
 - `services.locked_duplicate_check(household_id, staff_user)`: context for a
   checked draft and an evaluated duplicate flag; save inside the context.
 - `queries.walk_ins_for_staff(staff_user) -> QuerySet[Household]`
@@ -234,7 +237,8 @@ intake worker or admin; a file already in review is refused ("This file is alrea
 waiting for review.": approving again cannot change the outcome), and a draft is refused with "Submit the file before approving
 it." (BR-DUP-002: the US-25 submission runs the duplicate check first). It reloads and locks the saved file; it does not
 trust unsaved changes on the argument. Anonymized files are hidden. The holder,
-address, phone, consent and identity check are required by submission; approval requires
+address, phone, consent and identity check are required by submission, and approval runs
+the same `require_complete_file` checks again; approval also requires
 every adult's notice or non-filing reason. Missing information raises validation errors without changing the file.
 
 Only current notices count. Adult ages use Montreal's date at approval. Each

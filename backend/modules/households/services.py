@@ -328,7 +328,8 @@ def update_draft(
     return household
 
 
-def _submission_members(household: Household) -> list[Member]:
+def require_complete_file(household: Household) -> list[Member]:
+    """Checks a file must pass to be submitted, and again to be approved."""
     if household.anonymized_at is not None:
         raise ValidationError({"status": _("An anonymized file cannot be submitted.")})
     household.full_clean()
@@ -414,7 +415,7 @@ def locked_duplicate_check(
             raise ValidationError(
                 {"status": _("Only draft household files can be submitted.")}
             )
-        members = _submission_members(household)
+        members = require_complete_file(household)
         _lock_duplicate_keys(household, members)
         for member in members:
             member.save(update_fields=["person_key"])

@@ -14,6 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from modules.documents import services as document_services
 from modules.eligibility import services as eligibility_services
 from modules.households import _approval, queries
+from modules.households import services as household_services
 from modules.households.domain.expiry import InvalidApprovedMonths
 from modules.households.models import Household
 from modules.households.policies import require_walk_in_staff
@@ -44,7 +45,8 @@ def approve_walk_in(household: Household, staff: AbstractBaseUser) -> Household:
         raise ValidationError(
             _("This household file cannot be approved in its current status.")
         )
-    locked.full_clean()
+    # Submission checked these too; an edit since then must not slip through.
+    household_services.require_complete_file(locked)
     _approval.apply_outcome(locked, staff)
     invited = _approval.record_outcome(locked, staff)
     # Not saved: tells the caller whether a set-password email was queued.

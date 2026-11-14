@@ -273,9 +273,11 @@ def test_the_summary_says_not_eligible_when_income_is_above_the_threshold(
     assert body["valid_until"] is None
 
 
-def test_the_summary_is_not_ready_while_an_adult_has_no_notice(
+def test_a_draft_summary_is_not_ready_while_an_adult_has_no_notice(
     staff_client: APIClient, household: Any
 ) -> None:
+    """A draft can still get the notice, so it is not ready yet."""
+    Household.objects.filter(pk=household.pk).update(status="draft", submitted_at=None)
     MemberFactory(household=household, relation="spouse_partner")
 
     body = staff_client.get(summary_url(household.pk)).json()
