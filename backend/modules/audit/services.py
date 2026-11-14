@@ -50,6 +50,7 @@ RULE_PUBLICATION_TYPES = frozenset(
         "reservations",
         "listing_safety",
         "listing_posting",
+        "notice_upload",
         "file_validity",
         "retention",
     }
