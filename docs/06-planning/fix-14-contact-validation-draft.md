@@ -125,11 +125,26 @@ The approved scope is implemented. These details changed or became more specific
 
 **Verification results**
 
-- Backend: final changed-path suite **63 passed**; shared contact/requiredness/Unicode-version suite **15 passed**. An earlier broader focused run had 256 passing tests; its two new fixture setup failures were corrected and covered by the final passing run.
-- Backend Ruff, formatting, mypy, all four import contracts, missing-migration check and production deployment check pass.
+The later backend runs below used temporary test-only MD5 fixture hashing,
+with real Argon2 hashing retained in the security test, and a reused isolated
+test database. Those test-speed changes and the added `load` marker were
+subsequently discarded at the user's request, restoring the configuration from
+commit `915801e`. This draft update records the completed runs without restoring
+those configuration changes. Tests were not repeated after that reset.
+
+- **Completed backend run, without coverage:** **2,484 passed, 1 failed, 1 deselected** in **791.99 seconds** (about 13 minutes 12 seconds). The only failure was the search-load benchmark; the deselected test was the real five-minute storage-expiry check.
+- **Real storage-expiry check:** **1 passed** separately in **302.36 seconds**, against the isolated Azurite emulator. Across both runs, **2,485 distinct backend tests passed out of 2,486 collected**; the remaining test failed its performance target. These are not all-green full-suite or CI results.
+- **Search-load result on the two-CPU Docker VM:** all **300 requests** completed, with a cold request of **141.5 ms**, within its 1,000 ms limit. Under an offered **100 requests/second**, p95 was **8,779.04 ms**, exceeding the unchanged **500 ms** target. The benchmark requires validation on suitable hardware; its thresholds were not weakened.
+- **FIX-14 changed-backend-module coverage:** **95.61%**, with branch measurement enabled; **262 tests passed in 29.89 seconds**. The existing 70% threshold was met for this focused scope. This percentage is not whole-backend coverage.
+- Coverage instruments `modules.common`, `modules.stores.models`, `modules.stores.admin`, `modules.stores.api.serializers`, `modules.households.models`, `modules.households.domain.address`, `modules.households.api.serializers` and `modules.households.messages`. Reports are at `backend/coverage/fix14/index.html` and `backend/coverage/fix14.xml` (ignored generated artifacts).
+- Earlier targeted backend checks also passed: **63 changed-path tests** and **15 shared contact/requiredness/Unicode-version tests**. These overlap the later runs and are not additional distinct tests.
+- Backend Ruff, formatting, mypy, all four import contracts and the missing-migration check passed after the temporary test-speed changes. The production deployment check also passed during the original implementation validation.
 - Frontend: **48 contact cases**, all shared-field/formatter/validator tests, **17 walk-in tests**, **9 partner-form tests** and **22 sign-in tests** pass. ESLint, formatting, TypeScript and the production build pass.
 - The final API schema validates and generated frontend types remain up to date. API-generation regression checks: **8 passed, 1 skipped** (the Python-specific case is skipped when supplying schema through stdin).
 - The full frontend run encountered five loading/wait failures in the existing listing suite. All **21 listing tests pass** when rerun using a disposable local Testing Library configuration with `asyncUtilTimeout: 5000`. Repository test settings and assertions were not changed.
-- **Full coverage runs were stopped at the user's request because of limited time.** The backend run ended with **738 passed, no failures**, approximately 29% complete; much of its runtime was spent hashing fixture passwords with Argon2. Full-suite completion, final coverage percentages and CI status are not claimed.
+- The initial whole-backend coverage run was stopped after **738 passing tests** because of limited time. The later completed functional run and focused coverage above supersede that partial test count; a completed whole-backend coverage percentage remains unavailable.
 
-Tests used cached Docker images, refreshed locked frontend dependencies and a separate temporary PostgreSQL database. The running application and its database were untouched. Source implementation is complete; full CI remains to be run when time permits.
+Tests used cached Docker images, refreshed locked frontend dependencies and a
+separate temporary PostgreSQL database. The running application and its database
+were untouched. Remote CI remains unverified, and the load benchmark remains a
+failed performance check on this VM.
