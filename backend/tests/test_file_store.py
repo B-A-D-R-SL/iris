@@ -71,8 +71,18 @@ def test_memory_store_delete_is_idempotent() -> None:
         store.read(reference)
 
 
-def test_test_settings_use_the_memory_store() -> None:
-    assert settings.FILE_STORE_BACKEND == "adapters.file_store.memory.InMemoryFileStore"
+def test_the_test_settings_store_keeps_files_in_memory() -> None:
+    """Tests never reach Azure: the store the test settings configure is the fake."""
+    InMemoryFileStore.clear()
+    store = configured_store(settings.FILE_STORE_BACKEND)
+
+    reference = store.put(
+        b"%PDF-1", content_type="application/pdf", prefix="income-notices"
+    )
+
+    assert isinstance(store, InMemoryFileStore)
+    assert InMemoryFileStore.references() == [reference]
+    assert store.read(reference) == StoredFile(b"%PDF-1", "application/pdf")
 
 
 class StubContainer:
