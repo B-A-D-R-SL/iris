@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}L’équipe vérifie votre dossier de foyer. Connectez-vous à Iris pour consulter son état et les prochaines étapes.{% endautoescape %}

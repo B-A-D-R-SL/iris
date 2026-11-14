@@ -1,0 +1,2 @@
+{# AI contribution: 50% or more AI-generated #}
+{% autoescape off %}Your reservation’s pickup window is open. Sign in to Iris to see your code and pickup details.{% endautoescape %}

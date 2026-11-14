@@ -10,18 +10,26 @@ from typing import Any, cast
 from uuid import uuid4
 
 import pytest
-from django.core import mail
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from adapters.mailer.fake import get_fake_mailer
 from modules.accounts.models import Invitation, User
 from modules.accounts.tests.factories import UserFactory
 from modules.audit.models import AuditEvent
+from modules.notifications.models import EmailLog
+from modules.notifications.tasks import send_email
 from modules.rules.models import RuleSetVersion
 from modules.stores.models import ApplicationStatus, PartnerApplication, Store
 from modules.stores.tests.factories import PartnerApplicationFactory, StoreFactory
 
-pytestmark = pytest.mark.django_db
+DIRECT_CONTEXT: Any = None
+pytestmark = [
+    pytest.mark.django_db,
+    pytest.mark.usefixtures(
+        "notification_rules", "partner_origin", "queued_partner_emails"
+    ),
+]
 
 LIST_URL = "/api/staff/partner-applications/"
 NON_ADMIN_ROLES = [
@@ -67,13 +75,6 @@ def invitation_rule(admin: User) -> RuleSetVersion:
         created_by=admin,
     )
     return rule
-
-
-@pytest.fixture
-def frontend_url(settings) -> str:
-    """Public origin used in the invitation link."""
-    settings.FRONTEND_URL = "https://iris.example"
-    return settings.FRONTEND_URL
 
 
 def _application(**values: Any) -> PartnerApplication:
@@ -215,16 +216,20 @@ def test_unknown_status_filter_is_a_validation_error(admin_client: APIClient) ->
 # Approve ----------------------------------------------------------------
 
 
-@pytest.mark.usefixtures("invitation_rule", "frontend_url")
+@pytest.mark.usefixtures("invitation_rule", "partner_origin")
 # rule: BR-PARTNER-03
 def test_approve_creates_store_invitation_audit_and_email(
-    admin: User, admin_client: APIClient, django_capture_on_commit_callbacks
+    admin: User,
+    admin_client: APIClient,
+    django_capture_on_commit_callbacks,
+    queued_partner_emails,
 ) -> None:
     """Approval reaches the database and emails the contact after commit."""
     application = _application(language="en")
 
     with django_capture_on_commit_callbacks(execute=True):
         response = admin_client.post(approve_url(application.pk))
+        assert not queued_partner_emails and not get_fake_mailer().sent
 
     assert response.status_code == 200
     assert response.json()["status"] == "approved"
@@ -236,13 +241,21 @@ def test_approve_creates_store_invitation_audit_and_email(
     assert AuditEvent.objects.filter(
         actor=admin, target_id=str(application.pk), metadata={"outcome": "approved"}
     ).exists()
-    assert [message.to for message in mail.outbox] == [[application.contact_email]]
-    assert "https://iris.example/invitation/" in mail.outbox[0].body
+    [job] = queued_partner_emails
+    log = EmailLog.objects.get(pk=job["email_log_id"])
+    assert log.template_key == "partner_application_approved" and log.language == "en"
+    assert not get_fake_mailer().sent
+    send_email(DIRECT_CONTEXT, **job)
+    [message] = get_fake_mailer().sent
+    assert message["to"] == [application.contact_email]
+    assert "https://iris.example/invitation/" in message["text"]
+    log.refresh_from_db()
+    assert log.status == EmailLog.Status.SENT
 
 
-@pytest.mark.usefixtures("frontend_url")
+@pytest.mark.usefixtures("partner_origin")
 def test_missing_invitation_rule_rolls_back_approval(
-    admin_client: APIClient, django_capture_on_commit_callbacks
+    admin_client: APIClient, django_capture_on_commit_callbacks, queued_partner_emails
 ) -> None:
     """A failing invitation dependency answers 400 and leaves no partial approval."""
     application = _application()
@@ -257,10 +270,11 @@ def test_missing_invitation_rule_rolls_back_approval(
     assert not Store.objects.filter(application=application).exists()
     assert not Invitation.objects.filter(email=application.contact_email).exists()
     assert not AuditEvent.objects.filter(target_id=str(application.pk)).exists()
-    assert not callbacks and not mail.outbox
+    assert not callbacks and not get_fake_mailer().sent and not queued_partner_emails
+    assert not EmailLog.objects.exists()
 
 
-@pytest.mark.usefixtures("frontend_url")
+@pytest.mark.usefixtures("partner_origin")
 @pytest.mark.parametrize(
     "language,message",
     [
@@ -286,7 +300,7 @@ def test_registered_contact_email_returns_a_localized_explanation(
     assert not AuditEvent.objects.filter(target_id=str(application.pk)).exists()
 
 
-@pytest.mark.usefixtures("frontend_url")
+@pytest.mark.usefixtures("partner_origin")
 def test_approving_twice_answers_409(admin_client: APIClient) -> None:
     """A decided application cannot be decided again."""
     application = _decided(ApplicationStatus.APPROVED)
@@ -304,12 +318,63 @@ def test_unknown_application_answers_404(admin_client: APIClient) -> None:
     assert response.status_code == 404
 
 
+@pytest.mark.usefixtures("invitation_rule")
+def test_approval_succeeds_when_email_origin_is_unavailable(
+    settings,
+    admin_client: APIClient,
+    django_capture_on_commit_callbacks,
+    queued_partner_emails,
+) -> None:
+    """An email configuration problem is a delivery outcome, not an HTTP 500."""
+    settings.PUBLIC_APP_ORIGIN = None
+    application = _application()
+    with django_capture_on_commit_callbacks(execute=True):
+        response = admin_client.post(approve_url(application.pk))
+    assert response.status_code == 200
+    assert response.json()["status"] == "approved"
+    application.refresh_from_db()
+    assert application.status == ApplicationStatus.APPROVED
+    store = Store.objects.get(application=application)
+    assert Invitation.objects.filter(store=store).count() == 1
+    assert AuditEvent.objects.filter(target_id=str(application.pk)).count() == 1
+    log = EmailLog.objects.get(template_key="partner_application_approved")
+    assert log.status == EmailLog.Status.FAILED
+    assert log.error == "email_configuration_invalid" and log.attempts == 0
+    assert not queued_partner_emails and not get_fake_mailer().sent
+
+
 # Reject -----------------------------------------------------------------
+
+
+def test_legacy_invalid_recipient_does_not_roll_back_rejection(
+    admin_client: APIClient, django_capture_on_commit_callbacks, queued_partner_emails
+) -> None:
+    """An old persisted contact can be rejected even when email cannot address it."""
+    application = _application(contact_email="legacy-invalid-recipient")
+    with django_capture_on_commit_callbacks(execute=True):
+        response = admin_client.post(
+            reject_url(application.pk), {"reason": "Outside our area"}, format="json"
+        )
+    assert response.status_code == 200
+    assert response.json()["status"] == "rejected"
+    application.refresh_from_db()
+    assert application.status == ApplicationStatus.REJECTED
+    assert application.decision_reason == "Outside our area"
+    assert AuditEvent.objects.get(target_id=str(application.pk)).metadata == {
+        "outcome": "rejected"
+    }
+    log = EmailLog.objects.get(template_key="partner_application_rejected")
+    assert log.status == EmailLog.Status.FAILED
+    assert log.error == "email_recipient_invalid" and log.attempts == 0
+    assert not queued_partner_emails and not get_fake_mailer().sent
 
 
 # rule: BR-PARTNER-04
 def test_reject_records_reason_audit_and_email(
-    admin: User, admin_client: APIClient, django_capture_on_commit_callbacks
+    admin: User,
+    admin_client: APIClient,
+    django_capture_on_commit_callbacks,
+    queued_partner_emails,
 ) -> None:
     """Rejection saves the trimmed reason and emails it after commit."""
     application = _application(language="fr")
@@ -330,7 +395,15 @@ def test_reject_records_reason_audit_and_email(
     assert AuditEvent.objects.filter(
         actor=admin, target_id=str(application.pk), metadata={"outcome": "rejected"}
     ).exists()
-    assert "Hors de notre territoire" in mail.outbox[0].body
+    [job] = queued_partner_emails
+    log = EmailLog.objects.get(pk=job["email_log_id"])
+    assert log.template_key == "partner_application_rejected" and log.language == "fr"
+    assert not get_fake_mailer().sent
+    send_email(DIRECT_CONTEXT, **job)
+    [message] = get_fake_mailer().sent
+    assert "Hors de notre territoire" in message["text"]
+    log.refresh_from_db()
+    assert log.status == EmailLog.Status.SENT
     assert not Store.objects.filter(application=application).exists()
 
 

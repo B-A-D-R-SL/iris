@@ -1,6 +1,9 @@
 <!-- AI contribution: 50% or more AI-generated -->
-<!-- Size exception: this shared architecture reference keeps module boundaries
-and connected workflow diagrams together for cross-module consistency review. -->
+<!-- File-length exception: the container/module diagrams and walk-in, partner
+onboarding and reservation/pickup sequences share module ownership and transaction
+boundaries. Keep their household/reservation state diagrams beside the sequences
+so reviewers can verify which persisted state authorizes each transition and
+which email work starts only after the business transaction commits. -->
 
 # Iris architecture — Release 1 draft
 
@@ -513,8 +516,12 @@ or change an existing browser session. Issuance stores only the unique SHA-256
 hash of a token generated from 32 random bytes and saves an expiry from the active
 `invitations.expires_after_days` rule (default seven days); later rule versions
 affect only new invitations. The raw token is returned for the calling workflow's
-email. Staff/team issuing screens, household linking and email delivery remain
-US-05, US-06 and US-18 (partner approval is US-13); the acceptance page is #431.
+email. US-13 partner approval, rejection and operator invitation reissue now use
+US-57's shared queue/templates/EmailLog; links use `PUBLIC_APP_ORIGIN`. Reissue
+invalidates previous unaccepted links atomically, and the worker checks stale
+invitation jobs before transport without claiming recall of in-flight messages.
+Staff/team issuing screens and household linking remain US-05, US-06 and US-18;
+the acceptance page is #431.
 
 
 
