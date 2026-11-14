@@ -6,15 +6,22 @@ import { noticeFormData } from "../../../../features/households/noticeApi";
 import {
   EMPTY_NOTICE,
   adultState,
-  adults,
-  ageOn,
+  adultsOf,
   montrealToday,
   noticeErrors,
   noticeServerErrors,
   toNoticeInput,
   type Member,
+  type NoticeRules,
   type NoticeValues,
 } from "./noticeForm";
+
+const RULES: NoticeRules = {
+  max_bytes: 10 * 1024 * 1024,
+  earliest_tax_year: 2000,
+  reason_max_length: 500,
+  max_income_cents: 50_000_000,
+};
 
 const TODAY = "2026-11-10";
 const scan = () => new File(["%PDF-1.7"], "avis.pdf", { type: "application/pdf" });
@@ -64,21 +71,31 @@ describe("dates and adults", () => {
     expect(montrealToday(new Date("2026-11-11T03:30:00Z"))).toBe("2026-11-10");
   });
 
-  it("counts whole years and keeps members 18 or older (BR-DOC-007)", () => {
-    expect(ageOn("2008-11-10", TODAY)).toBe(18);
-    expect(ageOn("2008-11-11", TODAY)).toBe(17);
-    const people = [member("adult", "1990-04-12"), member("teen", "2010-01-01")];
-    expect(adults(people, TODAY).map((person) => person.id)).toEqual(["adult"]);
+  it("keeps the members the API counts as adults, in the file's order (BR-DOC-007)", () => {
+    const people = [member("holder", "1990-04-12"), member("teen", "2010-01-01")];
+    people.push(member("partner", "1988-02-02"));
+    const ids = adultsOf(people, ["partner", "holder"]).map((person) => person.id);
+    expect(ids).toEqual(["holder", "partner"]);
+  });
+
+  it("uses the limits an admin published, not fixed ones (BR-DOC-002, BR-DOC-004)", () => {
+    const strict = { ...RULES, earliest_tax_year: 2024, max_income_cents: 1_000_000 };
+    expect(noticeErrors(filed({ taxYear: 2023 }), TODAY, strict)).toHaveProperty("taxYear");
+    expect(noticeErrors(filed(), TODAY, strict)).toHaveProperty("totalIncomeCents");
+    const big = new File(["x".repeat(2048)], "avis.pdf", { type: "application/pdf" });
+    expect(noticeErrors(filed({ file: big }), TODAY, { ...RULES, max_bytes: 1024 })).toHaveProperty(
+      "file",
+    );
   });
 });
 
 describe("noticeErrors", () => {
   it("accepts a complete filed notice", () => {
-    expect(noticeErrors(filed(), TODAY)).toEqual({});
+    expect(noticeErrors(filed(), TODAY, RULES)).toEqual({});
   });
 
   it("requires every value of a filed notice (BR-DOC-001)", () => {
-    const errors = noticeErrors(EMPTY_NOTICE, TODAY);
+    const errors = noticeErrors(EMPTY_NOTICE, TODAY, RULES);
     expect(Object.keys(errors).sort()).toEqual(
       [
         "file",
@@ -92,27 +109,33 @@ describe("noticeErrors", () => {
   });
 
   it("checks the tax year, the date and the income range (BR-DOC-002)", () => {
-    expect(noticeErrors(filed({ taxYear: 2026 }), TODAY)).toHaveProperty("taxYear");
-    expect(noticeErrors(filed({ taxYear: 1999 }), TODAY)).toHaveProperty("taxYear");
-    expect(noticeErrors(filed({ noticeDate: "2025-12-31" }), TODAY)).toHaveProperty("noticeDate");
-    expect(noticeErrors(filed({ noticeDate: "2026-11-11" }), TODAY)).toHaveProperty("noticeDate");
-    expect(noticeErrors(filed({ totalIncomeCents: 50_000_001 }), TODAY)).toHaveProperty(
+    expect(noticeErrors(filed({ taxYear: 2026 }), TODAY, RULES)).toHaveProperty("taxYear");
+    expect(noticeErrors(filed({ taxYear: 1999 }), TODAY, RULES)).toHaveProperty("taxYear");
+    expect(noticeErrors(filed({ noticeDate: "2025-12-31" }), TODAY, RULES)).toHaveProperty(
+      "noticeDate",
+    );
+    expect(noticeErrors(filed({ noticeDate: "2026-11-11" }), TODAY, RULES)).toHaveProperty(
+      "noticeDate",
+    );
+    expect(noticeErrors(filed({ totalIncomeCents: 50_000_001 }), TODAY, RULES)).toHaveProperty(
       "totalIncomeCents",
     );
-    expect(noticeErrors(filed({ totalIncomeCents: 0 }), TODAY)).toEqual({});
+    expect(noticeErrors(filed({ totalIncomeCents: 0 }), TODAY, RULES)).toEqual({});
   });
 
   it("accepts only JPG, PNG or PDF up to 10 MB (BR-DOC-004)", () => {
     const text = new File(["x"], "avis.txt", { type: "text/plain" });
-    expect(noticeErrors(filed({ file: text }), TODAY)).toHaveProperty("file");
+    expect(noticeErrors(filed({ file: text }), TODAY, RULES)).toHaveProperty("file");
   });
 
   it("asks only for a reason when the person did not file (BR-DOC-003)", () => {
     const none = { ...EMPTY_NOTICE, didNotFile: true };
-    expect(Object.keys(noticeErrors(none, TODAY))).toEqual(["reason"]);
-    expect(noticeErrors({ ...none, reason: "   " }, TODAY)).toHaveProperty("reason");
-    expect(noticeErrors({ ...none, reason: "x".repeat(501) }, TODAY)).toHaveProperty("reason");
-    expect(noticeErrors({ ...none, reason: "No income in 2025" }, TODAY)).toEqual({});
+    expect(Object.keys(noticeErrors(none, TODAY, RULES))).toEqual(["reason"]);
+    expect(noticeErrors({ ...none, reason: "   " }, TODAY, RULES)).toHaveProperty("reason");
+    expect(noticeErrors({ ...none, reason: "x".repeat(501) }, TODAY, RULES)).toHaveProperty(
+      "reason",
+    );
+    expect(noticeErrors({ ...none, reason: "No income in 2025" }, TODAY, RULES)).toEqual({});
   });
 });
 

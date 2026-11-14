@@ -10,7 +10,7 @@ import type { RecordedNotice } from "../../../../features/households/noticeApi";
 import { Notice } from "../../../../shared/ui";
 import { NoticeFields } from "./NoticeFields";
 import { RecordedSummary, StateBadge } from "./NoticeSummary";
-import { adultState, fullName, type Member } from "./noticeForm";
+import { adultState, fullName, type Member, type NoticeRules } from "./noticeForm";
 import { useNoticeCard } from "./useNoticeCard";
 import classes from "./WalkIn.module.css";
 
@@ -20,6 +20,8 @@ export interface NoticeCardProps {
   /** 1 for the first adult: Figma titles the card "Adulte 1 · name". */
   position: number;
   today: string;
+  /** The notice_upload limits the API sent. */
+  rules: NoticeRules;
   recorded: RecordedNotice | undefined;
   /** The form is open: no notice yet, or the saved one is being replaced. */
   editing: boolean;
@@ -67,6 +69,7 @@ export function NoticeCard(props: NoticeCardProps) {
         <NoticeFields
           form={card.form}
           today={props.today}
+          rules={props.rules}
           locked={locked}
           saving={card.saving}
           canCancel={Boolean(recorded)}

@@ -121,6 +121,13 @@ function summaryFor(stored: RecordedNotice[]) {
     // Only a file that approval would approve has a length and an end date.
     approved_months: eligible ? 12 : null,
     valid_until: eligible ? "2027-11-14T12:00:00Z" : null,
+    adult_member_ids: ["m1"],
+    notice_rules: {
+      max_bytes: 10 * 1024 * 1024,
+      earliest_tax_year: 2000,
+      reason_max_length: 500,
+      max_income_cents: 50_000_000,
+    },
   };
 }
 

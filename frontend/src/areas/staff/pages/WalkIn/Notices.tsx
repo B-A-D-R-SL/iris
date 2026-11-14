@@ -19,8 +19,11 @@ import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router";
 
 import {
+  decisionSummaryQueryKey,
+  getDecisionSummary,
   listNotices,
   noticesQueryKey,
+  type DecisionSummary as Summary,
   type RecordedNotice,
 } from "../../../../features/households/noticeApi";
 import {
@@ -33,7 +36,7 @@ import { formatDate } from "../../../../shared/forms";
 import { ErrorState, LoadingState, Notice, StatusBadge } from "../../../../shared/ui";
 import { DecisionSummary } from "./DecisionSummary";
 import { NoticeCard } from "./NoticeCard";
-import { adults, fullName, montrealToday } from "./noticeForm";
+import { adultsOf, fullName, montrealToday } from "./noticeForm";
 import { useDeciding } from "./useDecision";
 import { useNoticeEditing } from "./useNoticeEditing";
 import { useLanguage } from "./useLanguage";
@@ -54,8 +57,13 @@ export function Notices() {
     queryKey: noticesQueryKey(id),
     queryFn: () => listNotices(id, language),
   });
+  // Who is an adult and the notice limits: the API decides both (BR-DOC-007).
+  const summary = useQuery({
+    queryKey: decisionSummaryQueryKey(id),
+    queryFn: () => getDecisionSummary(id, language),
+  });
 
-  if (query.isPending || saved.isPending) return <LoadingState />;
+  if (query.isPending || saved.isPending || summary.isPending) return <LoadingState />;
   if (query.isError) {
     if (query.error instanceof WalkInFailed && query.error.status === 404) {
       return <Notice type="error" title={t("staff.walkIn.notFound")} />;
@@ -63,7 +71,8 @@ export function Notices() {
     return <ErrorState onRetry={() => void query.refetch()} />;
   }
   if (saved.isError) return <ErrorState onRetry={() => void saved.refetch()} />;
-  return <NoticesPage draft={query.data} saved={saved.data} />;
+  if (summary.isError) return <ErrorState onRetry={() => void summary.refetch()} />;
+  return <NoticesPage draft={query.data} saved={saved.data} summary={summary.data} />;
 }
 
 /** Name, member number, channel and visit date, the file's status, and who is in the household. */
@@ -101,10 +110,16 @@ function NoticesHeader({ draft, adultCount }: { draft: WalkInDraft; adultCount: 
   );
 }
 
-function NoticesPage({ draft, saved }: { draft: WalkInDraft; saved: RecordedNotice[] }) {
+interface PageProps {
+  draft: WalkInDraft;
+  saved: RecordedNotice[];
+  summary: Summary;
+}
+
+function NoticesPage({ draft, saved, summary }: PageProps) {
   const { t } = useTranslation();
   const [today] = useState(montrealToday);
-  const adultMembers = adults(draft.members, today);
+  const adultMembers = adultsOf(draft.members, summary.adult_member_ids);
   const notices = Object.fromEntries(saved.map((notice) => [notice.member, notice]));
   const { replacing, setMemberReplacing, keepNotice } = useNoticeEditing(draft.id);
   const locked = useDeciding(draft.id) || draft.status !== "draft";
@@ -123,6 +138,7 @@ function NoticesPage({ draft, saved }: { draft: WalkInDraft; saved: RecordedNoti
           member={member}
           position={index + 1}
           today={today}
+          rules={summary.notice_rules}
           recorded={notices[member.id]}
           editing={!notices[member.id] || replacing.has(member.id)}
           locked={locked}

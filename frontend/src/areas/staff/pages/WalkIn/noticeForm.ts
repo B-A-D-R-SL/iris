@@ -1,12 +1,17 @@
 // AI contribution: 50% or more AI-generated
 /**
  * One adult's notice card (US-18, T-03.18.4): values, checks and the summary.
- * The checks mirror BR-DOC-001 to BR-DOC-004 so staff see mistakes at once;
- * the server checks them again and decides eligibility at approval.
+ * The checks follow BR-DOC-001 to BR-DOC-004 with the limits the API sends
+ * (the notice_upload rule), so staff see mistakes at once; the server checks
+ * them again and decides eligibility at approval.
  */
 import type { ReactNode } from "react";
 
-import type { NoticeInput, RecordedNotice } from "../../../../features/households/noticeApi";
+import type {
+  DecisionSummary,
+  NoticeInput,
+  RecordedNotice,
+} from "../../../../features/households/noticeApi";
 import type { WalkInDraft } from "../../../../features/households/walkInApi";
 import {
   hasLength,
@@ -18,11 +23,12 @@ import {
 } from "../../../../shared/forms";
 
 export const NOTICE_TYPES = ["image/jpeg", "image/png", "application/pdf"] as const;
-export const NOTICE_MAX_MB = 10;
-/** forms-and-fields.md: total income (line 199) is 0 to 500,000 $. */
-export const MAX_INCOME_CENTS = 50_000_000;
-export const MAX_REASON = 500;
-export const FIRST_TAX_YEAR = 2000;
+
+/** The notice_upload limits in force, from the decision summary. */
+export type NoticeRules = DecisionSummary["notice_rules"];
+
+/** The file limit in MB, as the upload field and its message show it. */
+export const maxMb = (rules: NoticeRules) => rules.max_bytes / (1024 * 1024);
 
 export type Member = WalkInDraft["members"][number];
 
@@ -60,23 +66,21 @@ export function montrealToday(now: Date = new Date()): string {
   }).format(now);
 }
 
-/** Age in whole years on a "YYYY-MM-DD" day. */
-export function ageOn(dateOfBirth: string, day: string): number {
-  const [by, bm, bd] = dateOfBirth.split("-").map(Number);
-  const [y, m, d] = day.split("-").map(Number);
-  return y - by - (m < bm || (m === bm && d < bd) ? 1 : 0);
-}
-
-/** BR-DOC-007: notices are recorded for members aged 18 or older. */
-export function adults(members: readonly Member[], today: string): Member[] {
-  return members.filter((member) => ageOn(member.date_of_birth, today) >= 18);
+/** BR-DOC-007: the members the API counts as adults, in the file's order. */
+export function adultsOf(members: readonly Member[], adultIds: readonly string[]): Member[] {
+  const wanted = new Set(adultIds);
+  return members.filter((member) => wanted.has(member.id));
 }
 
 export const fullName = (member: Pick<Member, "first_name" | "last_name">) =>
   `${member.first_name} ${member.last_name}`.trim();
 
 /** Field name -> message, empty when the card can be sent. */
-export function noticeErrors(values: NoticeValues, today: string): Record<string, ReactNode> {
+export function noticeErrors(
+  values: NoticeValues,
+  today: string,
+  rules: NoticeRules,
+): Record<string, ReactNode> {
   const errors: Record<string, ReactNode> = {};
   const add = (field: keyof NoticeValues, message: ReactNode) => {
     if (message) errors[field] = message;
@@ -84,25 +88,28 @@ export function noticeErrors(values: NoticeValues, today: string): Record<string
 
   if (values.didNotFile) {
     const reason = values.reason.trim();
-    add("reason", reason ? hasLength({ min: 1, max: MAX_REASON })(reason) : isRequired()(""));
+    add(
+      "reason",
+      reason ? hasLength({ min: 1, max: rules.reason_max_length })(reason) : isRequired()(""),
+    );
     return errors;
   }
 
   add(
     "file",
     values.file
-      ? isAcceptedFile({ types: NOTICE_TYPES, maxMb: NOTICE_MAX_MB })(values.file)
+      ? isAcceptedFile({ types: NOTICE_TYPES, maxMb: maxMb(rules) })(values.file)
       : isRequired()(null),
   );
 
   const year = values.taxYear === "" ? null : Number(values.taxYear);
-  add("taxYear", taxYearError(year, today));
+  add("taxYear", taxYearError(year, today, rules.earliest_tax_year));
 
   add(
     "totalIncomeCents",
     values.totalIncomeCents === null
       ? isRequired()(null)
-      : isMoneyInRange({ maxCents: MAX_INCOME_CENTS })(values.totalIncomeCents),
+      : isMoneyInRange({ maxCents: rules.max_income_cents })(values.totalIncomeCents),
   );
   add("nameOnNotice", isRequired()(values.nameOnNotice.trim()));
   add(
@@ -114,13 +121,13 @@ export function noticeErrors(values: NoticeValues, today: string): Record<string
   return errors;
 }
 
-/** BR-DOC-002: a tax year from FIRST_TAX_YEAR to last year. */
-function taxYearError(year: number | null, today: string): ReactNode {
+/** BR-DOC-002: a tax year from the rule's earliest year to last year. */
+function taxYearError(year: number | null, today: string, earliest: number): ReactNode {
   if (year === null) return isRequired()("");
   const lastYear = Number(today.slice(0, 4)) - 1;
-  if (Number.isInteger(year) && year >= FIRST_TAX_YEAR && year <= lastYear) return null;
+  if (Number.isInteger(year) && year >= earliest && year <= lastYear) return null;
   return validationMessage("staff.walkInNotices.taxYearRange", {
-    min: FIRST_TAX_YEAR,
+    min: earliest,
     max: lastYear,
   });
 }

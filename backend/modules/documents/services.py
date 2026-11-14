@@ -114,6 +114,15 @@ def _upload_limits() -> UploadLimits:
         raise NoticeSettingsMissing from exc
 
 
+def notice_limits() -> UploadLimits:
+    """The limits in force, for a screen that checks input before sending it.
+
+    The server still checks every notice; this only lets the form say it first.
+    Raises NoticeSettingsMissing, like recording a notice does.
+    """
+    return _upload_limits()
+
+
 def _file_store() -> FileStore:
     try:
         return configured_store(settings.FILE_STORE_BACKEND)

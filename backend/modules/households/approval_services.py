@@ -3,6 +3,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from uuid import UUID
 
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -10,6 +11,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from modules.documents import services as document_services
 from modules.eligibility import services as eligibility_services
 from modules.households import _approval, queries
 from modules.households.domain.expiry import InvalidApprovedMonths
@@ -51,6 +53,16 @@ def approve_walk_in(household: Household, staff: AbstractBaseUser) -> Household:
 
 
 @dataclass(frozen=True)
+class NoticeRules:
+    """notice_upload limits the cards check before sending (BR-DOC-002 to 006)."""
+
+    max_bytes: int
+    earliest_tax_year: int
+    reason_max_length: int
+    max_income_cents: int
+
+
+@dataclass(frozen=True)
 class DecisionSummary:
     """The facts and next step shown before the decision (US-18, Figma W6.2b)."""
 
@@ -65,6 +77,9 @@ class DecisionSummary:
     # Set only when approval would approve the file: how long it lasts and until when.
     approved_months: int | None
     valid_until: datetime | None
+    # Who gets a notice card, and the limits those cards check.
+    adult_member_ids: tuple[UUID, ...]
+    notice_rules: NoticeRules
 
 
 def _validity_if_approved_now() -> tuple[int | None, datetime | None]:
@@ -79,8 +94,12 @@ def _validity_if_approved_now() -> tuple[int | None, datetime | None]:
 
 
 def decision_summary(household: Household, staff: AbstractBaseUser) -> DecisionSummary:
-    """Read-only: what approval would use and where it would lead."""
+    """Read-only: what approval would use and where it would lead.
+
+    Raises NoticeSettingsMissing when the notice_upload rule is missing.
+    """
     require_walk_in_staff(staff)
+    limits = document_services.notice_limits()
     evidence = queries.decision_evidence(household)
     # After submission notices are locked: a missing one (a member who turned 18)
     # cannot be fixed, so approving sends the file to review.
@@ -113,4 +132,11 @@ def decision_summary(household: Household, staff: AbstractBaseUser) -> DecisionS
         eligible=None if review else eligible,
         approved_months=approved_months,
         valid_until=valid_until,
+        adult_member_ids=evidence.adult_ids,
+        notice_rules=NoticeRules(
+            max_bytes=limits.max_bytes,
+            earliest_tax_year=limits.entry.earliest_tax_year,
+            reason_max_length=limits.entry.reason_max_length,
+            max_income_cents=limits.entry.max_income_cents,
+        ),
     )

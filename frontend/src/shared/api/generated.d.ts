@@ -804,14 +804,23 @@ export interface components {
     /** @description Numbers and next step the API works out before the decision. */
     WalkInDecisionSummary: {
       adult_count: number;
+      adult_member_ids: string[];
       approved_months: number | null;
       eligible: boolean | null;
       household_size: number;
+      notice_rules: components["schemas"]["WalkInNoticeRules"];
       ready_for_decision: boolean;
       threshold_cents: number | null;
       total_income_cents: number | null;
       valid_until: string | null;
       will_go_to_review: boolean;
+    };
+    /** @description notice_upload limits the notice cards check before sending. */
+    WalkInNoticeRules: {
+      earliest_tax_year: number;
+      max_bytes: number;
+      max_income_cents: number;
+      reason_max_length: number;
     };
     WalkInDraftInput: {
       address?: components["schemas"]["AddressInput"];

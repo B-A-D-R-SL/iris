@@ -13,6 +13,7 @@ import {
   noticeServerErrors,
   toNoticeInput,
   type Member,
+  type NoticeRules,
   type NoticeValues,
 } from "./noticeForm";
 import { useLanguage } from "./useLanguage";
@@ -21,6 +22,7 @@ interface Options {
   householdId: string;
   member: Member;
   today: string;
+  rules: NoticeRules;
   onEditingChange: (editing: boolean) => void;
   onRecorded: (notice: RecordedNotice) => void;
 }
@@ -43,6 +45,7 @@ export function useNoticeCard({
   householdId,
   member,
   today,
+  rules,
   onEditingChange,
   onRecorded,
 }: Options) {
@@ -67,7 +70,7 @@ export function useNoticeCard({
 
   const save = () => {
     setProblem(null);
-    const errors = noticeErrors(form.values, today);
+    const errors = noticeErrors(form.values, today, rules);
     form.setErrors(errors);
     if (Object.keys(errors).length === 0) mutation.mutate(form.values);
   };

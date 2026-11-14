@@ -84,7 +84,9 @@ creator, verifier or internal keys directly.
   answers 400 with the message in `fields.non_field_errors`; unknown IDs 404.
 - `GET /api/staff/households/{uuid}/decision-summary/`: calls
   `approval_services.decision_summary` and returns `{ household_size, adult_count,
-  total_income_cents, threshold_cents, ready_for_decision, will_go_to_review, eligible, approved_months, valid_until }`.
+  total_income_cents, threshold_cents, ready_for_decision, will_go_to_review, eligible, approved_months, valid_until, adult_member_ids, notice_rules }`.
+  `adult_member_ids` and `notice_rules` let the notice cards follow the API:
+  who is an adult (BR-DOC-007) and the `notice_upload` limits, with no copies in the screen.
   `approved_months` and `valid_until` are set only when approving would approve the file;
   they come from the same `file_validity` helper the approval uses.
   Read-only; income and threshold are `null` until every adult has a notice the

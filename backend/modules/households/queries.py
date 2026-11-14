@@ -139,6 +139,8 @@ class DecisionEvidence:
     adult_count: int
     complete: bool  # every adult has a notice or a non-filing reason
     review_reasons: frozenset[str]
+    # BR-DOC-007: the members who need a notice, so the screen does not work out ages.
+    adult_ids: tuple[UUID, ...] = ()
 
 
 def decision_evidence(household: Household) -> DecisionEvidence:
@@ -154,7 +156,13 @@ def decision_evidence(household: Household) -> DecisionEvidence:
             reasons.update(
                 _notice_reasons(member, notices[member.pk], household, years)
             )
-    return DecisionEvidence(len(members), len(adults), complete, frozenset(reasons))
+    return DecisionEvidence(
+        len(members),
+        len(adults),
+        complete,
+        frozenset(reasons),
+        tuple(m.pk for m in adults),
+    )
 
 
 def walk_ins_for_staff(staff_user: AbstractBaseUser) -> QuerySet[Household]:

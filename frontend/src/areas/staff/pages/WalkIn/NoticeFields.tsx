@@ -13,13 +13,7 @@ import {
   PostalCodeField,
   TextField,
 } from "../../../../shared/forms";
-import {
-  FIRST_TAX_YEAR,
-  MAX_REASON,
-  NOTICE_MAX_MB,
-  NOTICE_TYPES,
-  type NoticeValues,
-} from "./noticeForm";
+import { NOTICE_TYPES, maxMb, type NoticeRules, type NoticeValues } from "./noticeForm";
 import classes from "./WalkIn.module.css";
 
 type Form = UseFormReturnType<NoticeValues>;
@@ -47,7 +41,7 @@ function CameraButton({ form }: { form: Form }) {
   );
 }
 
-function FiledFields({ form, today }: { form: Form; today: string }) {
+function FiledFields({ form, today, rules }: { form: Form; today: string; rules: NoticeRules }) {
   const { t } = useTranslation();
   const lastYear = Number(today.slice(0, 4)) - 1;
   return (
@@ -58,7 +52,7 @@ function FiledFields({ form, today }: { form: Form; today: string }) {
           {...form.getInputProps("file")}
           label={t("staff.walkInNotices.file")}
           accept={NOTICE_TYPES}
-          maxMb={NOTICE_MAX_MB}
+          maxMb={maxMb(rules)}
           buttonLabel={t("staff.walkInNotices.chooseFile")}
         />
       </Stack>
@@ -66,7 +60,7 @@ function FiledFields({ form, today }: { form: Form; today: string }) {
         <IntegerField
           {...form.getInputProps("taxYear")}
           label={t("staff.walkInNotices.taxYear")}
-          min={FIRST_TAX_YEAR}
+          min={rules.earliest_tax_year}
           max={lastYear}
         />
         <MoneyField
@@ -101,6 +95,8 @@ function FiledFields({ form, today }: { form: Form; today: string }) {
 interface NoticeFieldsProps {
   form: Form;
   today: string;
+  /** The notice_upload limits the API sent. */
+  rules: NoticeRules;
   locked: boolean;
   saving: boolean;
   /** A notice is already saved, so the form can be cancelled. */
@@ -112,6 +108,7 @@ interface NoticeFieldsProps {
 export function NoticeFields({
   form,
   today,
+  rules,
   locked,
   saving,
   canCancel,
@@ -132,10 +129,10 @@ export function NoticeFields({
           {...form.getInputProps("reason")}
           label={t("staff.walkInNotices.reason")}
           multiline
-          maxLength={MAX_REASON}
+          maxLength={rules.reason_max_length}
         />
       ) : (
-        <FiledFields form={form} today={today} />
+        <FiledFields form={form} today={today} rules={rules} />
       )}
       <Group>
         <Button loading={saving} onClick={onSave} disabled={locked}>

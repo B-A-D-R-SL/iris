@@ -12,11 +12,12 @@ from uuid import UUID
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
-from rest_framework import serializers
+from rest_framework import serializers, status
 from rest_framework.generics import GenericAPIView
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from modules.documents.services import NoticeServiceUnavailable
 from modules.households import approval_services, queries
 from modules.households.api.views import (
     IsIntakeWorkerOrAdmin,
@@ -39,6 +40,15 @@ class WalkInDecisionSerializer(serializers.Serializer):
     invitation_not_sent = serializers.BooleanField(read_only=True)
 
 
+class WalkInNoticeRulesSerializer(serializers.Serializer):
+    """notice_upload limits the notice cards check before sending."""
+
+    max_bytes = serializers.IntegerField(read_only=True)
+    earliest_tax_year = serializers.IntegerField(read_only=True)
+    reason_max_length = serializers.IntegerField(read_only=True)
+    max_income_cents = serializers.IntegerField(read_only=True)
+
+
 class WalkInDecisionSummarySerializer(serializers.Serializer):
     """Numbers and next step the API works out before the decision."""
 
@@ -54,6 +64,11 @@ class WalkInDecisionSummarySerializer(serializers.Serializer):
     # Set only when approving would approve the file: from file_validity.
     approved_months = serializers.IntegerField(read_only=True, allow_null=True)
     valid_until = serializers.DateTimeField(read_only=True, allow_null=True)
+    # BR-DOC-007: the members aged 18 or over, who each need a notice card.
+    adult_member_ids = serializers.ListField(
+        child=serializers.UUIDField(), read_only=True
+    )
+    notice_rules = WalkInNoticeRulesSerializer(read_only=True)
 
 
 class WalkInDecisionSummaryView(WalkInErrorHandlingMixin, GenericAPIView):
@@ -64,7 +79,11 @@ class WalkInDecisionSummaryView(WalkInErrorHandlingMixin, GenericAPIView):
         responses={200: WalkInDecisionSummarySerializer},
         tags=["staff households"],
         summary="What the decision would use and whether it goes to review",
-        description="Read-only. Household size, total income and the LICO threshold.",
+        description=(
+            "Read-only. Household size, total income, the LICO threshold, the adults "
+            "who need a notice and the notice limits. 503 when the notice_upload "
+            "rule is missing."
+        ),
     )
     def get(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
         """Summarize one walk-in file before the decision."""
@@ -75,6 +94,9 @@ class WalkInDecisionSummaryView(WalkInErrorHandlingMixin, GenericAPIView):
             summary = approval_services.decision_summary(household, request.user)
         except DjangoValidationError as exc:
             raise _service_validation(exc) from exc
+        except NoticeServiceUnavailable as exc:
+            body = {"code": exc.code, "message": str(exc.message), "fields": {}}
+            return Response(body, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return Response(WalkInDecisionSummarySerializer(summary).data)
 
 

@@ -16,6 +16,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from modules.accounts.tests.factories import UserFactory
+from modules.documents import services as document_services
 from modules.documents.tests.factories import IncomeNoticeFactory
 from modules.households.models import Household
 from modules.households.tests.factories import HouseholdFactory, MemberFactory
@@ -37,7 +38,7 @@ def rules(monkeypatch: Any) -> None:
     """Rules approval reads, with a fixed clock (same as the service tests)."""
     monkeypatch.setattr(timezone, "now", lambda: NOW)
     admin: Any = UserFactory(role="admin", password=None)
-    for rule_type in ("auto_approval", "file_validity", "invitations"):
+    for rule_type in ("auto_approval", "file_validity", "invitations", "notice_upload"):
         publish(
             rule_type,
             deepcopy(DEFAULT_RULE_VALUES[rule_type]),
@@ -226,6 +227,13 @@ def test_the_summary_gives_size_income_and_threshold(
         "eligible": True,
         "approved_months": 12,
         "valid_until": body["valid_until"],
+        "adult_member_ids": [str(household.members.get(relation="holder").pk)],
+        "notice_rules": {
+            "max_bytes": 10 * 1024 * 1024,
+            "earliest_tax_year": 2000,
+            "reason_max_length": 500,
+            "max_income_cents": 50_000_000,
+        },
     }
     # The same date approval would save (test_eligible_file_is_approved).
     assert body["valid_until"].startswith("2027-11-08")
@@ -268,6 +276,56 @@ def test_the_summary_is_not_ready_while_an_adult_has_no_notice(
 
     assert body["adult_count"] == 2
     assert body["ready_for_decision"] is False
+
+
+def test_the_summary_lists_only_adults_as_needing_a_notice(
+    staff_client: APIClient, household: Any
+) -> None:
+    """BR-DOC-007: a child gets no card; the screen does not work out ages."""
+    child = MemberFactory(
+        household=household, relation="child", date_of_birth="2015-06-01"
+    )
+
+    body = staff_client.get(summary_url(household.pk)).json()
+
+    assert str(child.pk) not in body["adult_member_ids"]
+    assert body["household_size"] == 2
+    assert body["adult_count"] == 1
+
+
+# rule: BR-DOC-002
+# rule: BR-DOC-004
+def test_the_summary_gives_the_notice_limits_in_force(
+    staff_client: APIClient, household: Any
+) -> None:
+    """The cards check the limits an admin published, not copies in the screen."""
+    admin: Any = UserFactory(role="admin", password=None)
+    values = deepcopy(DEFAULT_RULE_VALUES["notice_upload"]) | {
+        "max_bytes": 2 * 1024 * 1024,
+        "earliest_tax_year": 2020,
+    }
+    publish("notice_upload", values, admin, effective_from=NOW - timedelta(hours=1))
+
+    rules = staff_client.get(summary_url(household.pk)).json()["notice_rules"]
+
+    assert rules["max_bytes"] == 2 * 1024 * 1024
+    assert rules["earliest_tax_year"] == 2020
+
+
+def test_the_summary_answers_503_without_notice_settings(
+    staff_client: APIClient, household: Any, monkeypatch: Any
+) -> None:
+    """Same answer as recording a notice when the rule is missing."""
+
+    def missing() -> Any:
+        raise document_services.NoticeSettingsMissing
+
+    monkeypatch.setattr(document_services, "notice_limits", missing)
+
+    response = staff_client.get(summary_url(household.pk))
+
+    assert response.status_code == 503
+    assert response.json()["code"] == "notice_settings_missing"
 
 
 def test_the_summary_of_an_unknown_file_answers_404(staff_client: APIClient) -> None:
