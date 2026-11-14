@@ -97,7 +97,7 @@ export interface paths {
   "/api/staff/households/{id}/decision-summary/": {
     /**
      * What the decision would use and whether it goes to review
-     * @description Read-only. Household size, total income and the LICO threshold.
+     * @description Read-only. Household size, total income, the LICO threshold, the adults who need a notice and the notice limits. 503 when the notice_upload rule is missing.
      */
     get: operations["staff_households_decision_summary_retrieve"];
   };
@@ -827,7 +827,6 @@ export interface components {
       expires_at: string | null;
       /** Format: uuid */
       id: string;
-      /** @description True when the email already has an account: approved, but no invitation sent. */
       invitation_not_sent: boolean;
       status: string;
       status_reason: string;
@@ -835,7 +834,7 @@ export interface components {
     /** @description Numbers and next step the API works out before the decision. */
     WalkInDecisionSummary: {
       adult_count: number;
-      adult_member_ids: string[];
+      adult_member_ids: readonly string[];
       approved_months: number | null;
       eligible: boolean | null;
       household_size: number;
@@ -843,15 +842,9 @@ export interface components {
       ready_for_decision: boolean;
       threshold_cents: number | null;
       total_income_cents: number | null;
+      /** Format: date-time */
       valid_until: string | null;
       will_go_to_review: boolean;
-    };
-    /** @description notice_upload limits the notice cards check before sending. */
-    WalkInNoticeRules: {
-      earliest_tax_year: number;
-      max_bytes: number;
-      max_income_cents: number;
-      reason_max_length: number;
     };
     WalkInDraftInput: {
       address?: components["schemas"]["AddressInput"];
@@ -953,6 +946,13 @@ export interface components {
       status: string;
       tax_year: number | null;
       total_income_cents: number | null;
+    };
+    /** @description notice_upload limits the notice cards check before sending. */
+    WalkInNoticeRules: {
+      earliest_tax_year: number;
+      max_bytes: number;
+      max_income_cents: number;
+      reason_max_length: number;
     };
     WalkInSubmissionRead: {
       /** Format: uuid */
@@ -1445,7 +1445,7 @@ export interface operations {
   };
   /**
    * What the decision would use and whether it goes to review
-   * @description Read-only. Household size, total income and the LICO threshold.
+   * @description Read-only. Household size, total income, the LICO threshold, the adults who need a notice and the notice limits. 503 when the notice_upload rule is missing.
    */
   staff_households_decision_summary_retrieve: {
     parameters: {
