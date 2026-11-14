@@ -283,8 +283,8 @@ def test_us33_api_missing_safety_returns_503_without_publishing(
 @pytest.mark.parametrize(
     ("language", "expected"),
     [
-        ("en", "Listing posting rules need configuration."),
-        ("fr", "Les règles de publication des offres doivent être configurées."),
+        ("en", "Posting is temporarily unavailable."),
+        ("fr", "La publication est temporairement indisponible."),
     ],
 )
 def test_us33_api_malformed_posting_rules_return_503_without_publishing(

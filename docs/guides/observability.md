@@ -111,3 +111,35 @@ records use INFO. Query strings are never logged. DELETE/sign-out requests,
 other paths and other 4xx responses keep WARNING; 5xx responses keep ERROR.
 `ExpectedSessionCheckFilter` is configured on `django.request` and
 `django.server` in `iris/settings/base.py` to avoid duplicate warnings.
+
+
+## Listing posting events (FIX-01)
+
+`iris.listings` emits `listing_published` at INFO after transaction commit,
+with `listing_id` and `store_id` validated as UUIDs. These fields are allowed
+only for this logger/event. Rollbacks emit no publication event.
+
+`listing_post_refused` uses WARNING and one registered `reason` per distinct
+validation code. Early POST permission refusals use `store_access_denied`;
+malformed JSON and unsupported request media use `listing_validation_failed`.
+The API preserves service events without adding a duplicate generic event;
+GET failures do not count as posting attempts.
+Codes are `title_length`, `description_length`,
+`quantity_range`, `unit_choice`, `household_range`, `value_range`,
+`confirmation_required`, `timezone_required`, `pickup_start_range`,
+`pickup_duration`, `unsafe_listing`, `category_prohibited`,
+`best_before_required`, `best_before_too_early`, `category_inactive`,
+`photo_type`, `photo_size`, `photo_invalid`, `listing_validation_failed`,
+and `store_access_denied`. Unrecognized model validation codes use
+`listing_validation_failed`, never free text.
+
+`listing_posting_unavailable` uses ERROR with `listing_rules_missing`,
+`posting_rules_invalid`, `safety_rules_invalid`, `safety_checker_missing`,
+`safety_contract_invalid`, `photo_store_unconfigured` or `photo_store_failed`.
+The categories form endpoint follows the same unavailable policy. Every 503
+uses the translated generic posting-unavailable message.
+
+`listing_photo_store_failed` records ERROR and `exc_type=type(exc)` only;
+provider messages and tracebacks are excluded. The existing
+`listing_photo_cleanup_failed` event retains its opaque `photo_ref`.
+No event includes a title, description, name or uploaded filename.

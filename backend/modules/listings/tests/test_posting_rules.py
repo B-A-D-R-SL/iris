@@ -116,3 +116,30 @@ def test_us33_uses_elapsed_time_across_montreal_dst_change() -> None:
 def test_us33_requires_an_aware_clock() -> None:
     with pytest.raises(ValueError, match="timezone-aware"):
         check_posting(DATA, LIMITS, now=NOW.replace(tzinfo=None))
+
+
+def test_refactor_preserves_refusal_order_and_naive_pickup_short_circuit() -> None:
+    """BR-LIST posting checks retain every field error before unsafe time arithmetic."""
+    data = replace(
+        DATA,
+        title="",
+        description="D" * 501,
+        quantity=0,
+        unit="box",
+        max_per_household=0,
+        estimated_value_cents=-1,
+        safe_and_allowed=False,
+        pickup_start=DATA.pickup_start.replace(tzinfo=None),
+        pickup_end=DATA.pickup_end.replace(tzinfo=None),
+    )
+    assert [reason.code for reason in check_posting(data, LIMITS, now=NOW)] == [
+        "title_length",
+        "description_length",
+        "quantity_range",
+        "unit_choice",
+        "household_range",
+        "value_range",
+        "confirmation_required",
+        "timezone_required",
+        "timezone_required",
+    ]

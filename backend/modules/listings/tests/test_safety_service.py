@@ -156,7 +156,9 @@ def test_us34_malformed_safety_rules_make_posting_unavailable(
         effective_from=case.now,
         created_by=case.user,
     )
-    with pytest.raises(services.PostingUnavailable, match="safety rules"):
+    with pytest.raises(
+        services.PostingUnavailableError, match="Posting is temporarily unavailable"
+    ):
         services.post_listing(case.store.pk, case.user, case.data)
     assert not Listing.objects.exists()
 

@@ -162,7 +162,7 @@ def test_us34_api_malformed_safety_rules_return_503(
     assert response.status_code == 503
     assert response.json() == {
         "code": "posting_unavailable",
-        "message": "Listing safety rules need configuration.",
+        "message": "Posting is temporarily unavailable.",
         "fields": {},
     }
     assert not Listing.objects.exists()
@@ -249,8 +249,8 @@ def test_us34_categories_without_safety_rules_returns_503(
 @pytest.mark.parametrize(
     ("language", "expected"),
     [
-        ("en", "Listing safety rules need configuration."),
-        ("fr", "Les règles de sécurité des offres doivent être configurées."),
+        ("en", "Posting is temporarily unavailable."),
+        ("fr", "La publication est temporairement indisponible."),
     ],
 )
 def test_us34_categories_with_malformed_rules_returns_503(
@@ -278,7 +278,7 @@ def test_us34_categories_checks_the_same_rule_as_posting(
     assert response.status_code == 503
     assert response.json() == {
         "code": "posting_unavailable",
-        "message": "Listing safety rules need configuration.",
+        "message": "Posting is temporarily unavailable.",
         "fields": {},
     }
 

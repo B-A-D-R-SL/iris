@@ -9,7 +9,14 @@ from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
+from rest_framework.exceptions import (
+    APIException,
+    NotAuthenticated,
+    ParseError,
+    PermissionDenied,
+    UnsupportedMediaType,
+    ValidationError,
+)
 from rest_framework.generics import GenericAPIView
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -30,6 +37,7 @@ from modules.listings.permissions import assigned_store_id
 class PostingDependencyUnavailable(APIException):
     status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     default_code = "posting_unavailable"
+    default_detail = _("Posting is temporarily unavailable.")
 
 
 def posting_exception_handler(
@@ -67,6 +75,18 @@ class PostListingView(GenericAPIView):
     def get_exception_handler(self) -> Any:
         return posting_exception_handler
 
+    def handle_exception(self, exc: Exception) -> Response:
+        """Record early POST refusals; service failures already have their events."""
+        if self.request.method == "POST":
+            if isinstance(exc, (PermissionDenied, NotAuthenticated)):
+                services.log_post_refused("store_access_denied")
+            elif isinstance(
+                exc, (ValidationError, ParseError, UnsupportedMediaType)
+            ) and not isinstance(exc.__cause__, DjangoValidationError):
+                # Chained Django validation errors were already logged by the service.
+                services.log_post_refused("listing_validation_failed")
+        return super().handle_exception(exc)
+
     @extend_schema(
         operation_id="store_listings_create",
         summary="Post a listing for the signed-in user's active store",
@@ -93,8 +113,8 @@ class PostListingView(GenericAPIView):
             )
         except DjangoValidationError as exc:
             raise ValidationError(exc.message_dict) from exc
-        except services.PostingUnavailable as exc:
-            raise PostingDependencyUnavailable(str(exc)) from exc
+        except services.PostingUnavailableError:
+            raise PostingDependencyUnavailable() from None
         return Response(
             PostedListingSerializer(listing).data, status=status.HTTP_201_CREATED
         )
@@ -124,12 +144,10 @@ class PostingCategoriesView(GenericAPIView):
     def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         try:
             categories = queries.categories_for_posting(at=timezone.now())
-        except SafetyRulesInvalid as exc:
-            raise PostingDependencyUnavailable(
-                _("Listing safety rules need configuration.")
-            ) from exc
+        except SafetyRulesInvalid:
+            services.log_posting_unavailable("safety_rules_invalid")
+            raise PostingDependencyUnavailable() from None
         if categories is None:
-            raise PostingDependencyUnavailable(
-                _("Listing rules must be seeded before posting.")
-            )
+            services.log_posting_unavailable("listing_rules_missing")
+            raise PostingDependencyUnavailable()
         return Response(PostingCategorySerializer(categories, many=True).data)
