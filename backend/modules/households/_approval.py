@@ -12,6 +12,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from modules.accounts import services as account_services
+from modules.accounts.queries import BENEFICIARY_ROLE
 from modules.audit import services as audit_services
 from modules.eligibility import services as eligibility_services
 from modules.households import queries
@@ -125,7 +126,7 @@ def record_outcome(household: Household, staff: Any) -> bool:
             email=household.email,
             first_name=holder.first_name,
             last_name=holder.last_name,
-            role="beneficiary",
+            role=BENEFICIARY_ROLE,
             invited_by=staff,
         )
     except ValidationError as exc:
