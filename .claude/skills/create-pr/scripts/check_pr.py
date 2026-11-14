@@ -55,7 +55,12 @@ def default_branch() -> str:
     try:
         ref = git("symbolic-ref", "--short", "refs/remotes/origin/HEAD").strip()
         return ref.split("/", 1)[1]
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as error:
+        print(
+            f'warning: origin/HEAD is not set ({error.stderr.strip()}); assuming the default branch is "main". '
+            "Run `git remote set-head origin --auto` to fix it.",
+            file=sys.stderr,
+        )
         return "main"
 
 
