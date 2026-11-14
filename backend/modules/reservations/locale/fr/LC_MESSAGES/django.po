@@ -69,3 +69,41 @@ msgstr "Entrez true ou false."
 
 msgid "Photos are temporarily unavailable."
 msgstr "Les photos sont temporairement indisponibles."
+
+# US-41 Reserve a unit
+msgid "Only approved households can reserve."
+msgstr "Seuls les foyers approuvés peuvent réserver."
+
+msgid "Reserving is not available right now. Try again later."
+msgstr "La réservation n'est pas disponible pour le moment. Réessayez plus tard."
+
+msgid "This listing is no longer available."
+msgstr "Cette offre n'est plus disponible."
+
+msgid "Sorry, this listing is sold out."
+msgstr "Désolé, cette offre est épuisée."
+
+msgid "There are not enough left. Choose a smaller quantity."
+msgstr "Il n'en reste pas assez. Choisissez une plus petite quantité."
+
+msgid "That is more than one household can reserve for this listing."
+msgstr "C'est plus qu'un foyer peut réserver pour cette offre."
+
+msgid ""
+"You already have the most reservations allowed at one time. Pick one up or "
+"cancel one first."
+msgstr ""
+"Vous avez déjà le nombre maximal de réservations en cours. Récupérez-en une "
+"ou annulez-en une d'abord."
+
+msgid "Sign in to reserve."
+msgstr "Connectez-vous pour réserver."
+
+msgid "Reservations can only be made here."
+msgstr "Les réservations peuvent seulement être faites ici."
+
+msgid "Enter a valid listing ID."
+msgstr "Entrez un identifiant d'offre valide."
+
+msgid "Enter a quantity from 1 to 10."
+msgstr "Entrez une quantité de 1 à 10."

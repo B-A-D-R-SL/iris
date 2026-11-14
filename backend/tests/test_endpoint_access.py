@@ -55,6 +55,7 @@ ACCESS: dict[str, frozenset[str]] = {
     "store-pickup-lookup": STORE_ROLES,
     "store-pickup-confirm": STORE_ROLES,
     "listings-browse": frozenset({BENEFICIARY}),
+    "reservations-create": frozenset({BENEFICIARY}),
     "partner-application-create": EVERY_ROLE,
     "schema": EVERY_ROLE,
     "swagger-ui": EVERY_ROLE,
