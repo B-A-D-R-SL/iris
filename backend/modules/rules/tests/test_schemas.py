@@ -86,6 +86,12 @@ def test_default_values_satisfy_each_rule_schema(rule_type: str) -> None:
             {**DEFAULT_RULE_VALUES["retention"], "unexpected": 1},
             "Additional properties are not allowed",
         ),
+        # rule: BR-RES-010 the pickup code length is fixed, not a setting (US-41).
+        (
+            "reservations",
+            {**DEFAULT_RULE_VALUES["reservations"], "pickup_code_length": 8},
+            "Additional properties are not allowed",
+        ),
     ],
 )
 def test_invalid_values_are_refused_with_a_clear_message(

@@ -30,6 +30,10 @@ account. The record also preserves staff verification and creation timestamps.
   household the user holds, if it is `approved` and not expired at `at`
   (expiry is checked even before the nightly job runs). Browsing (US-36) uses
   it and reserving (US-41) can too; only the ID leaves the module.
+- `services.lock_approved_household(household_id, at=...) -> bool` (US-41):
+  lock the household's row for the rest of the caller's transaction and say
+  whether it is approved and not expired. Reserving calls it first, so one
+  household's reservations run one at a time (BR-RES-008).
 - `queries.search(q) -> QuerySet[Household]`: partial, accent-insensitive staff search;
   reads only and excludes anonymized files. Blank input returns no files.
 - `queries.search_for_staff(q, actor) -> QuerySet[Household]`: the API entry point;
