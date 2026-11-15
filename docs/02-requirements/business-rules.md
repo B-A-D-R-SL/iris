@@ -17,7 +17,7 @@ household files across staff; the registering staff member does not own the file
 | BR-HH-ACCESS-001 | Active intake workers and administrators can search all non-anonymized households, including files created by another staff member and unassigned files. Other roles, inactive users and anonymous callers are refused. `created_by` records provenance and never restricts staff search scope. |
 | BR-HH-ACCESS-002 | Anonymized households are excluded before counting and pagination and cannot be read, edited or offered for resuming through the walk-in endpoints. |
 | BR-HH-AUDIT-001 | Search results disclose household details. Persist a view event for each returned household before disclosing the response; an audit failure prevents disclosure. Events contain household IDs and empty metadata, never search text or personal details. |
-| SEC-08 | Walk-in creation, detail reads, edits and submission append central audit events with actor, household ID and action. Each eligibility decision appends an event containing decision ID, eligible/ineligible outcome and LICO rule version. Mutations and audit events share one transaction: either failure rolls back both. Automatic decisions have a null actor and system role. Detail audit failure prevents disclosure. |
+| SEC-08 | Walk-in creation, reads of the detail, notices list and decision summary, edits, notice recording and submission append central audit events with actor, household ID and action. Each eligibility decision appends an event containing decision ID, eligible/ineligible outcome and LICO rule version. Mutations and audit events share one transaction: either failure rolls back both. Automatic decisions have a null actor and system role. A failed read audit prevents disclosure. |
 | SEC-09 | Walk-in audit metadata is empty. Eligibility audit metadata accepts only a canonical decision UUID, a closed eligible/ineligible outcome and a positive integer rule version. Never include names, contact/address details, birth dates, income amounts, thresholds or document contents. |
 
 These access and privacy rules have no configurable numeric threshold. The API
@@ -202,7 +202,7 @@ them before merge.
 | BR-DOC-004 | The file is a JPEG, PNG or PDF recognized from its first bytes (never its name or declared type), not empty, and at most `max_bytes` in rule type `notice_upload` (default 10 MB *(setting)*). |
 | BR-DOC-005 | Each adult has at most one current notice. A new entry supersedes the current one; the old row and its file are kept as history (database constraint). |
 | BR-DOC-006 | Notice files are never public. Staff get a link valid `link_minutes` in rule type `notice_upload` (default 5 minutes *(setting)*, fixed when the link is issued), signed for one staff user and usable only with that user's session; issuing it is recorded in the audit log. |
-| BR-DOC-007 | Notices are recorded only for members aged 18 or older (Montreal date) of a draft walk-in household. Submission is refused until every adult has a current notice or non-filing reason. |
+| BR-DOC-007 | Notices are recorded only for members aged 18 or older (Montreal date) of a draft walk-in household whose data-processing consent is recorded (PRV-02); without consent the notice is refused before its file is stored. Submission is refused until every adult has a current notice or non-filing reason. |
 
 The limits come from the versioned `notice_upload` RuleSet, not from
 hardcoded values. BR-DOC-001 to BR-DOC-004 are checked in

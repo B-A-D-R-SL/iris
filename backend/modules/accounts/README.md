@@ -11,11 +11,9 @@ Own the accounts feature boundary within the Iris modular monolith.
 ## Layers
 
 - `api/`: HTTP validation, permissions, and routing
-- `domain/`: Pure Python business rules; no Django dependencies
 - `services.py`: Public write operations and transactions
 - `queries.py`: Public read-only operations
 - `models.py`: Module-owned Django models
-- `tasks.py`: Background jobs when necessary
 - `tests/`: Domain, service, and API tests
 
 ## Public functions

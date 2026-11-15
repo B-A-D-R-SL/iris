@@ -2,6 +2,7 @@
 """Synthetic test factories. No actual beneficiary information."""
 
 import factory
+from django.utils import timezone
 
 from modules.accounts.tests.factories import UserFactory
 from modules.households.models import Household, Member
@@ -57,6 +58,13 @@ class HouseholdFactory(factory.django.DjangoModelFactory):
     street_name = "rue Exemple"
     city = "Montréal"
     postal_code = "H2X 1Y4"
+
+    class Params:
+        # PRV-02: staff record consent before any notice (FIX-30).
+        consented = factory.Trait(
+            consent_data_processing_at=factory.LazyFunction(timezone.now),
+            consent_text_version="2026-11-v1",
+        )
 
     @classmethod
     def _create(cls, model_class, *args, **kwargs):

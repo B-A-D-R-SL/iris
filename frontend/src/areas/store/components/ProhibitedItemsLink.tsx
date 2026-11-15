@@ -3,9 +3,9 @@
  * "See the list of prohibited items" (forms-and-fields.md, Listing form; SET-11
  * "Store - Post a listing", steps 3 and 4).
  *
- * Placeholder for US-34: the list of prohibited items is not built yet, so the
- * link is announced as unavailable and does nothing when activated.
- * TODO: open the prohibited-items list once a story builds it.
+ * The wireframes show this link, but no story builds the list of prohibited
+ * items yet (US-34 decision). Until one does, the link is announced as
+ * unavailable and does nothing when activated.
  */
 import { Anchor } from "@mantine/core";
 import { useTranslation } from "react-i18next";

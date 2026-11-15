@@ -73,7 +73,7 @@ def worker() -> Any:
 
 @pytest.fixture
 def holder() -> Any:
-    household = HouseholdFactory()
+    household = HouseholdFactory(consented=True)
     return MemberFactory(
         household=household, relation="holder", date_of_birth="1990-01-01"
     )

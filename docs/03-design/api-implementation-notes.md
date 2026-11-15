@@ -128,6 +128,5 @@ status or template, as an implemented Release 1 workflow.
 - [Backend URL configuration](../../backend/iris/urls.py)
 - [Django and DRF settings](../../backend/iris/settings/base.py)
 - [Health endpoint](../../backend/iris/views.py)
-- [Health frontend consumer](../../frontend/src/shared/api/health.ts)
 - [Partner application endpoint](../../backend/modules/stores/api/views.py)
 - [API generation and drift checks](../guides/api-generation.md)

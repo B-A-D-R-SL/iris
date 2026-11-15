@@ -22,7 +22,7 @@ def worker() -> Any:
 
 @pytest.fixture
 def household() -> Any:
-    return HouseholdFactory()
+    return HouseholdFactory(consented=True)
 
 
 @pytest.fixture
