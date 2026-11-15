@@ -45,3 +45,14 @@ class AuditEvent(models.Model):
                 name="audit_actor_system_consistent",
             ),
         ]
+        # Audit search (FIX-19) reads newest first. Searching by actor uses the
+        # foreign key index Django adds to actor.
+        indexes = [  # noqa: RUF012 - Django metadata.
+            # One household's history.
+            models.Index(
+                fields=["target_type", "target_id", "-created_at", "-id"],
+                name="audit_target_created_idx",
+            ),
+            # Date ranges, and the first page when no filter is given.
+            models.Index(fields=["-created_at", "-id"], name="audit_created_idx"),
+        ]

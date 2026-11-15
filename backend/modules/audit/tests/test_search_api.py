@@ -107,6 +107,29 @@ def test_filters_and_montreal_date_boundaries(
 
 
 @pytest.mark.parametrize(
+    ("moment", "found"),
+    [
+        (datetime(2026, 11, 1, 3, 59, tzinfo=UTC), False),  # Oct 31, 23:59 EDT
+        (datetime(2026, 11, 1, 4, 0, tzinfo=UTC), True),  # Nov 1, 00:00 EDT
+        (datetime(2026, 11, 2, 4, 59, tzinfo=UTC), True),  # Nov 1, 23:59 EST
+        (datetime(2026, 11, 2, 5, 0, tzinfo=UTC), False),  # Nov 2, 00:00 EST
+    ],
+)
+def test_date_filter_covers_the_whole_montreal_day_when_clocks_change(
+    client, admin, monkeypatch, moment, found
+):
+    # Montreal leaves daylight time on November 1, 2026: that day has 25 hours.
+    monkeypatch.setattr("django.utils.timezone.now", lambda: moment)
+    event = record(admin, "view", "household", uuid4(), {})
+    client.force_login(admin)
+    response = client.get(
+        reverse("audit-search"), {"from": "2026-11-01", "to": "2026-11-01"}
+    )
+    assert response.status_code == 200
+    assert (event.pk in [e["id"] for e in response.json()["results"]]) is found
+
+
+@pytest.mark.parametrize(
     "query",
     [
         {"household": "not-a-uuid"},
