@@ -15,6 +15,7 @@ from rest_framework.test import APIClient
 
 from adapters.mailer.fake import get_fake_mailer
 from modules.accounts.models import Invitation, User
+from modules.accounts.queries import UserRole
 from modules.accounts.tests.factories import UserFactory
 from modules.audit.models import AuditEvent
 from modules.notifications.models import EmailLog
@@ -33,10 +34,10 @@ pytestmark = [
 
 LIST_URL = "/api/staff/partner-applications/"
 NON_ADMIN_ROLES = [
-    User.Role.BENEFICIARY,
-    User.Role.STORE_STAFF,
-    User.Role.STORE_MANAGER,
-    User.Role.INTAKE_WORKER,
+    UserRole.BENEFICIARY,
+    UserRole.STORE_STAFF,
+    UserRole.STORE_MANAGER,
+    UserRole.INTAKE_WORKER,
 ]
 
 
@@ -53,7 +54,7 @@ def reject_url(application_id: object) -> str:
 @pytest.fixture
 def admin() -> User:
     """An active admin account."""
-    return cast(User, UserFactory(role=User.Role.ADMIN))
+    return cast(User, UserFactory(role=UserRole.ADMIN))
 
 
 @pytest.fixture
@@ -86,7 +87,7 @@ def _signed_in(role: str) -> APIClient:
     """A client signed in with the role; store roles get a store."""
     store = (
         StoreFactory()
-        if role in (User.Role.STORE_STAFF, User.Role.STORE_MANAGER)
+        if role in (UserRole.STORE_STAFF, UserRole.STORE_MANAGER)
         else None
     )
     client = APIClient()
@@ -137,14 +138,14 @@ def test_anonymous_visitors_are_refused() -> None:
 def test_an_inactive_admin_is_refused() -> None:
     """A deactivated admin account cannot review."""
     client = APIClient()
-    client.force_authenticate(UserFactory(role=User.Role.ADMIN, is_active=False))
+    client.force_authenticate(UserFactory(role=UserRole.ADMIN, is_active=False))
 
     assert client.get(LIST_URL).status_code == 403
 
 
 def test_refusals_use_the_error_envelope() -> None:
     """403 bodies follow the team format {code, message, fields}."""
-    response = _signed_in(User.Role.INTAKE_WORKER).get(LIST_URL)
+    response = _signed_in(UserRole.INTAKE_WORKER).get(LIST_URL)
 
     assert set(response.json()) == {"code", "message", "fields"}
 
@@ -236,7 +237,7 @@ def test_approve_creates_store_invitation_audit_and_email(
     assert response.json()["can_decide"] is False
     store = Store.objects.get(application=application)
     invitation = Invitation.objects.get(store=store)
-    assert invitation.role == User.Role.STORE_MANAGER
+    assert invitation.role == UserRole.STORE_MANAGER
     assert invitation.email == application.contact_email
     assert AuditEvent.objects.filter(
         actor=admin, target_id=str(application.pk), metadata={"outcome": "approved"}

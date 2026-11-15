@@ -8,7 +8,7 @@ import pytest
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
 
-from modules.accounts.models import User
+from modules.accounts.queries import UserRole
 from modules.accounts.tests.factories import UserFactory
 from modules.audit.models import AuditEvent
 from modules.households.tests.factories import HouseholdFactory
@@ -179,7 +179,7 @@ def test_only_active_admins_edit(role) -> None:
 
 
 def test_inactive_admin_cannot_edit() -> None:
-    admin = UserFactory(role=User.Role.ADMIN, is_active=False)
+    admin = UserFactory(role=UserRole.ADMIN, is_active=False)
     with pytest.raises(PermissionDenied):
         services.update_store(_store().pk, {"city": "Laval"}, admin)
 

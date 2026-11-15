@@ -15,6 +15,7 @@ from django.db.models.deletion import ProtectedError
 from django.test import Client
 
 from modules.accounts.models import User
+from modules.accounts.roles import UserRole
 from modules.accounts.tests.factories import UserFactory
 from modules.stores.tests.factories import StoreFactory
 
@@ -58,7 +59,7 @@ def test_user_creation_and_password_hash(user):
     assert user.check_password(PASSWORD)
     assert not user.check_password("incorrect")
     assert User.objects.get_by_natural_key(USER_EMAIL.upper()) == user
-    assert set(User.Role.values) == {
+    assert set(UserRole.values) == {
         "beneficiary",
         "store_staff",
         "store_manager",
@@ -104,7 +105,7 @@ def test_public_sign_up_is_closed(client):
     assert not User.objects.filter(email="new-household@example.test").exists()
 
 
-@pytest.mark.parametrize("role", [User.Role.STORE_STAFF, User.Role.STORE_MANAGER])
+@pytest.mark.parametrize("role", [UserRole.STORE_STAFF, UserRole.STORE_MANAGER])
 def test_store_roles_require_a_store(user, role):
     user.role = role
     with pytest.raises(IntegrityError), transaction.atomic():
@@ -131,14 +132,14 @@ def test_login_creates_session_and_updates_last_login(client, user):
     assert cookie["samesite"] == "Lax"
 
 
-@pytest.mark.parametrize("role", User.Role.values)
+@pytest.mark.parametrize("role", UserRole.values)
 def test_every_role_can_sign_in_and_out_through_the_api(client, user, role):
     user.role = role
-    if role in {User.Role.STORE_STAFF, User.Role.STORE_MANAGER}:
+    if role in {UserRole.STORE_STAFF, UserRole.STORE_MANAGER}:
         user.store = StoreFactory()
-    if role in {User.Role.INTAKE_WORKER, User.Role.ADMIN}:
+    if role in {UserRole.INTAKE_WORKER, UserRole.ADMIN}:
         user.is_staff = True
-    if role == User.Role.ADMIN:
+    if role == UserRole.ADMIN:
         user.is_superuser = True
     user.save()
 
@@ -220,7 +221,7 @@ def test_auth_logs_do_not_identify_the_account(client, user, caplog):
 
 
 def test_admin_login_uses_rate_limited_sign_in(client, user):
-    user.role = User.Role.ADMIN
+    user.role = UserRole.ADMIN
     user.is_staff = True
     user.is_superuser = True
     user.save(update_fields=["role", "is_staff", "is_superuser"])
@@ -234,7 +235,7 @@ def test_admin_login_uses_rate_limited_sign_in(client, user):
 
 
 def test_admin_and_app_sign_in_share_failed_attempts(client, user):
-    user.role = User.Role.ADMIN
+    user.role = UserRole.ADMIN
     user.is_staff = True
     user.is_superuser = True
     user.save(update_fields=["role", "is_staff", "is_superuser"])
@@ -368,12 +369,12 @@ def test_logout_invalidates_the_session_shared_by_browser_tabs(client, user):
     assert other_browser.get("/api/me/").status_code == 200
 
 
-@pytest.mark.parametrize("role", User.Role.values)
+@pytest.mark.parametrize("role", UserRole.values)
 @pytest.mark.parametrize("assigned_store", [False, True])
 def test_current_user_has_exact_response(client, user, role, assigned_store):
     user.role = role
     user.preferred_language = "en"
-    if assigned_store or role in {User.Role.STORE_STAFF, User.Role.STORE_MANAGER}:
+    if assigned_store or role in {UserRole.STORE_STAFF, UserRole.STORE_MANAGER}:
         user.store = StoreFactory()
     user.save()
     client.force_login(user)

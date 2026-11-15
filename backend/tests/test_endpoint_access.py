@@ -22,15 +22,16 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
 
 from modules.accounts.models import User
+from modules.accounts.queries import UserRole
 from modules.accounts.tests.factories import UserFactory
 from modules.stores.tests.factories import StoreFactory
 
-BENEFICIARY = User.Role.BENEFICIARY.value
-STORE_STAFF = User.Role.STORE_STAFF.value
-STORE_MANAGER = User.Role.STORE_MANAGER.value
-INTAKE_WORKER = User.Role.INTAKE_WORKER.value
-ADMIN = User.Role.ADMIN.value
-EVERY_ROLE = frozenset(User.Role.values)
+BENEFICIARY = UserRole.BENEFICIARY.value
+STORE_STAFF = UserRole.STORE_STAFF.value
+STORE_MANAGER = UserRole.STORE_MANAGER.value
+INTAKE_WORKER = UserRole.INTAKE_WORKER.value
+ADMIN = UserRole.ADMIN.value
+EVERY_ROLE = frozenset(UserRole.values)
 STORE_ROLES = frozenset({STORE_STAFF, STORE_MANAGER})
 
 # Roles that get past the permission check, per URL name. Taken from each view's

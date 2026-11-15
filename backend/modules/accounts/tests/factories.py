@@ -4,6 +4,7 @@
 import factory
 
 from modules.accounts.models import User
+from modules.accounts.roles import UserRole
 
 
 class UserFactory(factory.django.DjangoModelFactory):
@@ -29,6 +30,6 @@ class InvitationInputFactory(factory.DictFactory):
     email = factory.Sequence(lambda n: f"invited-recipient-{n}@example.test")
     first_name = factory.Sequence(lambda n: f"Invited{n}")
     last_name = factory.Sequence(lambda n: f"Example{n}")
-    role = User.Role.BENEFICIARY
+    role = UserRole.BENEFICIARY
     store = None
     invited_by = None

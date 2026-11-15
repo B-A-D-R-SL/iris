@@ -188,7 +188,6 @@ ignore_imports = [
     "modules.stores.tests.test_admin -> modules.accounts.tests.factories",
     "modules.stores.tests.test_application_decisions -> modules.accounts.models",
     "modules.stores.tests.test_application_recovery -> modules.accounts.models",
-    "modules.stores.tests.conftest -> modules.accounts.models",
     "modules.stores.tests.conftest -> modules.rules.models",
     "modules.stores.tests.test_application_recovery -> modules.audit.models",
     "modules.stores.tests.test_application_decisions -> modules.audit.models",
@@ -234,7 +233,6 @@ ignore_imports = [
     "modules.stores.tests.** -> modules.reservations.models",
     "modules.stores.tests.** -> modules.audit.models",
     "modules.stores.tests.** -> modules.notifications.models",
-    "modules.stores.tests.test_store_admin_service -> modules.accounts.models",
     "modules.stores.tests.test_staff_store_api -> modules.accounts.models",
 
     # households and documents -> accounts: one rule for intake staff (T-03.18.2)
@@ -279,7 +277,6 @@ ignore_imports = [
 
     # reservations pickup tests (US-44) -> test setup only: saved users, stores,
     # households with a holder, and listings with an open pickup window.
-    "modules.reservations.tests.** -> modules.accounts.models",
     "modules.reservations.tests.** -> modules.accounts.tests.factories",
     "modules.reservations.tests.** -> modules.households.models",
     "modules.reservations.tests.** -> modules.households.tests.factories",

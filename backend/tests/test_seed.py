@@ -14,6 +14,7 @@ from django.utils import timezone
 from iris.management.commands import seed as seed_command
 from iris.seedset import HOUSEHOLD_STATUS_COUNTS, RESERVATION_STATUS_COUNTS
 from modules.accounts.models import User
+from modules.accounts.queries import UserRole
 from modules.households.domain.expiry import add_months
 from modules.households.models import Household, HouseholdStatus
 from modules.listings.models import Listing
@@ -42,15 +43,14 @@ def seeded(seed_password: None) -> None:
 @pytest.mark.django_db
 def test_seed_creates_the_agreed_counts_on_an_empty_database(seeded: None) -> None:
     """Check the agreed demo counts and the system account for rule publishing."""
-    admins = User.objects.filter(role=User.Role.ADMIN, is_superuser=False)
+    admins = User.objects.filter(role=UserRole.ADMIN, is_superuser=False)
     assert admins.exclude(email=SEED_USERNAME).count() == 1
     assert not admins.get(email=SEED_USERNAME).has_usable_password()
-    assert User.objects.filter(role=User.Role.INTAKE_WORKER).count() == 2
+    assert User.objects.filter(role=UserRole.INTAKE_WORKER).count() == 2
     assert (
-        User.objects.filter(role=User.Role.STORE_STAFF, store__is_badr=True).count()
-        == 1
+        User.objects.filter(role=UserRole.STORE_STAFF, store__is_badr=True).count() == 1
     )
-    assert User.objects.filter(role=User.Role.STORE_MANAGER).count() == 4
+    assert User.objects.filter(role=UserRole.STORE_MANAGER).count() == 4
     assert Store.objects.filter(is_badr=True).count() == 1
     assert Store.objects.filter(is_badr=False).count() == 4
     assert Household.objects.count() == 50
@@ -144,7 +144,7 @@ def test_seed_uses_only_fictional_contact_details(seeded: None) -> None:
 def test_seed_user_can_sign_in(seeded: None) -> None:
     """The seed admin can sign in and is not a Django superuser."""
     admin = User.objects.get(email="coordonnateur@example.test")
-    assert admin.role == User.Role.ADMIN
+    assert admin.role == UserRole.ADMIN
     assert admin.is_superuser is False
     assert admin.is_staff is False
     assert admin.check_password(TEST_PASSWORD)

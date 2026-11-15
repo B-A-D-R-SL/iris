@@ -9,6 +9,7 @@ from django.db import transaction
 
 from modules.accounts import services
 from modules.accounts.models import Invitation, User
+from modules.accounts.roles import UserRole
 from modules.accounts.tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -50,7 +51,7 @@ def test_creation_logs_private_success_only_after_commit(
     django_capture_on_commit_callbacks,
 ):
     """Creation emits exactly one event after the outer transaction commits."""
-    inviter = UserFactory(role=User.Role.ADMIN)
+    inviter = UserFactory(role=UserRole.ADMIN)
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
         with transaction.atomic():
             token = services.create_invitation(
