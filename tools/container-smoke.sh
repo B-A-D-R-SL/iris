@@ -184,7 +184,7 @@ runtime_python() {
 }
 
 check_runtime_libraries() {
-  runtime_python none postgresql://iris:iris_smoke_only@127.0.0.1:1/iris -c '
+  runtime_python none postgresql://iris@127.0.0.1:1/iris -c '
 import importlib.util
 from pathlib import Path
 import django, PIL, psycopg
