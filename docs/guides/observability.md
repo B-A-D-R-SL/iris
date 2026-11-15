@@ -11,6 +11,12 @@ The `iris.auth` events `sign_in_succeeded` and `signed_out` also allow `user_id`
 validated as a UUID. This is the only account identifier allowed in logs;
 failed sign-ins and lockouts do not identify the account.
 
+The `iris.validation` INFO event `contact_normalization_rejected` allows only a
+`field` name from `phone`, `contact_phone` or `postal_code`. This metadata is
+accepted only for that logger and event. No contact value, model identifier or
+exception is logged. Invalid input remains unchanged so model validation can
+collect all field errors; blank and excluded fields emit no rejection event.
+
 Unsupported allauth mail prefixes produce the static INFO event
 `authentication_email_skipped` on `iris.auth`. This event includes no recipient,
 template prefix, context, token or exception information; the adapter returns

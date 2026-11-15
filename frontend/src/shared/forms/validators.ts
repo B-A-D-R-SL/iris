@@ -11,14 +11,11 @@
 import { createElement, type ReactNode } from "react";
 
 import { ValidationMessage } from "./FieldError";
+import { canonicalPostalCode, isBlankContact, normalizePhone } from "./contact";
 import { centsToDollars } from "./formats";
 
 export type Rule<T> = (value: T) => ReactNode;
 
-// Canada Post letters, as in the backend's normalize_postal_code (US-17, shared by FIX-14):
-// no D, F, I, O, Q or U, and no W or Z in first place. Checked without the space.
-const POSTAL_CODE = /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z]\d[ABCEGHJ-NPRSTV-Z]\d$/;
-const E164_CANADA = /^\+1[2-9]\d{9}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BYTES_PER_MB = 1024 * 1024;
@@ -29,7 +26,9 @@ export function validationMessage(messageKey: string, values?: Record<string, un
 
 function isEmpty(value: unknown): boolean {
   return (
-    value === null || value === undefined || (typeof value === "string" && value.trim() === "")
+    value === null ||
+    value === undefined ||
+    (typeof value === "string" && (value.trim() === "" || isBlankContact(value)))
   );
 }
 
@@ -79,23 +78,15 @@ export function hasLength({ min = 0, max }: { min?: number; max: number }): Rule
 /** "h2x1y4", "H2X 1Y4" and " h2x 1y4 " are the same code: case and spaces don't count. */
 export function isPostalCode(): Rule<string> {
   return (value) =>
-    isEmpty(value) || POSTAL_CODE.test(value.replace(/\s+/g, "").toUpperCase())
+    isBlankContact(value) || canonicalPostalCode(value) !== null
       ? null
       : validationMessage("shared.validation.postalCode");
-}
-
-/** "(514) 555-0123", "514 555 0123" and "+1 514-555-0123" all become "+15145550123". */
-function compactPhone(value: string): string {
-  const compact = value.replace(/[\s().-]/g, "");
-  if (/^\d{10}$/.test(compact)) return `+1${compact}`;
-  if (/^1\d{10}$/.test(compact)) return `+${compact}`;
-  return compact;
 }
 
 /** A Canadian number of 10 digits, however it is spaced; PhoneField already gives E.164. */
 export function isPhone(): Rule<string> {
   return (value) =>
-    isEmpty(value) || E164_CANADA.test(compactPhone(value))
+    isBlankContact(value) || normalizePhone(value) !== null
       ? null
       : validationMessage("shared.validation.phone");
 }

@@ -195,7 +195,12 @@ const form = useForm({
   Empty values pass every rule except `isRequired()`.
 - `isPostalCode()` and `isPhone()` follow the backend rule: case and spaces don't count, so
   `h2x1y4` and `(514) 555-0123` pass. Postal codes use Canada Post letters (no D, F, I, O, Q
-  or U), like `normalize_postal_code` on the server.
+  or U), like `modules.common.domain.contact.normalize_postal_code` on the server.
+  Postal Unicode compatibility/accent folding is shared with US-17. Phone numbers
+  accept an optional `1`/`+1` and familiar punctuation, with ten national digits
+  starting with 2–9. The canonical digits are ASCII. Shared Python/Vitest fixtures
+  verify parity. Editing formatters preserve invalid characters and extra digits
+  for validation; they never truncate a pasted value into a different valid one.
 - Put server field errors in `form.setErrors({ field: message })`; they get the same style.
 - Count errors at the top with `<Notice type="error" title={…} />` (forms-and-fields.md).
 

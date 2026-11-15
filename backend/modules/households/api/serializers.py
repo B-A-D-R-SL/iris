@@ -1,7 +1,6 @@
 # AI contribution: 50% or more AI-generated
 """Explicit HTTP fields: never allow a client to set status, staff IDs or audit data."""
 
-import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -10,7 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from modules.households.domain.address import normalize_postal_code
+from modules.common.api.fields import CanadianPhoneField, PostalCodeField
 from modules.households.domain.person import valid_name, validate_birth_date
 from modules.households.limits import max_household_people
 from modules.households.messages import domain_error_message
@@ -44,42 +43,6 @@ class NameField(serializers.CharField):
                 _("Use letters, spaces, apostrophes or hyphens.")
             )
         return value
-
-
-class CanadianPhoneField(serializers.CharField):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(max_length=30, **kwargs)
-
-    def to_internal_value(self, data: Any) -> str:
-        value = super().to_internal_value(data)
-        digits = re.sub(r"[\s().-]", "", value)
-        if digits.startswith("+"):
-            correct = re.fullmatch(r"\+1\d{10}", digits)
-        elif digits.startswith("1") and len(digits) == 11:
-            digits = "+" + digits
-            correct = re.fullmatch(r"\+1\d{10}", digits)
-        elif len(digits) == 10:
-            digits = "+1" + digits
-            correct = re.fullmatch(r"\+1\d{10}", digits)
-        else:
-            correct = None
-        if not correct:
-            raise serializers.ValidationError(
-                _("Enter a 10-digit Canadian telephone number.")
-            )
-        return digits
-
-
-class PostalCodeField(serializers.CharField):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(max_length=8, **kwargs)
-
-    def to_internal_value(self, data: Any) -> str:
-        raw = super().to_internal_value(data)
-        try:
-            return normalize_postal_code(raw)
-        except ValueError as exc:
-            raise serializers.ValidationError(domain_error_message(exc)) from exc
 
 
 class HolderInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):

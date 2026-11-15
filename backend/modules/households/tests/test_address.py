@@ -5,7 +5,8 @@ from datetime import date
 
 import pytest
 
-from modules.households.domain.address import normalize_address, normalize_postal_code
+from modules.common.domain.contact import InvalidPostalCode, normalize_postal_code
+from modules.households.domain.address import normalize_address
 from modules.households.domain.person import normalize_person, validate_birth_date
 
 
@@ -62,9 +63,7 @@ def test_holder_age_boundary(dob, valid):
 def test_domain_errors_have_specific_types():
     from modules.households.domain.address import (
         IncompleteAddress,
-        InvalidPostalCode,
         normalize_address,
-        normalize_postal_code,
     )
 
     with pytest.raises(InvalidPostalCode):

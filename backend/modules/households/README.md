@@ -18,8 +18,7 @@ account. The record also preserves staff verification and creation timestamps.
   checks the household is a draft walk-in (not anonymized) and the member is one of
   its adults (BR-DOC-007), stores the file with `documents.services.prepare_staff_notice`
   before locking, then locks the household, checks again, records the draft change and
-  saves with `save_prepared_notice`; a refusal removes the stored file (T-03.18.2)
-- `queries.walk_in_for_staff(household_id) -> Household | None`
+  saves with `save_prepared_notice`; a refusal calls `discard_prepared_notice` (T-03.18.2)
 - `queries.eligibility_inputs(household_id) -> EligibilityInputs`: verified
   adult incomes and the full member count for the eligibility service
 - `services.change_suspension(household_id, reason, actor, reactivate=...) -> Household`:
@@ -51,7 +50,8 @@ account. The record also preserves staff verification and creation timestamps.
   reads only and excludes anonymized files. Blank input returns no files.
 - `queries.search_for_staff(q, actor) -> QuerySet[Household]`: the API entry point;
   validates shared staff permission before pagination.
-- `domain/address.py`: `normalize_address`, `normalize_postal_code`
+- `domain/address.py`: `normalize_address`; postal normalization is shared in
+  `modules.common.domain.contact.normalize_postal_code` (FIX-14).
 - `domain/person.py`: `normalize_person`, age/name validation, `is_adult`
 - `domain/names.py`: `short_name`, `short_full_name` ("Fatou D.")
 
@@ -86,7 +86,7 @@ creator, verifier or internal keys directly.
   one. See `modules/documents/README.md` for the rules and file links.
 - `POST /api/staff/households/{uuid}/approve/` (no body): calls
   `approve_walk_in` and returns `{ id, status, status_reason, approved_at,
-  expires_at }` with 200, whether the file is approved, rejected or sent to
+  expires_at, invitation_not_sent }` with 200, whether the file is approved, rejected or sent to
   review. An incomplete file, or one that cannot be decided in its status,
   answers 400 with the message in `fields.non_field_errors`; unknown IDs 404.
 - `GET /api/staff/households/{uuid}/decision-summary/`: calls
@@ -268,9 +268,10 @@ separate task, and this service stores `review_required`.
 
 Outcome, eligibility, audit and invitation writes share one transaction.
 `audit.services.record` receives only the outcome, never notice or income data.
-Approved files with email call the US-04 invitation service from `main`; existing
-accounts are refused under its new-account-only policy and roll back approval.
-Acceptance creates the account but does not yet link it to the household.
+Approved files with email call the US-04 invitation service. Its existing-account
+refusal is handled by skipping the invitation while preserving approval, as
+reported by `invitation_not_sent`; other invitation failures roll back the
+transaction. Acceptance creates the account but does not yet link it to the household.
 
 The French or English set-password email uses US-57's `walk_in_set_password`
 template through `notifications.services.queue_set_password_email`, which calls

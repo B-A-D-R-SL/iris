@@ -3,8 +3,8 @@
 
 """Store records shared by B.A.D.R. and approved partner businesses."""
 
-import re
 import uuid
+from collections.abc import Collection
 
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
@@ -14,10 +14,13 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import pgettext_lazy
 
+from modules.common.domain.contact import normalize_phone, normalize_postal_code
+from modules.common.validators import (
+    normalize_model_contacts,
+    validate_phone,
+    validate_postal_code,
+)
 from modules.stores.fields import CitextEmailField
-
-POSTAL_CODE_PATTERN = r"^[A-Za-z]\d[A-Za-z] ?\d[A-Za-z]\d$"
-E164_PHONE_NUMBER_PATTERN = r"^\+[1-9]\d{1,14}$"
 
 
 class Store(models.Model):
@@ -51,19 +54,12 @@ class Store(models.Model):
     postal_code = models.CharField(
         pgettext_lazy("store field", "Postal code"),
         max_length=7,
-        validators=[
-            RegexValidator(POSTAL_CODE_PATTERN, _("Enter a Canadian postal code."))
-        ],
+        validators=[validate_postal_code],
     )
     phone = models.CharField(
         pgettext_lazy("store field", "Phone number"),
         max_length=16,
-        validators=[
-            RegexValidator(
-                E164_PHONE_NUMBER_PATTERN,
-                "Enter a phone number in E.164 format.",
-            )
-        ],
+        validators=[validate_phone],
     )
     email = CitextEmailField(
         pgettext_lazy("store field", "Email address"), max_length=254
@@ -111,18 +107,18 @@ class Store(models.Model):
             )
         ]
 
-    def clean(self) -> None:
-        """Store valid Canadian postal codes in uppercase with one space."""
-        super().clean()
-        compact_code = self.postal_code.replace(" ", "").upper()
-        if re.fullmatch(r"[A-Z]\d[A-Z]\d[A-Z]\d", compact_code):
-            self.postal_code = f"{compact_code[:3]} {compact_code[3:]}"
+    def clean_fields(self, exclude: Collection[str] | None = None) -> None:
+        normalize_model_contacts(
+            self,
+            {"phone": normalize_phone, "postal_code": normalize_postal_code},
+            exclude,
+        )
+        super().clean_fields(exclude=exclude)
 
     def __str__(self) -> str:
         return self.name
 
 
-CANADIAN_PHONE_PATTERN = r"^\+1[2-9]\d{9}$"
 NEQ_PATTERN = r"^\d{10}$"
 STREET_NUMBER_PATTERN = r"^\d{1,8}(?:[A-Za-z]| ?\d/\d)?$"
 NAME_PATTERN = r"^[^\W\d_]+(?:[ '’-][^\W\d_]+)*$"
@@ -223,7 +219,7 @@ class PartnerApplication(models.Model):
     postal_code = models.CharField(
         pgettext_lazy("partner application field", "Postal code"),
         max_length=7,
-        validators=[RegexValidator(POSTAL_CODE_PATTERN)],
+        validators=[validate_postal_code],
     )
     contact_first_name = models.CharField(
         pgettext_lazy("partner application field", "First name"),
@@ -249,7 +245,7 @@ class PartnerApplication(models.Model):
     contact_phone = models.CharField(
         pgettext_lazy("partner application field", "Phone number"),
         max_length=16,
-        validators=[RegexValidator(CANADIAN_PHONE_PATTERN)],
+        validators=[validate_phone],
     )
     website = models.URLField(
         pgettext_lazy("partner application field", "Website"),
@@ -362,6 +358,14 @@ class PartnerApplication(models.Model):
                 fields=["status", "created_at"], name="stores_application_status_idx"
             )
         ]
+
+    def clean_fields(self, exclude: Collection[str] | None = None) -> None:
+        normalize_model_contacts(
+            self,
+            {"contact_phone": normalize_phone, "postal_code": normalize_postal_code},
+            exclude,
+        )
+        super().clean_fields(exclude=exclude)
 
     def __str__(self) -> str:
         return self.business_name

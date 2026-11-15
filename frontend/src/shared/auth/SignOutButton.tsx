@@ -9,9 +9,7 @@ import { FieldError } from "../forms/FieldError";
 import { logger } from "../logger";
 import { useAuth } from "./authContext";
 
-/** Shared sign-out action for public, mobile and staff layouts. */
-export function SignOutButton({ menu = false }: { menu?: boolean }) {
-  const { t } = useTranslation();
+function useSignOutAction() {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const [pending, setPending] = useState(false);
@@ -31,6 +29,13 @@ export function SignOutButton({ menu = false }: { menu?: boolean }) {
     }
   }
 
+  return { pending, failed, onSignOut };
+}
+
+/** Shared sign-out action for public, mobile and staff layouts. */
+export function SignOutButton({ menu = false }: { menu?: boolean }) {
+  const { t } = useTranslation();
+  const { pending, failed, onSignOut } = useSignOutAction();
   return (
     <>
       {menu ? (

@@ -5,8 +5,7 @@ import type { CurrentUser } from "./currentUser";
 
 export interface AuthContextValue {
   user: CurrentUser | null | undefined;
-  signIn: (email: string, password: string) => Promise<CurrentUser | "mfa_required">;
-  verifyCode: (code: string) => Promise<CurrentUser>;
+  signIn: (email: string, password: string) => Promise<CurrentUser>;
   retryProfile: () => Promise<CurrentUser>;
   signOut: () => Promise<void>;
 }
