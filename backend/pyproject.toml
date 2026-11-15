@@ -74,6 +74,26 @@ fail_under = 70
 show_missing = true
 skip_covered = true
 
+# Dead-code check (FIX-06): run `uvx vulture` from backend/; it must report nothing.
+[tool.vulture]
+paths = ["."]
+exclude = [".venv/", "htmlcov/", "migrations/"]
+min_confidence = 80
+ignore_names = [
+    # Overrides that must keep the parent's signature:
+    # AuthCache._cull(..., num) and NoticeFileDownloadView.perform_content_negotiation(..., force).
+    "num",
+    "force",
+    # Pytest fixtures requested only for their setup (rules published, clock or
+    # password patched, rows seeded); the test never reads the value.
+    "frozen_clock",
+    "notice_rule",
+    "seed_password",
+    "seeded_search_dataset",
+    "suspension_rule",
+    "transactional_db",
+]
+
 [tool.importlinter]
 root_packages = ["iris", "adapters", "modules"]
 include_external_packages = true
