@@ -369,7 +369,7 @@ database fields or relationships to fill these gaps.
 | Household flags and reasons | Agree the minimum Release 1 handling for `review_required` files and where rejection/suspension reasons are stored. The full review queue is deferred. |
 | Lifecycle timing | Confirm the configured approval-validity and late-confirmation settings. The team draft supplies twelve months and twenty-four hours respectively. |
 | Cancellation/no-show stock | Agree when stock is released and how late pickup confirmation interacts with release. No counter behavior is invented by the state diagram. |
-| Worker deployment | Confirm worker startup, supervision and scaling within the shared-image App Service deployment. A running web process alone does not establish that a worker is running. |
+| Worker deployment | Implemented in `backend/iris/release.py`: one release container couples Gunicorn and Procrastinate, stops both if either exits, and forwards shutdown to both process groups. Staging targets one App Service instance. Live Azure startup/shutdown and queue/email verification remain pending; `/api/ready/` checks process existence, not queue progress. |
 | Dependency contracts | Align the supplied architecture and diagram collection where their permitted arrows differ. Public service/query access must not introduce domain import cycles. |
 
 ### Failed pickup attempts and no-shows — proposed handling

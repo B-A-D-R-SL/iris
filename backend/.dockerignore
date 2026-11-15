@@ -1,17 +1,65 @@
 # AI contribution: 50% or more AI-generated
-# Exclude nested secrets and test caches used by the local photo/Azurite checks.
-.venv/
+# Keep credentials out of every package directory in the build context.
 **/.env
 **/.env.*
-!.env.example
+!**/.env.example
+!**/.env.*.example
+**/.aws/
+**/.azure/
+**/.ssh/
+**/.gnupg/
+**/credentials
+**/credentials.*
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.jks
+**/*.keystore
+
+# Local environments and generated outputs live at the backend context root.
+# Keep the same directory names available for resources inside application packages.
+.venv/
+venv/
+env/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+coverage/
+coverage.xml
+*.egg-info/
+*.egg
+node_modules/
+build/
+dist/
+
+# Python bytecode and tool caches are disposable at any depth.
 **/__pycache__/
-*.py[cod]
+**/*.py[cod]
 **/.pytest_cache/
 **/.mypy_cache/
 **/.ruff_cache/
-# Generated photo-demo images are confined to backend/tmp.
+
+# Generated photo-demo images and other local files stay at the context root.
 tmp/
-db.sqlite3
-.git/
-.idea/
-.vscode/
+temp/
+*.tmp
+*.bak
+*.log
+logs/
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+
+**/.git
+**/.hg/
+**/.svn/
+**/.idea/
+**/.vscode/
+**/*.iml
+**/*.swp
+**/.DS_Store
+**/Thumbs.db
+**/desktop.ini

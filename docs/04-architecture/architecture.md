@@ -58,7 +58,9 @@ A technical spike does not make it an active Release 1 dependency.
 - Money uses integer cents. Datetimes are timezone-aware.
 - React supports French and English and separates public, household,
   store and staff areas.
-- Data and staging services are located in Azure Canada East.
+- The eventual production target is Azure Canada East (SET-24).
+  Fictional-data staging hosting is pending a region/subscription decision;
+  existing ACS email data stays in Canada.
 - Logs and audit metadata exclude sensitive document contents and
   income values.
 - Release 1 staging uses generated test data. The project requires the
@@ -210,7 +212,7 @@ flowchart LR
     I["Iris — Release 1"]
     RQ["Revenu Québec notice of assessment<br/>provided by the household"]
     SC["Statistics Canada<br/>income-threshold reference table"]
-    AZ["Azure Canada East<br/>hosting, private files and email"]
+    AZ["Azure staging — hosting region pending<br/>private files; ACS email data in Canada"]
 
     HH -->|"Sign in, browse and reserve"| I
     ST -->|"Post goods and confirm pickup"| I
@@ -225,10 +227,13 @@ flowchart LR
 
 ### 2. High-level architecture — containers
 
-The API and worker use the same release image.
+The API and worker use the same release image. `backend/iris/release.py`
+supervises Gunicorn and Procrastinate together: either child exiting stops both
+and fails the container; shutdown signals reach both process groups. Startup and
+supervision are implemented, while live Azure verification remains pending.
 
-This is a logical process view. Worker startup and supervision remain
-deployment decisions.
+This is a logical process view of fictional-data staging. Its hosting region and
+subscription are pending; the eventual production target is Canada East.
 
 AI Document Intelligence appears in the team target architecture,
 but its online-reading flow is deferred beyond Release 1.
@@ -239,7 +244,7 @@ flowchart TB
         React["React 19 + TypeScript<br/>public, household, store and staff areas"]
     end
 
-    subgraph Azure["Azure Canada East — Release 1 staging"]
+    subgraph Azure["Azure — fictional-data staging; hosting region pending"]
         subgraph Iris["Iris deployment — common release image"]
             API["Django 6.1 + Django REST Framework<br/>serves the built React application"]
             Worker["Procrastinate worker<br/>email and scheduled lifecycle jobs"]
@@ -247,8 +252,8 @@ flowchart TB
 
         DB[("PostgreSQL 17<br/>application data and job queue")]
         Blob[("Private Blob Storage<br/>notices and listing photos")]
-        Mail["Communication Services<br/>email"]
-        Vault["Key Vault<br/>runtime secrets"]
+        Mail["Communication Services<br/>email data in Canada"]
+        Vault["Existing Key Vault — West US 2<br/>runtime secrets"]
     end
 
     React -->|"HTTPS /api"| API
@@ -363,8 +368,25 @@ Release 1 targets staging.
 Production is a later release in the supplied release plan and is not
 represented as an active Release 1 environment here.
 
-The diagram specifies the intended deployment. It does not claim that
-CI, resources or worker supervision are already configured.
+The diagram describes the SET-17 branch's implementation and proposed student
+staging topology; it is not evidence that hosting or deployment is active.
+
+Status (14 November 2026): the resource group, Key Vault and ACS email were
+provisioned by Ammar. The branch now includes a non-root release image,
+serialized migrations/seeding, coupled web/worker supervision, CI image smoke
+and a disabled-by-default main-after-CI deploy workflow. Database, storage,
+App Service, OIDC and live verification remain owner activation steps.
+**The hosting region and subscription decision is pending.** The overlapping
+student-subscription and Concordia location policies allow only West US 2 and
+West US, but PostgreSQL creation failed in both. The team is pursuing student
+capacity and access to B.A.D.R.'s nonprofit credit in parallel. Do not provision
+the database, storage or App Service until the team selects the region and
+subscription; keep those three services together in the chosen region. Existing
+resource group and Key Vault remain in West US 2; ACS email data remains in Canada.
+B.A.D.R.'s eventual Canada East production target stays under SET-24. Review the
+[policy and capacity status](../guides/azure-staging.md#subscription-and-region),
+[temporary staging ADR](adr-set17-student-staging.md) and
+[budget-gated activation guide](../guides/azure-staging-operations.md).
 
 ```mermaid
 
@@ -373,13 +395,13 @@ flowchart LR
     Git["GitHub<br/>feature branch and pull request"]
     CI["CI checks<br/>review and merge to main"]
 
-    subgraph Stage["iris-staging — Azure Canada East"]
+    subgraph Stage["iris-staging — fictional data; hosting region pending"]
         App["Azure App Service<br/>Iris release image: web application and worker"]
         DB[("PostgreSQL Flexible Server")]
         Blob[("Private Blob Storage")]
-        Mail["Communication Services email"]
-        Vault["Key Vault"]
-        Telemetry["Application Insights<br/>operational telemetry"]
+        Mail["Communication Services email<br/>data in Canada"]
+        Vault["Existing Key Vault<br/>West US 2"]
+        Logs["Structured container logs<br/>no paid telemetry workspace for SET-17"]
     end
 
     Users["Release 1 testers and users"]
@@ -392,7 +414,7 @@ flowchart LR
     App --> Blob
     App --> Mail
     App --> Vault
-    App --> Telemetry
+    App --> Logs
 ```
 
 

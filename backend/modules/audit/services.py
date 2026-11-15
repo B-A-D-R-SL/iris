@@ -1,4 +1,5 @@
 # AI contribution: 50% or more AI-generated
+import re
 from collections.abc import Iterable
 from uuid import UUID
 
@@ -58,6 +59,11 @@ RULE_PUBLICATION_TYPES = frozenset(
     }
 )
 
+# US-14 store events. The reason limit matches the partner rejection reason.
+STORE_REASON_MAX_LENGTH = 500
+STORE_FIELDS_MAX_LENGTH = 300
+STORE_FIELDS_PATTERN = re.compile(r"[a-z][a-z0-9_]*(,[a-z][a-z0-9_]*)*")
+
 
 def _validate_rule_publication(
     target_type: str, metadata: dict[str, str | int]
@@ -73,6 +79,64 @@ def _validate_rule_publication(
     )
     if not valid:
         raise ValidationError({"metadata": "Unsupported audit metadata."})
+
+
+def _validate_reason(reason: object, max_length: int) -> None:
+    """A nonblank reason within the limit and without sensitive details."""
+    if not isinstance(reason, str) or not reason.strip():
+        raise ValidationError({"metadata": "A reason is required."})
+    if len(reason) > max_length:
+        raise ValidationError({"metadata": "The reason is too long."})
+    if privacy_services.household_reason_contains_sensitive_data(reason):
+        raise ValidationError({"metadata": "Sensitive reasons are not allowed."})
+
+
+def _validate_status_change(target_type: str, metadata: dict[str, str | int]) -> None:
+    """Household suspension rules; store reactivation uses the store limit (US-14)."""
+    if set(metadata) != {"reason"}:
+        raise ValidationError({"metadata": "A reason is required."})
+    if target_type == "store":
+        _validate_reason(metadata["reason"], STORE_REASON_MAX_LENGTH)
+        return
+    _validate_reason(
+        metadata["reason"], rule_queries.household_suspension_reason_max_length()
+    )
+
+
+def _validate_update(target_type: str, metadata: dict[str, str | int]) -> None:
+    """Store edits name the changed fields (US-14), never their values; other
+    targets, such as household drafts (FIX-08), record no metadata."""
+    if target_type != "store":
+        if metadata:
+            raise ValidationError({"metadata": "This action does not accept metadata."})
+        return
+    fields = metadata.get("fields")
+    valid = (
+        target_type == "store"
+        and set(metadata) == {"fields"}
+        and isinstance(fields, str)
+        and len(fields) <= STORE_FIELDS_MAX_LENGTH
+        and STORE_FIELDS_PATTERN.fullmatch(fields) is not None
+    )
+    if not valid:
+        raise ValidationError({"metadata": "The changed field names are required."})
+
+
+def _validate_store_deactivation(
+    target_type: str, metadata: dict[str, str | int]
+) -> None:
+    """A reason and the numbers of cancelled listings and reservations."""
+    if target_type != "store" or set(metadata) != {
+        "reason",
+        "listings_cancelled",
+        "reservations_cancelled",
+    }:
+        raise ValidationError({"metadata": "Unsupported audit metadata."})
+    for key in ("listings_cancelled", "reservations_cancelled"):
+        count = metadata[key]
+        if type(count) is not int or count < 0:
+            raise ValidationError({"metadata": "Counts must be zero or more."})
+    _validate_reason(metadata["reason"], STORE_REASON_MAX_LENGTH)
 
 
 def _validate_eligibility_decision(
@@ -125,20 +189,15 @@ def _validate_metadata(
         raise ValidationError({"metadata": "Audit metadata must be an object."})
     if action == AuditEvent.Action.RULE_PUBLISHED:
         _validate_rule_publication(target_type, metadata)
-        return
-    if action == AuditEvent.Action.DECISION:
+    elif action == AuditEvent.Action.DECISION:
         _validate_decision_metadata(target_type, metadata)
-        return
-    if action in (AuditEvent.Action.SUSPEND, AuditEvent.Action.REACTIVATE):
-        reason = metadata.get("reason")
-        if set(metadata) != {"reason"} or not isinstance(reason, str) or not reason:
-            raise ValidationError({"metadata": "A reason is required."})
-        if len(reason) > rule_queries.household_suspension_reason_max_length():
-            raise ValidationError({"metadata": "The reason is too long."})
-        if privacy_services.household_reason_contains_sensitive_data(reason):
-            raise ValidationError({"metadata": "Sensitive reasons are not allowed."})
-        return
-    if metadata:
+    elif action in (AuditEvent.Action.SUSPEND, AuditEvent.Action.REACTIVATE):
+        _validate_status_change(target_type, metadata)
+    elif action == AuditEvent.Action.UPDATE:
+        _validate_update(target_type, metadata)
+    elif action == AuditEvent.Action.DEACTIVATE:
+        _validate_store_deactivation(target_type, metadata)
+    elif metadata:
         raise ValidationError({"metadata": "This action does not accept metadata."})
 
 

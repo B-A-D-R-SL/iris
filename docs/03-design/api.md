@@ -27,8 +27,8 @@ application role is checked independently of Django's `is_staff` flag. They stay
 public with local/test settings for developer tooling. Schema generation through
 `manage.py spectacular` remains available without an HTTP session.
 The schema describes health and implemented DRF endpoints, including `/api/me/`,
-categories and invitation acceptance; it does not describe allauth operations
-or the planned business APIs.
+categories and invitation acceptance; it does not describe allauth operations,
+the staging-only readiness probe, or planned business APIs.
 `pnpm gen:api` produces the generated declarations, and the existing CI workflow
 is configured to reject missing or outdated generated types. See the
 [generation guide](../guides/api-generation.md).
@@ -46,7 +46,8 @@ Production applies DRF anonymous and authenticated request limits, initially
 Operators configure these with `DRF_ANON_THROTTLE_RATE` and
 `DRF_USER_THROTTLE_RATE`. The partner application endpoint retains its existing
 **5/hour/IP** limit shared by anonymous and signed-in callers. Allauth keeps its
-separate sign-in protection; the plain Django health probe is not DRF-throttled.
+separate sign-in protection; the plain Django health and staging readiness probes
+are not DRF-throttled.
 
 An exceeded DRF limit returns HTTP 429 with
 `{"code": "throttled", "message": "…", "fields": {}}` and `Retry-After`.
@@ -85,9 +86,21 @@ for the browser behavior and allauth's separate trusted-proxy setting.
 | Method         | Path                     | Who    | Purpose            | Status      |
 | -------------- | ------------------------ | ------ | ------------------ | ----------- |
 | GET            | `/api/health/`           | Anyone | `{"status": "ok"}` | Implemented |
+| GET/HEAD       | `/api/ready/`            | Anyone (no session) | Staging readiness: database connectivity, worker process and release revision | Implemented (staging only) |
 | GET            | `/api/categories/`       | Anyone | Active categories  | Implemented |
 | GET/POST       | `/api/staff/categories/` | Admin  | List every category (active or not); add one | Implemented (US-35) |
 | PATCH          | `/api/staff/categories/{code}/` | Admin | Rename, change food or default value, deactivate or reactivate; no delete | Implemented (US-35) |
+
+`/api/ready/` is a public plain Django view registered only by
+`iris.settings.staging` through `iris.staging_urls`. It accepts GET and HEAD and
+disables caching. It reads the supervised worker PID from `/run/iris/worker.pid`,
+requires a PID greater than one and checks that process exists with
+`os.kill(pid, 0)`, then executes database `SELECT 1`. Success returns HTTP 200;
+GET includes `{"status": "ok", "revision": "<IRIS_RELEASE_SHA>"}` (revision defaults
+to `local` when unset). A database error, unavailable PID/process or invalid PID
+returns HTTP 503 with `{"status": "unavailable"}`. HEAD has the corresponding
+status and headers without a response body. Process existence does not establish
+queue progress or provider email delivery; those require live verification.
 
 ### Accounts
 
@@ -147,9 +160,39 @@ another invitation.
 | GET       | `/api/staff/partner-applications/?status=`      | Admin         | List applications                             | Implemented (US-13) |
 | POST      | `/api/staff/partner-applications/{id}/approve/` | Admin         | Approve: store + manager invitation           | Implemented (US-13) |
 | POST      | `/api/staff/partner-applications/{id}/reject/`  | Admin         | Reject with `reason`                          | Implemented (US-13) |
-| GET/PATCH | `/api/staff/stores/`, `/api/staff/stores/{id}/` | Admin         | List and edit stores                          | Planned |
-| POST      | `/api/staff/stores/{id}/deactivate/`            | Admin         | Deactivate; cancels open listings             | Planned |
+| GET       | `/api/staff/stores/?q=&status=`                 | Admin         | List and search stores                        | Implemented (US-14) |
+| GET/PATCH | `/api/staff/stores/{id}/`                       | Admin         | Read and edit a store                         | Implemented (US-14) |
+| POST      | `/api/staff/stores/{id}/deactivate/`            | Admin         | Deactivate with `reason`; cancels open listings | Implemented (US-14) |
+| POST      | `/api/staff/stores/{id}/reactivate/`            | Admin         | Reactivate with `reason`                      | Implemented (US-14) |
 | GET/PATCH | `/api/store/profile/`                           | Store manager | Own store's phone, email, hours, instructions | Planned |
+
+#### Admin store management (US-14)
+
+Admin only, with the same access and error envelope as the partner review below:
+401 signed out, 403 for every other role and inactive admins, 404 for an unknown
+store. Rules BR-STORE-001 to BR-STORE-006 are in
+[business-rules.md](../02-requirements/business-rules.md#store-administration-us-14).
+
+| Request | Success | Errors |
+| --- | --- | --- |
+| `GET /api/staff/stores/?q=ontario&status=active&page=1` | 200 page of stores by name, with `open_listings` per row and `counts: {all, active, inactive}` for the same search | 400 `validation_error` for an unknown `status` |
+| `GET /api/staff/stores/{id}/` | 200 store with every field, `opening_hours` (see below), `is_badr`, `is_active`, `can_change_status` (false for the B.A.D.R. store; the screen shows the status switch from it), and the deactivation preview `open_listings` and `households_to_notify` (households with an email that would be told, counted once each) | 404 |
+| `PATCH /api/staff/stores/{id}/` with only the fields to change | 200 store; one `update` audit event with the changed field names, none when nothing changed | 400 `validation_error`: any field error, or "This field cannot be changed." for `id`, `is_badr`, `application`, `is_active`, timestamps or unknown keys |
+| `POST /api/staff/stores/{id}/deactivate/` `{ "reason": "..." }` | 200 store plus `listings_cancelled` and `reservations_cancelled` | 400 `store_is_badr`; 400 `validation_error` on `reason`; 409 `store_already_inactive` |
+| `POST /api/staff/stores/{id}/reactivate/` `{ "reason": "..." }` | 200 store | 400 `validation_error` on `reason`; 409 `store_already_active` |
+
+Editable fields: `name`, `street_number`, `street_name`, `unit`, `city`,
+`postal_code`, `phone` (E.164), `email` (the store's contact address, never the
+manager's sign-in email), `opening_hours` and `pickup_instructions`. Blank `unit`
+and `pickup_instructions` are stored as `null`.
+
+`opening_hours` holds `mon` to `sun`, each `{ "open": "HH:MM", "close": "HH:MM" }`
+or `null`, plus a read-only `notes` with the free text from a partner application
+(or `null`). A `null` day means closed only once the weekly schedule is filled in:
+a store approved from an application (only `notes`) or the B.A.D.R. placeholder
+(`{}`) has no schedule yet, so every day comes back `null` without meaning closed.
+When all seven days are `null`, treat the hours as not set. A PATCH must send all
+seven days, with at least one open; `notes` is kept.
 
 #### Staff review of partner applications (US-13)
 

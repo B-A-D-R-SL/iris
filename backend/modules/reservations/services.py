@@ -2,7 +2,7 @@
 """Public write interfaces for reservations.
 
 Reserving a unit (US-41), pickup confirmation (US-44) and cancellation when a
-household is suspended (US-32).
+household is suspended (US-32) or its store is deactivated (US-14).
 """
 
 import logging
@@ -17,9 +17,11 @@ from django.db import IntegrityError, connection, transaction
 from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
+from modules.households import queries as household_queries
 from modules.households import services as household_services
 from modules.listings import queries as listing_queries
 from modules.listings import services as listing_services
+from modules.notifications import services as notification_services
 from modules.reservations.domain import limits, pickup
 from modules.reservations.domain.codes import Chooser, new_pickup_code
 from modules.reservations.domain.pickup import PickupRefused
@@ -67,9 +69,23 @@ def confirm_pickup(
 
 
 def cancel_open_for_household(household_id: UUID) -> int:
-    """Cancel every reserved claim without a late-cancellation strike."""
+    """Cancel every reserved claim without a late-cancellation strike.
+
+    Locks the listings first, then the reservations: the same order as store
+    deactivation, so a suspension and a deactivation touching the same
+    reservation wait for each other instead of deadlocking (US-14 review).
+    The caller holds the household row, so no new claim appears meanwhile.
+    """
     if not connection.in_atomic_block:
         raise RuntimeError("Reservation cancellation must run inside a transaction.")
+    listing_ids = sorted(
+        set(
+            Reservation.objects.filter(
+                household_id=household_id, status=ReservationStatus.RESERVED
+            ).values_list("listing_id", flat=True)
+        )
+    )
+    listing_services.lock_listings(listing_ids)
     reservations = list(
         Reservation.objects.select_for_update()
         .filter(household_id=household_id, status=ReservationStatus.RESERVED)
@@ -83,6 +99,49 @@ def cancel_open_for_household(household_id: UUID) -> int:
     if reservations:
         Reservation.objects.filter(pk__in=[item.pk for item in reservations]).update(
             status=ReservationStatus.CANCELLED, late_cancel=False
+        )
+    return len(reservations)
+
+
+def cancel_for_cancelled_listings(listing_ids: list[UUID], *, store_name: str) -> int:
+    """Cancel the reserved claims on listings a deactivated store lost (US-14).
+
+    Each one becomes ``cancelled_by_store`` with no late-cancellation strike,
+    and its household gets one email naming the quantity, listing and store.
+    Households without an email address are skipped. The units are not given
+    back: the listings are already cancelled. Runs in the caller's transaction,
+    so the emails are queued only if the deactivation commits.
+    """
+    if not connection.in_atomic_block:
+        raise RuntimeError("Reservation cancellation must run inside a transaction.")
+    reservations = list(
+        Reservation.objects.select_for_update()
+        .filter(listing_id__in=listing_ids, status=ReservationStatus.RESERVED)
+        .order_by("pk")
+    )
+    if not reservations:
+        return 0
+    # rule: BR-STORE-003 cancelled by the store, never a strike for the household.
+    Reservation.objects.filter(pk__in=[item.pk for item in reservations]).update(
+        status=ReservationStatus.CANCELLED_BY_STORE, late_cancel=False
+    )
+    titles = listing_queries.cancellation_details(listing_ids)
+    contacts = household_queries.email_contacts(
+        {reservation.household_id for reservation in reservations}
+    )
+    for reservation in reservations:
+        email, language = contacts.get(reservation.household_id, (None, "fr"))
+        if not email:
+            continue
+        notification_services.send(
+            email,
+            "reservation_cancelled_by_store",
+            {
+                "language": language,
+                "store_name": store_name,
+                "listing_title": titles[reservation.listing_id],
+                "quantity": str(reservation.quantity),
+            },
         )
     return len(reservations)
 

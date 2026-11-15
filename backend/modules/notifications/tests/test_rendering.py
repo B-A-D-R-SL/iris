@@ -57,6 +57,12 @@ def _context(template_key: str) -> dict[str, str]:
         "household_reactivated",
     }:
         return {"reason": "Outside our current service area"}
+    if template_key == "reservation_cancelled_by_store":
+        return {
+            "store_name": "Épicerie Exemple",
+            "listing_title": "Bread bundle",
+            "quantity": "3",
+        }
     for key, field, url in LINK_CONTEXTS:
         if key == template_key:
             return {field: url}

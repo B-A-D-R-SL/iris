@@ -27,6 +27,10 @@ class _Template:
     reason_max_length: int = 500
 
 
+# Store cancellation context (US-14), bounded by the Store and Listing fields.
+CANCELLATION_TEXT_LIMITS = {"store_name": 150, "listing_title": 80}
+QUANTITY_PATTERN = re.compile(r"[1-9]\d{0,3}")
+
 _TEMPLATES = {
     "account_confirmation": _Template(
         frozenset({"confirmation_url"}), "confirmation_url"
@@ -48,7 +52,10 @@ _TEMPLATES = {
     "expiry_reminder": _Template(),
     "reservation_confirmed": _Template(),
     "pickup_window_open": _Template(),
-    "reservation_cancelled_by_store": _Template(),
+    # US-14: the household sees what was cancelled, where, and how many units.
+    "reservation_cancelled_by_store": _Template(
+        frozenset(CANCELLATION_TEXT_LIMITS) | {"quantity"}
+    ),
     "strike": _Template(),
     "digest": _Template(),
     "need_match": _Template(),
@@ -154,6 +161,11 @@ def _context_value(
         # Keep the form's name contract stable across queueing; display cleanup
         # happens only while rendering.
         _bounded_text(value, 150)
+    elif key in CANCELLATION_TEXT_LIMITS:
+        _bounded_text(value, CANCELLATION_TEXT_LIMITS[key])
+    elif key == "quantity":
+        if QUANTITY_PATTERN.fullmatch(value) is None:
+            raise ValueError("Invalid email context value")
     elif key == "reason":
         value = value.strip()
         _bounded_text(value, template.reason_max_length)

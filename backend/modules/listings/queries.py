@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from django.db.models import F, QuerySet, Value
+from django.db.models import Count, F, QuerySet, Value
 from django.utils import timezone
 
 from modules.categories import queries as category_queries
@@ -166,3 +166,32 @@ def browse_listings(
     return listings.order_by("pickup_start", "id").values(
         *LISTING_CARD_FIELDS, **LISTING_CARD_EXPRESSIONS
     )
+
+
+def _open_for_pickup(now: datetime) -> QuerySet[Listing]:
+    """Published listings whose pickup has not ended: what deactivation cancels."""
+    return Listing.objects.filter(status=ListingStatus.PUBLISHED, pickup_end__gt=now)
+
+
+def open_listing_counts(store_ids: list[UUID], now: datetime) -> dict[UUID, int]:
+    """Open listings per store, for the admin store list (US-14)."""
+    rows = (
+        _open_for_pickup(now)
+        .filter(store_id__in=store_ids)
+        .values("store_id")
+        .annotate(total=Count("id"))
+    )
+    return {row["store_id"]: row["total"] for row in rows}
+
+
+def open_listing_ids(store_id: UUID, now: datetime) -> list[UUID]:
+    """The listings a deactivation would cancel now, for its confirmation (US-14)."""
+    return list(
+        _open_for_pickup(now).filter(store_id=store_id).values_list("pk", flat=True)
+    )
+
+
+def cancellation_details(listing_ids: list[UUID]) -> dict[UUID, str]:
+    """Listing titles for the store cancellation emails (US-14)."""
+    rows = Listing.objects.filter(pk__in=listing_ids).values_list("pk", "title")
+    return dict(rows)
