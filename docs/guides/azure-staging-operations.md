@@ -7,6 +7,15 @@ verification remain manual**. These steps create billable resources. Do not run
 them before completing the cost check. Never use the Concordia IT subscription.
 Use fictional data only. The deployment workflow itself creates no infrastructure.
 
+**Hosting region pending (14 November 2026).** This guide was written for West
+US 2, but PostgreSQL cannot currently be created in either region the
+subscription and Concordia policies both allow (see
+[Subscription and region](azure-staging.md#subscription-and-region)). Steps 1
+and 2 below do not depend on the region. Do not start steps 3 and 4 until the
+team has chosen the hosting region; then create the database, storage account,
+plan and app all in that **one** region. "The staging region" below means that
+chosen region.
+
 ## 1. Cost check before creating anything
 
 **Update, 13 November 2026:** Daniel confirmed that the PostgreSQL allowance is
@@ -22,9 +31,9 @@ and **Cost Management → Cost analysis** together:
 - PostgreSQL must show the unused **750 B1ms hours/month, 32 GB storage and 32 GB
   backup** allowance, valid for the whole six months. Published student offers
   are not proof that this particular subscription is eligible.
-- Price **one Linux B1 instance in West US 2** using this subscription's currency
-  and offer. Microsoft's public page advertises about USD 13.14/month; that is
-  an estimate, not a quote for this subscription.
+- Price **one Linux B1 instance in the staging region** using this subscription's
+  currency and offer. Microsoft's public page advertises about USD 12–14/month
+  depending on region; that is an estimate, not a quote for this subscription.
 - Plan for **at most USD 15/month total**, or less if remaining credit requires
   it: `(remaining credit - USD 10 reserve) / months remaining`. Six months at
   USD 15 uses USD 90. Only proceed if the actual quote and free allowance fit.
@@ -92,8 +101,10 @@ deployment. This is not a command to bypass failed CI.
 
 Use the **Azure portal** or Azure Cloud Shell (PowerShell). Local Azure CLI is
 optional. Choose the **Azure for Students** subscription explicitly on every
-creation screen. Reuse resource group **`iris-staging`**, region **West US 2**;
-Canadian compute regions are currently prohibited by the subscription policy.
+creation screen. Reuse resource group **`iris-staging`** and create every
+resource in **the staging region** (pending; see the note at the top). Only
+regions allowed by both region policies can be used, and PostgreSQL must be
+confirmed available there for `Standard_B1ms` before anything else is created.
 
 1. Create PostgreSQL Flexible Server **`iris-stg-db-ar1`**, PostgreSQL **17**,
    Burstable **Standard_B1ms**, **32 GB**, seven-day locally redundant backups,
@@ -124,7 +135,7 @@ Canadian compute regions are currently prohibited by the subscription policy.
    Ammar must create these or temporarily grant **Key Vault Secrets Officer**
    at this vault only, then remove that extra permission.
 4. Create StorageV2 account **`irisstgfilesar1`** (choose a unique suffix if taken),
-   **Standard LRS**, West US 2, HTTPS only, minimum TLS 1.2, anonymous blob access
+   **Standard LRS**, the staging region, HTTPS only, minimum TLS 1.2, anonymous blob access
    disabled. Create container **`listing-photos`**, access level **Private**.
    Store its connection string as **`storage-connection-string`** in the vault.
    Keep staging photos small; this task does not provision a private endpoint
@@ -135,7 +146,8 @@ Canadian compute regions are currently prohibited by the subscription policy.
 Create the app **last**. These are the only always-on compute resources, besides
 the database covered by the confirmed allowance.
 
-1. Create **`iris-stg-plan`**, Linux **B1**, **one instance**, West US 2.
+1. Create **`iris-stg-plan`**, Linux **B1**, **one instance**, in the staging
+   region (the same region as the database).
 2. Create **`iris-staging-ar1`**, publish **Container**, Linux, existing plan,
    public external registry **`https://ghcr.io`**, initial image digest from
    step 2, port **8000**. No registry credentials. Use the legacy single-container

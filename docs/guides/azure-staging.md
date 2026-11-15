@@ -14,6 +14,15 @@ image smoke and deployment workflow. Hosting resources and live Azure checks
 remain to be activated by the owner using the [operations guide](azure-staging-operations.md).
 No paid resources were created during repository implementation.
 
+**Update, 14 November 2026: hosting region pending.** The staging database
+could not be created in either allowed region (see
+[Subscription and region](#subscription-and-region)). The team has escalated
+to Microsoft to regain access to B.A.D.R.'s USD 2,000 per year nonprofit Azure
+credit, and is in parallel trying to obtain database capacity on the student
+subscription. The hosting region, and the matching architecture diagrams, will
+be decided once those answers arrive. Until then, do not create the database,
+storage account or App Service.
+
 ## Subscription and region
 
 | Item | Value |
@@ -54,7 +63,9 @@ for now:
 
 - Services with a separate **data location** (Communication Services) store
   their data in **Canada**.
-- Region-bound services go to **West US 2**. The Key Vault holds keys only,
+- The region for the remaining region-bound services (database, private
+  storage, App Service) is **pending**. The resource group and Key Vault
+  already exist in West US 2 and stay there. The Key Vault holds keys only,
   and staging holds fictional data only.
 - When B.A.D.R. activates its Microsoft nonprofit Azure grant, staging and
   production are rebuilt on B.A.D.R.'s subscription in Canada East
@@ -235,6 +246,7 @@ record live application/worker/email/photo/proxy checks.
 
 | Item | Status |
 | --- | --- |
+| Hosting region for database, storage and App Service | **Pending**: no allowed region can host the database today; awaiting Microsoft (nonprofit credit) and student-capacity answers |
 | Resource group, Key Vault and ACS email | Existing resources recorded above |
 | Original USD 60/month budget | Existing; add early USD 15 budget before hosting |
 | Azure mailer and queued email system (US-57) | Merged on main; included in this branch |

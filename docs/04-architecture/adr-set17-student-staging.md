@@ -3,6 +3,7 @@
 # SET-17: temporary student staging and cost boundary
 
 Status: proposed in the SET-17 branch for team review, 13 November 2026.
+Updated 14 November 2026: the hosting region is pending (see below).
 Issue: [#408](https://github.com/B-A-D-R-SL/iris/issues/408).
 
 ## Context
@@ -16,10 +17,22 @@ The original USD 30–35/month paid database estimate cannot meet that constrain
 
 ## Decision proposed for this staging environment
 
-Use West US 2 for region-bound staging resources and the existing ACS services
-with Canadian data geography. Staging contains fictional data only. This is a
-temporary environment; recreate on B.A.D.R.'s Canadian subscription under
-SET-24 rather than treating the student deployment as production.
+Use the existing ACS services with Canadian data geography. Staging contains
+fictional data only. This is a temporary environment; recreate on B.A.D.R.'s
+Canadian subscription under SET-24 rather than treating the student deployment
+as production.
+
+**The region for the database, storage and App Service is pending.** This ADR
+originally proposed West US 2. On 14 November 2026 the subscription and
+Concordia region policies together allowed only West US 2 and West US, and
+PostgreSQL `Standard_B1ms` could not be created in either (West US 2 is
+restricted for this subscription; West US returned `SkuNotAvailable`). The team
+has escalated to Microsoft for access to B.A.D.R.'s USD 2,000 per year
+nonprofit Azure credit and is in parallel pursuing student-subscription
+capacity. The region will be decided from those answers and recorded here,
+with the database, storage and App Service kept together in that one region.
+The deployment workflow is region-independent, so this decision changes only
+documentation and Azure setup.
 
 Keep the issue's one-instance Linux B1 App Service and PostgreSQL 17 B1ms only
 if the owner confirms six months of the student free PostgreSQL allowance,
