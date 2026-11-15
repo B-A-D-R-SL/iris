@@ -10,6 +10,7 @@ import { Audit } from "../../areas/staff/pages/Audit";
 import { Household } from "../../areas/staff/pages/Household";
 import { PartnerApplications } from "../../areas/staff/pages/PartnerApplications";
 import { Search } from "../../areas/staff/pages/Search";
+import { Notices } from "../../areas/staff/pages/WalkIn/Notices";
 import { WalkIn } from "../../areas/staff/pages/WalkIn/WalkIn";
 import { CategoriesPage } from "../../features/categories/CategoriesPage";
 import { AREA_ROLES } from "../../shared/auth/roles";
@@ -31,6 +32,7 @@ export const staffRoutes = (
         <Route path="staff" element={<Navigate to="/staff/households" replace />} />
         <Route path="staff/walk-in" element={<WalkIn />} />
         <Route path="staff/walk-in/:id" element={<WalkIn />} />
+        <Route path="staff/walk-in/:id/notices" element={<Notices />} />
         <Route element={<RequireRole roles={["admin"]} />}>
           <Route path="staff/partners" element={<PartnerApplications />} />
           <Route path="staff/categories" element={<CategoriesPage />} />

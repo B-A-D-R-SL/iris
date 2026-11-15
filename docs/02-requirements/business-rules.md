@@ -177,6 +177,50 @@ their owning stories; US-57 supplies their bilingual templates and calling
 contracts. See [US-57 #538](https://github.com/B-A-D-R-SL/iris/issues/538) and the
 [notification runbook](../../backend/modules/notifications/README.md).
 
+## Notices of assessment (US-18)
+
+The following rule IDs are introduced with T-03.18.2 (#468), the walk-in
+notices of US-18 (#466). The registration owner and reviewers must confirm
+them before merge.
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-DOC-001 | A filed notice needs the file, the tax year, the line-199 total income in integer cents (0 to `max_income_cents` in rule type `notice_upload`, default 500,000 $ *(setting)*), the name on the notice, the postal code on the notice, the notice date and the "seen in person" answer. |
+| BR-DOC-002 | The notice date is after December 31 of the tax year and not after today (Montreal); the tax year is `earliest_tax_year` in rule type `notice_upload` (default 2000 *(setting)*) or later and has ended. Which tax years count for eligibility is decided at approval (`auto_approval.accepted_tax_years`, #469). |
+| BR-DOC-003 | "Did not file" needs a reason of 1 to `reason_max_length` characters after trimming (rule type `notice_upload`, default 500 *(setting)*, at most 500) and refuses a file or any notice value. |
+| BR-DOC-004 | The file is a JPEG, PNG or PDF recognized from its first bytes (never its name or declared type), not empty, and at most `max_bytes` in rule type `notice_upload` (default 10 MB *(setting)*). |
+| BR-DOC-005 | Each adult has at most one current notice. A new entry supersedes the current one; the old row and its file are kept as history (database constraint). |
+| BR-DOC-006 | Notice files are never public. Staff get a link valid `link_minutes` in rule type `notice_upload` (default 5 minutes *(setting)*, fixed when the link is issued), signed for one staff user and usable only with that user's session; issuing it is recorded in the audit log. |
+| BR-DOC-007 | Notices are recorded only for members aged 18 or older (Montreal date) of a draft walk-in household. Submission is refused until every adult has a current notice or non-filing reason. |
+
+The limits come from the versioned `notice_upload` RuleSet, not from
+hardcoded values. BR-DOC-001 to BR-DOC-004 are checked in
+`backend/modules/documents/domain/notice.py`; BR-DOC-005 and BR-DOC-006 in
+`backend/modules/documents/services.py` and the `IncomeNotice` constraints;
+BR-DOC-007 in `backend/modules/households/services.py`.
+
+### Walk-in approval (#469)
+
+Staff record every adult's notice on the draft (BR-DOC-007), submit the file
+(US-25 duplicate check), then approve it (BR-DUP-002): approval accepts
+`submitted` and `review_required` files and refuses a draft. A
+`POSSIBLE_DUPLICATE` file stays in review when approval runs.
+
+Every adult needs a current notice or a non-filing reason. Approval rechecks the
+notice against the member's current name, ignoring case and accents and allowing
+extra middle names. A mismatch, including a holder name corrected after upload,
+sets `review_required` with `NAME_MISMATCH`.
+
+Non-filing, an unseen notice, an unaccepted tax year, a postal-code mismatch or
+unverified identity also requires review; existing review flags are not cleared.
+Non-filers are never counted as zero income. Missing mandatory information
+prevents a decision. Accepted tax years come from `auto_approval.accepted_tax_years`.
+Otherwise the eligibility service applies LICO: ineligible files are rejected
+with `INCOME_ABOVE_LICO`, and eligible files are approved for
+`file_validity.approved_months` (seed default **12 calendar months**, Montreal).
+Approved files with email receive a beneficiary set-password invitation after
+commit. The new-account-only invitation rule still applies.
+
 ## Listings
 
 ### Categories
@@ -269,3 +313,23 @@ The listings owner and reviewers must confirm them before merge.
 
 Visibility is decided only in `listings.queries.visible_listings`; the end of
 the day comes from `backend/modules/listings/domain/browsing.py`.
+
+## Reserving (US-41)
+
+The following rule IDs are introduced for review with US-41 (#513). They
+start at BR-RES-006 because US-44 (#520) uses BR-RES-001 to BR-RES-005.
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-RES-006 | Only a household with status `approved` that has not expired can reserve. Expiry is checked against `expires_at`, so a file the nightly job has not moved yet is still refused. Being blocked by strikes will be added with the strikes story. |
+| BR-RES-007 | A household's reservations on one listing, counting only those still `reserved`, add up to at most the listing's `max_per_household`. Two reservations of 1 on a listing with a maximum of 2 are allowed; a third is not. |
+| BR-RES-008 | A household has fewer active (`reserved`) reservations than `reservations.max_active_per_household` (default 3, a setting) before it can reserve again. Picked-up, cancelled and no-show reservations do not count. The household's row is locked while reserving, so two phones at once cannot pass the limit together. |
+| BR-RES-009 | Units are taken with one conditional SQL update, only while the listing is published, its pickup has not ended and enough units are left, in the same transaction as the reservation insert. Simultaneous reservations never over-book. |
+| BR-RES-010 | **Default:** The pickup code is fixed at 6 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no look-alike characters), drawn at random and unique per listing; a clash draws a new code. The length is fixed at 6 (the database column holds 6 characters) and is not a rule setting. |
+
+The limits are checked in `backend/modules/reservations/domain/limits.py`, the
+code in `domain/codes.py`, the reservation in `services.py`, the household
+lock in `households.services.lock_approved_household`, and the stock update in
+`listings.services.take_units`. A listing that cannot be seen
+(`visible_listings`, BR-LIST-004) cannot be reserved either, so tier delays
+(US-51) will apply to reserving as well.

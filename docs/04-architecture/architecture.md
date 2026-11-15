@@ -113,6 +113,12 @@ gates. The Release 1 deployment scope below remains staging.
 Django, allauth and Procrastinate also manage framework tables.
 These are not additional business models in the 14-model ERD.
 
+`modules.common` holds shared contact-value utilities, with no tables or Django
+app registration. Its `domain.contact` normalization is pure Python; Django,
+DRF and form adapters delegate to it outside `domain/`. Stores and households
+use this neutral package without importing each other's internals. Import-linter
+continues to enforce the business-module boundaries and domain purity (FIX-14).
+
 Reporting is not introduced into the Release 1 workflows here.
 
 ## Frontend and adapters
@@ -133,6 +139,39 @@ Eligibility, ownership and stock decisions remain on the backend.
 | document_reader | Proposed in [ADR 0005](../adr/0005-notice-reading.md): Gemini on Vertex AI, Montréal; fallback Azure AI Document Intelligence, Canada Central. Pending B.A.D.R.'s decision | A fake returning the values in `mock-data/notices/truth.csv` |
 
 Adapters keep provider-specific calls outside `domain/`.
+
+### Notice files (T-03.18.2)
+
+`file_store` (`backend/adapters/file_store/`) stores notices of assessment in
+one private container under random names (`income-notices/<uuid>`); the
+container has no public access (an existing container that allows public access
+is refused before any upload) and Iris never hands out a storage URL. Staff
+open a file in two steps: `GET /api/staff/notices/{id}/file/` returns a link to
+Iris itself, signed for that staff user and valid `notice_upload.link_minutes`
+(5) as set when the link is issued; `GET /api/staff/notice-files/{token}/`
+checks the user's session and the link, reads the whole file from storage and
+returns it as an attachment. The `FILE_STORE_BACKEND` setting selects Azure Blob
+(Azurite in Docker Compose) or the in-memory fake used by tests; the store is
+built once per process (`adapters/file_store/registry.py`). Without storage,
+uploads and downloads answer 503 `storage_unavailable`; without the
+`notice_upload` rule they answer 503 `notice_settings_missing`. Who may use these
+endpoints is one rule, `accounts.queries.is_intake_staff`.
+
+**Performance:** files are at most `notice_upload.max_bytes` (10 MB) and pass
+through Django on upload and download; a download holds the whole file in memory
+while it is sent. Only intake workers and admins use these endpoints, a few
+notices per household visit, so this load is small for one App Service
+instance. Notice validation and Blob Storage upload happen before the household
+row is locked. The service then locks and rechecks the draft and adult before
+saving the notice and draft history in one transaction; a save failure rolls
+back those writes and invokes prepared-file cleanup. Only the final database
+writes hold the household lock, so storage retries do not block draft edits.
+Django parses the multipart request first (large parts go to a temporary file),
+then Iris reads at most one byte over the limit, so an
+oversized file is refused before anything reaches Blob Storage; the reverse
+proxy's request-size limit bounds the request itself. If online registration
+(US-21) raises the volume, direct uploads to Blob Storage with short-lived write
+tokens are the next step.
 
 The later `document_reader` interface is not invoked by the Release 1
 staff-entry flow. Its interface and the provider comparison are in
@@ -359,71 +398,28 @@ flowchart LR
 
 ### 6. Sequence — walk-in registration
 
-See [the workflow diagrams](workflow-diagrams.md#workflow-6).
+See the [full section](architecture-workflows.md#6-sequence--walk-in-registration).
 
 ### 7. Sequence — partner onboarding
 
-See [the workflow diagrams](workflow-diagrams.md#workflow-7).
+See the [full section](architecture-workflows.md#7-sequence--partner-onboarding).
 
 ### 8. Sequence — reserve and pickup
 
-See [the workflow diagrams](workflow-diagrams.md#workflow-8).
+See the [full section](architecture-workflows.md#8-sequence--reserve-and-pickup).
 
 ### 9. State — household file
 
-See [the workflow diagrams](workflow-diagrams.md#workflow-9).
+See the [full section](architecture-workflows.md#9-state--household-file).
 
 ### 10. State — reservation
 
-See [the workflow diagrams](workflow-diagrams.md#workflow-10).
+See the [full section](architecture-workflows.md#10-state--reservation).
 
 ## Review points
 
-These decisions remain open. The diagrams do not select missing
-database fields or relationships to fill these gaps.
-
-| Area | Decision needed |
-| --- | --- |
-| Holder/account linkage | Confirm how the household contact connects to their Member and optional User records. Do not require an account for every walk-in or assume a particular foreign key while this remains open. |
-| Partner form storage | Resolved by US-12 (#445): flat address columns as on Store, `goods_categories` as a text array of category codes, plus `expected_frequency`, `opening_hours`, `consent_contact` and `language` columns. See [PartnerApplication](../03-design/database-schema.md#partnerapplication). |
-| Pickup lookup | The earlier uniqueness rule is `(listing, pickup_code)`. Agree code collision handling or lookup identifiers for a store containing multiple listings. QR payload format is not selected here. |
-| Household flags and reasons | Agree the minimum Release 1 handling for `review_required` files and where rejection/suspension reasons are stored. The full review queue is deferred. |
-| Lifecycle timing | Confirm the configured approval-validity and late-confirmation settings. The team draft supplies twelve months and twenty-four hours respectively. |
-| Cancellation/no-show stock | Agree when stock is released and how late pickup confirmation interacts with release. No counter behavior is invented by the state diagram. |
-| Worker deployment | Confirm worker startup, supervision and scaling within the shared-image App Service deployment. A running web process alone does not establish that a worker is running. |
-| Dependency contracts | Align the supplied architecture and diagram collection where their permitted arrows differ. Public service/query access must not introduce domain import cycles. |
+See the [full section](architecture-workflows.md#review-points).
 
 ### Failed pickup attempts and no-shows — proposed handling
 
-The following handling is proposed for Release 1 and requires team
-agreement. These decisions can be finalized before implementing the
-reservation and pickup features.
-
-| Situation | Proposed handling |
-| --- | --- |
-| Incorrect, missing or ambiguous pickup code | Refuse pickup without changing stock or cancelling a reservation. |
-| Identity cannot be verified | Refuse pickup and keep the reservation until its collection deadline, including any agreed grace period. The accepted verification method remains to be decided. |
-| Pickup window ends without collection | Mark the reservation as `no_show`. |
-| Agreed grace period expires without collection | Release the reservation's allocated quantity exactly once and prevent further pickup confirmation against that released reservation. |
-
-The supplied diagrams allow late pickup confirmation within a
-24-hour grace period. Confirm whether this rule applies to Release 1
-before implementation.
-
-If a grace period is retained, stock must not be released while the
-same reservation can still be confirmed for pickup.
-
-Releasing an allocation does not automatically reopen the listing.
-Whether the goods can be offered again depends on the listing's status,
-collection window and the goods' continued availability and suitability.
-
-Before implementation, agree on:
-
-- What information is required to verify pickup identity.
-- Whether a grace period applies and its duration.
-- When reserved stock is released.
-- How stock release prevents duplicate releases or conflicting pickup
-  confirmations.
-
-Once agreed, update the reserve-and-pickup sequence, reservation state
-diagram and relevant business rules together.
+See the [full section](architecture-workflows.md#failed-pickup-attempts-and-no-shows--proposed-handling).

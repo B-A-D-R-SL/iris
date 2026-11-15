@@ -1,10 +1,15 @@
 # AI contribution: 50% or more AI-generated
-"""Create, edit and submit walk-in files for staff."""
+"""Create, edit, submit and suspend walk-in files for staff.
+
+Notices live in notice_services and approval in approval_services.
+Also the household lock that reserving takes first (US-41).
+"""
 
 import hashlib
 import logging
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -21,11 +26,17 @@ from modules.households.exceptions import DuplicateLockTimeout
 from modules.households.limits import max_household_people
 from modules.households.models import Household, HouseholdDraftEvent, Member
 from modules.households.policies import (
-    can_manage_walk_ins,
     can_suspend_households,
     is_editable_walk_in,
 )
-from modules.households.queries import find_possible_duplicates, walk_ins_for_staff
+from modules.households.policies import (
+    require_walk_in_staff as _require_staff,
+)
+from modules.households.queries import (
+    find_possible_duplicates,
+    require_adult_notices,
+    walk_ins_for_staff,
+)
 from modules.notifications import services as notification_services
 from modules.privacy import services as privacy_services
 from modules.reservations import services as reservation_services
@@ -122,13 +133,6 @@ def change_suspension(
     return household
 
 
-def _require_staff(user: AbstractBaseUser) -> None:
-    if not can_manage_walk_ins(user):
-        raise PermissionDenied(
-            _("Only active intake workers and admins can manage walk-ins.")
-        )
-
-
 def _apply_holder(household: Household, values: Mapping[str, Any]) -> None:
     if "phone" in values:
         household.phone = values["phone"]
@@ -179,6 +183,34 @@ def _save_member(
     return member
 
 
+def _same_person(member: Member, values: Mapping[str, Any]) -> bool:
+    return (
+        member.first_name == str(values.get("first_name", "")).strip()
+        and member.last_name == str(values.get("last_name", "")).strip()
+        and member.date_of_birth == values.get("date_of_birth")
+        and member.relation == values.get("relation")
+    )
+
+
+def _unchanged_members(
+    household: Household, members: list[dict[str, Any]]
+) -> tuple[set[UUID], list[dict[str, Any]]]:
+    """Ids of existing members sent back unchanged, and the entries that are new."""
+    existing = list(household.members.exclude(relation=Member.Relation.HOLDER))
+    kept: set[UUID] = set()
+    new_members: list[dict[str, Any]] = []
+    for values in members:
+        match = next(
+            (m for m in existing if m.pk not in kept and _same_person(m, values)),
+            None,
+        )
+        if match is None:
+            new_members.append(values)
+        else:
+            kept.add(match.pk)
+    return kept, new_members
+
+
 def _replace_other_members(household: Household, members: list[dict[str, Any]]) -> None:
     limit = max_household_people()
     if len(members) > limit - 1:
@@ -190,8 +222,15 @@ def _replace_other_members(household: Household, members: list[dict[str, Any]]) 
                 % {"limit": limit}
             }
         )
+    if any(values.get("relation") == Member.Relation.HOLDER for values in members):
+        raise ValidationError({"members": _("The holder is added automatically.")})
+    # Members sent back unchanged keep their row, so their notices stay linked;
+    # only removed or changed members are deleted (refused if they have notices).
+    kept, new_members = _unchanged_members(household, members)
     try:
-        household.members.exclude(relation=Member.Relation.HOLDER).delete()
+        household.members.exclude(relation=Member.Relation.HOLDER).exclude(
+            pk__in=kept
+        ).delete()
     except ProtectedError as exc:
         raise ValidationError(
             {
@@ -200,9 +239,7 @@ def _replace_other_members(household: Household, members: list[dict[str, Any]]) 
                 )
             }
         ) from exc
-    for values in members:
-        if values.get("relation") == Member.Relation.HOLDER:
-            raise ValidationError({"members": _("The holder is added automatically.")})
+    for values in new_members:
         member = Member(household=household, **values)
         member.full_clean()
         member.save()
@@ -293,7 +330,8 @@ def update_draft(
     return household
 
 
-def _submission_members(household: Household) -> list[Member]:
+def require_complete_file(household: Household) -> list[Member]:
+    """Checks a file must pass to be submitted, and again to be approved."""
     if household.anonymized_at is not None:
         raise ValidationError({"status": _("An anonymized file cannot be submitted.")})
     household.full_clean()
@@ -379,7 +417,7 @@ def locked_duplicate_check(
             raise ValidationError(
                 {"status": _("Only draft household files can be submitted.")}
             )
-        members = _submission_members(household)
+        members = require_complete_file(household)
         _lock_duplicate_keys(household, members)
         for member in members:
             member.save(update_fields=["person_key"])
@@ -389,6 +427,7 @@ def locked_duplicate_check(
 def submit_walk_in(household_id: UUID, staff_user: AbstractBaseUser) -> Household:
     """Submit a draft or send a possible duplicate for review."""
     with locked_duplicate_check(household_id, staff_user) as (household, duplicate):
+        require_adult_notices(household)
         household.status = (
             Household.Status.REVIEW_REQUIRED
             if duplicate
@@ -407,3 +446,33 @@ def submit_walk_in(household_id: UUID, staff_user: AbstractBaseUser) -> Househol
         event = "household_duplicate_review" if duplicate else "household_submitted"
         transaction.on_commit(lambda: logger.info(event, extra={"event": event}))
     return household
+
+
+def lock_approved_household(household_id: UUID, *, at: datetime | None = None) -> bool:
+    """Lock a household's row until the caller's transaction ends (US-41).
+
+    Returns whether the household is approved and not expired at ``at``, the
+    same test as ``queries.approved_household_id``, read under the lock.
+    Without ``at``, the clock is read once the lock is held, so a request that
+    waited for it is not judged by the time it arrived.
+
+    Reserving calls this first, so two reservations for one household (two
+    phones, a double tap) run one after the other: the second counts the
+    first's reservation and the limit of active reservations holds
+    (BR-RES-008). Other households are not slowed down.
+    """
+    if not connection.in_atomic_block:
+        raise RuntimeError("The household lock must be taken inside a transaction.")
+    row = (
+        Household.objects.select_for_update()
+        .filter(pk=household_id)
+        .values("status", "expires_at")
+        .first()
+    )
+    moment = timezone.now() if at is None else at
+    return (
+        row is not None
+        and row["status"] == Household.Status.APPROVED
+        and row["expires_at"] is not None
+        and row["expires_at"] > moment
+    )

@@ -8,6 +8,43 @@ from modules.audit.models import AuditEvent
 
 
 @pytest.mark.django_db(transaction=True)
+def test_actor_constraint_commits_before_validating_history(event_inputs):
+    event = services.record(**event_inputs)
+    executor = MigrationExecutor(connection)
+    latest = executor.loader.graph.leaf_nodes()
+    observed = []
+
+    def inspect_validation(execute, sql, params, many, context):
+        if "VALIDATE CONSTRAINT audit_actor_system_consistent" in sql:
+            assert connection.get_autocommit()
+            assert not connection.in_atomic_block
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT convalidated FROM pg_constraint WHERE "
+                    "conrelid = 'audit_auditevent'::regclass "
+                    "AND conname = 'audit_actor_system_consistent'"
+                )
+                observed.append(cursor.fetchone()[0])
+        return execute(sql, params, many, context)
+
+    try:
+        executor.migrate([("audit", "0006_household_events_and_system_actor")])
+        with connection.execute_wrapper(inspect_validation):
+            MigrationExecutor(connection).migrate(latest)
+        assert observed == [False]
+        assert AuditEvent.objects.filter(pk=event.pk).exists()
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT convalidated FROM pg_constraint WHERE "
+                "conrelid = 'audit_auditevent'::regclass "
+                "AND conname = 'audit_actor_system_consistent'"
+            )
+            assert cursor.fetchone()[0] is True
+    finally:
+        MigrationExecutor(connection).migrate(latest)
+
+
+@pytest.mark.django_db(transaction=True)
 def test_append_only_migration_is_reversible(event_inputs):
     event = services.record(**event_inputs)
     executor = MigrationExecutor(connection)

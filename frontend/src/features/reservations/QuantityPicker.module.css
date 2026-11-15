@@ -1,0 +1,45 @@
+/* AI contribution: 50% or more AI-generated */
+/* Figma "Number stepper" (8:185) as used on H1.4: [−] [value] [+], 44 px high,
+   8 px apart, white boxes with a 1 px #968a81 border and 4 px corners. */
+
+.stepper {
+  display: flex;
+  gap: 8px;
+}
+
+.step {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border: 1px solid var(--h1-sand-strong, var(--mantine-color-default-border));
+  border-radius: var(--mantine-radius-sm);
+  background-color: var(--mantine-color-body);
+  color: var(--h1-text, var(--mantine-color-text));
+}
+
+.step:disabled,
+.step[data-disabled] {
+  border-color: var(--h1-sand-strong, var(--mantine-color-default-border));
+  background-color: var(--mantine-color-body);
+  color: var(--h1-text, var(--mantine-color-text));
+  opacity: 0.4;
+}
+
+.value {
+  flex: 1;
+}
+
+/* WF/Input: Inter Regular 16/24, centred. */
+.input {
+  height: 44px;
+  border: 1px solid var(--h1-sand-strong, var(--mantine-color-default-border));
+  border-radius: var(--mantine-radius-sm);
+  font-size: 16px;
+  line-height: 24px;
+  text-align: center;
+}
+
+/* The helper under the boxes ("2 au maximum pour votre foyer"), set apart from them. */
+.help {
+  margin-top: 8px;
+}

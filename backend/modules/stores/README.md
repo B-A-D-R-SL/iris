@@ -90,6 +90,10 @@ issuance rules remain enforced before a decision can complete.
 
 ## Dependencies
 
+- `common.domain.contact`: shared Canadian phone/postal normalization, also used
+  by households. Django/DRF/admin adapters normalize formatted input before
+  canonical length checks. Direct submissions and approval-created stores retain
+  E.164 phones and uppercase postal codes with one space (FIX-14).
 - `categories.queries`: active category codes for `goods_categories`.
 - `notifications.services`: receipt, approval, rejection and reissue email through
   the shared US-57 template/log/job pipeline. The worker selects ACS, SMTP/Mailpit

@@ -9,6 +9,7 @@ from time import monotonic
 import pytest
 from django.db import connection, transaction
 
+from modules.documents.tests.factories import IncomeNoticeFactory
 from modules.households.models import Household, Member
 from modules.households.services import submit_walk_in
 from modules.households.tests.factories import MemberFactory
@@ -39,13 +40,14 @@ def _overlapping_households(match, ready_household_factory):
     )
     if match == "reversed_people":
         for household, name in ((first, "Bravo"), (second, "Alpha")):
-            MemberFactory(
+            member = MemberFactory(
                 household=household,
                 first_name=name,
                 last_name="Holder",
                 date_of_birth="1990-01-01",
                 relation=Member.Relation.CHILD,
             )
+            IncomeNoticeFactory(member=member, did_not_file=True)
     return first, second
 
 

@@ -50,7 +50,7 @@ async function fillForm(user: ReturnType<typeof userEvent.setup>) {
     screen.getByLabelText("J'accepte que B.A.D.R. communique avec moi au sujet de cette demande"),
   );
 }
-describe("Partner application", () => {
+describe("Partner application validation", () => {
   it("shows the specified messages for invalid business name, postal code and email in both languages", async () => {
     const fetchMock = mockApi();
     const user = userEvent.setup();
@@ -89,6 +89,9 @@ describe("Partner application", () => {
       fetchMock.mock.calls.some(([url]) => String(url).includes("/api/partner-applications/")),
     ).toBe(false);
   });
+});
+
+describe("Partner application submission", () => {
   it("posts the specified fields, formats phone and shows the thank-you screen", async () => {
     const fetchMock = mockApi();
     const user = userEvent.setup();
@@ -114,6 +117,39 @@ describe("Partner application", () => {
     });
     expect(post?.[1]?.headers).toMatchObject({ "Accept-Language": "fr" });
   }, 15000);
+});
+
+describe("Partner application pasted contacts", () => {
+  it.each([
+    ["Téléphone", "+447911123456"],
+    ["Code postal", "H2X 1Y45"],
+  ])(
+    "refuses pasted %s input without sending an altered value",
+    async (label, invalid) => {
+      const fetchMock = mockApi();
+      const user = userEvent.setup();
+      renderWithProviders(<PartnerApply />);
+      await screen.findByLabelText("Boulangerie");
+      await fillForm(user);
+      const input = screen.getByLabelText(label);
+      await user.clear(input);
+      await user.click(input);
+      await user.paste(invalid);
+      await user.click(screen.getByRole("button", { name: "Envoyer ma demande" }));
+      expect(input).toHaveAttribute("aria-invalid", "true");
+      expect(input).toHaveValue(invalid);
+      expect(
+        fetchMock.mock.calls.some(
+          ([url, init]) =>
+            String(url).includes("/api/partner-applications/") && init?.method === "POST",
+        ),
+      ).toBe(false);
+    },
+    15000,
+  );
+});
+
+describe("Partner application server refusals", () => {
   it("keeps entered values and shows field-level server errors", async () => {
     mockApi(
       Response.json(
@@ -158,6 +194,9 @@ describe("Partner application", () => {
     expect(document.cookie).toContain("django_language=en");
     expect(screen.getByLabelText("Email address")).toHaveValue("partner@example.test");
   }, 15000);
+});
+
+describe("Partner application availability and accessibility", () => {
   it("shows a retry option when categories cannot be loaded", async () => {
     vi.stubGlobal(
       "fetch",

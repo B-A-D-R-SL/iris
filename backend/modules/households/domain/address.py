@@ -4,12 +4,9 @@
 import re
 import unicodedata
 
-_POSTAL = re.compile(r"^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z]\d[ABCEGHJ-NPRSTV-Z]\d$")
+from modules.common.domain.contact import normalize_postal_code
+
 _STREET_TYPES = {"RUE": "R", "AVENUE": "AV", "BOULEVARD": "BD", "CHEMIN": "CH"}
-
-
-class InvalidPostalCode(ValueError):
-    """Not a Canadian postal code in the A1A 1A1 format."""
 
 
 class IncompleteAddress(ValueError):
@@ -20,14 +17,6 @@ def _fold(value: str) -> str:
     folded = unicodedata.normalize("NFKD", value.strip().upper())
     without_accents = "".join(c for c in folded if not unicodedata.combining(c))
     return re.sub(r"\s+", " ", without_accents).strip()
-
-
-def normalize_postal_code(postal_code: str) -> str:
-    """Return canonical Canadian format, e.g. H2X 1Y4, or raise ValueError."""
-    compact = re.sub(r"\s+", "", _fold(postal_code))
-    if not _POSTAL.fullmatch(compact):
-        raise InvalidPostalCode("Enter a Canadian postal code like H2X 1Y4.")
-    return f"{compact[:3]} {compact[3:]}"
 
 
 def normalize_address(

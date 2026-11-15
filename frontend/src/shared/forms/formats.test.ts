@@ -15,10 +15,12 @@ describe("normalizePostalCode", () => {
   it.each([
     ["h2x1y4", "H2X 1Y4"],
     ["H2X 1Y4", "H2X 1Y4"],
-    ["h2x-1y4", "H2X 1Y4"],
+    ["h2x-1y4", "H2X -1Y4"],
     ["h2x", "H2X"],
     ["h2x1", "H2X 1"],
-    ["H2X 1Y45", "H2X 1Y4"],
+    ["H2X 1Y45", "H2X 1Y45"],
+    ["Ｈ２Ｘ１Ý４", "H2X 1Y4"],
+    ["H٢X 1Y4", "H٢X 1Y4"],
     ["", ""],
   ])("%j becomes %j", (input, expected) => {
     expect(normalizePostalCode(input)).toBe(expected);
@@ -31,10 +33,12 @@ describe("phone numbers", () => {
     ["(514) 555-0123", "5145550123"],
     ["+1 514 555 0123", "5145550123"],
     ["1-514-555-0123", "5145550123"],
-    ["514555012399", "5145550123"],
+    ["514555012399", "514555012399"],
+    ["+447911123456", "+447911123456"],
+    ["5145550123 ext 4", "5145550123 ext 4"],
     ["514", "514"],
     ["", ""],
-  ])("keeps the 10 national digits of %j", (input, expected) => {
+  ])("keeps editable digits or invalid input from %j", (input, expected) => {
     expect(phoneDigits(input)).toBe(expected);
   });
 

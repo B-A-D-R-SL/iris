@@ -36,7 +36,7 @@ def data():
             "street_name": "rue Émile",
             "unit": "4",
             "city": "Montréal",
-            "postal_code": "h2x1y4",
+            "postal_code": " h2x  1y4 ",
         },
         "members": [
             {
@@ -142,6 +142,50 @@ def test_invalid_field_is_reported_and_not_persisted(data, worker):
     assert response.status_code == 400
     assert "address.postal_code" in response.data["fields"]
     assert Household.objects.count() == 0
+
+
+def test_contact_patch_saves_normalized_values_without_changing_address_key(
+    data, worker
+):
+    client = _client(worker)
+    created = client.post(reverse("staff-households-create"), data, format="json")
+    household = Household.objects.get(pk=created.data["id"])
+    original_key = household.address_key
+    response = client.patch(
+        reverse("staff-households-detail", kwargs={"id": household.pk}),
+        {
+            "holder": {"phone": " +1 (438) 555-0199 "},
+            "address": {"postal_code": "Ｈ２Ｘ１Ｙ４"},
+        },
+        format="json",
+    )
+    assert response.status_code == 200, response.data
+    household.refresh_from_db()
+    assert household.phone == "+14385550199"
+    assert household.postal_code == "H2X 1Y4"
+    assert household.address_key == original_key
+
+
+@pytest.mark.parametrize(
+    ("language", "message"),
+    [
+        ("en", "Enter a 10-digit Canadian telephone number."),
+        ("fr", "Entrez un numéro de téléphone canadien à 10 chiffres."),
+    ],
+)
+def test_shared_phone_error_keeps_walk_in_field_and_language(
+    data, worker, language, message
+):
+    data["holder"]["phone"] = "+10145550123"
+    response = _client(worker).post(
+        reverse("staff-households-create"),
+        data,
+        format="json",
+        HTTP_ACCEPT_LANGUAGE=language,
+    )
+    assert response.status_code == 400
+    assert response.data["fields"]["holder.phone"] == [message]
+    assert not Household.objects.exists()
 
 
 def test_unknown_privileged_fields_are_rejected(data, worker):

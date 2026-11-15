@@ -67,6 +67,9 @@ place. Reapplying the migration is safe with those preserved rows.
 Migration `0007_enforce_system_actor` adds a database check: a null actor requires
 the `system` role, `decision` action and `household` target; a human actor cannot
 use the `system` role. ORM, bulk inserts and direct SQL enforce the same rule.
+The non-atomic migration adds the check as `NOT VALID`, commits the brief table
+lock, then validates existing history separately so normal reads/writes can
+continue during the scan.
 Reversing `0007` removes that check without changing any event data; the nullable
 column and append-only protection retained by `0006` still preserve system history.
 

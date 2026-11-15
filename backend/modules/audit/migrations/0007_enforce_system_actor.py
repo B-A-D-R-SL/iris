@@ -6,29 +6,53 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
+    # Commit the brief ADD lock before scanning existing append-only history.
+    atomic = False
+
     dependencies = [
         ("audit", "0006_household_events_and_system_actor"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
-        migrations.AddConstraint(
-            model_name="auditevent",
-            constraint=models.CheckConstraint(
-                condition=models.Q(
-                    models.Q(
-                        ("action", "decision"),
-                        ("actor__isnull", True),
-                        ("actor_role", "system"),
-                        ("target_type", "household"),
-                    ),
-                    models.Q(
-                        ("actor__isnull", False),
-                        models.Q(("actor_role", "system"), _negated=True),
-                    ),
-                    _connector="OR",
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql="""
+                        ALTER TABLE audit_auditevent
+                        ADD CONSTRAINT audit_actor_system_consistent CHECK (
+                            (actor_id IS NULL AND actor_role = 'system'
+                             AND action = 'decision' AND target_type = 'household')
+                            OR (actor_id IS NOT NULL AND actor_role <> 'system')
+                        ) NOT VALID;
+                    """,
+                    reverse_sql="ALTER TABLE audit_auditevent DROP CONSTRAINT audit_actor_system_consistent;",
                 ),
-                name="audit_actor_system_consistent",
-            ),
+                migrations.RunSQL(
+                    sql="ALTER TABLE audit_auditevent VALIDATE CONSTRAINT audit_actor_system_consistent;",
+                    reverse_sql=migrations.RunSQL.noop,
+                ),
+            ],
+            state_operations=[
+                migrations.AddConstraint(
+                    model_name="auditevent",
+                    constraint=models.CheckConstraint(
+                        condition=models.Q(
+                            models.Q(
+                                ("action", "decision"),
+                                ("actor__isnull", True),
+                                ("actor_role", "system"),
+                                ("target_type", "household"),
+                            ),
+                            models.Q(
+                                ("actor__isnull", False),
+                                models.Q(("actor_role", "system"), _negated=True),
+                            ),
+                            _connector="OR",
+                        ),
+                        name="audit_actor_system_consistent",
+                    ),
+                )
+            ],
         ),
     ]

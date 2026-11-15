@@ -3,18 +3,17 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
-from django.apps import apps
 from django.utils import timezone
 
+from modules.accounts.tests.factories import UserFactory
+from modules.eligibility.tests.factories import EligibilityDecisionFactory
 from modules.households.tests.factories import HouseholdFactory
 from modules.rules.services import publish
 
 
 @pytest.fixture
-def actor(db, django_user_model):
-    return django_user_model.objects.create_user(
-        "generated@example.test", role="intake_worker", first_name="Example"
-    )
+def actor(db):
+    return UserFactory(role="intake_worker")
 
 
 @pytest.fixture
@@ -60,18 +59,9 @@ def automatic_decision(actor):
         },
         actor,
     )
-    model = apps.get_model("eligibility", "EligibilityDecision")
-    return model.objects.create(
+    return EligibilityDecisionFactory(
         household=household,
-        household_size=1,
-        adult_incomes_cents=[50],
-        household_income_cents=50,
-        threshold_cents=100,
-        threshold_year=2025,
         ruleset_version=rule,
-        eligible=True,
-        decided_by_type="automatic",
-        decided_by=None,
     )
 
 

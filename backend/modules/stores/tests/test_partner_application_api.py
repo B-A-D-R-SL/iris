@@ -18,7 +18,8 @@ from modules.categories.tests.factories import CategoryFactory
 from modules.notifications.models import EmailLog
 from modules.notifications.tasks import send_email
 from modules.stores.api.views import _without_port
-from modules.stores.models import ApplicationStatus, PartnerApplication
+from modules.stores.models import ApplicationStatus, PartnerApplication, Store
+from modules.stores.services import approve_application
 from modules.stores.tests.factories import PartnerApplicationFactory, StoreFactory
 
 # Direct tests intentionally run without a worker-injected JobContext.
@@ -112,6 +113,20 @@ def test_submission_is_saved_and_confirmed_by_email(
     email_log.refresh_from_db()
     assert email_log.status == "sent"
     assert email_log.sent_at is not None
+
+
+@pytest.mark.usefixtures("invitation_rule", "partner_origin", "queued_partner_emails")
+@pytest.mark.parametrize("phone", ["5145550123", " +1 (514) 555-0123 "])
+def test_direct_submission_and_approval_preserve_canonical_contact_values(admin, phone):
+    response = post(APIClient(), payload(contact_phone=phone, postal_code=" h2x  1ý4 "))
+    assert response.status_code == 201, response.data
+    application = PartnerApplication.objects.get(pk=response.data["id"])
+    assert application.contact_phone == "+15145550123"
+    assert application.postal_code == "H2X 1Y4"
+    approve_application(application, admin)
+    store = Store.objects.get(application=application)
+    assert store.phone == application.contact_phone
+    assert store.postal_code == application.postal_code
 
 
 @pytest.mark.parametrize(
@@ -220,7 +235,7 @@ def test_only_post_is_allowed(method: str) -> None:
         ("contact_email", "owner-at-example", "Enter an email like name@example.ca."),
         (
             "contact_phone",
-            "5145550123",
+            "51455501234",
             "Enter a 10-digit number, for example (514) 555-0123.",
         ),
         (

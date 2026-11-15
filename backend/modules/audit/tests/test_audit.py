@@ -40,8 +40,8 @@ def test_public_record_persists_event_in_postgresql(event_inputs):
         "created_at",
     }
     payload = json.dumps(row, default=str)
-    assert "generated@example.test" not in payload
-    assert "Example" not in payload
+    assert event_inputs["actor"].email not in payload
+    assert event_inputs["actor"].first_name not in payload
 
 
 @pytest.mark.parametrize(
