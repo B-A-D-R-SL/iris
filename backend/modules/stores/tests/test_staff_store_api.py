@@ -113,6 +113,7 @@ def test_signed_out_requests_get_401() -> None:
         assert response.status_code == 401
 
 
+# rule: BR-STORE-001
 @pytest.mark.parametrize("role", NON_ADMIN_ROLES)
 def test_non_admins_get_403_and_nothing_changes(role: str) -> None:
     store = _store(city="Montréal")
@@ -193,6 +194,7 @@ def test_detail_includes_the_deactivation_preview(admin_client: APIClient) -> No
 # --- edit ---------------------------------------------------------------------
 
 
+# rule: BR-STORE-001
 def test_patch_saves_and_audits(admin_client: APIClient, admin: User) -> None:
     store = _store()
 
@@ -211,6 +213,7 @@ def test_patch_saves_and_audits(admin_client: APIClient, admin: User) -> None:
     assert event.actor == admin
 
 
+# rule: BR-STORE-001
 @pytest.mark.parametrize("field", ["is_active", "is_badr", "application", "id"])
 def test_patch_refuses_protected_fields(admin_client: APIClient, field: str) -> None:
     store = _store()
@@ -252,6 +255,7 @@ def test_patch_messages_follow_the_language(admin_client: APIClient) -> None:
 # --- deactivate and reactivate ------------------------------------------------
 
 
+# rule: BR-STORE-004
 def test_badr_store_deactivation_is_400(admin_client: APIClient) -> None:
     store = _store(is_badr=True)
 
@@ -263,6 +267,7 @@ def test_badr_store_deactivation_is_400(admin_client: APIClient) -> None:
     assert response.json()["code"] == "store_is_badr"
 
 
+# rule: BR-STORE-004
 def test_repeated_status_changes_are_409(admin_client: APIClient) -> None:
     inactive, active = _store(is_active=False), _store()
 
@@ -277,6 +282,7 @@ def test_repeated_status_changes_are_409(admin_client: APIClient) -> None:
     assert (second.status_code, second.json()["code"]) == (409, "store_already_active")
 
 
+# rule: BR-STORE-005
 @pytest.mark.parametrize("body", [{}, {"reason": "  "}, {"reason": "x" * 501}])
 def test_status_changes_need_a_reason(admin_client: APIClient, body: dict) -> None:
     store = _store()
@@ -289,6 +295,9 @@ def test_status_changes_need_a_reason(admin_client: APIClient, body: dict) -> No
     assert store.is_active is True
 
 
+# rule: BR-STORE-001
+# rule: BR-STORE-002
+# rule: BR-STORE-003
 def test_edit_deactivate_reactivate_through_the_database(
     admin_client: APIClient, notification_rules: Any
 ) -> None:

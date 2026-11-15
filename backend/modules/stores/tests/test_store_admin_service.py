@@ -347,3 +347,50 @@ def test_list_search_filter_and_counts() -> None:
     ]
     assert queries.status_counts() == {"all": 3, "active": 2, "inactive": 1}
     assert queries.status_counts("ontario") == {"all": 2, "active": 2, "inactive": 0}
+
+
+# --- logging ------------------------------------------------------------------
+
+
+def test_store_changes_are_logged_after_commit_without_personal_text(
+    admin, partner_events, django_capture_on_commit_callbacks
+) -> None:
+    """Each change logs its event once it commits: ids and counts, no reason or name."""
+    store = _store(name="Épicerie Secrète")
+    _open_listing(store)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        services.update_store(store.pk, {"city": "Laval"}, admin)
+    with django_capture_on_commit_callbacks(execute=True):
+        services.deactivate_store(store.pk, admin, "Fermé pour rénovations")
+    with django_capture_on_commit_callbacks(execute=True):
+        services.reactivate_store(store.pk, admin, "Rénovations terminées")
+
+    events = [
+        vars(record)
+        for record in partner_events.records
+        if getattr(record, "event", "").startswith("store_")
+    ]
+    assert [event["event"] for event in events] == [
+        "store_updated",
+        "store_deactivated",
+        "store_reactivated",
+    ]
+    assert all(event["store_id"] == str(store.pk) for event in events)
+    assert events[1]["listings_cancelled"] == 1
+    assert events[1]["reservations_cancelled"] == 0
+    logged = " ".join(str(event) for event in events)
+    assert "rénovations" not in logged.lower()
+    assert "Secrète" not in logged
+
+
+def test_nothing_is_logged_when_the_change_rolls_back(
+    admin, partner_events, django_capture_on_commit_callbacks
+) -> None:
+    store = _store()
+    with (
+        django_capture_on_commit_callbacks(execute=True),
+        pytest.raises(ValidationError),
+    ):
+        services.deactivate_store(store.pk, admin, "   ")
+    assert not [r for r in partner_events.records if r.name == "iris.stores"]

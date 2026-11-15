@@ -21,6 +21,7 @@ def _record(admin, action: str, metadata: dict[str, Any], target_type="store"):
     return services.record(admin, action, target_type, uuid4(), metadata)
 
 
+# rule: BR-STORE-001
 def test_update_records_the_changed_field_names(admin):
     event = _record(admin, "update", {"fields": "opening_hours,phone"})
 
@@ -29,6 +30,7 @@ def test_update_records_the_changed_field_names(admin):
     assert event.metadata == {"fields": "opening_hours,phone"}
 
 
+# rule: BR-STORE-001
 @pytest.mark.parametrize(
     "metadata",
     [
@@ -54,6 +56,7 @@ def test_update_is_only_for_stores(admin):
         _record(admin, "update", {"fields": "phone"}, target_type="household")
 
 
+# rule: BR-STORE-005
 def test_deactivate_records_reason_and_counts(admin):
     metadata = {
         "reason": "Closed for renovations",
@@ -67,6 +70,7 @@ def test_deactivate_records_reason_and_counts(admin):
     assert event.metadata == metadata
 
 
+# rule: BR-STORE-005
 @pytest.mark.parametrize(
     "metadata",
     [
@@ -106,6 +110,7 @@ def test_deactivate_is_only_for_stores(admin):
         _record(admin, "deactivate", metadata, target_type="household")
 
 
+# rule: BR-STORE-005
 def test_store_reactivation_uses_the_store_reason_limit(admin):
     """No household rule is published here: stores have their own fixed limit."""
     event = _record(admin, "reactivate", {"reason": "x" * 500})
@@ -113,6 +118,7 @@ def test_store_reactivation_uses_the_store_reason_limit(admin):
     assert event.metadata == {"reason": "x" * 500}
 
 
+# rule: BR-STORE-005
 @pytest.mark.parametrize(
     "metadata",
     [

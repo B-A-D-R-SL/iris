@@ -342,6 +342,13 @@ class DeactivationResult:
     reservations_cancelled: int
 
 
+def _log_store_event(event: str, store_id: UUID, **counts: int) -> None:
+    """Log a store change once it commits: ids and counts only, never the
+    reason, name or contact details (the audit event keeps the reason)."""
+    extra = {"event": event, "store_id": str(store_id), **counts}
+    transaction.on_commit(lambda: logger.info(event, extra=extra))
+
+
 def _locked_store(store_id: UUID) -> Store:
     """The store row, locked for the rest of the transaction (404 when missing)."""
     return Store.objects.select_for_update().get(pk=store_id)
@@ -399,6 +406,7 @@ def update_store(store_id: UUID, changes: Mapping[str, Any], admin: Any) -> Stor
     audit_services.record(
         admin, "update", "store", store.pk, {"fields": ",".join(changed)}
     )
+    _log_store_event("store_updated", store.pk)
     return store
 
 
@@ -464,6 +472,12 @@ def deactivate_store(store_id: UUID, admin: Any, reason: str) -> DeactivationRes
             "reservations_cancelled": reservations,
         },
     )
+    _log_store_event(
+        "store_deactivated",
+        store.pk,
+        listings_cancelled=len(listing_ids),
+        reservations_cancelled=reservations,
+    )
     return DeactivationResult(store, len(listing_ids), reservations)
 
 
@@ -477,4 +491,5 @@ def reactivate_store(store_id: UUID, admin: Any, reason: str) -> Store:
     store.is_active = True
     store.save(update_fields=["is_active", "updated_at"])
     audit_services.record(admin, "reactivate", "store", store.pk, {"reason": reason})
+    _log_store_event("store_reactivated", store.pk)
     return store

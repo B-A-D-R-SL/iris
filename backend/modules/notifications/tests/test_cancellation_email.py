@@ -22,6 +22,7 @@ def _public_origin() -> Iterator[None]:
         yield
 
 
+# rule: BR-STORE-003
 def test_english_body_names_quantity_listing_and_store() -> None:
     message = render(KEY, "en", CONTEXT)
 
@@ -32,6 +33,7 @@ def test_english_body_names_quantity_listing_and_store() -> None:
     assert "This was not caused by you and does not count against you." in message.text
 
 
+# rule: BR-STORE-003
 def test_french_body_names_quantity_listing_and_store() -> None:
     message = render(KEY, "fr", CONTEXT)
 
@@ -49,6 +51,7 @@ def test_names_are_escaped_in_html() -> None:
     assert "&lt;b&gt;Bread&lt;/b&gt;" in message.html
 
 
+# rule: BR-STORE-003
 @pytest.mark.parametrize(
     "change",
     [
