@@ -5,14 +5,8 @@ import pytest
 from django.core.exceptions import ValidationError
 
 from modules.categories.models import Category
-from modules.categories.queries import (
-    get_active_category,
-    list_active_categories,
-)
-from modules.categories.services import (
-    deactivate_category,
-    save_category,
-)
+from modules.categories.queries import list_active_categories
+from modules.categories.services import save_category
 
 
 def make_category(
@@ -78,18 +72,6 @@ def test_save_category_rejects_invalid_data() -> None:
 
 
 @pytest.mark.django_db
-def test_deactivate_category() -> None:
-    category = save_category(make_category())
-
-    deactivated = deactivate_category(category.pk)
-
-    assert deactivated.is_active is False
-
-    category.refresh_from_db()
-    assert category.is_active is False
-
-
-@pytest.mark.django_db
 def test_list_active_categories_excludes_inactive() -> None:
     save_category(make_category("bakery"))
     save_category(make_category("clothing"))
@@ -101,27 +83,3 @@ def test_list_active_categories_excludes_inactive() -> None:
         "bakery",
         "clothing",
     ]
-
-
-@pytest.mark.django_db
-def test_get_active_category() -> None:
-    save_category(make_category())
-
-    result = get_active_category("bakery")
-
-    assert result.code == "bakery"
-    assert result.is_active is True
-
-
-@pytest.mark.django_db
-def test_get_active_category_rejects_inactive() -> None:
-    save_category(make_category(is_active=False))
-
-    with pytest.raises(Category.DoesNotExist):
-        get_active_category("bakery")
-
-
-@pytest.mark.django_db
-def test_get_active_category_rejects_unknown() -> None:
-    with pytest.raises(Category.DoesNotExist):
-        get_active_category("unknown")

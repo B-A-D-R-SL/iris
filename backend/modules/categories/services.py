@@ -3,7 +3,6 @@
 
 from collections.abc import Mapping
 from typing import Any
-from uuid import UUID
 
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -122,19 +121,6 @@ def save_category(category: Category) -> Category:
     category.save()
 
     return category
-
-
-@transaction.atomic
-def deactivate_category(category_id: UUID) -> Category:
-    """Deactivate a category without deleting historical records.
-
-    Inactive categories are excluded from public queries.
-    """
-    category = Category.objects.select_for_update().get(pk=category_id)
-
-    category.is_active = False
-
-    return save_category(category)
 
 
 @transaction.atomic
