@@ -104,11 +104,13 @@ describe("email domains are dot-separated labels, checked in linear time (FIX-31
   );
 
   it("refuses a long run of dots without backtracking", () => {
-    const value = `a@${".".repeat(50_000)}@`;
+    const value = `a@${".".repeat(100_000)}@`;
     const started = performance.now();
+    const error = isEmail()(value);
+    const elapsedMs = performance.now() - started;
 
-    expect(isEmail()(value)).not.toBeNull();
-    expect(performance.now() - started).toBeLessThan(100);
+    expect(messageOf(error)).toBe("Entrez un courriel valide.");
+    expect(elapsedMs).toBeLessThan(100);
   });
 });
 
