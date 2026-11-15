@@ -399,3 +399,43 @@ msgstr "Votre demande de partenariat a été refusée"
 #, python-format
 msgid "Hello,\n\nYour partner application has been declined.\nReason: %(reason)s\n\nThe Iris team"
 msgstr "Bonjour,\n\nVotre demande de partenariat a été refusée.\nMotif : %(reason)s\n\nL’équipe Iris"
+
+# US-14 store administration
+msgid "Enter the opening hours for every day."
+msgstr "Indiquez les heures d’ouverture de chaque jour."
+
+msgid "Enter times as HH:MM."
+msgstr "Indiquez les heures au format HH:MM."
+
+msgid "The closing time must be after the opening time."
+msgstr "L’heure de fermeture doit suivre l’heure d’ouverture."
+
+msgid "The store must be open at least one day."
+msgstr "Le commerce doit être ouvert au moins un jour."
+
+msgid "Enter a reason."
+msgstr "Indiquez un motif."
+
+msgid "Remove personal details such as names, emails, phone numbers or ID numbers."
+msgstr "Retirez les renseignements personnels comme les noms, courriels, numéros de téléphone ou numéros d’identité."
+
+msgid "This field cannot be changed."
+msgstr "Ce champ ne peut pas être modifié."
+
+msgid "Only admins can manage stores."
+msgstr "Seuls les administrateurs peuvent gérer les commerces."
+
+msgid "The B.A.D.R. store cannot be deactivated."
+msgstr "Le commerce B.A.D.R. ne peut pas être désactivé."
+
+msgid "This store is already deactivated."
+msgstr "Ce commerce est déjà désactivé."
+
+msgid "This store is already active."
+msgstr "Ce commerce est déjà actif."
+
+msgid "This store does not exist."
+msgstr "Ce commerce n’existe pas."
+
+msgid "Choose active or inactive."
+msgstr "Choisissez actif ou désactivé."

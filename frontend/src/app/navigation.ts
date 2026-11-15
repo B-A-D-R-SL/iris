@@ -13,6 +13,7 @@ import {
   IconClipboardCheck,
   IconClipboardList,
   IconHome,
+  IconMapPin,
   IconShoppingBag,
   IconUser,
   type TablerIcon,
@@ -69,6 +70,12 @@ export const NAVIGATION: Record<Area, readonly NavItem[]> = {
       path: "/staff/partners",
       labelKey: "app.staffNav.partners",
       icon: IconBuildingStore,
+      roles: ADMIN,
+    },
+    {
+      path: "/staff/stores",
+      labelKey: "app.staffNav.stores",
+      icon: IconMapPin,
       roles: ADMIN,
     },
     {

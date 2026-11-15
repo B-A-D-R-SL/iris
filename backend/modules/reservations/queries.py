@@ -131,3 +131,18 @@ def _single_match(
     if reserved:
         return reserved[0]
     return max(matches, key=lambda match: rows[match.listing_id]["pickup_end"])
+
+
+def household_count_for_listings(listing_ids: list[UUID]) -> int:
+    """Households that would be emailed if these listings were cancelled (US-14).
+
+    Only households with a reserved claim and an email address count, matching
+    who ``cancel_for_cancelled_listings`` actually emails.
+    """
+    household_ids = set(
+        Reservation.objects.filter(
+            listing_id__in=listing_ids, status=ReservationStatus.RESERVED
+        ).values_list("household_id", flat=True)
+    )
+    contacts = household_queries.email_contacts(household_ids)
+    return sum(1 for email, _language in contacts.values() if email)

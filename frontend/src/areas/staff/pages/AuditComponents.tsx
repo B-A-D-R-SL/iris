@@ -111,6 +111,7 @@ export function AuditResultsTable({
                 <Table.Td>
                   {labels[event.target_type] ?? event.target_type}: {event.target_id}
                   {event.action === "rule_published" && <RuleDetails metadata={event.metadata} />}
+                  {event.target_type === "store" && <StoreDetails metadata={event.metadata} />}
                 </Table.Td>
                 <Table.Td>{outcome ? (labels[outcome] ?? outcome) : "—"}</Table.Td>
               </Table.Tr>
@@ -146,6 +147,51 @@ function RuleDetails({ metadata }: { metadata: unknown }) {
       {t("audit.search.ruleVersion", { version: metadata.version })})
     </>
   );
+}
+
+/** Translation keys for the store field names in `update` events (US-14). */
+const STORE_FIELD_LABELS: Record<string, string> = {
+  name: "storeAdmin.edit.name",
+  street_number: "storeAdmin.edit.streetNumber",
+  street_name: "storeAdmin.edit.streetName",
+  unit: "storeAdmin.edit.unit",
+  city: "storeAdmin.edit.city",
+  postal_code: "storeAdmin.edit.postalCode",
+  phone: "storeAdmin.edit.phone",
+  email: "storeAdmin.edit.email",
+  opening_hours: "storeAdmin.hours.title",
+  pickup_instructions: "storeAdmin.edit.instructions",
+};
+
+/** US-14 store events: the changed field names, or what a deactivation cancelled. */
+function StoreDetails({ metadata }: { metadata: unknown }) {
+  const { t } = useTranslation();
+  if (typeof metadata !== "object" || metadata === null) return null;
+  const values = metadata as Record<string, unknown>;
+  if (typeof values.fields === "string") {
+    const fields = values.fields.split(",").map((field) => {
+      const key = STORE_FIELD_LABELS[field];
+      return key ? t(key) : field;
+    });
+    return <> ({t("audit.search.storeFields", { fields: fields.join(", ") })})</>;
+  }
+  if (
+    typeof values.listings_cancelled === "number" &&
+    typeof values.reservations_cancelled === "number"
+  ) {
+    return (
+      <>
+        {" "}
+        (
+        {t("audit.search.storeCancelled", {
+          listings: values.listings_cancelled,
+          reservations: values.reservations_cancelled,
+        })}
+        )
+      </>
+    );
+  }
+  return null;
 }
 
 export function AuditPagination({

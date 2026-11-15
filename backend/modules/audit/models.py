@@ -14,6 +14,8 @@ class AuditEvent(models.Model):
         RULE_PUBLISHED = "rule_published"
         SUSPEND = "suspend"
         REACTIVATE = "reactivate"
+        # US-14 store deactivation; store edits reuse UPDATE above.
+        DEACTIVATE = "deactivate"
 
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True

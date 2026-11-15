@@ -2,7 +2,7 @@
 # Stores module
 
 **Owner pair:** Fairness & partners
-**Status:** Store (US-11), partner applications (US-12), and staff review service/API/screens (US-13) implemented; email delivery uses US-57
+**Status:** Store (US-11), partner applications (US-12), staff review service/API/screens (US-13) and admin store management (US-14) implemented; email delivery uses US-57
 
 ## Responsibility
 
@@ -43,6 +43,26 @@ lead to them, within the Iris modular monolith.
 - `services.approve_application(application, admin)`: creates a store and store-manager invitation in one transaction, records the decision and queues `partner_application_approved` through notifications. Configure `PUBLIC_APP_ORIGIN` as the public frontend origin. Free-text hours are preserved in `opening_hours.notes` until a structured schedule is provided.
 - `services.reject_application(application, admin, reason)`: requires a nonblank reason of at most 500 trimmed characters, records the decision and queues `partner_application_rejected` with that stored reason. Both decision functions require an active admin and raise `ApplicationAlreadyDecided` if the application is no longer submitted. Delivery failures are recorded without message content and do not undo committed decisions.
 - `services.resend_approval_invitation(application, admin)`: recovery for an approved application. Requires an active admin, expires prior unaccepted manager invitations, issues a fresh token and queues the approval template with the new link. It refuses existing accounts and never repeats the approval or its audit event. Failed issuance rolls back expiry changes.
+
+- `services.update_store(store_id, changes, admin)` (US-14): change editable
+  fields only (`EDITABLE_STORE_FIELDS`), validate them with the model and the
+  opening-hours rule, keep existing `notes`, and record an `update` audit event
+  with the changed field names when something changed.
+- `services.deactivate_store(store_id, admin, reason)` (US-14): in one
+  transaction, set `is_active=False`, cancel open listings through
+  `listings.services.cancel_all_for_store`, cancel their reservations through
+  `reservations.services.cancel_for_cancelled_listings` (emails queued after
+  commit) and record a `deactivate` audit event with the reason and counts.
+  Raises `StoreIsBadr` or `StoreStatusUnchanged`; returns `DeactivationResult`.
+- `services.reactivate_store(store_id, admin, reason)` (US-14): set
+  `is_active=True` and record a `reactivate` audit event; restores nothing.
+- `queries.staff_stores(q, status)`, `queries.status_counts(q)`,
+  `queries.staff_store(id)`, `queries.open_listing_counts(store_ids, now)` and
+  `queries.deactivation_preview(store_id, now)`: the admin store screens (US-14).
+
+Rules BR-STORE-001 to BR-STORE-006 are in
+[business-rules.md](../../../docs/02-requirements/business-rules.md#store-administration-us-14);
+the pure checks are in `domain/store_rules.py`.
 
 ## Recovering a lost approval email
 
@@ -87,6 +107,10 @@ issuance rules remain enforced before a decision can complete.
 - `GET /api/staff/partner-applications/?status=`, `POST .../{id}/approve/` and
   `POST .../{id}/reject/`: admin only (`api/staff_views.py`). Contract in
   [api.md](../../../docs/03-design/api.md#staff-review-of-partner-applications-us-13).
+- `GET /api/staff/stores/`, `GET`/`PATCH /api/staff/stores/{id}/`,
+  `POST .../{id}/deactivate/` and `POST .../{id}/reactivate/`: admin only
+  (`api/staff_store_views.py`). Contract in
+  [api.md](../../../docs/03-design/api.md#admin-store-management-us-14).
 
 ## Dependencies
 
@@ -99,7 +123,10 @@ issuance rules remain enforced before a decision can complete.
   the shared US-57 template/log/job pipeline. The worker selects ACS, SMTP/Mailpit
   or the reusable test fake; business requests never call transport directly.
 - `accounts.services`: manager invitation issuance.
-- `audit.services`: decision audit events.
+- `audit.services`: decision and store (`update`, `deactivate`, `reactivate`) audit events.
+- `listings.services`/`queries` and `reservations.services`/`queries`: store
+  deactivation and its preview (US-14).
+- `privacy.services`: the sensitive-data check on deactivation and reactivation reasons.
 
 ## Architectural rules
 
@@ -109,6 +136,9 @@ Do not import another module's models or internal domain code.
 ## Audit events
 
 Approval and rejection record a `decision` on `partner_application`, with only the outcome in metadata.
+Store edits record `update` (changed field names), deactivation records
+`deactivate` (reason and cancelled counts) and reactivation records `reactivate`
+(reason), all on target `store`.
 
 The worker renders the applicant's captured language from the shared French and
 English templates. Partner rejection accepts the stored bounded decision
