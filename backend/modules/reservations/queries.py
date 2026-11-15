@@ -131,3 +131,15 @@ def _single_match(
     if reserved:
         return reserved[0]
     return max(matches, key=lambda match: rows[match.listing_id]["pickup_end"])
+
+
+def household_count_for_listings(listing_ids: list[UUID]) -> int:
+    """Households holding a reserved claim on these listings (US-14 preview)."""
+    return (
+        Reservation.objects.filter(
+            listing_id__in=listing_ids, status=ReservationStatus.RESERVED
+        )
+        .values("household_id")
+        .distinct()
+        .count()
+    )
