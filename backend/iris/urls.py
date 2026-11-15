@@ -37,6 +37,8 @@ urlpatterns = [
         "api/staff/partner-applications/",
         include("modules.stores.api.staff_urls"),
     ),
+    # Admin store management (US-14)
+    path("api/staff/stores/", include("modules.stores.api.staff_store_urls")),
     # API documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

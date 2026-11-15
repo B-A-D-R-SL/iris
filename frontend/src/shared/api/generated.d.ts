@@ -120,6 +120,39 @@ export interface paths {
      */
     post: operations["staff_partner_applications_reject"];
   };
+  "/api/staff/stores/": {
+    /**
+     * List stores (admin only)
+     * @description By name. `q` searches the name and address; `status` keeps active or deactivated stores. `counts` gives the totals for the same search.
+     */
+    get: operations["staff_stores_list"];
+  };
+  "/api/staff/stores/{id}/": {
+    /**
+     * Get a store (admin only)
+     * @description Includes what deactivating it now would cancel.
+     */
+    get: operations["staff_stores_retrieve"];
+    /**
+     * Edit a store (admin only)
+     * @description Send only the fields to change. The id, B.A.D.R. flag, application, status and timestamps cannot be changed here. Records the changed field names in the audit log.
+     */
+    patch: operations["staff_stores_partial_update"];
+  };
+  "/api/staff/stores/{id}/deactivate/": {
+    /**
+     * Deactivate a store (admin only)
+     * @description Requires a reason. The store can no longer post; its listings whose pickup has not ended are cancelled, their reservations become `cancelled_by_store` with no strike, and each household is emailed. The B.A.D.R. store cannot be deactivated.
+     */
+    post: operations["staff_stores_deactivate"];
+  };
+  "/api/staff/stores/{id}/reactivate/": {
+    /**
+     * Reactivate a store (admin only)
+     * @description Requires a reason. The store can post again; cancelled listings stay cancelled.
+     */
+    post: operations["staff_stores_reactivate"];
+  };
   "/api/store/listings/": {
     /** Post a listing for the signed-in user's active store */
     post: operations["store_listings_create"];
@@ -162,9 +195,12 @@ export interface components {
      * * `rule_published` - Rule Published
      * * `suspend` - Suspend
      * * `reactivate` - Reactivate
+     * * `update` - Update
+     * * `deactivate` - Deactivate
      * @enum {string}
      */
-    ActionEnum: "view" | "decision" | "rule_published" | "suspend" | "reactivate";
+    ActionEnum:
+      "view" | "decision" | "rule_published" | "suspend" | "reactivate" | "update" | "deactivate";
     AddressInput: {
       city: string;
       postal_code: string;
@@ -248,6 +284,11 @@ export interface components {
       role: components["schemas"]["RoleEnum"];
       /** Format: uuid */
       store: string | null;
+    };
+    /** @description One opening range, as "HH:MM" local times. */
+    DayHours: {
+      close: string;
+      open: string;
     };
     /**
      * @description * `daily` - Chaque jour
@@ -439,6 +480,20 @@ export interface components {
       /** @default item */
       unit?: string;
     };
+    /**
+     * @description Each day is a range, or null when closed. ``notes`` is read-only text
+     * copied from the partner application, shown until the grid replaces it.
+     */
+    OpeningHours: {
+      fri: components["schemas"]["DayHours"] | null;
+      mon: components["schemas"]["DayHours"] | null;
+      notes: string | null;
+      sat: components["schemas"]["DayHours"] | null;
+      sun: components["schemas"]["DayHours"] | null;
+      thu: components["schemas"]["DayHours"] | null;
+      tue: components["schemas"]["DayHours"] | null;
+      wed: components["schemas"]["DayHours"] | null;
+    };
     PaginatedAuditEventList: {
       /** @example 123 */
       count: number;
@@ -544,6 +599,19 @@ export interface components {
       is_food?: boolean;
       name_en?: string;
       name_fr?: string;
+    };
+    /** @description PATCH body: any editable field; anything else is refused. */
+    PatchedStaffStoreUpdate: {
+      city?: string;
+      email?: string;
+      name?: string;
+      opening_hours?: components["schemas"]["OpeningHours"];
+      phone?: string;
+      pickup_instructions?: string | null;
+      postal_code?: string;
+      street_name?: string;
+      street_number?: string;
+      unit?: string | null;
     };
     PatchedWalkInDraftInput: {
       address?: components["schemas"]["AddressInput"];
@@ -765,12 +833,129 @@ export interface components {
      * @enum {string}
      */
     StaffPartnerApplicationStatusEnum: "submitted" | "approved" | "rejected";
+    /** @description A store as the admin edits it (W7.2), with the deactivation preview. */
+    StaffStore: {
+      /** Ville */
+      city: string;
+      /** Format: date-time */
+      created_at: string;
+      /**
+       * Courriel
+       * Format: email
+       */
+      email: string;
+      households_to_notify: number;
+      /** Format: uuid */
+      id: string;
+      /** Actif */
+      is_active: boolean;
+      /** Magasin B.A.D.R. */
+      is_badr: boolean;
+      /** Nom du magasin */
+      name: string;
+      open_listings: number;
+      opening_hours: components["schemas"]["OpeningHours"];
+      /** Téléphone */
+      phone: string;
+      /** Instructions pour la cueillette */
+      pickup_instructions: string | null;
+      /** Code postal */
+      postal_code: string;
+      /** Rue */
+      street_name: string;
+      /** Numéro civique */
+      street_number: string;
+      /** App. */
+      unit: string | null;
+      /** Format: date-time */
+      updated_at: string;
+    };
+    /** @description One row of the admin store list (W7.1). */
+    StaffStoreListItem: {
+      /** Ville */
+      city: string;
+      /** Format: uuid */
+      id: string;
+      /** Actif */
+      is_active: boolean;
+      /** Magasin B.A.D.R. */
+      is_badr: boolean;
+      /** Nom du magasin */
+      name: string;
+      open_listings: number;
+      /** Code postal */
+      postal_code: string;
+      /** Rue */
+      street_name: string;
+      /** Numéro civique */
+      street_number: string;
+      /** App. */
+      unit: string | null;
+    };
+    /** @description Team paging envelope plus the counts for the status chips. */
+    StaffStorePage: {
+      count: number;
+      counts: components["schemas"]["StoreCounts"];
+      /** Format: uri */
+      next: string | null;
+      /** Format: uri */
+      previous: string | null;
+      results: components["schemas"]["StaffStoreListItem"][];
+    };
     StoreAddress: {
       city: string;
       postal_code: string;
       street_name: string;
       street_number: string;
       unit: string | null;
+    };
+    StoreCounts: {
+      active: number;
+      all: number;
+      inactive: number;
+    };
+    /** @description The deactivated store and what the deactivation cancelled. */
+    StoreDeactivated: {
+      /** Ville */
+      city: string;
+      /** Format: date-time */
+      created_at: string;
+      /**
+       * Courriel
+       * Format: email
+       */
+      email: string;
+      households_to_notify: number;
+      /** Format: uuid */
+      id: string;
+      /** Actif */
+      is_active: boolean;
+      /** Magasin B.A.D.R. */
+      is_badr: boolean;
+      listings_cancelled: number;
+      /** Nom du magasin */
+      name: string;
+      open_listings: number;
+      opening_hours: components["schemas"]["OpeningHours"];
+      /** Téléphone */
+      phone: string;
+      /** Instructions pour la cueillette */
+      pickup_instructions: string | null;
+      /** Code postal */
+      postal_code: string;
+      reservations_cancelled: number;
+      /** Rue */
+      street_name: string;
+      /** Numéro civique */
+      street_number: string;
+      /** App. */
+      unit: string | null;
+      /** Format: date-time */
+      updated_at: string;
+    };
+    /** @description Deactivation or reactivation body; the service checks the reason. */
+    StoreStatusChange: {
+      reason: string;
     };
     /** @description What the applicant gets back; no personal data is echoed. */
     SubmittedPartnerApplication: {
@@ -1518,6 +1703,219 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["StaffPartnerApplication"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      409: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+    };
+  };
+  /**
+   * List stores (admin only)
+   * @description By name. `q` searches the name and address; `status` keeps active or deactivated stores. `counts` gives the totals for the same search.
+   */
+  staff_stores_list: {
+    parameters: {
+      query?: {
+        /** @description Name or address */
+        q?: string;
+        status?: "active" | "inactive";
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["StaffStorePage"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      409: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Get a store (admin only)
+   * @description Includes what deactivating it now would cancel.
+   */
+  staff_stores_retrieve: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["StaffStore"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      409: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Edit a store (admin only)
+   * @description Send only the fields to change. The id, B.A.D.R. flag, application, status and timestamps cannot be changed here. Records the changed field names in the audit log.
+   */
+  staff_stores_partial_update: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["PatchedStaffStoreUpdate"];
+        "application/x-www-form-urlencoded": components["schemas"]["PatchedStaffStoreUpdate"];
+        "multipart/form-data": components["schemas"]["PatchedStaffStoreUpdate"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["StaffStore"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      409: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Deactivate a store (admin only)
+   * @description Requires a reason. The store can no longer post; its listings whose pickup has not ended are cancelled, their reservations become `cancelled_by_store` with no strike, and each household is emailed. The B.A.D.R. store cannot be deactivated.
+   */
+  staff_stores_deactivate: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StoreStatusChange"];
+        "application/x-www-form-urlencoded": components["schemas"]["StoreStatusChange"];
+        "multipart/form-data": components["schemas"]["StoreStatusChange"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["StoreDeactivated"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+      409: {
+        content: {
+          "application/json": components["schemas"]["PartnerApplicationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Reactivate a store (admin only)
+   * @description Requires a reason. The store can post again; cancelled listings stay cancelled.
+   */
+  staff_stores_reactivate: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StoreStatusChange"];
+        "application/x-www-form-urlencoded": components["schemas"]["StoreStatusChange"];
+        "multipart/form-data": components["schemas"]["StoreStatusChange"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["StaffStore"];
         };
       };
       400: {
