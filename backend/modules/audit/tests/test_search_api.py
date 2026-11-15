@@ -130,6 +130,18 @@ def test_date_filter_covers_the_whole_montreal_day_when_clocks_change(
 
 
 @pytest.mark.parametrize(
+    "query", [{"to": "9999-12-31"}, {"from": "0001-01-01", "to": "9999-12-31"}]
+)
+def test_date_filter_accepts_the_first_and_last_possible_dates(client, admin, query):
+    # The day after 9999-12-31 can't be built, so that end date has no upper bound.
+    event = record(admin, "view", "household", uuid4(), {})
+    client.force_login(admin)
+    response = client.get(reverse("audit-search"), query)
+    assert response.status_code == 200
+    assert [e["id"] for e in response.json()["results"]] == [event.pk]
+
+
+@pytest.mark.parametrize(
     "query",
     [
         {"household": "not-a-uuid"},

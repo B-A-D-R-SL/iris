@@ -30,6 +30,7 @@ def search_events(
     # Compare created_at itself, not its date, so the indexes can be used.
     if date_from is not None:
         events = events.filter(created_at__gte=_start_of(date_from))
-    if date_to is not None:
+    # date.max has no next day, and nothing is stored after it anyway.
+    if date_to is not None and date_to < date.max:
         events = events.filter(created_at__lt=_start_of(date_to + timedelta(days=1)))
     return events.order_by("-created_at", "-pk")
