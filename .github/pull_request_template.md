@@ -37,5 +37,5 @@ AI-assisted files:
 ## Checklist
 
 - [ ] Every source file I added or changed starts with its AI contribution line
-- [ ] `AI_USAGE.md` updated if this is a substantive feature built with AI help
+- [ ] AI help recorded on the wiki's [AI Usage](https://github.com/B-A-D-R-SL/iris/wiki/AI-Usage) page for this iteration, if this is a feature or fix built with AI help
 - [ ] The issue links this pull request and its tests
