@@ -74,7 +74,8 @@ fail_under = 70
 show_missing = true
 skip_covered = true
 
-# Dead-code check (FIX-06): run `uvx vulture` from backend/; it must report nothing.
+# Dead-code check (FIX-06): it must report nothing. Run `uvx vulture` from backend/,
+# or `uvx vulture --config backend/pyproject.toml backend` from the repository root.
 [tool.vulture]
 paths = ["."]
 exclude = [".venv/", "htmlcov/", "migrations/"]
