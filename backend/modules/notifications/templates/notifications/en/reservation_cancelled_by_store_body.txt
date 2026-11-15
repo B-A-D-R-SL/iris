@@ -1,2 +1,8 @@
 {# AI contribution: 50% or more AI-generated #}
-{% autoescape off %}The store has cancelled your reservation. Sign in to Iris to see your reservations and available listings.{% endautoescape %}
+{% autoescape off %}Hello,
+
+Your reservation for {{ quantity }} × {{ listing_title }} at {{ store_name }} has been cancelled because the store can no longer offer this pickup.
+
+This was not caused by you and does not count against you. Sign in to Iris to see your reservations and other available listings.
+
+The Iris team{% endautoescape %}
