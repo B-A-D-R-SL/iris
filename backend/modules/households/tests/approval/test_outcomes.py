@@ -17,6 +17,8 @@ from modules.households.queries import HouseholdEvidenceUnavailable, eligibility
 from modules.households.services import update_draft
 from modules.households.tests.approval.helpers import (
     NOW,
+    approval_events,
+    assert_approval_audit_chain,
     assert_unapproved,
     audit_events,
     decisions,
@@ -49,10 +51,11 @@ def test_eligible_walk_in_is_approved_for_twelve_months(
     decision = decisions(household).get()
     assert decision.adult_incomes_cents == [1_234_500]
     assert decision.eligible is True
-    event = audit_events(household).get()
+    event = approval_events(household).get()
     assert event.action == "decision"
     assert event.actor_role == role
     assert event.metadata == {"outcome": "approved"}
+    assert_approval_audit_chain(household, actor)
     assert not invitations().exists()
 
 
@@ -62,7 +65,7 @@ def test_income_above_lico_is_rejected(household: Any, staff: Any) -> None:
     assert_unapproved(household, "rejected")
     assert household.status_reason == "INCOME_ABOVE_LICO"
     assert decisions(household).get().eligible is False
-    assert audit_events(household).get().metadata == {"outcome": "rejected"}
+    assert approval_events(household).get().metadata == {"outcome": "rejected"}
 
 
 @pytest.mark.parametrize(
@@ -85,7 +88,7 @@ def test_unverified_notice_requires_review(
     assert_unapproved(household, "review_required")
     assert household.status_reason == reason
     assert not decisions(household).exists()
-    assert audit_events(household).get().metadata == {"outcome": "review_required"}
+    assert approval_events(household).get().metadata == {"outcome": "review_required"}
 
 
 def test_corrected_holder_name_is_compared_at_approval(

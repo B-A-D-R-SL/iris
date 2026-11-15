@@ -72,6 +72,47 @@ describe("Audit search", () => {
     expect(screen.getByText("Rule version: abc (Priority, version 2)")).toBeInTheDocument();
   });
 
+  it("translates household operations and automatic eligibility audits in both languages", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({
+          count: 5,
+          next: null,
+          previous: null,
+          results: [
+            ...["create", "update", "submit"].map((action, index) => ({
+              ...event,
+              id: index + 1,
+              action,
+            })),
+            ...["eligible", "ineligible"].map((outcome, index) => ({
+              ...event,
+              id: index + 4,
+              actor: null,
+              actor_role: "system",
+              action: "decision",
+              metadata: { decision_id: event.actor, outcome, rule_version: 2 },
+            })),
+          ],
+        }),
+      ),
+    );
+    renderWithProviders(<Audit />);
+    expect(await screen.findByRole("cell", { name: "Création" })).toBeInTheDocument();
+    for (const name of ["Modification", "Soumission", "Admissible", "Non admissible"]) {
+      expect(screen.getByRole("cell", { name })).toBeInTheDocument();
+    }
+    expect(screen.getAllByRole("cell", { name: "Système" })).toHaveLength(4);
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
+    for (const name of ["Create", "Update", "Submit", "Eligible", "Ineligible"]) {
+      expect(screen.getByRole("cell", { name })).toBeInTheDocument();
+    }
+    expect(screen.getAllByRole("cell", { name: "System" })).toHaveLength(4);
+  });
+
   it("ignores malformed publication metadata", async () => {
     vi.stubGlobal(
       "fetch",
