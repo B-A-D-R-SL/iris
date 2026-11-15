@@ -6,82 +6,24 @@
  * listings keep it.
  */
 
-import { Badge, Button, Group, Modal, Stack, Table, Text, Title } from "@mantine/core";
-import { IconPencil, IconPlus } from "@tabler/icons-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { Button, Group, Stack, Text, Title } from "@mantine/core";
+import { IconPlus } from "@tabler/icons-react";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { EmptyState, ErrorState, LoadingState, Notice, StatusBadge } from "../../shared/ui";
-import {
-  CategoryFailed,
-  listStaffCategories,
-  staffCategoriesKey,
-  updateCategory,
-  type StaffCategory,
-} from "./adminApi";
+import { EmptyState, ErrorState, LoadingState, Notice } from "../../shared/ui";
+import { listStaffCategories, staffCategoriesKey } from "./adminApi";
 import { CategoryDialog } from "./CategoryDialog";
+import { CategoryTable } from "./CategoryTable";
+import { DeactivateCategoryModal } from "./DeactivateCategoryModal";
+import { useCategoryActions } from "./useCategoryActions";
 
-type Dialog = { mode: "add" } | { mode: "edit"; category: StaffCategory } | null;
-type Outcome = { type: "success" | "error"; message: string } | null;
+const adminKey = "category.admin";
 
-/** Present category data, mutations and their existing edit/deactivation dialogs. */
 export function CategoriesPage() {
-  const { t, i18n } = useTranslation();
-  const queryClient = useQueryClient();
-
-  const isEnglish = i18n.resolvedLanguage === "en";
-  const language = isEnglish ? "en" : "fr";
-  const locale = isEnglish ? "en-CA" : "fr-CA";
-  const adminKey = "category.admin";
-
-  const [dialog, setDialog] = useState<Dialog>(null);
-  const [toDeactivate, setToDeactivate] = useState<StaffCategory | null>(null);
-  const [outcome, setOutcome] = useState<Outcome>(null);
-
-  const { data, isPending, isError, refetch } = useQuery({
-    queryKey: staffCategoriesKey,
-    queryFn: () => listStaffCategories(language),
-  });
-
-  const nameOf = (category: StaffCategory) => (isEnglish ? category.name_en : category.name_fr);
-
-  /** The admin list and the public (posting form) list both change. */
-  const refresh = () => {
-    void queryClient.invalidateQueries({ queryKey: staffCategoriesKey });
-    void queryClient.invalidateQueries({ queryKey: ["categories"] });
-  };
-
-  const activeMutation = useMutation({
-    mutationFn: ({ category, active }: { category: StaffCategory; active: boolean }) =>
-      updateCategory(category.code, { is_active: active }, language),
-    onSuccess: (category) => {
-      setToDeactivate(null);
-      setOutcome({
-        type: "success",
-        message: t(`${adminKey}.${category.is_active ? "reactivated" : "deactivated"}`, {
-          name: nameOf(category),
-        }),
-      });
-      refresh();
-    },
-    onError: (error) => {
-      setToDeactivate(null);
-      setOutcome({
-        type: "error",
-        message:
-          error instanceof CategoryFailed
-            ? error.message || t(`${adminKey}.saveError`)
-            : t(`${adminKey}.networkError`),
-      });
-    },
-  });
-
-  const saved = (category: StaffCategory) => {
-    setDialog(null);
-    setOutcome({ type: "success", message: t(`${adminKey}.saved`, { name: nameOf(category) }) });
-    refresh();
-  };
+  const { t } = useTranslation();
+  const actions = useCategoryActions();
+  const { dialog, toDeactivate, outcome } = actions;
 
   return (
     <Stack gap="md">
@@ -90,17 +32,10 @@ export function CategoriesPage() {
           <Title order={1}>{t("app.staffNav.categories")}</Title>
           <Text c="dimmed">{t(`${adminKey}.description`)}</Text>
         </div>
-        <Button
-          leftSection={<IconPlus size={18} stroke={2} aria-hidden />}
-          onClick={() => {
-            setOutcome(null);
-            setDialog({ mode: "add" });
-          }}
-        >
+        <Button leftSection={<IconPlus size={18} stroke={2} aria-hidden />} onClick={actions.add}>
           {t(`${adminKey}.add`)}
         </Button>
       </Group>
-
       {outcome && (
         <Notice
           type={outcome.type}
@@ -109,145 +44,53 @@ export function CategoriesPage() {
           {outcome.message}
         </Notice>
       )}
-
-      {isPending ? (
-        <LoadingState />
-      ) : isError ? (
-        <ErrorState onRetry={() => void refetch()} />
-      ) : !data || data.length === 0 ? (
-        <EmptyState
-          title={t("category.list.empty")}
-          description={t(`${adminKey}.emptyDescription`)}
-        />
-      ) : (
-        <Table.ScrollContainer minWidth={760}>
-          <Table striped highlightOnHover withTableBorder>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t("category.list.name")}</Table.Th>
-                <Table.Th>{t("category.list.code")}</Table.Th>
-                <Table.Th>{t("category.list.type")}</Table.Th>
-                <Table.Th>{t("category.list.defaultValue")}</Table.Th>
-                <Table.Th>{t(`${adminKey}.status`)}</Table.Th>
-                <Table.Th>{t(`${adminKey}.actions`)}</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-
-            <Table.Tbody>
-              {data.map((category) => (
-                <Table.Tr key={category.code}>
-                  <Table.Td>{nameOf(category)}</Table.Td>
-
-                  <Table.Td>
-                    <Text size="sm" c="dimmed">
-                      {category.code}
-                    </Text>
-                  </Table.Td>
-
-                  <Table.Td>
-                    <Badge variant="light" color="neutral">
-                      {category.is_food ? t("category.list.food") : t("category.list.nonFood")}
-                    </Badge>
-                  </Table.Td>
-
-                  <Table.Td>
-                    {(category.default_value_cents / 100).toLocaleString(locale, {
-                      style: "currency",
-                      currency: "CAD",
-                    })}
-                  </Table.Td>
-
-                  <Table.Td>
-                    <StatusBadge
-                      record="category"
-                      status={category.is_active ? "active" : "inactive"}
-                    />
-                  </Table.Td>
-
-                  <Table.Td>
-                    <Group gap="xs" wrap="nowrap">
-                      <Button
-                        size="sm"
-                        variant="subtle"
-                        leftSection={<IconPencil size={16} stroke={2} aria-hidden />}
-                        aria-label={t(`${adminKey}.editName`, { name: nameOf(category) })}
-                        onClick={() => {
-                          setOutcome(null);
-                          setDialog({ mode: "edit", category });
-                        }}
-                      >
-                        {t(`${adminKey}.edit`)}
-                      </Button>
-                      {category.is_active ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          color="danger"
-                          aria-label={t(`${adminKey}.deactivateName`, { name: nameOf(category) })}
-                          onClick={() => {
-                            setOutcome(null);
-                            setToDeactivate(category);
-                          }}
-                        >
-                          {t(`${adminKey}.deactivate`)}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          aria-label={t(`${adminKey}.reactivateName`, { name: nameOf(category) })}
-                          loading={
-                            activeMutation.isPending &&
-                            activeMutation.variables?.category.code === category.code
-                          }
-                          onClick={() => {
-                            setOutcome(null);
-                            activeMutation.mutate({ category, active: true });
-                          }}
-                        >
-                          {t(`${adminKey}.reactivate`)}
-                        </Button>
-                      )}
-                    </Group>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
-      )}
-
+      <CategoryList actions={actions} />
       {dialog && (
         <CategoryDialog
           category={dialog.mode === "edit" ? dialog.category : null}
-          onClose={() => setDialog(null)}
-          onSaved={saved}
+          onClose={actions.closeDialog}
+          onSaved={actions.saved}
         />
       )}
-
       {toDeactivate && (
-        <Modal
-          opened
-          onClose={() => setToDeactivate(null)}
-          title={t(`${adminKey}.confirmTitle`, { name: nameOf(toDeactivate) })}
-        >
-          <Stack gap="md">
-            <Text>{t(`${adminKey}.confirmBody`)}</Text>
-            <Group justify="flex-end" gap="sm">
-              <Button variant="subtle" onClick={() => setToDeactivate(null)}>
-                {t(`${adminKey}.cancel`)}
-              </Button>
-              <Button
-                color="danger"
-                loading={activeMutation.isPending}
-                onClick={() => activeMutation.mutate({ category: toDeactivate, active: false })}
-              >
-                {t(`${adminKey}.deactivate`)}
-              </Button>
-            </Group>
-          </Stack>
-        </Modal>
+        <DeactivateCategoryModal
+          name={actions.nameOf(toDeactivate)}
+          saving={actions.saving}
+          onCancel={actions.cancelDeactivate}
+          onConfirm={() => actions.deactivate(toDeactivate)}
+        />
       )}
     </Stack>
+  );
+}
+
+/** Every category, active or not, or the loading, error or empty state. */
+function CategoryList({ actions }: { actions: ReturnType<typeof useCategoryActions> }) {
+  const { t } = useTranslation();
+  const { data, isPending, isError, refetch } = useQuery({
+    queryKey: staffCategoriesKey,
+    queryFn: () => listStaffCategories(actions.language),
+  });
+
+  if (isPending) return <LoadingState />;
+  if (isError) return <ErrorState onRetry={() => void refetch()} />;
+  if (data.length === 0) {
+    return (
+      <EmptyState
+        title={t("category.list.empty")}
+        description={t(`${adminKey}.emptyDescription`)}
+      />
+    );
+  }
+  return (
+    <CategoryTable
+      categories={data}
+      locale={actions.locale}
+      nameOf={actions.nameOf}
+      onEdit={actions.edit}
+      onDeactivate={actions.askToDeactivate}
+      onReactivate={actions.reactivate}
+      reactivatingCode={actions.reactivatingCode}
+    />
   );
 }
