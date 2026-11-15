@@ -1,18 +1,24 @@
 <!-- AI contribution: 50% or more AI-generated -->
 # Household and notice API
 
+> **Release 1:** staff-led walk-in registration and notice upload/manual entry.
+> Beneficiary online application, notice upload/AI-read-value confirmation,
+> renewal and alternate-management endpoints below are **future/non-R1** designs.
+> They are not enabled by the implemented staff notice API. See the
+> [release boundaries](api-implementation-notes.md#release-scope).
+
 | Method     | Path                                                    | Who                  | Purpose                                           | Status  |
 | ---------- | ------------------------------------------------------- | -------------------- | ------------------------------------------------- | ------- |
-| GET        | `/api/households/me/`                                   | Beneficiary          | Status, expiry, members (names), alternate        | Planned |
-| GET/PUT    | `/api/households/me/application/`                       | Beneficiary          | Draft application, steps 1 to 3                   | Planned |
-| POST       | `/api/households/me/notices/`                           | Beneficiary          | Upload a notice for a member (multipart)          | Planned |
-| PATCH      | `/api/households/me/notices/{id}/`                      | Beneficiary          | Confirm or correct read values, or `did_not_file` | Planned |
-| POST       | `/api/households/me/application/submit/`                | Beneficiary          | Submit                                            | Planned |
-| PATCH      | `/api/households/me/alternate/`                         | Beneficiary          | Alternate for pickups                             | Planned |
-| POST       | `/api/households/me/renewal/`                           | Beneficiary          | Start a renewal                                   | Planned |
+| GET        | `/api/households/me/`                                   | Beneficiary          | Status, expiry, members (names), alternate        | Planned — future/non-R1 |
+| GET/PUT    | `/api/households/me/application/`                       | Beneficiary          | Draft application, steps 1 to 3                   | Planned — future/non-R1 |
+| POST       | `/api/households/me/notices/`                           | Beneficiary          | Upload a notice for a member (multipart)          | Planned — future/non-R1 |
+| PATCH      | `/api/households/me/notices/{id}/`                      | Beneficiary          | Confirm or correct read values, or `did_not_file` | Planned — future/non-R1 |
+| POST       | `/api/households/me/application/submit/`                | Beneficiary          | Submit                                            | Planned — future/non-R1 |
+| PATCH      | `/api/households/me/alternate/`                         | Beneficiary          | Alternate for pickups                             | Planned — future/non-R1 |
+| POST       | `/api/households/me/renewal/`                           | Beneficiary          | Start a renewal                                   | Planned — future/non-R1 |
 | GET        | `/api/staff/households/?q=`                             | Intake worker, admin | Partial, accent-insensitive search; authorized non-anonymized files, pagination, audits and server-derived `can_resume` and `can_open` | Implemented (US-63, US-32) |
 | POST/PATCH | `/api/staff/households/`, `/api/staff/households/{id}/` | Intake worker, admin | Walk-in create and edit (drafts only)             | Implemented (US-17) |
-| POST       | `/api/staff/households/{id}/submit/`                    | Intake worker, admin | Submit saved walk-in registration; possible duplicates go to review | Implemented (US-25; proposed endpoint for review) |
+| POST       | `/api/staff/households/{id}/submit/`                    | Intake worker, admin | Submit saved walk-in registration; possible duplicates go to review | Implemented (US-25) |
 | GET        | `/api/staff/households/{id}/notices/`                   | Intake worker, admin | Current notice of each member of a walk-in (no storage reference), so staff can resume the notices screen | Implemented (US-18) |
 | POST       | `/api/staff/households/{id}/notices/`                   | Intake worker, admin | Walk-in notice (scan + typed values) or non-filing reason, multipart, for an adult of a draft | Implemented (T-03.18.2) |
 | POST       | `/api/staff/households/{id}/approve/`                   | Intake worker, admin | Approve a walk-in (eligibility runs): 200 `{id, status, status_reason, approved_at, expires_at, invitation_not_sent}` (`invitation_not_sent` is true when the email already has an account) whether approved, rejected or sent to review; 400 if incomplete, still a draft (submit first) or already in review | Implemented (US-18) |
@@ -21,7 +27,7 @@
 | GET        | `/api/staff/notices/{id}/file/`                         | Intake worker, admin | `{url, expires_at}`: link to Iris signed for this user, valid `notice_upload.link_minutes` (5); audited | Implemented (T-03.18.2) |
 | GET        | `/api/staff/notice-files/{token}/`                      | Intake worker, admin | The file, for the user the link was issued to; attachment, `nosniff`, `no-store`; invalid or expired link 404 | Implemented (T-03.18.2) |
 | POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`; preserves expiry                    | Implemented (US-32) |
-| GET/POST   | `/api/staff/households/{id}/notes/`                     | Intake worker, admin | Staff notes                                       | Planned |
+| GET/POST   | `/api/staff/households/{id}/notes/`                     | Intake worker, admin | Staff notes                                       | Planned — future/non-R1 |
 
 FIX-08 (SEC-08/SEC-09) records walk-in create, update and submission actions
 with actor, household ID and empty metadata in the same transaction as each
