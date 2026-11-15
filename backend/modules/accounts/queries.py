@@ -8,9 +8,10 @@ from django.utils import timezone
 
 from modules.accounts.roles import UserRole
 
+# Other modules may not import accounts.roles (import-linter), so they read
+# UserRole and these groups from here.
 STORE_ROLES = (UserRole.STORE_STAFF, UserRole.STORE_MANAGER)
 STAFF_ROLES = (UserRole.INTAKE_WORKER, UserRole.ADMIN)
-# Other modules may not import accounts.roles (import-linter), so the role is shared here.
 BENEFICIARY_ROLE = UserRole.BENEFICIARY
 
 

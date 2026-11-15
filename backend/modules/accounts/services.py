@@ -15,6 +15,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from modules.accounts.models import Invitation, User
+from modules.accounts.roles import UserRole
 from modules.rules import queries as rule_queries
 
 logger = logging.getLogger("iris.accounts")
@@ -103,13 +104,13 @@ def reissue_store_manager_invitation(
     Locking invitations also serializes against concurrent acceptance. A failed
     issuance rolls back expiry changes, preserving the previous usable link.
     """
-    if not invited_by.is_active or invited_by.role != User.Role.ADMIN:
+    if not invited_by.is_active or invited_by.role != UserRole.ADMIN:
         from django.core.exceptions import PermissionDenied
 
         raise PermissionDenied(_("An active admin is required."))
     previous = list(
         Invitation.objects.select_for_update().filter(
-            store=store, email__iexact=email, role=User.Role.STORE_MANAGER
+            store=store, email__iexact=email, role=UserRole.STORE_MANAGER
         )
     )
     if not previous or any(item.accepted_at is not None for item in previous):
@@ -121,7 +122,7 @@ def reissue_store_manager_invitation(
         expires_at=timezone.now()
     )
     return create_invitation(
-        email, first_name, last_name, User.Role.STORE_MANAGER, store, invited_by
+        email, first_name, last_name, UserRole.STORE_MANAGER, store, invited_by
     )
 
 

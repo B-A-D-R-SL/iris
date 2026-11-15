@@ -21,6 +21,7 @@ from django.utils import timezone
 
 from modules.accounts import services
 from modules.accounts.models import User
+from modules.accounts.roles import UserRole
 from modules.accounts.tests.factories import UserFactory
 from modules.stores.tests.factories import StoreFactory
 
@@ -33,12 +34,12 @@ def test_creation_saves_recipient_assignment_and_only_token_hash(
 ):
     """An invitation carries its recipient and seven-day expiry without creating a user."""
     store = StoreFactory()
-    inviter = UserFactory(role=User.Role.ADMIN)
+    inviter = UserFactory(role=UserRole.ADMIN)
     token, invitation = issue_invitation(
         **{
             **invitation_values,
             "email": invitation_values["email"].upper(),
-            "role": User.Role.STORE_MANAGER,
+            "role": UserRole.STORE_MANAGER,
             "store": store,
             "invited_by": inviter,
         }
@@ -47,7 +48,7 @@ def test_creation_saves_recipient_assignment_and_only_token_hash(
     assert invitation.email == invitation_values["email"].lower()
     assert invitation.first_name == invitation_values["first_name"]
     assert invitation.last_name == invitation_values["last_name"]
-    assert invitation.role == User.Role.STORE_MANAGER
+    assert invitation.role == UserRole.STORE_MANAGER
     assert invitation.store_id == store.pk
     assert invitation.invited_by_id == inviter.pk
     assert invitation.accepted_at is None
@@ -72,7 +73,7 @@ def test_tokens_encode_32_random_bytes_and_are_distinct(issue_invitation):
     assert first.token_hash != second.token_hash
 
 
-@pytest.mark.parametrize("role", [User.Role.STORE_STAFF, User.Role.STORE_MANAGER])
+@pytest.mark.parametrize("role", [UserRole.STORE_STAFF, UserRole.STORE_MANAGER])
 def test_store_role_invitation_requires_store(
     invitation_rule, invitation_model, invitation_values, role
 ):
@@ -148,7 +149,7 @@ def test_new_rule_version_affects_new_invitations_only(
         services.accept_invitation(current_token, PASSWORD)
 
 
-@pytest.mark.parametrize("role", User.Role.values)
+@pytest.mark.parametrize("role", UserRole.values)
 def test_acceptance_creates_active_user_with_invited_identity_and_assignment(
     issue_invitation, invitation_clock, role
 ):
@@ -327,7 +328,7 @@ def test_token_hash_uniqueness_is_enforced_in_the_database(
     assert invitation_model.objects.count() == 1
 
 
-@pytest.mark.parametrize("role", [User.Role.STORE_STAFF, User.Role.STORE_MANAGER])
+@pytest.mark.parametrize("role", [UserRole.STORE_STAFF, UserRole.STORE_MANAGER])
 def test_database_rejects_a_store_invitation_without_a_store(
     invitation_model, invitation_values, invitation_clock, role
 ):

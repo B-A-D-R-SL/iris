@@ -28,10 +28,13 @@ The `AuthCache` stores failed-attempt counters in PostgreSQL so workers share
 the five-attempt, 15-minute lockout. The Django admin uses
 `RateLimitedAdminAuthenticationForm` and shares that limit with browser sign-in.
 
-`queries.STORE_ROLES` and `queries.STAFF_ROLES` expose immutable groups from
-`User.Role`. `queries.is_admin(user)` checks an active, authenticated admin.
-The role enum lives in `roles.py` so model constraints can use these groups
-without a circular import; `User.Role` remains the same public interface.
+The role enum is `UserRole` in `roles.py`, so model constraints can use the
+role groups without a circular import. Other modules import it from `queries`,
+because import-linter keeps `roles.py` private to accounts. `User` has no
+`Role` alias: `user.Role`, mistyped for `user.role`, would compare the enum
+class instead of the value (FIX-31). `queries.STORE_ROLES` and
+`queries.STAFF_ROLES` expose immutable groups of `UserRole`.
+`queries.is_admin(user)` checks an active, authenticated admin.
 
 Invitation services:
 
