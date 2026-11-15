@@ -7,13 +7,15 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils.translation import gettext as _
 
 from modules.audit.models import AuditEvent
+from modules.eligibility import queries as eligibility_queries
 from modules.privacy import services as privacy_services
 from modules.rules import queries as rule_queries
 
 
-def _actor_role(actor: AbstractBaseUser) -> str:
+def _actor_role(actor: AbstractBaseUser | None) -> str:
     """Require a persisted account and capture its validated role for the event."""
     if not isinstance(actor, get_user_model()) or actor._state.adding:
         raise ValidationError({"actor": "A saved user is required."})
@@ -101,8 +103,13 @@ def _validate_status_change(target_type: str, metadata: dict[str, str | int]) ->
     )
 
 
-def _validate_store_update(target_type: str, metadata: dict[str, str | int]) -> None:
-    """Only the names of the changed store fields, never their values."""
+def _validate_update(target_type: str, metadata: dict[str, str | int]) -> None:
+    """Store edits name the changed fields (US-14), never their values; other
+    targets, such as household drafts (FIX-08), record no metadata."""
+    if target_type != "store":
+        if metadata:
+            raise ValidationError({"metadata": "This action does not accept metadata."})
+        return
     fields = metadata.get("fields")
     valid = (
         target_type == "store"
@@ -132,7 +139,38 @@ def _validate_store_deactivation(
     _validate_reason(metadata["reason"], STORE_REASON_MAX_LENGTH)
 
 
-def _validate_decision(metadata: dict[str, str | int]) -> None:
+def _validate_eligibility_decision(
+    target_type: str, metadata: dict[str, str | int]
+) -> None:
+    """Allow only a decision UUID, a closed outcome and a rule version."""
+    try:
+        identifier = metadata.get("decision_id")
+        valid_identifier = (
+            isinstance(identifier, str) and str(UUID(identifier)) == identifier
+        )
+    except ValueError:
+        valid_identifier = False
+    version = metadata.get("rule_version")
+    if not (
+        target_type == "household"
+        and set(metadata) == {"decision_id", "outcome", "rule_version"}
+        and valid_identifier
+        and metadata.get("outcome") in ("eligible", "ineligible")
+        and type(version) is int
+        and version > 0
+    ):
+        raise ValidationError(
+            {"metadata": _("Unsupported eligibility audit metadata.")}
+        )
+
+
+def _validate_decision_metadata(
+    target_type: str, metadata: dict[str, str | int]
+) -> None:
+    """Validate eligibility references or the existing staff-decision outcome."""
+    if "decision_id" in metadata or "rule_version" in metadata:
+        _validate_eligibility_decision(target_type, metadata)
+        return
     if not metadata:
         return
     if set(metadata) != {"outcome"} or metadata["outcome"] not in (
@@ -152,11 +190,11 @@ def _validate_metadata(
     if action == AuditEvent.Action.RULE_PUBLISHED:
         _validate_rule_publication(target_type, metadata)
     elif action == AuditEvent.Action.DECISION:
-        _validate_decision(metadata)
+        _validate_decision_metadata(target_type, metadata)
     elif action in (AuditEvent.Action.SUSPEND, AuditEvent.Action.REACTIVATE):
         _validate_status_change(target_type, metadata)
     elif action == AuditEvent.Action.UPDATE:
-        _validate_store_update(target_type, metadata)
+        _validate_update(target_type, metadata)
     elif action == AuditEvent.Action.DEACTIVATE:
         _validate_store_deactivation(target_type, metadata)
     elif metadata:
@@ -165,21 +203,38 @@ def _validate_metadata(
 
 @transaction.atomic
 def record(
-    actor: AbstractBaseUser,
+    actor: AbstractBaseUser | None,
     action: str,
     target_type: str,
     target_id: str | int | UUID,
     metadata: dict[str, str | int],
 ) -> AuditEvent:
     """Record a validated event in the caller's transaction."""
-    role = _actor_role(actor)
     _validate_metadata(action, target_type, metadata)
+    # Automatic eligibility decisions have no human actor. Other callers still
+    # require a saved user, including staff searches and legacy decisions.
+    system_decision = (
+        actor is None
+        and action == AuditEvent.Action.DECISION
+        and "decision_id" in metadata
+    )
+    identifier = _target_identifier(target_type, target_id)
+    if system_decision and not eligibility_queries.automatic_decision_matches_audit(
+        str(metadata["decision_id"]),
+        identifier,
+        str(metadata["outcome"]),
+        int(metadata["rule_version"]),
+    ):
+        raise ValidationError(
+            {"actor": _("A matching automatic eligibility decision is required.")}
+        )
+    role = "system" if system_decision else _actor_role(actor)
     event = AuditEvent(
-        actor_id=actor.pk,
+        actor_id=actor.pk if actor is not None else None,
         actor_role=role,
         action=action,
         target_type=target_type,
-        target_id=_target_identifier(target_type, target_id),
+        target_id=identifier,
         metadata=metadata,
     )
     event.full_clean()

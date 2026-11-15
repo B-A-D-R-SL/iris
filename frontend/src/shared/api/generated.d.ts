@@ -219,16 +219,26 @@ export interface components {
     };
     /**
      * @description * `view` - View
+     * * `create` - Create
+     * * `update` - Update
+     * * `submit` - Submit
      * * `decision` - Decision
      * * `rule_published` - Rule Published
      * * `suspend` - Suspend
      * * `reactivate` - Reactivate
-     * * `update` - Update
      * * `deactivate` - Deactivate
      * @enum {string}
      */
     ActionEnum:
-      "view" | "decision" | "rule_published" | "suspend" | "reactivate" | "update" | "deactivate";
+      | "view"
+      | "create"
+      | "update"
+      | "submit"
+      | "decision"
+      | "rule_published"
+      | "suspend"
+      | "reactivate"
+      | "deactivate";
     AddressInput: {
       city: string;
       postal_code: string;
@@ -241,7 +251,7 @@ export interface components {
     AuditEvent: {
       action: components["schemas"]["ActionEnum"];
       /** Format: uuid */
-      actor: string;
+      actor: string | null;
       actor_role: string;
       /** Format: date-time */
       created_at: string;

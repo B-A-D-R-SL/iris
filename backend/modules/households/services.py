@@ -280,6 +280,7 @@ def create_walk_in(data: Mapping[str, Any], staff_user: AbstractBaseUser) -> Hou
         actor_role=getattr(staff_user, "role", ""),
         action=HouseholdDraftEvent.Action.CREATED,
     )
+    audit_services.record(staff_user, "create", "household", household.pk, {})
     return household
 
 
@@ -325,6 +326,7 @@ def update_draft(
         actor_role=getattr(staff_user, "role", ""),
         action=HouseholdDraftEvent.Action.UPDATED,
     )
+    audit_services.record(staff_user, "update", "household", household.pk, {})
     return household
 
 
@@ -440,6 +442,7 @@ def submit_walk_in(household_id: UUID, staff_user: AbstractBaseUser) -> Househol
             actor_role=getattr(staff_user, "role", ""),
             action=HouseholdDraftEvent.Action.SUBMITTED,
         )
+        audit_services.record(staff_user, "submit", "household", household.pk, {})
         event = "household_duplicate_review" if duplicate else "household_submitted"
         transaction.on_commit(lambda: logger.info(event, extra={"event": event}))
     return household

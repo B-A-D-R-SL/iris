@@ -312,6 +312,10 @@ The shared-interface allowance comes from the team architecture.
 The households-to-accounts arrow is present in the supplied diagram
 collection.
 
+Audit also reads the public Eligibility query to verify that an actorless event
+matches a saved automatic decision, including its household, outcome and rule
+version. This read never calls the decision service or writes business state.
+
 Households gathers the required household, member and income evidence
 through public interfaces and passes the decision inputs to Eligibility.
 Eligibility calculates and records the decision without calling back

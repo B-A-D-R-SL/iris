@@ -15,8 +15,15 @@ Release 1.
 
 US-17 built the first part (draft creation and step-by-step saving,
 React screens at `/staff/walk-in`). Its creation and edit events are
-recorded locally in `HouseholdDraftEvent` until the central audit log
-(US-62) supports them. The notices and approval part is US-18: the notices
+recorded locally in `HouseholdDraftEvent` and centrally as `create` and `update`
+through FIX-08. Submission adds `submit` to both histories, including duplicate
+review outcomes. Each mutation and its audit share a transaction; detail reads
+record `view` before disclosure and fail closed if auditing fails. Eligibility
+decisions append `decision` events with only decision ID, outcome and LICO rule
+version in the decision transaction. Automatic events have a null actor and
+`system` role and must match a saved automatic decision.
+
+The notices and approval part is US-18: the notices
 screen (`/staff/walk-in/{id}/notices`, T-03.18.4) shows one card per adult and a
 decision summary whose "Approve the file" button calls
 `POST /api/staff/households/{id}/approve/`, which runs `approve_walk_in` (#469).
@@ -37,13 +44,15 @@ sequenceDiagram
 
     IW->>H: create_walk_in(holder, identity check, consent) — first "Continue" or "Save draft"
     H->>H: Save draft household and holder as member 1, consent time and text version
-    H->>H: Record HouseholdDraftEvent "created" (local until US-62)
+    H->>H: Record HouseholdDraftEvent "created"
+    H->>A: Record central "create" in the same transaction
     H-->>IW: Draft id; the screen moves to /staff/walk-in/{id}
 
     loop Each later step (address, members, review)
         IW->>H: update_draft(id, step values)
         H->>H: Save draft changes, retain unchanged member records
         H->>H: Record HouseholdDraftEvent "updated"
+        H->>A: Record central "update" in the same transaction
     end
 
     IW->>H: Open /staff/walk-in/{id}/notices: GET /api/staff/households/{id}/notices/
@@ -68,6 +77,7 @@ sequenceDiagram
 
     IW->>H: "Submit the file" (every adult has a notice or reason): POST /api/staff/households/{id}/submit/ → submit_walk_in()
     H->>H: Lock duplicate keys and check for a possible duplicate (US-25)
+    H->>A: Record central "submit" in the same transaction as the outcome
     H-->>IW: submitted, or review_required with POSSIBLE_DUPLICATE; approval is offered only for submitted files
 
     IW->>H: "Approve the file": POST /api/staff/households/{id}/approve/ → approve_walk_in() (400 while still a draft)
@@ -81,6 +91,7 @@ sequenceDiagram
         D-->>H: Income evidence and verification status
         H->>E: decide_for_household(household_id, staff)
         E->>E: Save decision inputs, result and applied rule version
+        E->>A: Record eligibility decision ID, outcome and rule version in the same transaction
         E-->>H: Eligibility result and threshold
 
         alt Eligible, verified and no review reason
@@ -191,6 +202,9 @@ the acceptance page is #431.
 
 ### 8. Sequence — reserve and pickup
 
+Reservation allocation is implemented by US-41. Central reservation and pickup
+audits below remain planned; their application logs do not provide that guarantee.
+
 The Listings module owns the stock UPDATE.
 Reservations owns the reservation INSERT.
 
@@ -223,7 +237,7 @@ sequenceDiagram
     end
 
     rect rgb(24, 42, 62)
-        Note over R,A: One PostgreSQL transaction for stock, reservation and audit
+        Note over R,DB: One PostgreSQL transaction for stock and reservation; central reservation audit is planned
 
         R->>L: take_units(listing, quantity)
         L->>DB: Conditional UPDATE of own listing stock counter
@@ -232,7 +246,7 @@ sequenceDiagram
 
         alt One row changed
             R->>DB: INSERT reservation with pickup code
-            R->>A: Record reservation
+            R-->>A: Planned: record central reservation audit
             R->>R: Commit
         else No stock
             R->>R: Roll back
@@ -257,7 +271,7 @@ sequenceDiagram
 
         ST->>R: confirm_pickup(reservation)
         R->>R: Recheck store, state and timing, save pickup once
-        R->>A: Record pickup in the same transaction
+        R-->>A: Planned: record central pickup audit in the same transaction
         R-->>ST: Confirmation outcome
     else Missing, ambiguous or unauthorized match
         R-->>ST: Reject lookup without exposing household details
@@ -287,6 +301,7 @@ schema.
 stateDiagram-v2
     [*] --> draft
     draft --> submitted: Staff submits complete walk-in file
+    draft --> review_required: Submission finds a possible duplicate
     submitted --> approved: Staff verifies eligibility and no review reason
     submitted --> review_required: Duplicate or other clarification flag
     submitted --> rejected: Not eligible
@@ -320,7 +335,7 @@ stateDiagram-v2
     reserved --> cancelled: Household cancels
     reserved --> cancelled_by_store: Listing cancelled or store deactivated
     reserved --> no_show: Pickup window ends without confirmation
-    no_show --> picked_up: Staff confirms within configured grace
+    no_show --> picked_up: Planned US-45 grace-period confirmation
 
     picked_up --> [*]
     cancelled --> [*]

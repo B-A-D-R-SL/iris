@@ -21,6 +21,8 @@ from modules.households.approval_services import approve_walk_in
 from modules.households.models import Household
 from modules.households.tests.approval.helpers import (
     DIRECT_CONTEXT,
+    approval_events,
+    assert_approval_audit_chain,
     assert_unapproved,
     audit_events,
     decisions,
@@ -85,7 +87,7 @@ def test_an_email_with_an_account_is_approved_without_an_invitation(
     assert household.status == "approved"
     assert not invitations().exists()
     assert email_jobs == []
-    assert audit_events(household).get().metadata == {"outcome": "approved"}
+    assert approval_events(household).get().metadata == {"outcome": "approved"}
 
 
 def test_a_member_who_turns_18_after_submission_sends_the_file_to_review(
@@ -98,20 +100,28 @@ def test_a_member_who_turns_18_after_submission_sends_the_file_to_review(
     assert result.status == "review_required"
     assert result.status_reason == "NOTICE_MISSING"
     assert not decisions(household).exists()
-    assert audit_events(household).get().metadata == {"outcome": "review_required"}
+    assert approval_events(household).get().metadata == {"outcome": "review_required"}
 
 
 def test_audit_failure_rolls_back_all_writes(
     household: Any, staff: Any, monkeypatch: Any
 ) -> None:
-    def fail(*args: Any, **kwargs: Any) -> None:
+    submit(household)
+    before = list(audit_events(household).values())
+    record = audit_services.record
+
+    def fail(*args: Any, **kwargs: Any) -> Any:
+        # Fail the final outcome audit after the eligibility write and its audit.
+        if args[4] != {"outcome": "approved"}:
+            return record(*args, **kwargs)
         raise ValidationError("Audit unavailable")
 
     monkeypatch.setattr(audit_services, "record", fail)
     with pytest.raises(ValidationError, match="Audit unavailable"):
-        submit_and_approve(household, staff)
+        approve_walk_in(household, staff)
     assert_unapproved(household, "submitted")
     assert not decisions(household).exists()
+    assert list(audit_events(household).values()) == before
 
 
 def test_outer_rollback_sends_no_email(
@@ -121,6 +131,7 @@ def test_outer_rollback_sends_no_email(
 ) -> None:
     Household.objects.filter(pk=household.pk).update(email="holder@example.test")
     submit(household)
+    before = list(audit_events(household).values())
     with (
         django_capture_on_commit_callbacks(execute=True) as callbacks,
         pytest.raises(RuntimeError, match="Cancel"),
@@ -132,7 +143,7 @@ def test_outer_rollback_sends_no_email(
     assert not EmailLog.objects.exists()
     assert_unapproved(household, "submitted")
     assert not decisions(household).exists()
-    assert not audit_events(household).exists()
+    assert list(audit_events(household).values()) == before
 
 
 def test_repeated_stale_request_does_not_duplicate_approval(
@@ -142,7 +153,9 @@ def test_repeated_stale_request_does_not_duplicate_approval(
     with pytest.raises(ValidationError):
         submit_and_approve(household, staff)
     assert decisions(household).count() == 1
-    assert audit_events(household).count() == 1
+    assert approval_events(household).count() == 1
+    household.refresh_from_db()
+    assert_approval_audit_chain(household, staff)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -173,7 +186,9 @@ def test_simultaneous_approvals_create_one_decision_and_invitation(
 
     assert sorted(results) == ["approved", "refused"]
     assert decisions(household).count() == 1
-    assert audit_events(household).count() == 1
+    assert approval_events(household).count() == 1
+    household.refresh_from_db()
+    assert_approval_audit_chain(household, staff)
     assert invitations().count() == 1
     assert EmailLog.objects.filter(template_key="walk_in_set_password").count() == 1
     assert len(email_jobs) == 1

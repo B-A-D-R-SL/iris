@@ -34,6 +34,29 @@ def audit_events(household: Any) -> Any:
     )
 
 
+def approval_events(household: Any) -> Any:
+    """Select the outcome event separately from submission and eligibility."""
+    return audit_events(household).filter(
+        action="decision",
+        metadata__outcome__in=["approved", "rejected", "review_required"],
+    )
+
+
+def assert_approval_audit_chain(household: Any, actor: Any) -> None:
+    """One submission, one eligibility snapshot and one staff outcome survive."""
+    events = list(audit_events(household).order_by("id"))
+    decision = decisions(household).get()
+    assert [event.action for event in events] == ["submit", "decision", "decision"]
+    assert events[0].metadata == {}
+    assert events[1].metadata == {
+        "decision_id": str(decision.pk),
+        "outcome": "eligible" if decision.eligible else "ineligible",
+        "rule_version": decision.ruleset_version.version,
+    }
+    assert events[2].metadata == {"outcome": household.status}
+    assert events[1].actor_id == events[2].actor_id == actor.pk
+
+
 def invitations() -> Any:
     return apps.get_model("accounts.Invitation").objects.all()
 
