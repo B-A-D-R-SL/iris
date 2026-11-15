@@ -15,8 +15,8 @@ account. The record also preserves staff verification and creation timestamps.
 - `approval_services.approve_walk_in(household, staff) -> Household`: checks current
   evidence, records the outcome and prepares a beneficiary invitation when needed
 - `notice_services.record_walk_in_notice(household_id, data, staff_user) -> IncomeNotice`:
-  checks the household is a draft walk-in (not anonymized) and the member is one of
-  its adults (BR-DOC-007), stores the file with `documents.services.prepare_staff_notice`
+  checks the household is a draft walk-in (not anonymized) with data-processing consent
+  (PRV-02, FIX-30) and the member is one of its adults (BR-DOC-007), stores the file with `documents.services.prepare_staff_notice`
   before locking, then locks the household, checks again, records the draft change and
   saves with `save_prepared_notice`; a refusal calls `discard_prepared_notice` (T-03.18.2)
 - `queries.eligibility_inputs(household_id) -> EligibilityInputs`: verified
@@ -206,7 +206,9 @@ be created before address collection and later patched step by step.
 `consent_data_processing: true` stores when consent was given
 (`consent_data_processing_at`) and which text was read (`consent_text_version`,
 currently `2026-11-v1`); sending it again keeps the first time, and `false`
-clears both. US-20 may move consents to `privacy.ConsentRecord` later.
+clears both. A notice can't be recorded until consent is given
+(`consent_data_processing` field error, FIX-30). US-20 may move consents to
+`privacy.ConsentRecord` later.
 
 ## Migrations and the SET-18 seed
 
