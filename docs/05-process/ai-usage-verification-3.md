@@ -18,6 +18,7 @@
   - The first split left `CategoryTable` at 52 lines (ESLint limit 50) and a type error on the request language. Both were fixed before committing.
   - Two staged deletions landed in the wrong local commit. The commits were not yet pushed, so they were redone so each holds its own files.
   - CodeRabbit's suggestions to have the API decide which category buttons to show, and to restore tests for the deleted helpers, were declined with reasons on the pull request.
+  - After `main` brought in SET-17's `iris/release.py`, vulture flagged the `frame` parameter of its two signal handlers, which Python's signal API requires. `frame` was added to the justified ignore list.
 - **How we verified it:** frontend typecheck, ESLint, Prettier and all 914 Vitest tests passed. Backend ruff, mypy, import-linter (4 of 4 contracts), `manage.py check`, `makemigrations --check` and vulture (no findings) passed. The guard test was shown to fail on a temporary TODO-only stub, and the new confirmation test to fail without its fix. The local backend suite had 44 failures in Docker that also fail on `main` (email, file store and load-timing tests). On PR #712 all CI checks passed, including the full backend suite.
 
 ### US-18 review fixes by Massimo on PR #698 (#466, #468)
