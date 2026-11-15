@@ -21,11 +21,36 @@ No paid resources were created during repository implementation.
 | Subscription | Azure for Students, owned by @ammarranko |
 | Directory | Concordia University (members sign in with their Concordia account) |
 | Credit | 100 USD, renewable each school year; no credit card, so Azure stops services instead of charging when the credit runs out |
-| Allowed regions | West US 2, West US, South Central US, Mexico Central, Norway East |
+| Allowed regions | **West US 2 and West US only**: the overlap of two region policies (see below) |
 
-The subscription has a Microsoft policy, **Allowed resource deployment
-regions**, that excludes every Canadian region. The architecture places
-staging in Canada East, so the staging setup differs for now:
+Two region policies apply to this subscription, and Azure enforces both. A
+resource must be in a region that **both** allow:
+
+| Policy | Set by | Allowed regions |
+| --- | --- | --- |
+| Allowed resource deployment regions | Microsoft, on the subscription | West US 2, West US, South Central US, Mexico Central, Norway East |
+| Allowed locations | Concordia, on the `mg-students-free-tiers` management group | West US 2, West US, East US, East US 2, Canada Central, Canada East, `global` |
+
+Only **West US 2** and **West US** pass both. Mexico Central, Norway East and
+South Central US are blocked by Concordia's policy; Canada Central and Canada
+East are blocked by the subscription policy. Concordia's policy is inherited
+from the management group, so it does not appear when only subscription-scoped
+assignments are listed.
+
+**PostgreSQL availability, checked 14 November 2026:**
+
+- **West US 2:** PostgreSQL Flexible Server reports *"Subscriptions are
+  restricted from provisioning in this region"* for this subscription.
+- **West US:** `Standard_B1ms` (the free-allowance size) returned
+  `SkuNotAvailable` on four create attempts, through the portal and the CLI.
+  Each failed attempt was rolled back by Azure; nothing was created or billed.
+
+So no allowed region can currently host the staging database on this
+subscription. The hosting region is pending; see
+[Completing SET-17](#completing-set-17).
+
+The architecture places staging in Canada East, so the staging setup differs
+for now:
 
 - Services with a separate **data location** (Communication Services) store
   their data in **Canada**.
@@ -131,10 +156,21 @@ Concordia IT subscription that must not be touched.
    az account set --subscription "Azure for Students"
    ```
 
-2. **Check the region policy.** This found the five allowed regions.
+2. **Check the region policies.** List assignments *including those inherited
+   from Concordia's management group*; the plain `az policy assignment list`
+   shows only the subscription's own policy and misses Concordia's.
 
    ```powershell
-   az policy assignment list --query "[].{name:displayName, params:parameters}" -o json
+   $sub = az account show --query id -o tsv
+   az rest --method get --url "https://management.azure.com/subscriptions/$sub/providers/Microsoft.Authorization/policyAssignments?api-version=2023-04-01" --query "value[].{name:properties.displayName, scope:properties.scope, locations:properties.parameters.listOfAllowedLocations.value}" -o json
+   ```
+
+   Use only regions that appear in **both** location lists. Then check that
+   PostgreSQL can actually be created there; a region can be allowed by policy
+   and still refuse the size:
+
+   ```powershell
+   az postgres flexible-server list-skus -l <region> --query "[0].reason" -o tsv
    ```
 
 3. **Register the resource providers** (new student subscriptions start with
