@@ -12,11 +12,13 @@ dependencies = [
     "django-environ>=0.14.0",
     "djangorestframework>=3.18.3",
     "drf-spectacular>=0.30.0",
+    "gunicorn>=23,<24",
     "jsonschema>=4.26,<5",
     "pillow>=13.0,<14",
     "procrastinate[django]>=3.10.0",
     "psycopg[binary]>=3.3.6",
     "pyyaml>=6,<7",
+    "whitenoise>=6.12,<7",
 ]
 
 [dependency-groups]

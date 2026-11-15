@@ -379,6 +379,9 @@ jobs:
             zap/zap-report.json
           if-no-files-found: warn
 
+  release-image:
+    uses: ./.github/workflows/release-image.yml
+
   sonar:
     name: SonarQube Cloud
     needs: [backend, frontend]

@@ -1,0 +1,30 @@
+# AI contribution: 50% or more AI-generated
+# The release build needs only these sources; exclude credentials at every depth.
+**
+!backend/
+!backend/**
+!frontend/
+!frontend/**
+!Dockerfile
+**/.env
+**/.env.*
+**/.git
+**/.ssh
+**/.venv
+**/node_modules
+**/dist
+**/staticfiles
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.coverage*
+**/coverage*
+**/tmp
+**/temp
+**/*.pem
+**/*.key
+**/*.pfx
+**/*.p12
+**/*.sqlite3
+**/*.log

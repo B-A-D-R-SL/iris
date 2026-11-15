@@ -1,0 +1,114 @@
+# AI contribution: 50% or more AI-generated
+name: Deploy staging
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      publish_only:
+        description: Build the first GHCR image without contacting Azure
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  # Never interrupt a migration; a newer run checks main again before deployment.
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.repository == 'B-A-D-R-SL/iris' &&
+      (vars.STAGING_DEPLOY_ENABLED == 'true' ||
+       (github.event_name == 'workflow_dispatch' && inputs.publish_only)) &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: staging
+      url: ${{ vars.AZURE_STAGING_HOSTNAME && format('https://{0}', vars.AZURE_STAGING_HOSTNAME) || 'https://github.com/B-A-D-R-SL/iris/pkgs/container/iris' }}
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      IMAGE: ghcr.io/b-a-d-r-sl/iris
+      AZURE_CORE_OUTPUT: none
+      APP_NAME: ${{ vars.AZURE_STAGING_APP_NAME }}
+      APP_HOST: ${{ vars.AZURE_STAGING_HOSTNAME }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+
+      - name: Require current main and successful CI
+        id: gate
+        run: python3 .github/scripts/staging_gate.py
+
+      - name: Validate environment configuration
+        if: ${{ !inputs.publish_only }}
+        env:
+          CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          COST_CONFIRMED: ${{ vars.STAGING_COST_CONFIRMED }}
+        run: |
+          test "$COST_CONFIRMED" = "true"
+          test -n "$CLIENT_ID" && test -n "$TENANT_ID" && test -n "$SUBSCRIPTION_ID"
+          [[ "$APP_NAME" =~ ^[a-z0-9-]+$ ]]
+          [[ "$APP_HOST" =~ ^[a-z0-9.-]+\.azurewebsites\.net$ ]]
+
+      - name: Build and push the CI-tested revision
+        id: image
+        env:
+          REVISION: ${{ steps.gate.outputs.sha }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          trap 'docker logout ghcr.io' EXIT
+          docker build --build-arg "IRIS_RELEASE_SHA=$REVISION" \
+            --label "org.opencontainers.image.source=https://github.com/B-A-D-R-SL/iris" \
+            --label "org.opencontainers.image.revision=$REVISION" \
+            --tag "$IMAGE:$REVISION" .
+          docker push "$IMAGE:$REVISION"
+          digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE:$REVISION")
+          [[ "$digest" =~ ^ghcr.io/b-a-d-r-sl/iris@sha256:[a-f0-9]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Sign in to the staging-only Azure identity
+        if: ${{ !inputs.publish_only }}
+        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Refuse stale deployment after build or approval wait
+        if: ${{ !inputs.publish_only }}
+        run: python3 .github/scripts/staging_gate.py
+
+      - name: Deploy the immutable image to the existing app
+        if: ${{ !inputs.publish_only }}
+        env:
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          az webapp config container set --resource-group iris-staging --name "$APP_NAME" \
+            --container-image-name "$IMAGE_DIGEST" --container-registry-url https://ghcr.io
+          az webapp restart --resource-group iris-staging --name "$APP_NAME"
+
+      - name: Verify new revision, database, worker and frontend
+        if: ${{ !inputs.publish_only }}
+        env:
+          REVISION: ${{ steps.gate.outputs.sha }}
+        run: python3 .github/scripts/staging_smoke.py "https://$APP_HOST" "$REVISION"

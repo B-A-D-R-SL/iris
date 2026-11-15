@@ -1,0 +1,22 @@
+# AI contribution: 50% or more AI-generated
+
+msgid ""
+msgstr "Project-Id-Version: Iris\nLanguage: en\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n"
+
+msgid "Migrate and optionally seed fictional staging under a PostgreSQL lock."
+msgstr "Migrate and optionally seed fictional staging under a PostgreSQL lock."
+
+msgid "prepare_staging requires iris.settings.staging."
+msgstr "prepare_staging requires iris.settings.staging."
+
+msgid "IRIS_SEED_ON_START must be 0 or 1."
+msgstr "IRIS_SEED_ON_START must be 0 or 1."
+
+msgid "SEED_PASSWORD is required before staging setup."
+msgstr "SEED_PASSWORD is required before staging setup."
+
+msgid "Staging setup failed; check configuration and database availability."
+msgstr "Staging setup failed; check configuration and database availability."
+
+msgid "{name} Key Vault reference must resolve."
+msgstr "{name} Key Vault reference must resolve."
