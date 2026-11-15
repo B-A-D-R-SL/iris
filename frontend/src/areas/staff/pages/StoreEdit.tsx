@@ -74,6 +74,7 @@ function StoreSummary({ store }: { store: StaffStore }) {
   const since = new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en-CA" : "fr-CA", {
     month: "long",
     year: "numeric",
+    timeZone: "America/Montreal",
   }).format(new Date(store.created_at));
   return (
     <div className={classes.heading}>
@@ -101,12 +102,12 @@ function StatusCard(props: {
   const { store, active, onChange } = props;
   const { t } = useTranslation();
   const key = "storeAdmin.status";
-  const help = store.is_badr ? "badrHelp" : active ? "activeHelp" : "inactiveHelp";
+  const help = !store.can_change_status ? "badrHelp" : active ? "activeHelp" : "inactiveHelp";
   return (
     <StoreCard title={markModified(t(key + ".title"), active !== store.is_active)}>
       <Switch
         checked={active}
-        disabled={store.is_badr}
+        disabled={!store.can_change_status}
         label={t(`${key}.${active ? "active" : "inactive"}`)}
         description={t(`${key}.${help}`)}
         onChange={(event) => onChange(event.currentTarget.checked)}
@@ -150,6 +151,20 @@ function EditNotices(props: EditNoticesProps) {
   );
 }
 
+/**
+ * The status switch: starts from the saved status and follows it when a reload
+ * brings a new one (another admin changed it), dropping the admin's draft.
+ */
+function useStatusDraft(saved: boolean) {
+  const [draft, setDraft] = useState(saved);
+  const [baseline, setBaseline] = useState(saved);
+  if (baseline !== saved) {
+    setBaseline(saved);
+    setDraft(saved);
+  }
+  return [draft, setDraft] as const;
+}
+
 /** Fields that differ from the saved store, and whether anything is unsaved. */
 function useUnsaved(store: StaffStore, values: StoreFormValues, statusChange: StatusChange) {
   const initial = useMemo(() => toFormValues(store), [store]);
@@ -161,7 +176,7 @@ function useUnsaved(store: StaffStore, values: StoreFormValues, statusChange: St
 function useStoreEditor(store: StaffStore, language: Language) {
   const { t } = useTranslation();
   const form = useStoreForm(store, t(`${KEY}.invalidPostalCode`));
-  const [active, setActive] = useState(store.is_active);
+  const [active, setActive] = useStatusDraft(store.is_active);
   const [dialog, setDialog] = useState<StatusChange>(null);
   const [pageError, setPageError] = useState<string | null>(null);
   const statusChange: StatusChange =

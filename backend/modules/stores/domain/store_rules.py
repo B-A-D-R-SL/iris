@@ -25,7 +25,9 @@ HOURS_NO_OPEN_DAY = "hours_no_open_day"
 REASON_REQUIRED = "reason_required"
 REASON_TOO_LONG = "reason_too_long"
 
-_TIME = re.compile(r"(?:[01]\d|2[0-3]):[0-5]\d")
+# ASCII digits only: Python's \d also matches digits from other scripts, which
+# would pass this check and then compare in the wrong order.
+_TIME = re.compile(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]")
 
 
 def _day_error(value: object) -> str | None:

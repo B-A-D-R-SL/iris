@@ -86,18 +86,39 @@ export const HOURS_INVALID = "hours_invalid";
 
 const TIME = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 
-/** What the admin types, as 24-hour "HH:MM": "2000" -> "20:00", "8" stays "8". */
+/**
+ * What the admin types, as 24-hour "HH:MM". A typed colon ends the hour
+ * ("1:30" stays "1:30"); without one, four digits become "20:00" from "2000",
+ * and fewer are kept as typed until the admin leaves the box.
+ */
 export function formatTime(input: string): string {
+  const colon = input.indexOf(":");
+  if (colon >= 0) {
+    const hour = input.slice(0, colon).replace(/\D/g, "").slice(0, 2);
+    const minutes = input
+      .slice(colon + 1)
+      .replace(/\D/g, "")
+      .slice(0, 2);
+    return `${hour}:${minutes}`;
+  }
   const digits = input.replace(/\D/g, "").slice(0, 4);
-  return digits.length <= 2 ? digits : `${digits.slice(0, 2)}:${digits.slice(2)}`;
+  return digits.length === 4 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
 }
 
 /**
- * On leaving the box: "8" -> "08:00", "20" -> "20:00", "08:3" -> "08:30",
- * "800" -> "08:00", "930" -> "09:30". Three digits keep the first two as the
+ * On leaving the box: "1:30" -> "01:30", "08:3" -> "08:30", "8" -> "08:00",
+ * "20" -> "20:00", "800" -> "08:00", "930" -> "09:30". With a colon, the hour
+ * is what comes before it. Three digits without one keep the first two as the
  * hour when they make one (and the minutes can start with the third digit).
  */
 export function completeTime(value: string): string {
+  const colon = value.indexOf(":");
+  if (colon >= 0) {
+    const hour = value.slice(0, colon).replace(/\D/g, "");
+    const minutes = value.slice(colon + 1).replace(/\D/g, "");
+    if (!hour && !minutes) return "";
+    return `${hour.padStart(2, "0")}:${minutes.padEnd(2, "0")}`;
+  }
   const digits = value.replace(/\D/g, "");
   if (digits.length === 0) return "";
   if (digits.length <= 2) return `${digits.padStart(2, "0")}:00`;

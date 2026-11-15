@@ -7,15 +7,14 @@ from uuid import uuid4
 import pytest
 from django.core.exceptions import ValidationError
 
+from modules.accounts.tests.factories import UserFactory
 from modules.audit import services
 from modules.audit.models import AuditEvent
 
 
 @pytest.fixture
-def admin(db, django_user_model):
-    return django_user_model.objects.create_user(
-        "store-admin@example.test", role="admin", first_name="Admin"
-    )
+def admin(db):
+    return UserFactory(role="admin")
 
 
 def _record(admin, action: str, metadata: dict[str, Any], target_type="store"):
@@ -116,7 +115,13 @@ def test_store_reactivation_uses_the_store_reason_limit(admin):
 
 @pytest.mark.parametrize(
     "metadata",
-    [{}, {"reason": ""}, {"reason": "x" * 501}, {"reason": "Write to a@b.example"}],
+    [
+        {},
+        {"reason": ""},
+        {"reason": "   "},
+        {"reason": "x" * 501},
+        {"reason": "Write to a@b.example"},
+    ],
 )
 def test_store_reactivation_refuses_invalid_reasons(admin, metadata):
     with pytest.raises(ValidationError):

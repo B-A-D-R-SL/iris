@@ -234,10 +234,14 @@ def test_deactivation_cancels_open_listings_and_their_reservations(
 def test_preview_matches_what_deactivation_cancels(admin) -> None:
     store = _store()
     listing = _open_listing(store)
-    household = HouseholdFactory()
+    household = HouseholdFactory(email="family@example.test")
     _reservation(listing=listing, household=household)
     _reservation(listing=_open_listing(store), household=household)
-    _reservation(listing=_ended_listing(store))
+    _reservation(listing=listing, household=HouseholdFactory(email=None))
+    _reservation(
+        listing=_ended_listing(store),
+        household=HouseholdFactory(email="ended@example.test"),
+    )
 
     preview = queries.deactivation_preview(store.pk, timezone.now())
 
@@ -266,7 +270,10 @@ def test_deactivating_twice_is_refused(admin) -> None:
 
 
 # rule: BR-STORE-005
-@pytest.mark.parametrize("reason", ["", "   ", "x" * 501, "Manager SIN 123 456 789"])
+@pytest.mark.parametrize(
+    "reason",
+    ["", "   ", "x" * 501, "Manager SIN 123 456 789", "Gérant résident permanent"],
+)
 def test_deactivation_needs_a_valid_reason(admin, reason) -> None:
     store = _store()
     listing = _open_listing(store)
@@ -312,10 +319,12 @@ def test_reactivating_an_active_store_is_refused(admin) -> None:
     assert error.value.is_active is True
 
 
-def test_reactivation_needs_a_reason(admin) -> None:
+# rule: BR-STORE-005
+@pytest.mark.parametrize("reason", [" ", "Résidente permanente maintenant"])
+def test_reactivation_needs_a_valid_reason(admin, reason) -> None:
     store = _store(is_active=False)
     with pytest.raises(ValidationError):
-        services.reactivate_store(store.pk, admin, " ")
+        services.reactivate_store(store.pk, admin, reason)
     store.refresh_from_db()
     assert store.is_active is False
 

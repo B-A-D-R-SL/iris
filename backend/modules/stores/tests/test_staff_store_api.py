@@ -177,8 +177,9 @@ def test_list_refuses_an_unknown_status(admin_client: APIClient) -> None:
 def test_detail_includes_the_deactivation_preview(admin_client: APIClient) -> None:
     store = _store(opening_hours={"notes": "Lun-ven 8h-20h"})
     listing = _open_listing(store)
-    _reservation(listing=listing)
-    _reservation(listing=listing)
+    _reservation(listing=listing, household=HouseholdFactory(email="a@example.test"))
+    _reservation(listing=listing, household=HouseholdFactory(email="b@example.test"))
+    _reservation(listing=listing, household=HouseholdFactory(email=None))
 
     body = admin_client.get(detail_url(store.pk)).json()
 
@@ -342,3 +343,12 @@ def test_schema_documents_the_store_endpoints(admin_client: APIClient) -> None:
         "staff_stores_reactivate",
     ):
         assert operation in schema
+
+
+# rule: BR-STORE-004
+def test_detail_says_whether_the_status_can_change(admin_client: APIClient) -> None:
+    """The screen shows the status switch from the API, not from is_badr."""
+    badr, partner = _store(is_badr=True), _store()
+
+    assert admin_client.get(detail_url(badr.pk)).json()["can_change_status"] is False
+    assert admin_client.get(detail_url(partner.pk)).json()["can_change_status"] is True

@@ -43,8 +43,9 @@ indexes `(household, status)` and `(status, listing)`.
   mark reserved claims on those listings `cancelled_by_store` with no strike and
   queue one `reservation_cancelled_by_store` email per claim (households without
   an email are skipped). Must run in the deactivation transaction (BR-STORE-003).
-- `queries.household_count_for_listings(listing_ids)`: households holding a
-  reserved claim on those listings, for the deactivation preview (US-14).
+- `queries.household_count_for_listings(listing_ids)`: households with an email
+  holding a reserved claim on those listings, counted once each: who the
+  deactivation would email, for its preview (US-14).
 - `permissions.pickup_store_id(user)`: the store whose pickups the user may
   confirm; raises `PermissionDenied` for everyone else.
 

@@ -81,7 +81,7 @@ def _validate_rule_publication(
 
 def _validate_reason(reason: object, max_length: int) -> None:
     """A nonblank reason within the limit and without sensitive details."""
-    if not isinstance(reason, str) or not reason:
+    if not isinstance(reason, str) or not reason.strip():
         raise ValidationError({"metadata": "A reason is required."})
     if len(reason) > max_length:
         raise ValidationError({"metadata": "The reason is too long."})

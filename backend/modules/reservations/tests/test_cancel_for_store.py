@@ -130,13 +130,20 @@ def test_requires_a_transaction() -> None:
         services.cancel_for_cancelled_listings([], store_name=STORE_NAME)
 
 
-def test_household_count_counts_each_household_once() -> None:
-    household = _household()
+# rule: BR-STORE-003
+def test_household_count_counts_each_emailed_household_once() -> None:
+    """The preview counts who gets an email: once per household, never without email."""
+    household = _household("twice@example.test")
     first, second = _listing(), _listing()
     _reservation(listing=first, household=household)
     _reservation(listing=second, household=household)
-    _reservation(listing=second)
-    _reservation(listing=first, status=ReservationStatus.CANCELLED)
+    _reservation(listing=second, household=_household("other@example.test"))
+    _reservation(listing=second, household=_household(None))
+    _reservation(
+        listing=first,
+        household=_household("cancelled@example.test"),
+        status=ReservationStatus.CANCELLED,
+    )
 
     assert household_count_for_listings([first.pk, second.pk]) == 2
     assert household_count_for_listings([]) == 0

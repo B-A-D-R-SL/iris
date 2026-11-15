@@ -91,3 +91,10 @@ def test_changed_fields_lists_differences_in_order() -> None:
     before = {"phone": "+15145550100", "city": "Montréal", "name": "A"}
     after = {"phone": "+15145550199", "name": "A", "city": "Laval"}
     assert rules.changed_fields(before, after) == ["city", "phone"]
+
+
+# rule: BR-STORE-006
+def test_times_need_ascii_digits() -> None:
+    """An Arabic-Indic 8 ("0٨:00") must not pass as a closing time."""
+    errors = rules.weekly_hours_errors(_week(mon={"open": "09:00", "close": "0٨:00"}))
+    assert errors == {"mon": rules.HOURS_INVALID_TIME}

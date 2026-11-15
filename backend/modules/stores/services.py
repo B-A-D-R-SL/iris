@@ -414,10 +414,18 @@ def _status_reason(reason: object) -> str:
     return cleaned
 
 
+def can_change_status(store: Store) -> bool:
+    """BR-STORE-004: every store but B.A.D.R. can be deactivated and reactivated.
+
+    The admin screen shows the status switch from this, so the rule lives here only.
+    """
+    return not store.is_badr
+
+
 def _locked_for_status_change(store_id: UUID, admin: Any, *, activate: bool) -> Store:
     _require_active_admin(admin)
     store = _locked_store(store_id)
-    if not activate and store.is_badr:
+    if not can_change_status(store):
         raise StoreIsBadr
     if store.is_active == activate:
         raise StoreStatusUnchanged(is_active=store.is_active)

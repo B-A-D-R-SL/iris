@@ -243,7 +243,9 @@ describe("StoreEdit", { timeout: 20_000 }, () => {
   });
 
   it("does not let the B.A.D.R. store be deactivated", async () => {
-    mockStoreApi({ detail: () => Response.json({ ...demoStore, is_badr: true }) });
+    mockStoreApi({
+      detail: () => Response.json({ ...demoStore, is_badr: true, can_change_status: false }),
+    });
     renderEdit();
     await loaded();
     expect(screen.getByRole("switch")).toBeDisabled();

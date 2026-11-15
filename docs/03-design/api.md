@@ -164,7 +164,7 @@ store. Rules BR-STORE-001 to BR-STORE-006 are in
 | Request | Success | Errors |
 | --- | --- | --- |
 | `GET /api/staff/stores/?q=ontario&status=active&page=1` | 200 page of stores by name, with `open_listings` per row and `counts: {all, active, inactive}` for the same search | 400 `validation_error` for an unknown `status` |
-| `GET /api/staff/stores/{id}/` | 200 store with every field, `opening_hours` (see below), `is_badr`, `is_active`, and the deactivation preview `open_listings` and `households_to_notify` | 404 |
+| `GET /api/staff/stores/{id}/` | 200 store with every field, `opening_hours` (see below), `is_badr`, `is_active`, `can_change_status` (false for the B.A.D.R. store; the screen shows the status switch from it), and the deactivation preview `open_listings` and `households_to_notify` (households with an email that would be told, counted once each) | 404 |
 | `PATCH /api/staff/stores/{id}/` with only the fields to change | 200 store; one `update` audit event with the changed field names, none when nothing changed | 400 `validation_error`: any field error, or "This field cannot be changed." for `id`, `is_badr`, `application`, `is_active`, timestamps or unknown keys |
 | `POST /api/staff/stores/{id}/deactivate/` `{ "reason": "..." }` | 200 store plus `listings_cancelled` and `reservations_cancelled` | 400 `store_is_badr`; 400 `validation_error` on `reason`; 409 `store_already_inactive` |
 | `POST /api/staff/stores/{id}/reactivate/` `{ "reason": "..." }` | 200 store | 400 `validation_error` on `reason`; 409 `store_already_active` |
@@ -175,8 +175,12 @@ manager's sign-in email), `opening_hours` and `pickup_instructions`. Blank `unit
 and `pickup_instructions` are stored as `null`.
 
 `opening_hours` holds `mon` to `sun`, each `{ "open": "HH:MM", "close": "HH:MM" }`
-or `null` when closed, plus a read-only `notes` with the free text from a partner
-application (or `null`). A PATCH must send all seven days; `notes` is kept.
+or `null`, plus a read-only `notes` with the free text from a partner application
+(or `null`). A `null` day means closed only once the weekly schedule is filled in:
+a store approved from an application (only `notes`) or the B.A.D.R. placeholder
+(`{}`) has no schedule yet, so every day comes back `null` without meaning closed.
+When all seven days are `null`, treat the hours as not set. A PATCH must send all
+seven days, with at least one open; `notes` is kept.
 
 #### Staff review of partner applications (US-13)
 

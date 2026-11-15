@@ -149,13 +149,31 @@ function RuleDetails({ metadata }: { metadata: unknown }) {
   );
 }
 
+/** Translation keys for the store field names in `update` events (US-14). */
+const STORE_FIELD_LABELS: Record<string, string> = {
+  name: "storeAdmin.edit.name",
+  street_number: "storeAdmin.edit.streetNumber",
+  street_name: "storeAdmin.edit.streetName",
+  unit: "storeAdmin.edit.unit",
+  city: "storeAdmin.edit.city",
+  postal_code: "storeAdmin.edit.postalCode",
+  phone: "storeAdmin.edit.phone",
+  email: "storeAdmin.edit.email",
+  opening_hours: "storeAdmin.hours.title",
+  pickup_instructions: "storeAdmin.edit.instructions",
+};
+
 /** US-14 store events: the changed field names, or what a deactivation cancelled. */
 function StoreDetails({ metadata }: { metadata: unknown }) {
   const { t } = useTranslation();
   if (typeof metadata !== "object" || metadata === null) return null;
   const values = metadata as Record<string, unknown>;
   if (typeof values.fields === "string") {
-    return <> ({t("audit.search.storeFields", { fields: values.fields.split(",").join(", ") })})</>;
+    const fields = values.fields.split(",").map((field) => {
+      const key = STORE_FIELD_LABELS[field];
+      return key ? t(key) : field;
+    });
+    return <> ({t("audit.search.storeFields", { fields: fields.join(", ") })})</>;
   }
   if (
     typeof values.listings_cancelled === "number" &&

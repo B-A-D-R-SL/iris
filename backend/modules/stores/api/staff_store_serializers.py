@@ -13,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from modules.stores.models import Store
-from modules.stores.services import EDITABLE_STORE_FIELDS
+from modules.stores.services import EDITABLE_STORE_FIELDS, can_change_status
 
 
 class DayHoursSerializer(serializers.Serializer):
@@ -86,12 +86,17 @@ class StaffStoreSerializer(serializers.ModelSerializer):
     updated_at = serializers.DateTimeField(default_timezone=UTC)
     open_listings = serializers.SerializerMethodField()
     households_to_notify = serializers.SerializerMethodField()
+    can_change_status = serializers.SerializerMethodField()
 
     def get_open_listings(self, store: Store) -> int:
         return int(self.context.get("preview", {}).get("open_listings", 0))
 
     def get_households_to_notify(self, store: Store) -> int:
         return int(self.context.get("preview", {}).get("households_to_notify", 0))
+
+    def get_can_change_status(self, store: Store) -> bool:
+        """Whether the admin may deactivate or reactivate it (not B.A.D.R.)."""
+        return can_change_status(store)
 
     class Meta:
         model = Store
@@ -113,6 +118,7 @@ class StaffStoreSerializer(serializers.ModelSerializer):
             "updated_at",
             "open_listings",
             "households_to_notify",
+            "can_change_status",
         )
         read_only_fields: tuple[str, ...] = fields
 

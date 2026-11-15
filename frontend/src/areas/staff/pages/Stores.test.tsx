@@ -88,7 +88,9 @@ describe("Stores", () => {
   it("is refused to intake workers", async () => {
     mockStoreApi({ role: "intake_worker" });
     renderWithProviders(<App />, { route: "/staff/stores" });
-    await waitFor(() => expect(screen.queryByText("Épicerie Démo du Quartier")).toBeNull());
+    // Wait for the access decision: the intake worker lands on their home screen.
+    expect(await screen.findByRole("heading", { name: "Foyers" })).toBeInTheDocument();
+    expect(screen.queryByText("Épicerie Démo du Quartier")).toBeNull();
     expect(screen.queryByRole("link", { name: "Commerces" })).toBeNull();
   });
 });

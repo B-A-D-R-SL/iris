@@ -35,6 +35,7 @@ export const demoStore: StaffStore = {
   updated_at: "2026-11-10T14:00:00Z",
   open_listings: 3,
   households_to_notify: 5,
+  can_change_status: true,
 };
 
 export function storePage(stores: StaffStore[] = [demoStore]): StaffStorePage {
@@ -93,6 +94,12 @@ export function mockStoreApi({
     const method = init?.method ?? "GET";
     const body = init?.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : {};
     if (url.pathname === "/api/me/") return Response.json(testUser(role));
+    // Household search access (RequireHouseholdSearch) for the staff home screen.
+    if (url.pathname === "/api/staff/households/" && method === "HEAD") {
+      return new Response(null, {
+        status: role === "intake_worker" || role === "admin" ? 200 : 403,
+      });
+    }
     if (url.pathname === "/api/staff/stores/") return list(url);
     if (url.pathname.endsWith("/deactivate/")) return deactivate(body);
     if (url.pathname.endsWith("/reactivate/")) return reactivate(body);

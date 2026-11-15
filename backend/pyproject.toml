@@ -139,6 +139,7 @@ ignore_imports = [
     "modules.households.tests.approval.** -> modules.notifications.tasks",
     "modules.notifications.tests.test_services -> modules.accounts.tests.factories",
     "modules.audit.tests.** -> modules.stores.tests.factories",
+    "modules.audit.tests.test_store_events -> modules.accounts.tests.factories",
     "modules.rules.tests.test_rule_set_versions -> modules.accounts.tests.factories",
     "modules.households.tests.** -> modules.accounts.tests.factories",
     "modules.households.tests.** -> modules.stores.tests.factories",

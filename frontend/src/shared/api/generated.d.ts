@@ -868,6 +868,8 @@ export interface components {
     StaffPartnerApplicationStatusEnum: "submitted" | "approved" | "rejected";
     /** @description A store as the admin edits it (W7.2), with the deactivation preview. */
     StaffStore: {
+      /** @description Whether the admin may deactivate or reactivate it (not B.A.D.R.). */
+      can_change_status: boolean;
       /** Ville */
       city: string;
       /** Format: date-time */
@@ -949,6 +951,8 @@ export interface components {
     };
     /** @description The deactivated store and what the deactivation cancelled. */
     StoreDeactivated: {
+      /** @description Whether the admin may deactivate or reactivate it (not B.A.D.R.). */
+      can_change_status: boolean;
       /** Ville */
       city: string;
       /** Format: date-time */

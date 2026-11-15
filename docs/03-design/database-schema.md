@@ -113,7 +113,7 @@ An approved partner store, including the B.A.D.R. store.
 | postal_code | string | — | Postal code. |
 | phone | string | — | Contact phone number. |
 | email | string | — | Contact email. |
-| opening_hours | json | — | Weekly hours: `mon` to `sun`, each `{"open": "HH:MM", "close": "HH:MM"}` or null when closed, plus an optional read-only `notes` copied from the partner application (BR-STORE-006). |
+| opening_hours | json | — | Three stored forms. A completed weekly schedule has keys `mon` to `sun`, each `{"open": "HH:MM", "close": "HH:MM"}` or null when closed, plus an optional read-only `notes` (BR-STORE-006). A store just approved from a partner application holds only `{"notes": "..."}`, and the B.A.D.R. placeholder holds `{}`. Consumers must not assume the day keys exist until an admin saves the schedule. |
 | pickup_instructions | string | — | Instructions for collecting goods. |
 | is_badr | boolean | — | Identifies the B.A.D.R. store. |
 | is_active | boolean | — | Whether the store is active. |

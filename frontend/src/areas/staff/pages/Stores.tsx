@@ -109,38 +109,34 @@ const COLUMNS = [
   { key: "actions", width: "12%" },
 ] as const;
 
-function Pager({
-  data,
-  page,
-  onPage,
-}: {
+interface PagerProps {
   data: StaffStorePage;
   page: number;
+  /** True while the previous page is shown during loading: its bounds are stale. */
+  loading: boolean;
   onPage: (page: number) => void;
-}) {
+}
+
+function Pager({ data, page, loading, onPage }: PagerProps) {
   const { t } = useTranslation();
   return (
     <Group>
-      <Button variant="default" disabled={!data.previous} onClick={() => onPage(page - 1)}>
+      <Button
+        variant="default"
+        disabled={loading || !data.previous || page <= 1}
+        onClick={() => onPage(Math.max(1, page - 1))}
+      >
         {t(KEY + ".previous")}
       </Button>
       <Text>{t(KEY + ".page", { page })}</Text>
-      <Button variant="default" disabled={!data.next} onClick={() => onPage(page + 1)}>
+      <Button variant="default" disabled={loading || !data.next} onClick={() => onPage(page + 1)}>
         {t(KEY + ".next")}
       </Button>
     </Group>
   );
 }
 
-function StoreTable({
-  page,
-  onPage,
-  data,
-}: {
-  page: number;
-  onPage: (page: number) => void;
-  data: StaffStorePage;
-}) {
+function StoreTable({ page, loading, onPage, data }: PagerProps) {
   const { t } = useTranslation();
   return (
     <>
@@ -173,7 +169,9 @@ function StoreTable({
           </table>
         </div>
       </div>
-      {(data.previous || data.next) && <Pager data={data} page={page} onPage={onPage} />}
+      {(data.previous || data.next) && (
+        <Pager data={data} page={page} loading={loading} onPage={onPage} />
+      )}
     </>
   );
 }
@@ -197,7 +195,7 @@ export function Stores() {
   const { t } = useTranslation();
   const notice = (useLocation().state as { notice?: StoreNotice } | null)?.notice;
   const { query, search, setSearch, status, setStatus, page, setPage } = useStoreList();
-  const { data, isPending, isError, refetch } = query;
+  const { data, isPending, isError, isPlaceholderData, refetch } = query;
   return (
     <Stack gap={20}>
       <div className={classes.heading}>
@@ -228,7 +226,7 @@ export function Stores() {
       ) : data.results.length === 0 ? (
         <EmptyState title={t(`${KEY}.empty`)} description={t(`${KEY}.emptyDescription`)} />
       ) : (
-        <StoreTable data={data} page={page} onPage={setPage} />
+        <StoreTable data={data} page={page} loading={isPlaceholderData} onPage={setPage} />
       )}
     </Stack>
   );
