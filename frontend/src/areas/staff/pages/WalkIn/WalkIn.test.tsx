@@ -1,4 +1,5 @@
 // AI contribution: 50% or more AI-generated
+import { QueryClient, focusManager, onlineManager } from "@tanstack/react-query";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../../../../app/App";
 import type { Role } from "../../../../shared/auth/roles";
 import type { WalkInDraft } from "../../../../features/households/walkInApi";
+import { walkInQueryKey } from "../../../../features/households/walkInApi";
 import i18n from "../../../../shared/i18n";
 import { expectNoAxeViolations, renderWithProviders, testUser } from "../../../../test/render";
 
@@ -109,6 +111,47 @@ afterEach(() => {
 });
 
 describe("Walk-in registration (US-17)", () => {
+  it("only retries a failed audited read when staff request it", async () => {
+    const read = vi
+      .fn(() => Response.json(draft()))
+      .mockReturnValueOnce(new Response(null, { status: 503 }));
+    mockApi({ read });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: 1, retryDelay: 0 } },
+    });
+    renderWithProviders(<App />, { route: `/staff/walk-in/${ID}`, queryClient });
+    const retry = await screen.findByRole("button", { name: "Réessayer" });
+    expect(read).toHaveBeenCalledTimes(1);
+    await userEvent.click(retry);
+    await screen.findByRole("heading", { name: "2. Adresse" });
+    expect(read).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["focus", "reconnect"])("does not reread an audited file on %s", async (trigger) => {
+    const read = vi.fn(() => Response.json(draft()));
+    mockApi({ read });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    renderWithProviders(<App />, { route: `/staff/walk-in/${ID}`, queryClient });
+    await screen.findByRole("heading", { name: "2. Adresse" });
+    await act(async () => {
+      await queryClient.invalidateQueries({
+        queryKey: walkInQueryKey(ID),
+        refetchType: "none",
+      });
+      if (trigger === "focus") {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      } else {
+        onlineManager.setOnline(false);
+        onlineManager.setOnline(true);
+      }
+    });
+    expect(read).toHaveBeenCalledTimes(1);
+    focusManager.setFocused(undefined);
+  });
+
   it("creates the draft from the holder step and moves to the address", async () => {
     const fetchMock = mockApi();
     renderWithProviders(<App />, { route: "/staff/walk-in" });

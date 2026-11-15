@@ -27,3 +27,19 @@ class AuditEvent(models.Model):
     target_id = models.CharField(max_length=64)
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [  # noqa: RUF012 - Django metadata.
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        actor__isnull=True,
+                        actor_role="system",
+                        action="decision",
+                        target_type="household",
+                    )
+                    | (models.Q(actor__isnull=False) & ~models.Q(actor_role="system"))
+                ),
+                name="audit_actor_system_consistent",
+            ),
+        ]

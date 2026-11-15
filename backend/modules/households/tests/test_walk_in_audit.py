@@ -6,13 +6,14 @@ from uuid import uuid4
 import pytest
 from django.db import OperationalError, transaction
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from modules.audit.queries import search_events
 from modules.households.api.serializers import WalkInDraftReadSerializer
 from modules.households.models import Household, HouseholdDraftEvent, Member
 from modules.households.services import create_walk_in, submit_walk_in, update_draft
-from modules.households.tests.factories import WalkInPayloadFactory
+from modules.households.tests.factories import HouseholdFactory, WalkInPayloadFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -54,17 +55,15 @@ def test_each_walk_in_operation_records_only_actor_target_and_action(
     submission_worker.save()
     household = ready_household_factory()
     response = perform(client_for(submission_worker), operation, household, data)
-    assert response.status_code == (201 if operation == "create" else 200), (
-        response.data
-    )
+    expected_status = 201 if operation == "create" else 200
+    assert response.status_code == expected_status, response.data
     events = search_events(household=response.data["id"], actor=submission_worker.pk)
     event = events.get()
     assert event.action == operation
     assert event.actor_role == role
     assert event.target_type == "household"
-    assert (
-        event.metadata == {}
-    )  # No holder, contact, address, birth date or member data.
+    # No holder, contact, address, birth date or member data.
+    assert event.metadata == {}
     if operation == "view":
         assert response["Cache-Control"] == "private, no-store"
 
@@ -147,12 +146,13 @@ def test_failed_detail_serialization_records_no_disclosure(
     assert search_events().count() == events_before
 
 
-@pytest.mark.parametrize("kind", ["unknown", "anonymized", "inactive", "anonymous"])
+@pytest.mark.parametrize(
+    "kind,expected_status",
+    [("unknown", 404), ("anonymized", 404), ("inactive", 403), ("anonymous", 401)],
+)
 def test_refused_detail_read_records_no_disclosure(
-    kind, submission_worker, ready_household_factory
+    kind, expected_status, submission_worker, ready_household_factory
 ):
-    from django.utils import timezone
-
     household = ready_household_factory()
     identifier = uuid4() if kind == "unknown" else household.pk
     if kind == "anonymized":
@@ -164,7 +164,7 @@ def test_refused_detail_read_records_no_disclosure(
     client = APIClient() if kind == "anonymous" else client_for(submission_worker)
     before = search_events().count()
     response = client.get(reverse("staff-households-detail", kwargs={"id": identifier}))
-    assert response.status_code in (401, 403, 404)
+    assert response.status_code == expected_status
     assert search_events().count() == before
 
 
@@ -184,8 +184,6 @@ def test_head_detail_probe_does_not_record_a_file_disclosure(
 def test_duplicate_review_submission_also_records_a_central_event(
     submission_worker, ready_household_factory
 ):
-    from modules.households.tests.factories import HouseholdFactory
-
     household = ready_household_factory()
     HouseholdFactory(status=Household.Status.APPROVED)
     response = perform(client_for(submission_worker), "submit", household, {})

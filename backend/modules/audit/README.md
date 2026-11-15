@@ -31,7 +31,10 @@ Eligibility decisions target the household (so household audit search includes
 them) and require exactly `{"decision_id": "<canonical UUID>", "outcome":
 "eligible" | "ineligible", "rule_version": <positive integer>}`. Names, contact
 details, dates of birth, income amounts, thresholds and document text are refused
-as additional metadata. This shape is also required for system decisions.
+as additional metadata. System decisions must also reference a saved automatic
+decision whose household, outcome and rule version match the event, verified
+through the public eligibility query. Staff decisions cannot be relabelled as
+system events, and nonexistent decision IDs are refused.
 For `rule_published` on `rule_set_version`, metadata instead contains the supported
 `rule_type` and positive integer `version`. Suspension and reactivation accept a
 `reason` validated against the configured length limit and sensitive-data checks.
@@ -61,6 +64,12 @@ Reversing it restores Django's earlier model state but deliberately leaves the
 database actor column nullable. Existing system events survive rollback without
 deletion or reassignment, and the foreign key and append-only trigger remain in
 place. Reapplying the migration is safe with those preserved rows.
+Migration `0007_enforce_system_actor` adds a database check: a null actor requires
+the `system` role, `decision` action and `household` target; a human actor cannot
+use the `system` role. ORM, bulk inserts and direct SQL enforce the same rule.
+Reversing `0007` removes that check without changing any event data; the nullable
+column and append-only protection retained by `0006` still preserve system history.
+
 ## Admin search
 
 `GET /api/staff/audit/` is restricted to active administrators.

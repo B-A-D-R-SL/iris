@@ -95,6 +95,11 @@ def _validated_evidence(household_id: UUID) -> tuple[int, list[int]]:
     return household_size, incomes
 
 
+def _decision_outcome(decision: EligibilityDecision) -> str:
+    """Use the same closed outcome in application logs and durable audits."""
+    return "eligible" if decision.eligible else "ineligible"
+
+
 def _log_decision_after_commit(
     decision: EligibilityDecision, rule_version: int
 ) -> None:
@@ -103,7 +108,7 @@ def _log_decision_after_commit(
         "event": "eligibility_decided",
         "decision_id": decision.pk,
         "household_id": decision.household_id,
-        "outcome": "eligible" if decision.eligible else "ineligible",
+        "outcome": _decision_outcome(decision),
         "rule_version": rule_version,
     }
     transaction.on_commit(
@@ -155,7 +160,7 @@ def decide_for_household(
         household_id,
         {
             "decision_id": str(decision.pk),
-            "outcome": "eligible" if decision.eligible else "ineligible",
+            "outcome": _decision_outcome(decision),
             "rule_version": rule.version,
         },
     )

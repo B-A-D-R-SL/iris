@@ -6,8 +6,10 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils.translation import gettext as _
 
 from modules.audit.models import AuditEvent
+from modules.eligibility import queries as eligibility_queries
 from modules.privacy import services as privacy_services
 from modules.rules import queries as rule_queries
 
@@ -92,7 +94,9 @@ def _validate_eligibility_decision(
         and type(version) is int
         and version > 0
     ):
-        raise ValidationError({"metadata": "Unsupported eligibility audit metadata."})
+        raise ValidationError(
+            {"metadata": _("Unsupported eligibility audit metadata.")}
+        )
 
 
 def _validate_metadata(
@@ -147,13 +151,23 @@ def record(
         and action == AuditEvent.Action.DECISION
         and "decision_id" in metadata
     )
+    identifier = _target_identifier(target_type, target_id)
+    if system_decision and not eligibility_queries.automatic_decision_matches_audit(
+        str(metadata["decision_id"]),
+        identifier,
+        str(metadata["outcome"]),
+        int(metadata["rule_version"]),
+    ):
+        raise ValidationError(
+            {"actor": _("A matching automatic eligibility decision is required.")}
+        )
     role = "system" if system_decision else _actor_role(actor)
     event = AuditEvent(
         actor_id=actor.pk if actor is not None else None,
         actor_role=role,
         action=action,
         target_type=target_type,
-        target_id=_target_identifier(target_type, target_id),
+        target_id=identifier,
         metadata=metadata,
     )
     event.full_clean()
