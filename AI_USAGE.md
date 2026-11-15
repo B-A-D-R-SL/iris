@@ -58,6 +58,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| FIX-24 Dockerfile hardening (#615) | Backend/frontend Dockerfiles and ignore files, Compose and sample environment, CI container smoke runner and HTTP boundary tests, frontend API-generation tests, README and container/production guides, this record. | 50% or more AI-generated (OpenAI Codex) | [#711](https://github.com/B-A-D-R-SL/iris/pull/711) |
 | SET-17 Azure staging and deploy workflow (#408) | Root release `Dockerfile`/`.dockerignore`, staging settings/routes/views/setup/supervision and tests, backend server dependencies, CI/deploy workflows and helper tests, staging guides and region/cost ADR, architecture, `AI_USAGE.md` | 50% or more AI-generated; lockfile generated | Owner review pending (`setup/SET-17`) |
 | FIX-08 Household access and eligibility audit (#634) | `backend/modules/audit/{models.py,services.py,api/serializers.py,migrations/0006_household_events_and_system_actor.py,migrations/0007_enforce_system_actor.py,tests/,locale/fr/LC_MESSAGES/,README.md}`, `backend/modules/households/{services.py,api/views.py,tests/factories.py,tests/test_walk_in_audit.py,tests/approval/{helpers,test_outcomes,test_side_effects}.py,README.md}`, `backend/modules/eligibility/{queries.py,services.py,tests/,README.md}`, `backend/pyproject.toml`, `frontend/src/areas/staff/pages/{Audit.test.tsx,AuditComponents.tsx,auditHelpers.ts,WalkIn/WalkIn.tsx,WalkIn/WalkIn.test.tsx}`, `frontend/src/shared/i18n/{en,fr}/staff.json`, `docs/02-requirements/business-rules.md`, `docs/03-design/{api,household-api}.md`, `docs/04-architecture/{architecture,architecture-workflows,workflow-diagrams}.md`, `AI_USAGE.md`; generated API types | 50% or more AI-generated (OpenAI Codex; audit migrations explicitly declared; compiled catalog and generated API types exempt) | [#701](https://github.com/B-A-D-R-SL/iris/pull/701); review fixes validate saved automatic decisions, enforce database actor consistency, prevent background detail refetches, translate errors and split oversized tests/docs |
 | FIX-14 Shared contact rules and auth/store cleanup (#640) | `backend/modules/common/`, `backend/iris/observability.py`, household/store models, serializers, admin and contact tests; shared JSON contact fixtures; frontend form normalizers/fields/tests, auth API/context/provider, sign-in/sign-out, translations and ESLint exemption; contact/auth/architecture/observability documentation and implementation draft. Review fixes add private rejection diagnostics and exact paste-retention assertions. New migrations update validator state without rewriting data. | 50% or more AI-generated (OpenAI Codex; generated migrations exempt) | [#702](https://github.com/B-A-D-R-SL/iris/pull/702) |
@@ -442,6 +443,10 @@ The US-13 records below describe PR #665's original implementation and verificat
 ### US-14 Admin edits or deactivates a store (#452: #453, #454)
 
 [Verification and corrections](docs/05-process/ai-usage-verification-2.md#us-14-admin-edits-or-deactivates-a-store-452-453-454).
+### FIX-24 Dockerfile hardening (#615)
+
+[Verification and corrections](docs/05-process/ai-usage-verification-3.md#fix-24-dockerfile-hardening-615).
+
 ### SET-17 Azure staging and PR #700 review follow-up
 
 [Verification and corrections](docs/05-process/ai-usage-set17.md).
