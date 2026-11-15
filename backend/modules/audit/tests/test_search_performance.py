@@ -104,6 +104,7 @@ def _audit_scans(**filters) -> list[tuple[str, str | None]]:
     ]
 
 
+@pytest.mark.usefixtures("year_of_events")
 @pytest.mark.parametrize(
     ("filters", "index"),
     [
@@ -115,7 +116,7 @@ def _audit_scans(**filters) -> list[tuple[str, str | None]]:
         ({}, "audit_created_idx"),
     ],
 )
-def test_search_reads_the_audit_table_through_an_index(year_of_events, filters, index):
+def test_search_reads_the_audit_table_through_an_index(filters, index):
     scans = _audit_scans(**filters)
     assert scans and all(name == index for _, name in scans), scans
 
@@ -148,9 +149,8 @@ def _timed_search(api, params) -> float:
     return elapsed
 
 
-def test_audit_searches_are_under_half_a_second_with_a_year_of_events(
-    api, actors, year_of_events
-):
+@pytest.mark.usefixtures("year_of_events")
+def test_audit_searches_are_under_half_a_second_with_a_year_of_events(api, actors):
     searches = _searches(actors[3])
     # The first request also loads the URL configuration: logged, not asserted.
     cold = _timed_search(api, searches[0])
