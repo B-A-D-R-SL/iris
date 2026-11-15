@@ -270,11 +270,16 @@ export function StoreEdit() {
   const { t, i18n } = useTranslation();
   const { id = "" } = useParams();
   const language: Language = i18n.resolvedLanguage === "en" ? "en" : "fr";
+  // The store's data is the same in both languages (only error messages are
+  // translated), so the language is not part of the cache key: switching it
+  // must not reload the page and unmount the editor with unsaved changes.
   const { data, isPending, isError, error, refetch } = useQuery({
-    queryKey: [...staffStoreKey(id), language],
+    queryKey: staffStoreKey(id),
     queryFn: () => getStore(id, language),
   });
   if (isPending) return <LoadingState />;
+  // Once loaded, keep the editor (and its draft) even if a background reload fails.
+  if (data) return <StoreEditor key={data.id} store={data} language={language} />;
   if (isError && error instanceof StoreFailed && error.status === 404) {
     const back = (
       <Button component={Link} to="/staff/stores" variant="default">
@@ -283,6 +288,5 @@ export function StoreEdit() {
     );
     return <EmptyState title={t(`${KEY}.notFound`)} action={back} />;
   }
-  if (isError) return <ErrorState onRetry={() => void refetch()} />;
-  return <StoreEditor key={data.id} store={data} language={language} />;
+  return <ErrorState onRetry={() => void refetch()} />;
 }

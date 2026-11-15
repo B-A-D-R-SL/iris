@@ -69,9 +69,23 @@ def confirm_pickup(
 
 
 def cancel_open_for_household(household_id: UUID) -> int:
-    """Cancel every reserved claim without a late-cancellation strike."""
+    """Cancel every reserved claim without a late-cancellation strike.
+
+    Locks the listings first, then the reservations: the same order as store
+    deactivation, so a suspension and a deactivation touching the same
+    reservation wait for each other instead of deadlocking (US-14 review).
+    The caller holds the household row, so no new claim appears meanwhile.
+    """
     if not connection.in_atomic_block:
         raise RuntimeError("Reservation cancellation must run inside a transaction.")
+    listing_ids = sorted(
+        set(
+            Reservation.objects.filter(
+                household_id=household_id, status=ReservationStatus.RESERVED
+            ).values_list("listing_id", flat=True)
+        )
+    )
+    listing_services.lock_listings(listing_ids)
     reservations = list(
         Reservation.objects.select_for_update()
         .filter(household_id=household_id, status=ReservationStatus.RESERVED)

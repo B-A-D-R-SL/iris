@@ -88,6 +88,24 @@ def release_units(listing_id: UUID, quantity: int) -> None:
         raise RuntimeError("Reserved listing units are inconsistent.")
 
 
+def lock_listings(listing_ids: list[UUID]) -> None:
+    """Lock these listing rows, in id order, for the rest of the caller's transaction.
+
+    Lock order: code that changes both listings and their reservations locks
+    the listings first, then the reservations, as store deactivation does
+    (US-14). Taking them in the other order lets two such transactions wait on
+    each other until PostgreSQL aborts one as a deadlock.
+    """
+    if not connection.in_atomic_block:
+        raise RuntimeError("lock_listings must run inside a transaction.")
+    list(
+        Listing.objects.select_for_update()
+        .filter(pk__in=listing_ids)
+        .order_by("pk")
+        .values_list("pk", flat=True)
+    )
+
+
 class PostingUnavailableError(Exception):
     """A dependency failed; the reason is diagnostic and never user-facing."""
 

@@ -86,6 +86,30 @@ describe("StoreEdit", { timeout: 20_000 }, () => {
     expect(sentRequests(fetchMock, "PATCH")).toEqual([]);
   });
 
+  it("keeps unsaved edits when the language is switched", async () => {
+    const fetchMock = mockStoreApi();
+    renderEdit();
+    await loaded();
+    const city = screen.getByLabelText(/^Ville/);
+    await userEvent.clear(city);
+    await userEvent.type(city, "Laval");
+    const mondayClose = screen.getByLabelText("Heure de fermeture, Lun");
+    await userEvent.clear(mondayClose);
+    await userEvent.type(mondayClose, "1900");
+    const storeReads = () =>
+      fetchMock.mock.calls.filter(([input]) => String(input).endsWith(storePath)).length;
+    const readsBefore = storeReads();
+
+    await act(() => i18n.changeLanguage("en"));
+
+    expect(await screen.findByRole("button", { name: "Save changes" })).toBeInTheDocument();
+    expect(screen.getByLabelText("City *")).toHaveValue("Laval");
+    expect(screen.getByLabelText("Mon closing time")).toHaveValue("19:00");
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+    expect(storeReads()).toBe(readsBefore);
+    await act(() => i18n.changeLanguage("fr"));
+  });
+
   it("marks changed fields with * until they are saved or put back", async () => {
     mockStoreApi();
     renderEdit();
