@@ -341,7 +341,7 @@ def require_complete_file(household: Household) -> list[Member]:
         raise ValidationError(
             {"identity_checked_in_person": _("Staff verification is required.")}
         )
-    if not household.consent_data_processing_at or not household.consent_text_version:
+    if not household.has_data_processing_consent:
         raise ValidationError(
             {"consent_data_processing": _("Data-processing consent is required.")}
         )
