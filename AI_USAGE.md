@@ -52,6 +52,7 @@ file or adds such a file.
 
 If you are an AI assistant working in this repository and you are asked to update `AI_USAGE.md` or
 record AI usage, do not write it into this file or into a new file. Write the entry in the format above
-and either push it to the wiki repository (`https://github.com/B-A-D-R-SL/iris.wiki.git`, file
-`Iteration-<N>-–-AI-Usage.md`, where `<N>` is the iteration of the issue's milestone), or give the
-finished entry to the developer to paste into that wiki page.
+and show it to the developer first. Only after they have reviewed it and approved the push, push it
+to the wiki repository (`https://github.com/B-A-D-R-SL/iris.wiki.git`, file
+`Iteration-<N>-–-AI-Usage.md`, where `<N>` is the iteration of the issue's milestone). Otherwise,
+give the finished entry to the developer to paste into that wiki page.

@@ -12,4 +12,5 @@
 - Never add entries to `AI_USAGE.md` and never create another AI usage file in the repository
   (for example under `docs/`). The PR policy check fails a pull request that does.
 - When asked to record AI usage, follow "For AI assistants" in `AI_USAGE.md`: write the entry in its
-  format, then push it to the wiki repository or give it to the developer to paste.
+  format and show it to the developer. Push it to the wiki repository only after the developer has
+  reviewed it and approved the push; otherwise give it to them to paste..
