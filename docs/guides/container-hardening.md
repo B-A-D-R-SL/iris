@@ -43,10 +43,25 @@ image files and Watch synchronization.
 
 ## Dependency installation and image contents
 
-The backend bootstraps pinned uv from wheels with pip's `--only-binary=:all:` and
-syncs the existing lock with `--frozen --no-install-project --no-build`. Source
-build scripts are disabled. Development dependencies remain available for the
-container-based checks documented in the [README](../../README.md).
+The backend Dockerfile provides two runnable targets. Compose explicitly builds
+`development`, which includes the locked development dependencies, test sources
+and repository tools needed by the [README checks](../../README.md).
+
+The last/default target is `runtime`, intended for staging web and worker
+processes. Build it with the usual command:
+
+```bash
+docker build --tag iris-backend:runtime backend
+```
+
+Dependency installation bootstraps pinned uv from wheels with
+`--only-binary=:all:`. The development target syncs with
+`--frozen --no-install-project --no-build`; the runtime build also uses `--no-dev`.
+The final runtime image copies the installed environment and application packages
+from intermediate stages. Application test directories, pytest configuration,
+repository tools, uv and dependency manifests stay outside its layers. Migrations,
+management commands, translations, notification templates and seed data remain available.
+Both targets keep packaged sources root-owned and read-only.
 
 The frontend bootstraps pinned pnpm with npm's `--ignore-scripts`, then installs
 the frozen project lock with pnpm's `--ignore-scripts`. The locked Vite/Rolldown
@@ -57,11 +72,12 @@ before allowing a package's build script, and document a necessary exception
 beside the installation command.
 
 Both Dockerfiles copy named source/configuration paths. Their `.dockerignore`
-files also exclude nested environment files, private keys, credential files,
-local dependencies, caches and generated output. Backend package resources,
-migrations, translations, templates and seed data remain included, along with
-the tools needed by the documented development commands. Real credentials must
-be supplied at runtime.
+files exclude nested environment files, private keys and credential files.
+Backend virtual environments and generated build, log, coverage and temporary
+outputs are excluded only at the context root; similarly named directories
+inside application packages remain available as resources. Python bytecode and
+tool caches remain excluded recursively. Real credentials must be supplied at
+runtime.
 
 ## Verification
 
@@ -82,11 +98,14 @@ and uses a unique Compose project so it can exercise file writes and Watch
 without changing the working checkout or
 the usual development project's data. It verifies the application images as
 their configured users, service startup, health/proxy responses, developer write
-paths and exclusion of synthetic credential canaries. Watch checks cover file
-addition, modification and deletion, plus frontend replacement after a dependency
-manifest changes. CI runs the same check in addition to the existing backend and
+paths and exclusion of synthetic credential canaries. It also builds the default
+runtime target separately, checks production startup without development tools,
+executes the production deployment check and seed commands against the disposable
+database, and verifies that nested application resource directories survive the
+build. Watch checks cover file addition, modification and deletion, plus frontend
+replacement after a dependency manifest changes. CI runs the same check in addition to the existing backend and
 frontend quality jobs. Local results and review corrections are recorded in
-[AI usage](../../AI_USAGE.md#fix-24-dockerfile-hardening-615).
+[the verification history](../05-process/ai-usage-verification-3.md#fix-24-dockerfile-hardening-615).
 
 HTTP probes are restricted to the disposable frontend's published
 `127.0.0.1` port and three fixed health/asset paths. The runner rejects non-loopback

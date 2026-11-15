@@ -15,9 +15,15 @@ settings, so the existing local development command is unchanged.
 The ASGI entry point still disables persistent database connections. WSGI still
 checks routes during startup before accepting requests.
 
-The backend image runs as the non-root `iris` account, including when used by a
-worker. Packaged source files and their parent directories are root-owned and
-read-only. Its virtual environment is installed under `/opt/iris-venv` and is
+The backend Dockerfile defaults to the `runtime` target for staging web and worker
+processes; Compose explicitly selects `development` for local checks. Runtime
+installs the frozen lock with `--no-dev` and includes application resources while
+omitting test sources, repository tools and the uv installer. Run management and
+worker commands with the preinstalled `python` environment on `PATH`.
+
+Both targets run as the non-root `iris` account. Packaged source files and their
+parent directories are root-owned and read-only. The virtual environment is
+installed under `/opt/iris-venv` and is
 readable but not writable by the runtime account. Supply settings and secrets through
 runtime configuration, and keep temporary upload space writable. The
 [container hardening guide](container-hardening.md) describes image smoke checks

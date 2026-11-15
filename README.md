@@ -95,6 +95,10 @@ photo-demo output through the source bind mount. See the
 [container hardening guide](docs/guides/container-hardening.md) for image contents,
 dependency installation, permission handling and smoke checks.
 
+Compose builds the backend's `development` target so its test and lint tools stay
+available. A normal backend Docker build produces the smaller `runtime` target
+for staging, with application resources and runtime dependencies.
+
 | Service | Internal Port | Host Port |
 | --- | --- | --- |
 | Frontend | 5173 | 5174 |

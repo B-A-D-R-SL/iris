@@ -41,6 +41,7 @@ services:
   backend:
     build:
       context: ./backend
+      target: development
       args:
         APP_UID: ${IRIS_UID:-1000}
         APP_GID: ${IRIS_GID:-1000}
@@ -130,6 +131,7 @@ services:
   worker:
     build:
       context: ./backend
+      target: development
       args:
         APP_UID: ${IRIS_UID:-1000}
         APP_GID: ${IRIS_GID:-1000}

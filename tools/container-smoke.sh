@@ -41,7 +41,8 @@ cleanup() {
     if [[ -f "$smoke_dir/watch.log" ]]; then cat "$smoke_dir/watch.log"; fi
   fi
   compose down --volumes --remove-orphans
-  docker image rm "$project-backend" "$project-worker" "$project-frontend" 2>/dev/null
+  docker image rm "$project-backend" "$project-worker" "$project-frontend" \
+    "$project-runtime" 2>/dev/null
   rm -rf -- "$smoke_dir"
   exit "$status"
 }
@@ -81,6 +82,29 @@ prepare_contexts() {
   printf 'synthetic-only\n' > "$smoke_dir/frontend/src/iris-smoke-canary.key"
   printf 'synthetic-only\n' > "$smoke_dir/frontend/node_modules/iris-smoke-canary"
   printf 'synthetic-only\n' > "$smoke_dir/frontend/dist/iris-smoke-canary"
+  prepare_package_resources
+}
+
+prepare_package_resources() {
+  local directory
+  for directory in env build logs temp coverage tmp; do
+    mkdir -p "$smoke_dir/backend/modules/common/$directory"
+    printf 'synthetic-package-resource\n' \
+      > "$smoke_dir/backend/modules/common/$directory/iris-smoke-preserved.txt"
+  done
+}
+
+check_backend_resources() {
+  docker run --rm --network none --entrypoint sh "$1" -ec '
+    for directory in env build logs temp coverage tmp; do
+      test "$(cat "/app/modules/common/$directory/iris-smoke-preserved.txt")" = synthetic-package-resource
+    done
+    for path in modules/categories/data/categories.yaml modules/eligibility/data/lico_2024.csv \
+      modules/accounts/locale/fr/LC_MESSAGES/django.mo modules/accounts/migrations/0001_initial.py \
+      modules/notifications/templates/notifications/message.html; do
+      test -s "/app/$path"
+    done
+  '
 }
 
 check_images() {
@@ -109,12 +133,77 @@ check_images() {
     done
     python -c "import django, PIL, psycopg; import pytest"
   '
+  check_backend_resources "$(compose images -q backend)"
   docker run --rm --entrypoint sh "$(compose images -q frontend)" -ec '
     test -f /app/scripts/gen-api.mjs && test -f /app/vite.config.ts
     for path in src/.env.smoke src/iris-smoke-canary.key node_modules/iris-smoke-canary dist/iris-smoke-canary; do
       test ! -e "/app/$path"
     done
   '
+}
+
+build_runtime_image() {
+  # No --target: this must exercise the Dockerfile default used by deployments.
+  docker build "$@" --build-arg "APP_UID=$IRIS_UID" --build-arg "APP_GID=$IRIS_GID" \
+    --tag "$project-runtime" "$smoke_dir/backend"
+}
+
+check_runtime_files() {
+  docker run --rm --network none --entrypoint sh "$project-runtime" -ec '
+    test "$(id -u)" -ne 0
+    touch "$HOME/iris-smoke-write" /tmp/iris-smoke-write
+    test ! -w /opt/iris-venv
+    for path in /app /app/manage.py /app/iris /app/iris/settings; do
+      test "$(stat -c %u "$path")" -eq 0 && test ! -w "$path"
+    done
+    if (printf "# smoke mutation\n" >> /app/manage.py) 2>/dev/null; then exit 1; fi
+    if chmod u+w /app/manage.py 2>/dev/null; then exit 1; fi
+    if rm /app/manage.py 2>/dev/null; then exit 1; fi
+    for path in tests tools conftest.py photos.ini pyproject.toml uv.lock .python-version \
+      .env .env.smoke .git/iris-smoke-canary coverage/iris-smoke-canary \
+      iris/.env.smoke iris/iris-smoke-canary.key iris/__pycache__/iris-smoke-canary.pyc; do
+      test ! -e "/app/$path"
+    done
+    test -z "$(find /app -type d -name tests -print -quit)"
+    if command -v uv > /dev/null 2>&1; then exit 1; fi
+  '
+  check_backend_resources "$project-runtime"
+}
+
+runtime_python() {
+  local network=$1 database=$2
+  shift 2
+  docker run --rm --network "$network" --entrypoint python \
+    -e DJANGO_SETTINGS_MODULE=iris.settings.production \
+    -e DJANGO_SECRET_KEY=container-smoke-production-only-key-0123456789-ABCDEF \
+    -e DJANGO_ALLOWED_HOSTS=iris.example \
+    -e "DATABASE_URL=$database" \
+    -e MAILER_ADAPTER=smtp -e EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend \
+    -e DEFAULT_FROM_EMAIL=noreply@iris.example -e PUBLIC_APP_ORIGIN=https://iris.example \
+    "$project-runtime" "$@"
+}
+
+check_runtime_libraries() {
+  runtime_python none postgresql://iris:iris_smoke_only@127.0.0.1:1/iris -c '
+import importlib.util
+from pathlib import Path
+import django, PIL, psycopg
+
+for module in ("pytest", "ruff", "mypy", "factory", "faker", "pip_audit", "uv"):
+    assert importlib.util.find_spec(module) is None, module
+for path in (Path("/app"), *Path("/app").rglob("*")):
+    assert path.stat().st_uid == 0 and path.stat().st_mode & 0o222 == 0, path
+django.setup()
+from django.db import connections
+assert all(connection.connection is None for connection in connections.all())
+'
+}
+
+check_runtime_services() {
+  local database="postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@db:5432/$POSTGRES_DB"
+  runtime_python "${project}_default" "$database" manage.py check --deploy --fail-level WARNING
+  runtime_python "${project}_default" "$database" manage.py seed_rules
+  runtime_python "${project}_default" "$database" manage.py seed_categories
 }
 
 set_frontend_port() {
@@ -270,9 +359,14 @@ main() {
   compose build "${build_args[@]}" backend frontend worker
   compose create --no-build
   check_images
+  echo 'Checking the default backend runtime image without development dependencies.'
+  build_runtime_image "${build_args[@]}"
+  check_runtime_files
+  check_runtime_libraries
   echo 'Starting all six services and checking non-root tools and proxy traffic.'
   compose up -d
   check_services
+  check_runtime_services
   check_tools
   check_frontend_coverage
   echo 'Checking frontend Watch synchronization of added, changed and removed files.'
