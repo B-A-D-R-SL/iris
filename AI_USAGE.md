@@ -1,4 +1,23 @@
 <!-- AI contribution: 50% or more AI-generated -->
+
+<!-- FIX-08 synchronization with main, 14 November 2026: resolved five conflicts
+against 27946c1, retained US-18 approvals/FIX-14 contact tests and unified the
+workflow/API docs. Approval assertions now distinguish submission, eligibility
+and outcome audits, including rollback and concurrency. The actor constraint is
+added NOT VALID and validated after committing its brief lock; fixtures use
+factories. Validation: 546 selected backend cases passed (545 in the suite and
+the corrected import case on retry), 62 frontend cases passed; Ruff, mypy,
+four import contracts, Django/migration checks, API drift and frontend build
+passed. The resolved merge is left for the owner's commit/push and remote CI. -->
+
+<!-- FIX-08 review verification, 14 November 2026: 288 targeted PostgreSQL tests
+and 973 related household/store/rule/access tests passed; 55 frontend tests passed.
+Audit/eligibility branch coverage: 94.90%. Ruff, mypy (434 sources), all four
+import contracts, Django/schema checks, frontend types/lint/format/build and
+offline PR policy passed. All 55 original split-file tests were retained once.
+The unchanged HTTP load benchmark and optional slow-expiry case were excluded.
+PR metadata and issue links were updated; commit/push, remote CI and post-merge
+signed-off remain owner actions. No review replies were posted by Codex. -->
 # AI usage
 
 How the Iris team uses generative AI, as required by the course rubric. This file stays up to date every iteration.
@@ -39,6 +58,7 @@ One row per substantive feature where AI generated a meaningful part of the impl
 
 | Feature (issue) | Files | Level | Pull request |
 | --- | --- | --- | --- |
+| FIX-08 Household access and eligibility audit (#634) | `backend/modules/audit/{models.py,services.py,api/serializers.py,migrations/0006_household_events_and_system_actor.py,migrations/0007_enforce_system_actor.py,tests/,locale/fr/LC_MESSAGES/,README.md}`, `backend/modules/households/{services.py,api/views.py,tests/factories.py,tests/test_walk_in_audit.py,tests/approval/{helpers,test_outcomes,test_side_effects}.py,README.md}`, `backend/modules/eligibility/{queries.py,services.py,tests/,README.md}`, `backend/pyproject.toml`, `frontend/src/areas/staff/pages/{Audit.test.tsx,AuditComponents.tsx,auditHelpers.ts,WalkIn/WalkIn.tsx,WalkIn/WalkIn.test.tsx}`, `frontend/src/shared/i18n/{en,fr}/staff.json`, `docs/02-requirements/business-rules.md`, `docs/03-design/{api,household-api}.md`, `docs/04-architecture/{architecture,architecture-workflows,workflow-diagrams}.md`, `AI_USAGE.md`; generated API types | 50% or more AI-generated (OpenAI Codex; audit migrations explicitly declared; compiled catalog and generated API types exempt) | [#701](https://github.com/B-A-D-R-SL/iris/pull/701); review fixes validate saved automatic decisions, enforce database actor consistency, prevent background detail refetches, translate errors and split oversized tests/docs |
 | FIX-14 Shared contact rules and auth/store cleanup (#640) | `backend/modules/common/`, `backend/iris/observability.py`, household/store models, serializers, admin and contact tests; shared JSON contact fixtures; frontend form normalizers/fields/tests, auth API/context/provider, sign-in/sign-out, translations and ESLint exemption; contact/auth/architecture/observability documentation and implementation draft. Review fixes add private rejection diagnostics and exact paste-retention assertions. New migrations update validator state without rewriting data. | 50% or more AI-generated (OpenAI Codex; generated migrations exempt) | [#702](https://github.com/B-A-D-R-SL/iris/pull/702) |
 | US-18 review fixes by Massimo on PR #698 (#466, #468) | `backend/modules/households/{services,notice_services,_approval}.py`, `backend/modules/households/README.md`, `backend/modules/households/tests/test_walk_in_notice_safety.py`, `backend/modules/documents/{services,messages}.py`, `backend/modules/documents/domain/notice.py`, `backend/modules/documents/README.md`, `backend/modules/documents/locale/fr/LC_MESSAGES/django.po`, `backend/modules/documents/tests/{test_notice_rules,test_notice_rule_limits}.py`, `backend/modules/rules/{domain/schemas.py,tests/test_schemas.py}`, `backend/modules/accounts/queries.py`, `backend/tests/test_file_store.py`, `frontend/src/areas/staff/pages/WalkIn/NoticesDecision.test.tsx`, `frontend/src/shared/i18n/{en,fr}/staff.json`, `docs/02-requirements/business-rules.md`, `AI_USAGE.md` | 50% or more AI-generated; compiled catalog exempt | The US-18 pull request into `main` (#698) |
 | US-18 CodeRabbit fixes on PR #698 (#466, #470) | `backend/.env.example`, `backend/adapters/file_store/azure_blob.py`, `backend/tests/test_file_store.py`, `backend/modules/documents/tests/{test_notice_rules,test_income_notice_model,test_record_notice,test_file_link_api}.py`, `backend/modules/rules/tests/test_schemas.py`, `frontend/src/areas/staff/pages/WalkIn/{Notices,Notices.test}.tsx`, `backend/modules/households/{queries,services}.py`, `backend/modules/households/README.md`, `backend/modules/households/tests/{conftest,test_submission,test_submission_api,test_submission_concurrency,test_household_size}.py`, `docs/02-requirements/business-rules.md`, `docs/04-architecture/architecture.md`, `AI_USAGE.md` | 50% or more AI-generated | The US-18 pull request into `main` (#698) |

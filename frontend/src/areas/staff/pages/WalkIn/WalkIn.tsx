@@ -62,6 +62,9 @@ function WalkInLoader({ id }: { id: string | undefined }) {
     queryFn: () => getWalkIn(id ?? "", language),
     enabled: Boolean(id),
     staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
   });
 
   if (!id) return <WalkInForm draft={null} />;
