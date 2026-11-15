@@ -1,9 +1,38 @@
 # AI contribution: 50% or more AI-generated
-node_modules/
-dist/
-coverage/
-.env
-.env.*
-.git/
-.idea/
-.vscode/
+# Dependencies, generated output, and local caches at any depth.
+**/node_modules
+**/dist
+**/dist-ssr
+**/coverage
+**/.pnpm-store
+**/.npm
+**/.cache
+**/.vite
+**/.vite-temp
+**/*.log
+usability-runs.jsonl
+
+# Local configuration, credentials, and private keys must stay outside the image.
+**/.env
+**/.env.*
+**/.npmrc
+**/.netrc
+**/.pypirc
+**/.ssh
+**/.aws
+**/.azure
+**/.secrets
+**/secrets
+**/credentials.json
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.jks
+**/*.keystore
+
+# Repository metadata and editor state.
+**/.git
+**/.idea
+**/.vscode
+**/.DS_Store
