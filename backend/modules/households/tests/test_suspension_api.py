@@ -80,9 +80,9 @@ def test_admin_suspends_and_reactivates_with_audits_br_hh_suspend_001() -> None:
     assert household.status_reason == ""
     assert household.expires_at == expiry
     assert list(
-        AuditEvent.objects.filter(target_id=str(household.pk)).values_list(
-            "action", "metadata"
-        )
+        AuditEvent.objects.filter(target_id=str(household.pk))
+        .order_by("created_at", "pk")
+        .values_list("action", "metadata")
     ) == [
         ("suspend", {"reason": "Safety review"}),
         ("reactivate", {"reason": "Review completed"}),
