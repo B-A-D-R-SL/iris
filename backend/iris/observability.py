@@ -59,6 +59,22 @@ _REASON_CODES = frozenset(
         "listing_rules_missing",
         "posting_rules_invalid",
         "safety_rules_invalid",
+        "email_already_registered",
+    }
+)
+_WALK_IN_EVENTS = frozenset({"walk_in_decision", "walk_in_invitation_skipped"})
+_WALK_IN_OUTCOMES = frozenset({"approved", "rejected", "review_required"})
+_WALK_IN_REASON_CODES = frozenset(
+    {
+        "ADDRESS_MISMATCH",
+        "DID_NOT_FILE",
+        "INCOME_ABOVE_LICO",
+        "INCOME_NOT_CONFIRMED",
+        "NAME_MISMATCH",
+        "NOTICE_MISSING",
+        "NOTICE_NOT_SEEN",
+        "POSSIBLE_DUPLICATE",
+        "TAX_YEAR_NOT_ACCEPTED",
     }
 )
 _SESSION_CHECK_PATH = "/api/auth/browser/v1/auth/session"
@@ -292,6 +308,31 @@ def _add_listing_fields(
             payload[field] = str(value)
 
 
+def _add_walk_in_fields(
+    payload: dict[str, str | int], record: logging.LogRecord, event: str
+) -> None:
+    """Allow an opaque household ID, a fixed outcome and registered reason codes."""
+    if record.name != "iris.households" or event not in _WALK_IN_EVENTS:
+        return
+    household_id = getattr(record, "household_id", None)
+    if isinstance(household_id, UUID):
+        payload["household_id"] = str(household_id)
+    if event != "walk_in_decision":
+        return
+    outcome = getattr(record, "outcome", None)
+    if isinstance(outcome, str) and outcome in _WALK_IN_OUTCOMES:
+        payload["outcome"] = outcome
+    codes = getattr(record, "reason_codes", None)
+    if (
+        isinstance(codes, tuple)
+        and codes
+        and all(
+            isinstance(code, str) and code in _WALK_IN_REASON_CODES for code in codes
+        )
+    ):
+        payload["reason_codes"] = ",".join(codes)
+
+
 class JsonLogFormatter(logging.Formatter):
     """Serialize an allowlist of fields instead of arbitrary log message text."""
 
@@ -317,6 +358,7 @@ class JsonLogFormatter(logging.Formatter):
         _add_eligibility_fields(payload, record, event)
         _add_partner_application(payload, record, event)
         _add_listing_fields(payload, record, event)
+        _add_walk_in_fields(payload, record, event)
         return json.dumps(payload, separators=(",", ":"))
 
 

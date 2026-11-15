@@ -140,6 +140,39 @@ Eligibility, ownership and stock decisions remain on the backend.
 
 Adapters keep provider-specific calls outside `domain/`.
 
+### Notice files (T-03.18.2)
+
+`file_store` (`backend/adapters/file_store/`) stores notices of assessment in
+one private container under random names (`income-notices/<uuid>`); the
+container has no public access (an existing container that allows public access
+is refused before any upload) and Iris never hands out a storage URL. Staff
+open a file in two steps: `GET /api/staff/notices/{id}/file/` returns a link to
+Iris itself, signed for that staff user and valid `notice_upload.link_minutes`
+(5) as set when the link is issued; `GET /api/staff/notice-files/{token}/`
+checks the user's session and the link, reads the whole file from storage and
+returns it as an attachment. The `FILE_STORE_BACKEND` setting selects Azure Blob
+(Azurite in Docker Compose) or the in-memory fake used by tests; the store is
+built once per process (`adapters/file_store/registry.py`). Without storage,
+uploads and downloads answer 503 `storage_unavailable`; without the
+`notice_upload` rule they answer 503 `notice_settings_missing`. Who may use these
+endpoints is one rule, `accounts.queries.is_intake_staff`.
+
+**Performance:** files are at most `notice_upload.max_bytes` (10 MB) and pass
+through Django on upload and download; a download holds the whole file in memory
+while it is sent. Only intake workers and admins use these endpoints, a few
+notices per household visit, so this load is small for one App Service
+instance. Notice validation and Blob Storage upload happen before the household
+row is locked. The service then locks and rechecks the draft and adult before
+saving the notice and draft history in one transaction; a save failure rolls
+back those writes and invokes prepared-file cleanup. Only the final database
+writes hold the household lock, so storage retries do not block draft edits.
+Django parses the multipart request first (large parts go to a temporary file),
+then Iris reads at most one byte over the limit, so an
+oversized file is refused before anything reaches Blob Storage; the reverse
+proxy's request-size limit bounds the request itself. If online registration
+(US-21) raises the volume, direct uploads to Blob Storage with short-lived write
+tokens are the next step.
+
 The later `document_reader` interface is not invoked by the Release 1
 staff-entry flow. Its interface and the provider comparison are in
 [ADR 0005](../adr/0005-notice-reading.md); US-22 builds it in

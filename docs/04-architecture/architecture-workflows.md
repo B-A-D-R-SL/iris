@@ -16,7 +16,10 @@ Release 1.
 US-17 built the first part (draft creation and step-by-step saving,
 React screens at `/staff/walk-in`). Its creation and edit events are
 recorded locally in `HouseholdDraftEvent` until the central audit log
-(US-62) supports them. The notices and approval part is US-18.
+(US-62) supports them. The notices and approval part is US-18: the notices
+screen (`/staff/walk-in/{id}/notices`, T-03.18.4) shows one card per adult and a
+decision summary whose "Approve the file" button calls
+`POST /api/staff/households/{id}/approve/`, which runs `approve_walk_in` (#469).
 
 
 ```mermaid
@@ -39,16 +42,35 @@ sequenceDiagram
 
     loop Each later step (address, members, review)
         IW->>H: update_draft(id, step values)
-        H->>H: Save draft changes, replace other members
+        H->>H: Save draft changes, retain unchanged member records
         H->>H: Record HouseholdDraftEvent "updated"
     end
 
+    IW->>H: Open /staff/walk-in/{id}/notices: GET /api/staff/households/{id}/notices/
+    H->>D: current_notices(members)
+    H-->>IW: Saved notices; one card per adult (18 or older), saved ones shown as recorded
+
     loop Each adult
-        IW->>D: Record staff-entered notice or non-filing reason
-        D->>D: Save evidence and private file reference when supplied
+        IW->>IW: Photograph the notice (camera) or choose a file, type tax year and line-199 income, or tick "did not file" with a reason
+        IW->>H: POST /api/staff/households/{id}/notices/ (multipart) → record_walk_in_notice(id, member, values or reason, file)
+        H->>H: Check the draft and adult membership before storing anything
+        H->>D: prepare_staff_notice(values, file, staff)
+        D->>D: Check notice rules and store the optional file privately, without a household lock
+        D-->>H: Prepared notice
+        H->>H: Lock the draft and recheck adult membership
+        Note over H,D: Notice and draft-history writes share one transaction
+        H->>H: Record HouseholdDraftEvent "updated"
+        H->>D: save_prepared_notice(member, prepared, staff)
+        D->>D: Supersede the current notice and save the prepared entry
+        Note over H,D: A save failure rolls back writes and invokes discard_prepared_notice
+        H-->>IW: 201 recorded notice; the decision summary marks the adult
     end
 
-    IW->>H: approve_walk_in()
+    IW->>H: "Submit the file" (every adult has a notice or reason): POST /api/staff/households/{id}/submit/ → submit_walk_in()
+    H->>H: Lock duplicate keys and check for a possible duplicate (US-25)
+    H-->>IW: submitted, or review_required with POSSIBLE_DUPLICATE; approval is offered only for submitted files
+
+    IW->>H: "Approve the file": POST /api/staff/households/{id}/approve/ → approve_walk_in() (400 while still a draft)
     H->>H: Check completeness, verification and duplicate flags
 
     rect rgb(24, 42, 62)
@@ -57,14 +79,14 @@ sequenceDiagram
         H->>H: Prepare household and member decision inputs
         H->>D: Read recorded income evidence through public query
         D-->>H: Income evidence and verification status
-        H->>E: decide_for_household(household_id, decision_inputs)
+        H->>E: decide_for_household(household_id, staff)
         E->>E: Save decision inputs, result and applied rule version
         E-->>H: Eligibility result and threshold
 
         alt Eligible, verified and no review reason
             H->>H: Save approval and validity dates
 
-            opt Holder has email and account setup is needed
+            opt Holder has email and no existing account
                 H->>AC: Prepare set-password invitation
             end
 
@@ -82,7 +104,7 @@ sequenceDiagram
         H-->>N: Queue setup email after commit
     end
 
-    H-->>IW: Return saved outcome and permitted explanation
+    H-->>IW: 200 {status, status_reason, approved_at, expires_at, invitation_not_sent}; the screen explains each reason
 
     opt Invitation email queued
         N-->>HC: Deliver setup link independently

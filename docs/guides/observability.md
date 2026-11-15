@@ -119,6 +119,18 @@ other paths and other 4xx responses keep WARNING; 5xx responses keep ERROR.
 `django.server` in `iris/settings/base.py` to avoid duplicate warnings.
 
 
+## Walk-in decision events (US-18)
+
+`iris.households` emits `walk_in_decision` at INFO after the approval
+transaction commits. The formatter keeps `household_id` (a validated UUID),
+`outcome` (`approved`, `rejected` or `review_required`) and `reason_codes`, a
+comma-separated list written only when every code is a registered review or
+rejection code (for example `NAME_MISMATCH` or `INCOME_ABOVE_LICO`); an approval
+has no codes. `walk_in_invitation_skipped` keeps `household_id` and the reason
+`email_already_registered`. These fields are allowed only for these two events;
+names, incomes, emails and staff identifiers are never written. A rolled-back
+approval emits no event.
+
 ## Listing posting events (FIX-01)
 
 `iris.listings` emits `listing_published` at INFO after transaction commit,

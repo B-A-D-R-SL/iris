@@ -397,3 +397,73 @@ def test_eligibility_fields_reject_values_outside_the_allowlist(field, value):
     payload = json.loads(JsonLogFormatter().format(record))
 
     assert set(payload) == {"timestamp", "level", "logger", "event"}
+
+
+def _walk_in_record(event: str, **fields: object) -> logging.LogRecord:
+    return logging.makeLogRecord({"name": "iris.households", "event": event, **fields})
+
+
+def test_walk_in_decision_keeps_its_codes_and_drops_personal_details():
+    record = _walk_in_record(
+        "walk_in_decision",
+        household_id=UUID(int=14),
+        outcome="review_required",
+        reason_codes=("ADDRESS_MISMATCH", "NAME_MISMATCH"),
+        email="private@example.test",
+        msg="Private Person needs review",
+    )
+
+    payload = json.loads(JsonLogFormatter().format(record))
+
+    assert payload == {
+        "timestamp": payload["timestamp"],
+        "level": payload["level"],
+        "logger": "iris.households",
+        "event": "walk_in_decision",
+        "household_id": str(UUID(int=14)),
+        "outcome": "review_required",
+        "reason_codes": "ADDRESS_MISMATCH,NAME_MISMATCH",
+    }
+
+
+def test_walk_in_invitation_skip_keeps_the_household_and_reason():
+    record = _walk_in_record(
+        "walk_in_invitation_skipped",
+        household_id=UUID(int=15),
+        reason="email_already_registered",
+        outcome="approved",
+    )
+
+    payload = json.loads(JsonLogFormatter().format(record))
+
+    assert payload["household_id"] == str(UUID(int=15))
+    assert payload["reason"] == "email_already_registered"
+    assert "outcome" not in payload
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("household_id", "Private Person"),
+        ("outcome", "Private Person was approved"),
+        ("reason_codes", ("NAME_MISMATCH", "Private Person")),
+        ("reason_codes", "NAME_MISMATCH"),
+        ("reason_codes", ()),
+    ],
+)
+def test_walk_in_fields_reject_values_outside_the_allowlist(field, value):
+    payload = json.loads(
+        JsonLogFormatter().format(_walk_in_record("walk_in_decision", **{field: value}))
+    )
+
+    assert set(payload) == {"timestamp", "level", "logger", "event"}
+
+
+def test_other_household_events_cannot_expose_walk_in_fields():
+    record = _walk_in_record(
+        "household_suspended", household_id=UUID(int=16), outcome="approved"
+    )
+
+    payload = json.loads(JsonLogFormatter().format(record))
+
+    assert set(payload) == {"timestamp", "level", "logger", "event"}
