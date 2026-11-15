@@ -4,6 +4,22 @@
 
 [Contribution inventory and declaration rules](../../AI_USAGE.md).
 
+### FIX-06 Remove TODO-only scaffolding and unused code (#632)
+
+- **Developer direction and AI assistance:** Ryan Cheung asked Claude Code (Anthropic) to carry out FIX-06 against the current `main`, since the issue was two weeks old and new code had landed. Claude Code surveyed the stubs, unused code and vulture findings and proposed what to change and what to keep. Ryan chose to keep the inert prohibited-items link from US-34 with a plain note instead of a TODO, chose to explain vulture's false positives in the pull request rather than in code comments, reviewed each change and approved the commits. Ryan then had Claude Code check CodeRabbit's review of PR #712 and decided which findings to fix.
+- **What the AI produced:**
+  - Deleted 47 TODO-only backend files and the empty `api/`, `domain/` and `tests/` packages they left. Rewrote the priority, review, reporting and privacy READMEs to list the stories that will add their files, and removed README entries for deleted files.
+  - Removed `health.ts`, `icons.svg`, `@emotion/react` (lock file regenerated with pnpm 10.34.6), the `backend_health_unavailable` logger event, and `deactivate_category` and `get_active_category` with their tests.
+  - Split `CategoriesPage` into `useCategoryActions`, `CategoryTable` and `DeactivateCategoryModal`. Added `[tool.vulture]` to `backend/pyproject.toml`, added `backend/tests/test_no_scaffolding.py`, and updated `docs/guides/reference-module.md`.
+  - After CodeRabbit's review: another category's deactivation confirmation now stays open when a reactivation ends (`ffff0ea`, with refusal-message tests), the guard test is checked on sample files (`6101fe5`), and the root-level vulture command is documented (`a299a48`).
+- **Problems found and corrected:**
+  - Two files were kept to avoid conflicts with open pull requests: `stores/domain/__init__.py` (PR #710) and `eligibility/queries.py` (PR #701). The guard test's exception for the second was removed once #701 merged.
+  - `prettier --write` on Windows rewrote the line endings of seven category files that were not part of the change. They were restored.
+  - The first split left `CategoryTable` at 52 lines (ESLint limit 50) and a type error on the request language. Both were fixed before committing.
+  - Two staged deletions landed in the wrong local commit. The commits were not yet pushed, so they were redone so each holds its own files.
+  - CodeRabbit's suggestions to have the API decide which category buttons to show, and to restore tests for the deleted helpers, were declined with reasons on the pull request.
+- **How we verified it:** frontend typecheck, ESLint, Prettier and all 914 Vitest tests passed. Backend ruff, mypy, import-linter (4 of 4 contracts), `manage.py check`, `makemigrations --check` and vulture (no findings) passed. The guard test was shown to fail on a temporary TODO-only stub, and the new confirmation test to fail without its fix. The local backend suite had 44 failures in Docker that also fail on `main` (email, file store and load-timing tests). On PR #712 all CI checks passed, including the full backend suite.
+
 ### US-18 review fixes by Massimo on PR #698 (#466, #468)
 
 - **Developer direction and AI assistance:** Massimo Paolini reviewed PR #698 with Claude Code (Anthropic) against the course rubric and the team's review rules. He decided which findings to fix himself: those in his own T-03.18.2 notice code, and the last small items after Ammar's second round. Claude Code wrote each fix test-first; Massimo chose the fixes and pushed the commits from his account.

@@ -83,10 +83,12 @@ paths = ["."]
 exclude = [".venv/", "htmlcov/", "migrations/"]
 min_confidence = 80
 ignore_names = [
-    # Overrides that must keep the parent's signature:
-    # AuthCache._cull(..., num) and NoticeFileDownloadView.perform_content_negotiation(..., force).
+    # Parameters a signature requires but the body does not read:
+    # AuthCache._cull(..., num) and NoticeFileDownloadView.perform_content_negotiation(..., force)
+    # override Django methods; the iris/release.py signal handlers must accept (signum, frame).
     "num",
     "force",
+    "frame",
     # Pytest fixtures requested only for their setup (rules published, clock or
     # password patched, rows seeded); the test never reads the value.
     "frozen_clock",
