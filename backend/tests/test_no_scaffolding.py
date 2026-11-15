@@ -10,16 +10,10 @@ from pathlib import Path
 
 MODULES = Path(__file__).resolve().parent.parent / "modules"
 
-# Open PR #701 (FIX-08) fills this file; deleting it here would conflict.
-# Remove this exception once #701 merges.
-PENDING = {MODULES / "eligibility" / "queries.py"}
-
 
 def _module_sources() -> list[Path]:
     return sorted(
-        path
-        for path in MODULES.rglob("*.py")
-        if "migrations" not in path.parts and path not in PENDING
+        path for path in MODULES.rglob("*.py") if "migrations" not in path.parts
     )
 
 
