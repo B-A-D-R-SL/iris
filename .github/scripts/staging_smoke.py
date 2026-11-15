@@ -2,11 +2,14 @@
 """Verify the new release, worker/DB readiness, SPA deep links and static assets."""
 
 import json
+import logging
 import re
 import sys
 import time
 from urllib.error import URLError
 from urllib.request import Request, urlopen
+
+logger = logging.getLogger(__name__)
 
 
 def _get(url: str, *, deadline: float) -> bytes:
@@ -54,13 +57,32 @@ def smoke(
             if time.monotonic() > deadline:
                 raise TimeoutError("Staging startup deadline expired.")
             return
-        except (URLError, OSError, ValueError):
+        except (URLError, OSError, ValueError) as error:
+            logger.warning(
+                "Staging smoke attempt %d failed (%s).",
+                attempt,
+                type(error).__name__,
+                extra={
+                    "event": "staging_smoke_attempt_failed",
+                    "attempt": attempt,
+                    "error_type": type(error).__name__,
+                },
+            )
             remaining = deadline - time.monotonic()
             if remaining <= 0 or (attempts is not None and attempt >= attempts):
                 raise RuntimeError("Staging release smoke check failed.") from None
             time.sleep(min(5, remaining))
+    logger.error(
+        "Staging smoke startup deadline expired.",
+        extra={
+            "event": "staging_smoke_failed",
+            "attempt": attempt,
+            "error_type": "TimeoutError",
+        },
+    )
     raise RuntimeError("Staging release smoke check failed.")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format="%(message)s")
     smoke(sys.argv[1].rstrip("/"), sys.argv[2])

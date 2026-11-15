@@ -1,6 +1,12 @@
 <!-- AI contribution: 50% or more AI-generated -->
 # SET-17 AI assistance: verification and corrections
 
+### SET-17 PR #700 remaining pre-merge findings (15 November 2026)
+
+- Checked the pushed `73beac4` against CodeRabbit's retained pre-merge report: the two size findings and five absent-file claims refer to the previous range. CI is 445 lines, architecture is 447, and all five declared files exist in the pushed PR diff.
+- Added structured stdlib logging for every failed smoke attempt and deployment-gate refusal. Records include an event, exception type and attempt where applicable; raw exception messages, response bodies, URLs and tokens are excluded. GitHub error annotations remain on stderr, and the 600-second deadline is unchanged. Four logging regressions cover recovered retries, final failures, elapsed deadlines and safe refusal diagnostics; missing-log cases failed before implementation, and all 65 script tests pass after the fix.
+- Clarified the existing interrupted-delivery behavior under BR-NOTIF-001, added matching rule tags to real-queue recovery tests and linked the notification README to that rule. Independent review found no blocking issue. The remote CodeRabbit review remains rate-limited; local verification does not claim a new remote pass. No commit, push, Azure change or bot message was performed by Codex.
+
 ### SET-17 PR #700 merge and size-check repair (15 November 2026)
 
 - Merged current main while retaining its architecture workflow split and AI history. Moved the release-image CI job unchanged into a reusable workflow; all changed non-generated files remain within 500 lines. Updated architecture and API documentation for pending staging hosting, the Canada East production target, implemented process supervision and public staging readiness.

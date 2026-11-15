@@ -46,6 +46,7 @@ def _recover():
     async_to_sync(recover)()
 
 
+# rule: BR-NOTIF-001 — ambiguous sends become terminal; pending/retrying sends retain delivery.
 @pytest.mark.parametrize("state", EmailLog.Status.values)
 def test_real_queue_recovery_reconciles_only_sending_and_prevents_duplicates(state):
     accepted = timezone.now() if state == EmailLog.Status.SENT else None
@@ -77,6 +78,7 @@ def test_real_queue_recovery_reconciles_only_sending_and_prevents_duplicates(sta
         assert len(get_fake_mailer().sent) == 1
 
 
+# rule: BR-NOTIF-001 — legacy abandoned sends have unknown outcomes and must not resend.
 def test_legacy_email_with_unknown_outcome_is_failed_without_resend():
     job_id = send_household_status_email.defer(
         email="legacy@example.test", subject="Fictional", body="Fictional"
@@ -87,6 +89,7 @@ def test_legacy_email_with_unknown_outcome_is_failed_without_resend():
     assert get_fake_mailer().sent == []
 
 
+# rule: BR-NOTIF-001 — unstarted queued delivery keeps its ordinary retry policy.
 def test_recovery_keeps_healthy_queued_jobs_untouched():
     log = EmailLog.objects.create(
         to_email="fictional@example.test", template_key="file_approved", language="en"
@@ -101,6 +104,7 @@ def test_recovery_keeps_healthy_queued_jobs_untouched():
     assert log.attempts == 0
 
 
+# rule: BR-NOTIF-001 — recovery must reconcile ambiguous delivery before retrying its job.
 def test_reconciliation_failure_does_not_retry_or_expose_private_details():
     job = SimpleNamespace(
         task_name="notifications.send_email",
@@ -123,6 +127,7 @@ def test_reconciliation_failure_does_not_retry_or_expose_private_details():
     manager.retry_job.assert_not_awaited()
 
 
+# rule: BR-NOTIF-001 — a queue retry failure must not reopen an ambiguous delivery.
 def test_job_retry_failure_leaves_ambiguous_delivery_terminal():
     log = EmailLog.objects.create(
         to_email="fictional@example.test",

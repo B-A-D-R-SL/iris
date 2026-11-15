@@ -2,6 +2,7 @@
 """Refuse stale, foreign or untested deployments before any Azure access."""
 
 import json
+import logging
 import os
 import re
 import sys
@@ -10,6 +11,7 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 REPOSITORY = "B-A-D-R-SL/iris"
+logger = logging.getLogger(__name__)
 
 
 def _api(path: str) -> dict:
@@ -64,13 +66,19 @@ def main() -> int:
         )
         with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
             output.write(f"sha={sha}\n")
-    except (ValueError, KeyError, OSError, URLError):
-        print(
-            "::error::Deployment gate refused the revision or GitHub was unavailable."
+    except (ValueError, KeyError, OSError, URLError) as error:
+        logger.error(
+            "::error::Deployment gate refused the revision or GitHub was unavailable (%s).",
+            type(error).__name__,
+            extra={
+                "event": "staging_deployment_refused",
+                "error_type": type(error).__name__,
+            },
         )
         return 1
     return 0
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format="%(message)s")
     sys.exit(main())

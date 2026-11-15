@@ -374,3 +374,8 @@ establish exactly-once delivery. Legacy raw email jobs have no matching EmailLog
 and are failed instead of blindly retried. Recovery logs contain no job payloads,
 recipient, subject, message text or IDs. A failed native retry leaves reconciled
 ambiguous delivery terminal, and a future recovery pass can finish queue cleanup.
+
+This interrupted-delivery policy is traced to **BR-NOTIF-001** in the business-rule
+catalog and the tagged real-queue tests in `backend/tests/test_staging_recovery.py`.
+Confirmed transient failures retain the configured retry schedule; an abandoned
+send with an unknown provider outcome requires investigation and explicit reissue.
