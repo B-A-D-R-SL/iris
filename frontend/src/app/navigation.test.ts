@@ -50,7 +50,6 @@ describe("navFor follows the permission matrix (business-rules.md)", () => {
       expect(all).not.toContain(placeholder);
     }
     expect(all).not.toContain("/staff/review");
-    expect(all).not.toContain("/staff/stores");
   });
 });
 

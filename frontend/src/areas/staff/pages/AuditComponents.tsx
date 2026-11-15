@@ -111,6 +111,7 @@ export function AuditResultsTable({
                 <Table.Td>
                   {labels[event.target_type] ?? event.target_type}: {event.target_id}
                   {event.action === "rule_published" && <RuleDetails metadata={event.metadata} />}
+                  {event.target_type === "store" && <StoreDetails metadata={event.metadata} />}
                 </Table.Td>
                 <Table.Td>{outcome ? (labels[outcome] ?? outcome) : "—"}</Table.Td>
               </Table.Tr>
@@ -146,6 +147,33 @@ function RuleDetails({ metadata }: { metadata: unknown }) {
       {t("audit.search.ruleVersion", { version: metadata.version })})
     </>
   );
+}
+
+/** US-14 store events: the changed field names, or what a deactivation cancelled. */
+function StoreDetails({ metadata }: { metadata: unknown }) {
+  const { t } = useTranslation();
+  if (typeof metadata !== "object" || metadata === null) return null;
+  const values = metadata as Record<string, unknown>;
+  if (typeof values.fields === "string") {
+    return <> ({t("audit.search.storeFields", { fields: values.fields.split(",").join(", ") })})</>;
+  }
+  if (
+    typeof values.listings_cancelled === "number" &&
+    typeof values.reservations_cancelled === "number"
+  ) {
+    return (
+      <>
+        {" "}
+        (
+        {t("audit.search.storeCancelled", {
+          listings: values.listings_cancelled,
+          reservations: values.reservations_cancelled,
+        })}
+        )
+      </>
+    );
+  }
+  return null;
 }
 
 export function AuditPagination({

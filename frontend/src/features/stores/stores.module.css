@@ -1,0 +1,165 @@
+/* AI contribution: 50% or more AI-generated */
+/* Figma W7 cards: semantic raised surface, 8 px radius, 20 px padding. */
+.card {
+  width: 100%;
+  padding: 20px;
+  border-radius: 8px;
+  background: var(--iris-surface-raised);
+}
+
+.cardTitle {
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+}
+
+.eyebrow {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--iris-text-muted);
+}
+
+/* Two columns on a laptop, one under the other on a narrow tablet. */
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+/* Figma W7.1 / W7.2 heading: eyebrow, WF/Title 22/28, WF/Body muted, 6 px apart. */
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  margin: 0;
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 700;
+}
+
+.subtitle {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--iris-text-muted);
+}
+
+/* Figma W7.3 dialog: 560 px, 28 px padding, 8 px radius, soft shadow. */
+.dialogContent {
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.dialogHeader {
+  min-height: 0;
+  padding: 28px 28px 0;
+}
+
+.dialogTitle {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 700;
+}
+
+.dialogBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 28px 28px;
+}
+
+.bullets {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.bullets li::before {
+  content: "• ";
+}
+
+/* Figma W7.1 table (node 261:6370): white, 1 px border, 8 px radius; peach
+   header 12/16 semibold muted, 10 px tall padding; rows 14/20, 12 px padding;
+   16 px side padding and 12 px between columns. */
+.tableFrame {
+  overflow: hidden;
+  border: 1px solid var(--iris-border);
+  border-radius: 8px;
+  background: var(--iris-surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.table th,
+.table td {
+  padding: 12px 6px;
+  border: 0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.table th {
+  padding-block: 10px;
+  background: var(--iris-surface-raised);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--iris-text-muted);
+  text-transform: uppercase;
+}
+
+.table td {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--iris-text);
+}
+
+.table tbody tr {
+  border-top: 1px solid var(--iris-border);
+}
+
+.table th:first-child,
+.table td:first-child {
+  padding-left: 16px;
+}
+
+.table th:last-child,
+.table td:last-child {
+  padding-right: 16px;
+}
+
+.storeName {
+  font-weight: 600;
+}
+
+.editLink {
+  font-weight: 600;
+  color: var(--iris-primary);
+  text-decoration: underline;
+}
+
+/* Scrolls sideways on a narrow screen without reserving scrollbar space under
+   the last row (Mantine's Table.ScrollContainer adds that padding). */
+.tableScroll {
+  overflow-x: auto;
+}
+
+.tableScroll .table {
+  min-width: 640px;
+}
+
+/* Row hover, as Mantine's highlightOnHover did before. */
+.table tbody tr:hover {
+  background: var(--iris-default-hover);
+}
