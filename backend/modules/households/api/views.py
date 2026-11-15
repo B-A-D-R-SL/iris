@@ -99,10 +99,17 @@ class WalkInErrorHandlingMixin:
         return walk_in_exception_handler
 
 
-def record_file_view(request: Request, household_id: UUID) -> None:
-    """SEC-08: record who saw a walk-in file; a HEAD probe shows nothing."""
+def audited_file_response(request: Request, household_id: UUID, data: Any) -> Response:
+    """SEC-08: record who saw a walk-in file (a HEAD probe shows nothing).
+
+    Call it after the data is serialized. The response is never stored in a shared
+    or browser cache.
+    """
     if request.method == "GET":
         audit_services.record(request.user, "view", "household", household_id, {})
+    response = Response(data)
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 class IsIntakeWorkerOrAdmin(BasePermission):
@@ -210,10 +217,7 @@ class WalkInDetailView(WalkInErrorHandlingMixin, GenericAPIView):
             if household is None:
                 raise Http404
             data = self.get_read_serializer(household).data
-            record_file_view(request, household.pk)
-        response = Response(data)
-        response["Cache-Control"] = "private, no-store"
-        return response
+            return audited_file_response(request, household.pk, data)
 
     def get_read_serializer(self, household: Household) -> WalkInDraftReadSerializer:
         return WalkInDraftReadSerializer(

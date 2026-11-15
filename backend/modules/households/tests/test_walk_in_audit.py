@@ -1,6 +1,7 @@
 # AI contribution: 50% or more AI-generated
 """SEC-08/SEC-09: durable, transactional, personal-data-free walk-in audits."""
 
+from copy import deepcopy
 from uuid import uuid4
 
 import pytest
@@ -11,18 +12,26 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from adapters.file_store.memory import InMemoryFileStore
+from modules.accounts.tests.factories import UserFactory
 from modules.audit.queries import search_events
 from modules.households.api.serializers import WalkInDraftReadSerializer
 from modules.households.models import Household, HouseholdDraftEvent, Member
 from modules.households.services import create_walk_in, submit_walk_in, update_draft
 from modules.households.tests.factories import HouseholdFactory, WalkInPayloadFactory
 from modules.households.tests.notices.helpers import filed_notice, publish_notice_rule
+from modules.rules.domain.schemas import DEFAULT_RULE_VALUES
+from modules.rules.services import publish
 
 pytestmark = pytest.mark.django_db
-OPERATIONS = ["create", "view", "update", "submit", "notices", "record_notice"]
-# FIX-29: reading the notices shows the file; recording one changes it.
-EXPECTED_ACTION = {"notices": "view", "record_notice": "update"}
-READ_ROUTES = ["staff-households-detail", "staff-households-notices"]
+# FIX-29: each read shows the file (the notices and summary show income).
+READS = {
+    "view": "staff-households-detail",
+    "notices": "staff-households-notices",
+    "summary": "staff-households-decision-summary",
+}
+READ_ROUTES = list(READS.values())
+OPERATIONS = ["create", "update", "submit", "record_notice", *READS]
+EXPECTED_ACTION = {"notices": "view", "summary": "view", "record_notice": "update"}
 
 
 def notice_rows():
@@ -30,8 +39,11 @@ def notice_rows():
 
 
 @pytest.fixture(autouse=True)
-def _notice_rule():
+def _walk_in_rules():
+    """The notice limits and accepted tax years the notices and summary read."""
     publish_notice_rule()
+    rule = deepcopy(DEFAULT_RULE_VALUES["auto_approval"])
+    publish("auto_approval", rule, UserFactory(role="admin"))
 
 
 @pytest.fixture
@@ -48,11 +60,11 @@ def client_for(actor):
 def perform(client, operation, household, data):
     if operation == "create":
         return client.post(reverse("staff-households-create"), data, format="json")
-    if operation in ("notices", "record_notice"):
-        url = reverse("staff-households-notices", kwargs={"id": household.pk})
-        if operation == "notices":
-            return client.get(url)
+    if operation in READS:
+        return client.get(reverse(READS[operation], kwargs={"id": household.pk}))
+    if operation == "record_notice":
         holder = household.members.get(relation=Member.Relation.HOLDER)
+        url = reverse("staff-households-notices", kwargs={"id": household.pk})
         return client.post(url, filed_notice(holder), format="multipart")
     route = (
         "staff-households-submit"
@@ -60,8 +72,6 @@ def perform(client, operation, household, data):
         else "staff-households-detail"
     )
     url = reverse(route, kwargs={"id": household.pk})
-    if operation == "view":
-        return client.get(url)
     if operation == "update":
         return client.patch(url, {"holder": {"phone": "+15145550999"}}, format="json")
     return client.post(url, {}, format="json")
@@ -86,7 +96,7 @@ def test_each_walk_in_operation_records_only_actor_target_and_action(
     assert event.target_type == "household"
     # No holder, contact, address, birth date or member data.
     assert event.metadata == {}
-    if operation == "view":
+    if operation in READS:
         assert response["Cache-Control"] == "private, no-store"
 
 

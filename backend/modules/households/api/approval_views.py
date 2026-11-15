@@ -23,7 +23,7 @@ from modules.households.api.views import (
     IsIntakeWorkerOrAdmin,
     WalkInErrorHandlingMixin,
     _service_validation,
-    record_file_view,
+    audited_file_response,
 )
 
 
@@ -99,8 +99,7 @@ class WalkInDecisionSummaryView(WalkInErrorHandlingMixin, GenericAPIView):
             body = {"code": exc.code, "message": str(exc.message), "fields": {}}
             return Response(body, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         data = WalkInDecisionSummarySerializer(summary).data
-        record_file_view(request, household.pk)
-        return Response(data)
+        return audited_file_response(request, household.pk, data)
 
 
 class WalkInApproveView(WalkInErrorHandlingMixin, GenericAPIView):
