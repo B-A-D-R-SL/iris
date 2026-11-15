@@ -338,6 +338,59 @@ class TestChangeTests(unittest.TestCase):
         self.assertEqual(pr_policy.check_tests(make_pr(files=files)), [])
 
 
+class AiUsageRecordTests(unittest.TestCase):
+    def errors(self, *files: ChangedFile) -> list[str]:
+        return pr_policy.check_ai_record(make_pr(files=list(files)))
+
+    def test_editing_the_pointer_file_fails_and_names_the_wiki(self):
+        errors = self.errors(ChangedFile("AI_USAGE.md", "modified", "| FIX-40 | ... |"))
+        self.assertEqual(len(errors), 1)
+        self.assertIn("`AI_USAGE.md`", errors[0])
+        self.assertIn(pr_policy.AI_USAGE_WIKI, errors[0])
+
+    def test_deleting_the_pointer_file_fails(self):
+        self.assertEqual(len(self.errors(ChangedFile("AI_USAGE.md", "removed"))), 1)
+
+    def test_a_new_ai_usage_file_anywhere_fails(self):
+        for path in (
+            "docs/05-process/ai-usage-verification-4.md",
+            "docs/AI_Usage_Iteration5.md",
+            "backend/modules/listings/AI USAGE.md",
+            "ai_usage.md",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(len(self.errors(ChangedFile(path, "added", "x"))), 1)
+
+    def test_a_file_renamed_to_an_ai_usage_name_fails(self):
+        self.assertEqual(
+            len(self.errors(ChangedFile("docs/ai-usage.md", "renamed", "x"))), 1
+        )
+
+    def test_every_offending_path_is_listed_in_one_message(self):
+        errors = self.errors(
+            ChangedFile("AI_USAGE.md", "modified", "x"),
+            ChangedFile("docs/ai-usage-notes.md", "added", "x"),
+        )
+        self.assertEqual(len(errors), 1)
+        self.assertIn("`docs/ai-usage-notes.md`", errors[0])
+
+    def test_names_that_only_look_similar_pass(self):
+        self.assertEqual(
+            self.errors(
+                ChangedFile("frontend/src/shared/usageStats.ts", "added", HEADER),
+                ChangedFile(
+                    "backend/modules/notifications/email_usage.py", "added", HEADER
+                ),
+                ChangedFile("docs/guides/thai-usage.md", "added", "x"),
+                ChangedFile("README.md", "modified", "See AI_USAGE.md"),
+            ),
+            [],
+        )
+
+    def test_a_pull_request_that_does_not_touch_the_record_passes(self):
+        self.assertEqual(pr_policy.check_ai_record(make_pr()), [])
+
+
 class EvaluateTests(unittest.TestCase):
     def test_compliant_pull_request_passes(self):
         self.assertEqual(pr_policy.evaluate(make_pr()), [])

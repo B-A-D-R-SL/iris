@@ -83,6 +83,11 @@ jobs:
       - name: Module boundaries (import-linter)
         run: lint-imports
 
+      # FIX-06 (#632): fail on unused code. The justified ignore list is the
+      # [tool.vulture] section of backend/pyproject.toml.
+      - name: Dead code (vulture)
+        run: vulture
+
       - name: Missing migrations
         run: python manage.py makemigrations --check --dry-run
 

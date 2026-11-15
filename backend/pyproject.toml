@@ -33,6 +33,7 @@ dev = [
     "pytest-django>=4.14.0",
     "ruff>=0.16.10",
     "types-jsonschema>=4.26,<5",
+    "vulture>=2.16",
 ]
 
 [tool.mypy]
@@ -75,6 +76,30 @@ omit = [".venv/*", "manage.py", "tests/*", "**/tests/*", "**/migrations/*"]
 fail_under = 70
 show_missing = true
 skip_covered = true
+
+# Dead-code check (FIX-06): it must report nothing; the CI backend job runs `vulture`.
+# Locally, run `uv run vulture` from backend/, or
+# `uv run --project backend vulture --config backend/pyproject.toml backend` from the root.
+[tool.vulture]
+paths = ["."]
+exclude = [".venv/", "htmlcov/", "migrations/"]
+min_confidence = 80
+ignore_names = [
+    # Parameters a signature requires but the body does not read:
+    # AuthCache._cull(..., num) and NoticeFileDownloadView.perform_content_negotiation(..., force)
+    # override Django methods; the iris/release.py signal handlers must accept (signum, frame).
+    "num",
+    "force",
+    "frame",
+    # Pytest fixtures requested only for their setup (rules published, clock or
+    # password patched, rows seeded); the test never reads the value.
+    "frozen_clock",
+    "notice_rule",
+    "seed_password",
+    "seeded_search_dataset",
+    "suspension_rule",
+    "transactional_db",
+]
 
 [tool.importlinter]
 root_packages = ["iris", "adapters", "modules"]

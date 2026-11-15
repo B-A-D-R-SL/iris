@@ -14,17 +14,25 @@ services, queries, domain rules, database models, and tests.
 
 Other modules should follow this separation of responsibilities.
 
+## Adding files to a module
+
+A module adds a file when the story that needs it starts, not before.
+A new module starts with `__init__.py`, `apps.py` and a README that lists
+the planned stories; `models.py`, `services.py`, `queries.py`, `domain/`,
+`api/`, `tasks.py` and `tests/` come with the first story that uses them.
+Do not commit empty files or files that hold only a TODO (FIX-06, #632).
+
 ## Backend architecture
 
 | File | Responsibility |
 | --- | --- |
 | `models.py` | Category database model and fields |
-| `domain/rules.py` | Pure best-before-date validation |
+| `domain/rules.py` | Pure default-value validation |
 | `services.py` | Validated writes and transactions |
 | `queries.py` | Read-only database access |
 | `api/serializers.py` | API response serialization |
-| `api/views.py` | HTTP endpoint and permissions |
-| `api/urls.py` | Module URL routing |
+| `api/views.py`, `api/staff_views.py` | HTTP endpoints and permissions |
+| `api/urls.py`, `api/staff_urls.py` | Module URL routing |
 | `management/commands/seed_categories.py` | Seed initial data |
 | `data/categories.yaml` | Reviewed bilingual category definitions |
 | `tests/` | Tests for domain, service, API, and seed layers |
@@ -58,9 +66,11 @@ The API does not directly construct database queries.
 - Returns active categories in code order.
 - Excludes inactive categories.
 
-`get_active_category(code)`
-- Retrieves one active category.
-- Raises Category.DoesNotExist when unavailable.
+`list_all_categories()` and `get_category(code)`
+- Every category, active or not, for the admin screen (US-35).
+
+`for_listing_post(code)`
+- Locks one category and returns the values listing posting checks.
 
 ### Services
 
@@ -73,9 +83,11 @@ The API does not directly construct database queries.
 - Validates category fields and safely creates missing categories.
 - Preserves existing records when seed commands overlap.
 
-`deactivate_category(category_id)`
-- Deactivates a category without deleting its record.
-- Preserves existing data for historical references.
+`create_category(values, admin)` and `update_category(code, values, admin)`
+- Admin only (US-35). `update_category` renames, changes the food flag
+  or default value, and deactivates or reactivates a category.
+- There is no delete: a deactivated category keeps its record, so
+  existing listings still refer to it.
 
 All application writes should use these services rather than
 directly modifying Category records.
@@ -132,8 +144,8 @@ Example response:
 
 The endpoint is read-only.
 
-Creating and editing categories through the staff interface
-belongs to US-35, not this reference implementation.
+Admins list, add and edit categories through
+`/api/staff/categories/` and `/api/staff/categories/<code>/` (US-35).
 
 ## Frontend
 
@@ -141,16 +153,19 @@ belongs to US-35, not this reference implementation.
 - Fetches the public API.
 - Validates the response structure.
 
+`features/categories/adminApi.ts`
+- Calls the staff API used by the admin screen.
+
 `features/categories/CategoriesPage.tsx`
-- Displays active categories.
-- Uses the current interface language.
+- Admin screen: every category, active or not, with add, edit,
+  deactivate and reactivate.
+- `useCategoryActions.ts` holds the dialog state and the
+  deactivate/reactivate request; `CategoryTable.tsx`,
+  `CategoryDialog.tsx` and `DeactivateCategoryModal.tsx` draw the
+  table and the dialogs.
 - Handles loading, empty results, and errors.
-- Uses the existing Mantine design system.
 
-Route: `/staff/categories`
-
-The route is currently admin-only, even though its underlying
-GET endpoint is public.
+Route: `/staff/categories` (admin only).
 
 ## Seed data
 
@@ -197,9 +212,7 @@ using import-linter and CI.
 
 ## Limitations and future work
 
-- Category editing and deletion policies belong to US-35.
-- Listing publication will enforce category-specific food safety.
+- Categories are never deleted, only deactivated (US-35).
 - Category codes must not be modified through direct ORM updates.
-- Full module-boundary enforcement is delivered by SET-14.
 - The staff page requires a working authenticated admin session.
-- The Categories endpoint itself is public and operational.
+- The public categories endpoint needs no sign-in.

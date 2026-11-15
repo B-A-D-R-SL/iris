@@ -13,15 +13,6 @@ def list_active_categories() -> QuerySet[Category]:
     return Category.objects.filter(is_active=True).order_by("code")
 
 
-def get_active_category(code: str) -> Category:
-    """Return an active category by its stable code.
-
-    Raises Category.DoesNotExist when the category is missing
-    or inactive.
-    """
-    return Category.objects.get(code=code, is_active=True)
-
-
 def for_listing_post(code: str) -> dict[str, Any] | None:
     """Return a locked category snapshot suitable for pure safety rules."""
     result = (

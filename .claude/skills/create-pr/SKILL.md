@@ -174,8 +174,7 @@ If no issue is found this way, fall back to `.plans/`, `docs/` and commit messag
 ### Questions
 
 Then one AskUserQuestion call with only the questions that apply (skip any you are certain about,
-except the AI level and the tasks, which the developer always confirms). If more than four
-apply, ask the rest in a second call straight after.
+except the AI level, the tasks and the AI usage wiki entry, which the developer always confirms). If more than four apply, ask the rest in a second call straight after.
 
 1. **Issue** (only if the story was not found with certainty), header "Issue": "Which issue does this PR
    `close`/`belong to` (into `main` it must close it)?" Options: the candidates you found;
@@ -210,6 +209,12 @@ apply, ask the rest in a second call straight after.
      common type." Show that subject in its `preview`.
    - The developer can type changes with Other (e.g. "merge 2 into 1", "use T-06.41.4 for 1");
      apply them without asking again unless they are unclear.
+7. **AI usage wiki entry**, header
+   "AI wiki": "The AI usage record is in the wiki, one page per iteration (`AI_USAGE.md` only
+   points there). Is this PR's AI help recorded on the page for `<milestone>`?"
+   - **Draft it for me (Recommended)**: "I'll write the entry in the report for you to paste."
+   - **Already recorded**: "The entry is on the wiki page."
+   - **Not needed**: "Not a feature or fix built with AI help."
 
 From here, do not ask anything else unless "When to stop anyway" applies.
 
@@ -500,7 +505,7 @@ AI-assisted files:
 ## Checklist
 
 - [x] Every source file I added or changed starts with its AI contribution line
-- [ ] `AI_USAGE.md` updated if this is a substantive feature built with AI help
+- [ ] AI help recorded on the wiki's [AI Usage](https://github.com/B-A-D-R-SL/iris/wiki/AI-Usage) page for this iteration, if this is a feature or fix built with AI help
 - [ ] The issue links this pull request and its tests
 
 ---
@@ -520,7 +525,9 @@ Rules from `pr_policy.py`:
   or as `- path` lines. List each changed file whose header is not "No substantial".
 - If code under `backend/`, `frontend/src/`, `frontend/scripts/`, `tools/` or
   `.github/scripts/` changed and no test file did, add the line `No tests: <reason from step 3>`.
-- Tick checklist items only when true (check `AI_USAGE.md` in the diff).
+- Tick checklist items only when true. Tick the AI wiki item only if the developer answered
+  "Already recorded" or "Not needed" in step 3. Never add or change `AI_USAGE.md` or any other
+  AI usage file in the repository: the PR policy check fails the PR.
 
 ## 9. Check against the PR policy
 
@@ -624,3 +631,7 @@ resolved, the test results (and what was skipped or left to CI), untracked files
 and that the PR is open and **not merged**. Remind them that the `pr-policy`, `commit-policy`
 and CI checks run on GitHub, and that the PR is merged with "Create a merge commit" by a
 reviewer, not by this skill.
+
+If the developer chose "Draft it for me" in step 3, end the report with the wiki entry, in the
+format given in `AI_USAGE.md`, filled in from the diff, the tests and the PR, and say which page
+it goes on (`Iteration <N> – AI Usage`, from the milestone) and to add a row to that page's table.

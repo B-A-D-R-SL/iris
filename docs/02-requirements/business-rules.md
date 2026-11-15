@@ -35,7 +35,8 @@ logging belong to an agreed audit/privacy policy.
 
 Sources: [US-04 #428](https://github.com/B-A-D-R-SL/iris/issues/428),
 [task #430](https://github.com/B-A-D-R-SL/iris/issues/430), and Leon's
-new-account-only scope decision recorded in `AI_USAGE.md`.
+new-account-only scope decision recorded on the wiki's
+[Iteration 4 – AI Usage](https://github.com/B-A-D-R-SL/iris/wiki/Iteration-4-%E2%80%93-AI-Usage#us-04-accept-an-invitation-and-set-a-password) page.
 Tokens contain 32 random bytes; store only their SHA-256 hash. The public
 acceptance endpoint sets the password and leaves the browser session unchanged.
 Issuing screens and invitation emails belong to the calling workflows.

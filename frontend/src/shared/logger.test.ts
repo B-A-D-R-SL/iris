@@ -43,11 +43,11 @@ describe("privacy-safe frontend logger", () => {
   it("emits structured warning events without arbitrary data", () => {
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    logger.warning("backend_health_unavailable");
+    logger.warning("sign_out_failed");
 
     expect(spy).toHaveBeenCalledOnce();
     const entry: unknown = JSON.parse(String(spy.mock.calls[0]?.[0]));
-    expect(entry).toMatchObject({ level: "WARNING", event: "backend_health_unavailable" });
+    expect(entry).toMatchObject({ level: "WARNING", event: "sign_out_failed" });
     expect(Object.keys(entry as Record<string, unknown>).sort()).toEqual([
       "event",
       "level",

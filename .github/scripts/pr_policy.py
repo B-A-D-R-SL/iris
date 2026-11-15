@@ -59,6 +59,13 @@ ISSUE_REF = re.compile(r"(?<![\w/&])#\d+\b")
 NO_TESTS = "no tests:"
 LISTED_PATH = re.compile(r"`([^`\s]+)`|^[ \t]*[-*][ \t]+([^\s`]+)[ \t]*$", re.MULTILINE)
 
+# The AI usage record lives in the wiki (SET-36). AI_USAGE.md only points there, so a pull
+# request may not change it or add another AI usage file. A change to the pointer itself is
+# merged by a maintainer past this check.
+AI_USAGE_POINTER = "AI_USAGE.md"
+AI_USAGE_NAME = re.compile(r"(?<![a-z])ai[-_ ]?usage", re.IGNORECASE)
+AI_USAGE_WIKI = "https://github.com/B-A-D-R-SL/iris/wiki/AI-Usage"
+
 
 @dataclass
 class ChangedFile:
@@ -246,6 +253,30 @@ def check_tests(pr: PullRequest) -> list[str]:
     ]
 
 
+def is_ai_usage_record(f: ChangedFile) -> bool:
+    """A change to the AI_USAGE.md pointer, or a new file that would hold the record instead."""
+    if f.path == AI_USAGE_POINTER:
+        return True
+    name = f.path.rsplit("/", 1)[-1]
+    return f.status in ("added", "renamed", "copied") and bool(
+        AI_USAGE_NAME.search(name)
+    )
+
+
+def check_ai_record(pr: PullRequest) -> list[str]:
+    paths = [f.path for f in pr.files if is_ai_usage_record(f)]
+    if not paths:
+        return []
+    return [
+        (
+            "The AI usage record is in the wiki, not the repository: add the entry to "
+            f"{AI_USAGE_WIKI} (the page for the issue's iteration) and leave out "
+            + ", ".join(f"`{path}`" for path in paths)
+            + "."
+        )
+    ]
+
+
 def evaluate(pr: PullRequest) -> list[str]:
     if pr.author in EXEMPT_AUTHORS:
         return []
@@ -255,6 +286,7 @@ def evaluate(pr: PullRequest) -> list[str]:
         + check_ai(pr)
         + check_headers(pr)
         + check_tests(pr)
+        + check_ai_record(pr)
     )
 
 
