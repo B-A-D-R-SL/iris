@@ -243,6 +243,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Test smoke runner security boundaries
+        run: python3 -m unittest discover -s tools/tests -p "test_container_smoke.py"
+
       - name: Build and smoke-test non-root images
         run: bash tools/container-smoke.sh
 

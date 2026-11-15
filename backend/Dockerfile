@@ -15,19 +15,20 @@ WORKDIR /app
 RUN test "$APP_UID" -gt 0 && test "$APP_GID" -gt 0 \
     && groupadd --non-unique --gid "$APP_GID" iris \
     && useradd --uid "$APP_UID" --gid iris --create-home \
-        --home-dir /home/iris --shell /usr/sbin/nologin iris \
-    && chown iris:iris /app
+        --home-dir /home/iris --shell /usr/sbin/nologin iris
 RUN python -m pip install --no-cache-dir --only-binary=:all: uv==0.12.23
 COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --frozen --no-install-project --no-build
 
-# Keep development/test tools and package resources without copying local files.
-COPY --chown=iris:iris manage.py conftest.py photos.ini ./
-COPY --chown=iris:iris adapters/ ./adapters/
-COPY --chown=iris:iris iris/ ./iris/
-COPY --chown=iris:iris modules/ ./modules/
-COPY --chown=iris:iris tests/ ./tests/
-COPY --chown=iris:iris tools/ ./tools/
+# Keep development/test tools and package resources root-owned.
+COPY manage.py conftest.py photos.ini ./
+COPY adapters/ ./adapters/
+COPY iris/ ./iris/
+COPY modules/ ./modules/
+COPY tests/ ./tests/
+COPY tools/ ./tools/
+# Protect parent directories too, so the runtime user cannot replace source files.
+RUN chmod -R a=rX /app
 
 ENV HOME=/home/iris
 USER iris

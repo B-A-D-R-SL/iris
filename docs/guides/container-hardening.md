@@ -9,9 +9,11 @@ in [docker-compose.yml](../../docker-compose.yml).
 ## Users and permissions
 
 The backend uses an `iris` account with a writable home and temporary space.
-Its dependency environment stays outside the development source mount at
-`/opt/iris-venv`, owned by root and readable by `iris`. Normal startup does not
-install dependencies or change file ownership.
+Its packaged application tree at `/app`, including executable scripts and their
+parent directories, is root-owned and read-only. The runtime user cannot change
+permissions or replace those files. Its dependency environment stays outside the
+development source mount at `/opt/iris-venv`, also owned by root and readable by
+`iris`. Normal startup does not install dependencies or change file ownership.
 
 Backend and worker bind-mount the host source at `/app`. Image ownership cannot
 change permissions on that mount. On Linux, use `id -u` and `id -g` to find your
@@ -67,6 +69,7 @@ Run the isolated smoke checks from the repository root with Bash and Docker
 Compose available:
 
 ```bash
+python3 -m unittest discover -s tools/tests -p "test_container_smoke.py"
 bash tools/container-smoke.sh
 ```
 
@@ -84,6 +87,13 @@ addition, modification and deletion, plus frontend replacement after a dependenc
 manifest changes. CI runs the same check in addition to the existing backend and
 frontend quality jobs. Local results and review corrections are recorded in
 [AI usage](../../AI_USAGE.md#fix-24-dockerfile-hardening-615).
+
+HTTP probes are restricted to the disposable frontend's published
+`127.0.0.1` port and three fixed health/asset paths. The runner rejects non-loopback
+endpoints and invalid ports, ignores curl configuration and inherited proxies,
+and does not follow redirects. These local development requests contain no real
+credentials or user data. The offline tests verify rejected endpoints and paths,
+curl options and failure propagation before the image/Compose checks run.
 
 ## Staging and SonarQube Cloud
 

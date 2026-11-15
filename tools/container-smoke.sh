@@ -1,25 +1,26 @@
 #!/usr/bin/env bash
 # AI contribution: 50% or more AI-generated
 # Exercise real images in a disposable checkout; never touch an existing project.
-set -Eeuo pipefail
 
-if [ "$(id -u)" -eq 0 ]; then
-  echo "Run this smoke check as a non-root host user to verify bind-mount ownership." >&2
-  exit 1
-fi
-
-repo_dir=$(git rev-parse --show-toplevel)
-smoke_dir=$(mktemp -d "${TMPDIR:-/tmp}/iris-container-smoke.XXXXXXXX")
-: > "$smoke_dir/compose.env"
-project="iris-smoke-$(date +%s)-$$"
-watch_pid=""
-export IRIS_UID="$(id -u)" IRIS_GID="$(id -g)"
-export IRIS_DB_PORT=0 IRIS_AZURITE_PORT=0 IRIS_MAILPIT_UI_PORT=0 IRIS_SMTP_PORT=0
-export IRIS_BACKEND_PORT=0 IRIS_FRONTEND_PORT=0
-export POSTGRES_DB=iris POSTGRES_USER=iris POSTGRES_PASSWORD=iris_container_smoke_password
-export DJANGO_SECRET_KEY=iris-container-smoke-only-not-a-secret
-export DJANGO_DEV_ADMIN_EMAIL=admin@iris.local DJANGO_DEV_ADMIN_PASSWORD=iris_smoke_admin_password
-export IRIS_TUNNEL_HOST="" IRIS_TUNNEL_HOSTS="" IRIS_TUNNEL_ORIGINS=""
+initialize() {
+  if [[ "$(id -u)" -eq 0 ]]; then
+    echo "Run this smoke check as a non-root host user to verify bind-mount ownership." >&2
+    return 1
+  fi
+  repo_dir=$(git rev-parse --show-toplevel)
+  smoke_dir=$(mktemp -d "${TMPDIR:-/tmp}/iris-container-smoke.XXXXXXXX")
+  : > "$smoke_dir/compose.env"
+  project="iris-smoke-$(date +%s)-$$"
+  watch_pid=""
+  frontend_port=""
+  export IRIS_UID="$(id -u)" IRIS_GID="$(id -g)"
+  export IRIS_DB_PORT=0 IRIS_AZURITE_PORT=0 IRIS_MAILPIT_UI_PORT=0 IRIS_SMTP_PORT=0
+  export IRIS_BACKEND_PORT=0 IRIS_FRONTEND_PORT=0
+  export POSTGRES_DB=iris POSTGRES_USER=iris POSTGRES_PASSWORD=iris_container_smoke_password
+  export DJANGO_SECRET_KEY=iris-container-smoke-only-not-a-secret
+  export DJANGO_DEV_ADMIN_EMAIL=admin@iris.local DJANGO_DEV_ADMIN_PASSWORD=iris_smoke_admin_password
+  export IRIS_TUNNEL_HOST="" IRIS_TUNNEL_HOSTS="" IRIS_TUNNEL_ORIGINS=""
+}
 
 compose() {
   docker compose --project-name "$project" --project-directory "$smoke_dir" \
@@ -30,23 +31,20 @@ cleanup() {
   local status=$?
   trap - EXIT
   set +e
-  if [ -n "$watch_pid" ]; then
+  if [[ -n "$watch_pid" ]]; then
     kill "$watch_pid" 2>/dev/null
     wait "$watch_pid" 2>/dev/null
   fi
-  if [ "$status" -ne 0 ]; then
+  if [[ "$status" -ne 0 ]]; then
     compose ps --all
     compose logs --no-color --tail 100
-    if [ -f "$smoke_dir/watch.log" ]; then cat "$smoke_dir/watch.log"; fi
+    if [[ -f "$smoke_dir/watch.log" ]]; then cat "$smoke_dir/watch.log"; fi
   fi
   compose down --volumes --remove-orphans
   docker image rm "$project-backend" "$project-worker" "$project-frontend" 2>/dev/null
   rm -rf -- "$smoke_dir"
   exit "$status"
 }
-trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
 
 retry() {
   local attempt
@@ -63,7 +61,7 @@ prepare_contexts() {
   # Untracked local .env files, node_modules and virtual environments stay outside.
   git -C "$repo_dir" ls-files -z -- backend frontend mock-data/validation docker-compose.yml |
     tar -C "$repo_dir" --null -T - -cf - | tar -C "$smoke_dir" -xf -
-  test -s "$smoke_dir/mock-data/validation/contact-values.json"
+  [[ -s "$smoke_dir/mock-data/validation/contact-values.json" ]]
   local app
   for app in backend frontend; do
     mkdir -p "$smoke_dir/$app/.git" "$smoke_dir/$app/coverage"
@@ -100,6 +98,12 @@ check_images() {
     test -f /app/manage.py && test -d /app/tests && test -d /app/modules
     touch "$HOME/iris-smoke-write" /tmp/iris-smoke-write
     test ! -w /opt/iris-venv
+    for path in /app /app/manage.py /app/iris /app/iris/settings; do
+      test "$(stat -c %u "$path")" -eq 0 && test ! -w "$path"
+    done
+    if (printf "# smoke mutation\n" >> /app/manage.py) 2>/dev/null; then exit 1; fi
+    if chmod u+w /app/manage.py 2>/dev/null; then exit 1; fi
+    if rm /app/manage.py 2>/dev/null; then exit 1; fi
     for path in iris/.env.smoke iris/__pycache__/iris-smoke-canary.pyc coverage.xml iris/iris-smoke-canary.key tmp/iris-smoke-canary; do
       test ! -e "/app/$path"
     done
@@ -113,24 +117,54 @@ check_images() {
   '
 }
 
+set_frontend_port() {
+  local published parsed
+  frontend_port=""
+  published=$(compose port frontend 5173) || return
+  if [[ ! "$published" =~ ^127\.0\.0\.1:([0-9]{1,5})$ ]]; then
+    echo 'Frontend must be published on exactly 127.0.0.1 with a numeric port.' >&2
+    return 1
+  fi
+  parsed=$((10#${BASH_REMATCH[1]}))
+  if [[ "$parsed" -lt 1 || "$parsed" -gt 65535 ]]; then
+    echo 'Frontend published port must be between 1 and 65535.' >&2
+    return 1
+  fi
+  frontend_port=$parsed
+}
+
+frontend_get() {
+  if [[ "$#" -ne 1 || ! "${frontend_port:-}" =~ ^[1-9][0-9]{0,4}$ || "$frontend_port" -gt 65535 ]]; then
+    echo 'Validate the frontend loopback port before probing it.' >&2
+    return 1
+  fi
+  case "$1" in
+    /|/api/health/|/src/main.tsx) ;;
+    *) echo 'Unexpected frontend smoke probe path.' >&2; return 1 ;;
+  esac
+  # Local development HTTP only: fixed loopback host, fixed paths, no redirects,
+  # no curlrc configuration, and no proxy even when proxy variables are exported.
+  curl --disable --noproxy '*' --proto '=http' --fail --silent --show-error \
+    --connect-timeout 1 --max-time 10 "http://127.0.0.1:${frontend_port}${1}"
+}
+
 health_ready() {
-  curl --fail --silent --show-error --connect-timeout 1 --max-time 3 \
-    "$frontend_url/api/health/" | grep -q '"status": "ok"'
+  frontend_get /api/health/ | grep -q '"status": "ok"'
 }
 
 all_services_running() {
-  test "$(compose ps --status running --services | wc -l)" -eq 6
+  [[ "$(compose ps --status running --services | wc -l)" -eq 6 ]]
 }
 
 check_services() {
-  frontend_url="http://$(compose port frontend 5173)"
+  set_frontend_port
   retry health_ready
-  curl --fail --silent --show-error --max-time 10 "$frontend_url/" | grep -q '<div id="root">'
-  curl --fail --silent --show-error --max-time 10 "$frontend_url/src/main.tsx" > /dev/null
+  frontend_get / | grep -q '<div id="root">'
+  frontend_get /src/main.tsx > /dev/null
   retry all_services_running
   local service
   for service in backend worker frontend; do
-    test "$(compose exec -T "$service" id -u)" -ne 0
+    [[ "$(compose exec -T "$service" id -u)" -ne 0 ]]
   done
   compose exec -T worker python -c '
 from pathlib import Path
@@ -143,10 +177,10 @@ assert b"procrastinate" in Path("/proc/1/cmdline").read_bytes()
 check_tools() {
   compose exec -T backend python -m pytest -c photos.ini tests/test_photos.py -q \
     --cov=adapters.photos --cov-report=xml:container-smoke-coverage.xml --cov-fail-under=90
-  test -s "$smoke_dir/backend/container-smoke-coverage.xml"
-  test -d "$smoke_dir/backend/.pytest_cache"
+  [[ -s "$smoke_dir/backend/container-smoke-coverage.xml" ]]
+  [[ -d "$smoke_dir/backend/.pytest_cache" ]]
   compose exec -T backend ruff check adapters/photos.py
-  test -d "$smoke_dir/backend/.ruff_cache"
+  [[ -d "$smoke_dir/backend/.ruff_cache" ]]
   compose exec -T backend python -B manage.py spectacular \
     --format openapi-json --validate --fail-on-warn > "$smoke_dir/schema.json"
   compose exec -T frontend pnpm gen:api --schema-stdin < "$smoke_dir/schema.json"
@@ -187,7 +221,7 @@ wait_for_watch() {
 frontend_recreated() {
   local current
   current=$(compose ps -q frontend)
-  test -n "$current" && test "$current" != "$1"
+  [[ -n "$current" && "$current" != "$1" ]]
 }
 
 check_watch_rebuild() {
@@ -195,9 +229,9 @@ check_watch_rebuild() {
   previous=$(compose ps -q frontend)
   printf '\n' >> "$smoke_dir/frontend/package.json"
   retry frontend_recreated "$previous"
-  frontend_url="http://$(compose port frontend 5173)"
+  set_frontend_port
   retry health_ready
-  test "$(compose exec -T frontend id -u)" -ne 0
+  [[ "$(compose exec -T frontend id -u)" -ne 0 ]]
 }
 
 check_watch() {
@@ -223,18 +257,27 @@ check_watch() {
   check_watch_rebuild
 }
 
-prepare_contexts
-build_args=()
-if [ "${IRIS_SMOKE_NO_CACHE:-0}" = 1 ]; then build_args+=(--no-cache); fi
-echo 'Building disposable application images and checking excluded canaries.'
-compose build "${build_args[@]}" backend frontend worker
-compose create --no-build
-check_images
-echo 'Starting all six services and checking non-root tools and proxy traffic.'
-compose up -d
-check_services
-check_tools
-check_frontend_coverage
-echo 'Checking frontend Watch synchronization of added, changed and removed files.'
-check_watch
-echo 'Container smoke checks passed.'
+main() {
+  set -Eeuo pipefail
+  initialize
+  trap cleanup EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  prepare_contexts
+  local build_args=()
+  if [[ "${IRIS_SMOKE_NO_CACHE:-0}" = 1 ]]; then build_args+=(--no-cache); fi
+  echo 'Building disposable application images and checking excluded canaries.'
+  compose build "${build_args[@]}" backend frontend worker
+  compose create --no-build
+  check_images
+  echo 'Starting all six services and checking non-root tools and proxy traffic.'
+  compose up -d
+  check_services
+  check_tools
+  check_frontend_coverage
+  echo 'Checking frontend Watch synchronization of added, changed and removed files.'
+  check_watch
+  echo 'Container smoke checks passed.'
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then main "$@"; fi
