@@ -1,40 +1,37 @@
 # Priority module
 
 **Owner pair:** Fairness & partners
-**Status:** SET-14 architecture skeleton
+**Status:** Not started
 
 ## Responsibility
 
-Own the priority feature boundary within the Iris modular monolith.
+Score households, place them in tiers and give earlier access to the tiers that need it most.
 
-## Layers
+## Planned work
 
-- `api/`: HTTP validation, permissions, and routing
-- `domain/`: Pure Python business rules; no Django dependencies
-- `services.py`: Public write operations and transactions
-- `queries.py`: Public read-only operations
-- `models.py`: Module-owned Django models
-- `tasks.py`: Background jobs when necessary
-- `tests/`: Domain, service, and API tests
+- US-50 (#530): score and tier every household
+- US-51 (#531): early access by tier
+- US-52 (#532): never show scores to households
+- US-53 (#533): explain a household's tier
+- US-54 (#534): strikes for no-shows
+- US-55 (#535): forgive a strike or override a tier
+- US-56 (#536): change priority rules in settings
+
+A module adds its files (`models.py`, `services.py`, `queries.py`,
+`domain/`, `api/`, `tasks.py`, `tests/`) when the story that needs them
+starts. See [the reference module](../../../docs/guides/reference-module.md)
+for what each file holds.
 
 ## Public functions
 
-No public functions implemented yet.
+None yet.
 
 ## Architectural rules
 
 Other modules must communicate through public services or queries.
 Do not import another module's models or internal domain code.
 
-## Future implementation
-
-TODO: Module owner defines business operations, model ownership,
-API endpoints, tests, and applicable audit events.
-
-Do not treat this scaffold as implemented business functionality.
-
 ## Audit events
 
-No audit events are implemented as part of SET-14.
-Document emitted event names here when the module's
-business workflows are implemented.
+None yet. Document emitted event names here when the module's
+workflows are built.
