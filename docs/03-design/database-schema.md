@@ -113,7 +113,7 @@ An approved partner store, including the B.A.D.R. store.
 | postal_code | string | — | Postal code. |
 | phone | string | — | Contact phone number. |
 | email | string | — | Contact email. |
-| opening_hours | json | — | Operating hours; JSONB is specified by the Store task. |
+| opening_hours | json | — | Weekly hours: `mon` to `sun`, each `{"open": "HH:MM", "close": "HH:MM"}` or null when closed, plus an optional read-only `notes` copied from the partner application (BR-STORE-006). |
 | pickup_instructions | string | — | Instructions for collecting goods. |
 | is_badr | boolean | — | Identifies the B.A.D.R. store. |
 | is_active | boolean | — | Whether the store is active. |
@@ -125,7 +125,7 @@ An approved partner store, including the B.A.D.R. store.
 | Rule | Enforcement |
 | --- | --- |
 | At most one Store has is_badr set to true. | Partial unique index. |
-| Inactive stores cannot post; deactivation cancels open listings. | Store and listing services. |
+| Inactive stores cannot post; deactivation cancels open listings and their reservations, never the B.A.D.R. store (BR-STORE-002 to BR-STORE-004). | Store, listing and reservation services (US-14). |
 
 **Documented indexes**
 

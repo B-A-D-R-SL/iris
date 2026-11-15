@@ -20,12 +20,19 @@ The actor must be a saved user. Target types use lowercase identifiers such as
 Valid household UUID strings are normalized to lowercase with hyphens so they
 match household search. Other target identifiers are preserved.
 
-The supported actions are `view`, `decision`, `rule_published`, `suspend`, and `reactivate`.
+The supported actions are `view`, `decision`, `rule_published`, `suspend`,
+`reactivate`, `update` and `deactivate`.
 Views accept empty metadata. Decisions accept `{}` or
 `{"outcome": "approved" | "rejected" | "review_required"}`.
 For `rule_published` on `rule_set_version`, metadata instead contains the supported
 `rule_type` and positive integer `version`. Suspension and reactivation accept a
 `reason` validated against the configured length limit and sensitive-data checks.
+Store events (US-14) use target type `store`: `update` accepts `{"fields": "..."}`,
+the comma-separated names of the changed fields (lowercase identifiers, at most
+300 characters, never the values); `deactivate` accepts exactly `reason`,
+`listings_cancelled` and `reservations_cancelled` (non-negative integers); and
+`reactivate` on a store accepts `{"reason": "..."}`. Store reasons are limited to
+500 characters, with the same sensitive-data checks as household reasons.
 Each action accepts only its defined metadata keys.
 Callers must supply record identifiers rather than personal data as targets.
 

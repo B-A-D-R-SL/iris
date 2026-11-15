@@ -39,6 +39,12 @@ indexes `(household, status)` and `(status, listing)`.
   with who and when, once, under a row lock (US-44).
 - `services.cancel_open_for_household(household_id)`: cancel reserved claims for
   a household without a late-cancellation strike (must run in a transaction).
+- `services.cancel_for_cancelled_listings(listing_ids, store_name=)` (US-14):
+  mark reserved claims on those listings `cancelled_by_store` with no strike and
+  queue one `reservation_cancelled_by_store` email per claim (households without
+  an email are skipped). Must run in the deactivation transaction (BR-STORE-003).
+- `queries.household_count_for_listings(listing_ids)`: households holding a
+  reserved claim on those listings, for the deactivation preview (US-14).
 - `permissions.pickup_store_id(user)`: the store whose pickups the user may
   confirm; raises `PermissionDenied` for everyone else.
 

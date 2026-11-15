@@ -84,17 +84,19 @@ Error messages:
 
 ## Store form
 
-Used by admins (all fields) and store managers (only phone, email, opening hours and pickup instructions). Not in the wireframes yet: the store profile is drawn in a later task.
+Admins edit every field on `/staff/stores/{id}` (US-14). Store managers will edit only the phone, email, opening hours and pickup instructions on their own store profile (planned). Wireframes: Staff page, W7 · Manage stores (S27 list, S28 edit, S29 deactivate dialog). Rules BR-STORE-001 to BR-STORE-006 are in [business-rules.md](business-rules.md#store-administration-us-14).
 
 | Field | Français | English | Type | Required | Rules |
 | --- | --- | --- | --- | --- | --- |
-| `name` | Nom du magasin | Store name | text | Yes | 2 to 150 characters |
+| `name` | Nom du commerce | Store name | text | Yes | 2 to 150 characters |
 | `street_number`, `street_name`, `unit`, `city`, `postal_code` | see [Address fields](#address-fields) | | | Yes except `unit` | |
 | `phone` | Téléphone | Phone number | phone | Yes | |
-| `email` | Courriel | Email address | email | Yes | |
-| `opening_hours` | Heures d’ouverture | Opening hours | weekly schedule | Yes | For each weekday: closed, or open and close times (HH:MM) |
+| `email` | Courriel | Email address | email | Yes | The store's contact address; never the store manager's sign-in email |
+| `opening_hours` | Heures d’ouverture | Opening hours | weekly schedule | Yes | For each day: an opening and closing time typed in 24-hour HH:MM ("2000" becomes 20:00), closing after opening, or "Fermé / Closed". At least one open day. Hours copied as free text from a partner application are shown read-only until the grid is filled in, which the first save requires |
 | `pickup_instructions` | Instructions pour la cueillette | Pickup instructions | text | No | At most 300 characters, for example "Porte arrière, sonnez / Back door, ring the bell" |
-| `is_active` | Actif | Active | toggle | Admin only | Deactivating cancels open listings |
+| `is_active` | Statut (Actif / Désactivé) | Status (Active / Deactivated) | toggle | Admins only | Not for the B.A.D.R. store. Saving a changed status opens a confirmation that requires a reason (Motif / Reason, at most 500 characters, no personal details). Deactivating cancels open listings and emails the households that reserved; reactivating restores nothing |
+
+Fields changed but not saved show "*" after their label, and a notice at the top says so until the changes are saved or put back. The save sends only the changed fields.
 
 ## Listing form
 

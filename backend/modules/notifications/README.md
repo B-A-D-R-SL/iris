@@ -69,7 +69,7 @@ Final French/English wording remains subject to the sponsor review recorded in
 | `expiry_reminder` | None | Sign-in |
 | `reservation_confirmed` | None | Sign-in |
 | `pickup_window_open` | None | Sign-in |
-| `reservation_cancelled_by_store` | None | Sign-in |
+| `reservation_cancelled_by_store` | `store_name` (150), `listing_title` (80), `quantity` (1 to 4 digits) | Sign-in |
 | `strike` | None | Sign-in |
 | `digest` | None | Sign-in |
 | `need_match` | None | Sign-in |

@@ -44,6 +44,12 @@ Own the listings feature boundary within the Iris modular monolith.
   reserved with one conditional UPDATE (published, pickup not ended, enough
   left), inside the caller's transaction. The only code that changes
   `quantity_reserved` upward; True when the units were taken (BR-RES-009).
+- `services.cancel_all_for_store(store_id, now=)` (US-14): lock and cancel the
+  store's published listings whose pickup has not ended, inside the caller's
+  transaction; returns their IDs. Ended listings are left for no-shows (BR-STORE-002).
+- `queries.open_listing_counts(store_ids, now)`, `queries.open_listing_ids(store_id, now)`
+  and `queries.cancellation_details(listing_ids)` (US-14): what a deactivation
+  would cancel, and the titles for its emails.
 
 ## Endpoints
 

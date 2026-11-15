@@ -21,6 +21,8 @@ account. The record also preserves staff verification and creation timestamps.
 - `queries.walk_in_for_staff(household_id, staff_user) -> Household | None`
 - `queries.pickup_names(household_id)`: holder and alternate as first name and
   last initial for store pickups, or None once anonymized (US-44)
+- `queries.email_contacts(household_ids)`: email (or None) and preferred
+  language per file, for the store cancellation email (US-14)
 - `queries.any_visible_for_pickup(household_ids)`: whether any of the IDs is
   still on file for pickup (not anonymized); used when a code matches another
   store (US-44, BR-RES-003)
