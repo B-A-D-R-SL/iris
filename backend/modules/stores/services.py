@@ -5,7 +5,9 @@
 
 import logging
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any, cast
+from uuid import UUID
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -15,6 +17,7 @@ from django.utils.translation import gettext_lazy as _
 
 from modules.categories import queries as category_queries
 from modules.notifications import services as notification_services
+from modules.stores.domain import store_rules
 from modules.stores.models import (
     ApplicationLanguage,
     ApplicationStatus,
@@ -281,3 +284,189 @@ def reject_application(
         {"language": application.language, "reason": reason},
     )
     return application
+
+
+# --- Store administration (US-14) -------------------------------------------
+
+# Every field an admin may change; is_badr, application, is_active, the id and
+# the timestamps are never edited here (is_active only through (de)activation).
+EDITABLE_STORE_FIELDS = frozenset(
+    {
+        "name",
+        "street_number",
+        "street_name",
+        "unit",
+        "city",
+        "postal_code",
+        "phone",
+        "email",
+        "opening_hours",
+        "pickup_instructions",
+    }
+)
+_OPTIONAL_TEXT_FIELDS = frozenset({"unit", "pickup_instructions"})
+
+HOURS_MESSAGES = {
+    store_rules.HOURS_NOT_A_WEEK: _("Enter the opening hours for every day."),
+    store_rules.HOURS_INVALID_TIME: _("Enter times as HH:MM."),
+    store_rules.HOURS_CLOSE_BEFORE_OPEN: _(
+        "The closing time must be after the opening time."
+    ),
+    store_rules.HOURS_NO_OPEN_DAY: _("The store must be open at least one day."),
+}
+REASON_MESSAGES = {
+    store_rules.REASON_REQUIRED: _("Enter a reason."),
+    store_rules.REASON_TOO_LONG: _("Enter a reason of at most 500 characters."),
+}
+SENSITIVE_REASON_MESSAGE = _(
+    "Remove personal details such as names, emails, phone numbers or ID numbers."
+)
+
+
+class StoreIsBadr(Exception):
+    """The B.A.D.R. store is never deactivated."""
+
+
+class StoreStatusUnchanged(Exception):
+    """The store is already active, or already deactivated."""
+
+    def __init__(self, *, is_active: bool) -> None:
+        super().__init__("already active" if is_active else "already inactive")
+        self.is_active = is_active
+
+
+@dataclass(frozen=True)
+class DeactivationResult:
+    store: Store
+    listings_cancelled: int
+    reservations_cancelled: int
+
+
+def _locked_store(store_id: UUID) -> Store:
+    """The store row, locked for the rest of the transaction (404 when missing)."""
+    return Store.objects.select_for_update().get(pk=store_id)
+
+
+def _hours_errors(value: object) -> dict[str, list[str]]:
+    codes = store_rules.weekly_hours_errors(value)
+    if not codes:
+        return {}
+    return {"opening_hours": [str(HOURS_MESSAGES[code]) for code in codes.values()]}
+
+
+def _apply_changes(store: Store, changes: Mapping[str, Any]) -> None:
+    unknown = sorted(set(changes) - EDITABLE_STORE_FIELDS)
+    if unknown:
+        raise ValidationError(
+            {field: _("This field cannot be changed.") for field in unknown}
+        )
+    for field, value in changes.items():
+        if field == "opening_hours":
+            if errors := _hours_errors(value):
+                raise ValidationError(errors)
+            value = store_rules.schedule_with_notes(value, store.opening_hours)
+        elif isinstance(value, str):
+            value = value.strip()
+            if field in _OPTIONAL_TEXT_FIELDS and not value:
+                value = None
+        setattr(store, field, value)
+
+
+@transaction.atomic
+def update_store(store_id: UUID, changes: Mapping[str, Any], admin: Any) -> Store:
+    """Change store fields; audit the changed field names, never their values.
+
+    rule: BR-STORE-001 admin only, editable fields only, nothing recorded when
+    nothing changes. Address edits show on every listing of the store.
+    """
+    from modules.audit import services as audit_services
+
+    _require_active_admin(admin)
+    store = _locked_store(store_id)
+    before = {field: getattr(store, field) for field in changes}
+    _apply_changes(store, changes)
+    # Check only the submitted fields: older stores (B.A.D.R., approvals) may
+    # still hold empty hours. Store.clean also normalises the postal code.
+    store.full_clean(
+        exclude=[f.name for f in Store._meta.fields if f.name not in changes]
+    )
+    changed = store_rules.changed_fields(
+        before, {field: getattr(store, field) for field in changes}
+    )
+    if not changed:
+        return Store.objects.get(pk=store.pk)
+    store.save(update_fields=[*changed, "updated_at"])
+    audit_services.record(
+        admin, "update", "store", store.pk, {"fields": ",".join(changed)}
+    )
+    return store
+
+
+def _status_reason(reason: object) -> str:
+    """BR-STORE-005: required, at most 500 characters, no personal details."""
+    from modules.privacy import services as privacy_services
+
+    cleaned, error = store_rules.clean_reason(reason)
+    if error:
+        raise ValidationError({"reason": REASON_MESSAGES[error]})
+    if privacy_services.household_reason_contains_sensitive_data(cleaned):
+        raise ValidationError({"reason": SENSITIVE_REASON_MESSAGE})
+    return cleaned
+
+
+def _locked_for_status_change(store_id: UUID, admin: Any, *, activate: bool) -> Store:
+    _require_active_admin(admin)
+    store = _locked_store(store_id)
+    if not activate and store.is_badr:
+        raise StoreIsBadr
+    if store.is_active == activate:
+        raise StoreStatusUnchanged(is_active=store.is_active)
+    return store
+
+
+@transaction.atomic
+def deactivate_store(store_id: UUID, admin: Any, reason: str) -> DeactivationResult:
+    """Stop a store posting and cancel what households can no longer pick up.
+
+    rule: BR-STORE-004 never the B.A.D.R. store. One transaction: the store,
+    its listings whose pickup has not ended (BR-STORE-002), their reserved
+    claims and emails (BR-STORE-003) and the audit event all commit together.
+    """
+    from modules.audit import services as audit_services
+    from modules.listings import services as listing_services
+    from modules.reservations import services as reservation_services
+
+    store = _locked_for_status_change(store_id, admin, activate=False)
+    reason = _status_reason(reason)
+    now = timezone.now()  # read after the lock, like the reservation clock
+    store.is_active = False
+    store.save(update_fields=["is_active", "updated_at"])
+    listing_ids = listing_services.cancel_all_for_store(store.pk, now=now)
+    reservations = reservation_services.cancel_for_cancelled_listings(
+        listing_ids, store_name=store.name
+    )
+    audit_services.record(
+        admin,
+        "deactivate",
+        "store",
+        store.pk,
+        {
+            "reason": reason,
+            "listings_cancelled": len(listing_ids),
+            "reservations_cancelled": reservations,
+        },
+    )
+    return DeactivationResult(store, len(listing_ids), reservations)
+
+
+@transaction.atomic
+def reactivate_store(store_id: UUID, admin: Any, reason: str) -> Store:
+    """Let a deactivated store post again; cancelled listings stay cancelled."""
+    from modules.audit import services as audit_services
+
+    store = _locked_for_status_change(store_id, admin, activate=True)
+    reason = _status_reason(reason)
+    store.is_active = True
+    store.save(update_fields=["is_active", "updated_at"])
+    audit_services.record(admin, "reactivate", "store", store.pk, {"reason": reason})
+    return store

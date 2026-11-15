@@ -21,6 +21,7 @@ from modules.listings.domain.posting import Refusal
 from modules.listings.models import Listing
 from modules.rules.domain.schemas import DEFAULT_RULE_VALUES
 from modules.rules.models import RuleSetVersion
+from modules.stores import services as store_services
 
 
 def payload(case: SimpleNamespace) -> dict[str, Any]:
@@ -173,6 +174,26 @@ def test_us33_api_refuses_inactive_store(
     response = posting_client.post(
         reverse("store-listing-create"), payload(posting_case), format="json"
     )
+    assert response.status_code == 403
+    assert not Listing.objects.exists()
+
+
+# rule: BR-STORE-002
+def test_us14_store_deactivated_by_an_admin_cannot_post(
+    posting_case: SimpleNamespace, posting_client: APIClient
+) -> None:
+    """AC2: after US-14's deactivation, the store's staff can no longer post."""
+    admin = get_user_model().objects.create_user(
+        "store-admin-us14@example.test", role="admin"
+    )
+    store_services.deactivate_store(
+        posting_case.store.pk, admin, "Closed for renovations"
+    )
+
+    response = posting_client.post(
+        reverse("store-listing-create"), payload(posting_case), format="json"
+    )
+
     assert response.status_code == 403
     assert not Listing.objects.exists()
 

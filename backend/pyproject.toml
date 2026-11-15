@@ -174,7 +174,25 @@ ignore_imports = [
     "modules.stores.tests.** -> modules.accounts.tests.factories",
     # stores -> categories: partner applications list active category codes (US-12)
     "modules.stores.** -> modules.categories.queries",
+    # stores -> listings, reservations: store deactivation cancels open listings
+    # and their reservations in one transaction; the admin screens show counts (US-14).
+    "modules.stores.** -> modules.listings.services",
+    "modules.stores.** -> modules.listings.queries",
+    "modules.stores.** -> modules.reservations.services",
+    "modules.stores.** -> modules.reservations.queries",
+    "modules.stores.** -> modules.privacy.services",
     "modules.stores.tests.** -> modules.categories.tests.factories",
+    # US-14 store administration tests build listings and reservations and
+    # check the cancelled rows, queued emails and audit events they leave.
+    "modules.stores.tests.** -> modules.listings.tests.factories",
+    "modules.stores.tests.** -> modules.reservations.tests.factories",
+    "modules.stores.tests.** -> modules.households.tests.factories",
+    "modules.stores.tests.** -> modules.listings.models",
+    "modules.stores.tests.** -> modules.reservations.models",
+    "modules.stores.tests.** -> modules.audit.models",
+    "modules.stores.tests.** -> modules.notifications.models",
+    "modules.stores.tests.test_store_admin_service -> modules.accounts.models",
+    "modules.stores.tests.test_staff_store_api -> modules.accounts.models",
 
     # households -> documents, eligibility, priority, review
     "modules.households.** -> modules.documents.services",
