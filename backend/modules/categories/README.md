@@ -14,16 +14,13 @@ Own the categories feature boundary within the Iris modular monolith.
 - `services.py`: Public write operations and transactions
 - `queries.py`: Public read-only operations
 - `models.py`: Module-owned Django models
-- `tasks.py`: Background jobs when necessary
 - `tests/`: Domain, service, and API tests
 
 ## Public functions
 
 - `services.save_category(category)`
 - `services.get_or_create_category(category)`
-- `services.deactivate_category(category_id)`
 - `queries.list_active_categories()`
-- `queries.get_active_category(code)`
 - `queries.list_all_categories()` and `queries.get_category(code)` (admin, active or not)
 - `services.create_category(values, admin)` and `services.update_category(code, values, admin)`
   (US-35; admin only; the default value follows `listing_posting.estimated_value_max_cents`)

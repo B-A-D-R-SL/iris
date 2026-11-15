@@ -16,7 +16,6 @@ lead to them, within the Iris modular monolith.
 - `services.py`: Public write operations and transactions
 - `queries.py`: Public read-only operations
 - `models.py`: Module-owned Django models
-- `tasks.py`: Background jobs when necessary
 - `tests/`: Domain, service, and API tests
 
 ## Models
