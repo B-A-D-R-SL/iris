@@ -14,7 +14,7 @@ from django.utils import translation
 from django.utils.dateparse import parse_datetime
 from rest_framework.test import APIClient
 
-from modules.accounts.models import User
+from modules.accounts.queries import UserRole
 from modules.accounts.tests.factories import UserFactory
 from modules.reservations.api.pickup_views import REFUSALS
 from modules.reservations.models import Reservation, ReservationStatus
@@ -100,7 +100,7 @@ def test_us44_second_confirm_says_already_picked_up_with_the_first_time(
 
 
 @pytest.mark.parametrize(
-    "role", [User.Role.BENEFICIARY, User.Role.INTAKE_WORKER, User.Role.ADMIN]
+    "role", [UserRole.BENEFICIARY, UserRole.INTAKE_WORKER, UserRole.ADMIN]
 )
 def test_us44_other_roles_are_refused(
     pickup_case: SimpleNamespace, make_reservation: MakeReservation, role: str
@@ -130,7 +130,7 @@ def test_us44_signed_out_is_refused(
     assert reservation.status == ReservationStatus.RESERVED
 
 
-@pytest.mark.parametrize("role", [User.Role.STORE_STAFF, User.Role.STORE_MANAGER])
+@pytest.mark.parametrize("role", [UserRole.STORE_STAFF, UserRole.STORE_MANAGER])
 def test_us44_staff_of_another_store_cannot_see_or_confirm(
     pickup_case: SimpleNamespace, make_reservation: MakeReservation, role: str
 ) -> None:

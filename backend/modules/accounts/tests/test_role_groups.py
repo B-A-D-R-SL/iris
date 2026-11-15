@@ -7,17 +7,27 @@ import pytest
 from django.contrib.auth.models import AnonymousUser
 
 from modules.accounts.models import User
-from modules.accounts.queries import STAFF_ROLES, STORE_ROLES, is_admin
+from modules.accounts.queries import STAFF_ROLES, STORE_ROLES, UserRole, is_admin
+
+
+def test_one_role_enum_and_no_case_only_alias():
+    """Other modules read the field's roles from queries (FIX-31, SonarCloud S1845).
+
+    A `User.Role` alias made `user.Role`, mistyped for `user.role`, compare the
+    enum class instead of the value, so a role check was silently false.
+    """
+    assert User._meta.get_field("role").choices == UserRole.choices
+    assert not hasattr(User, "Role")
 
 
 @pytest.mark.parametrize(
     ("role", "store", "staff", "admin"),
     [
-        (User.Role.BENEFICIARY, False, False, False),
-        (User.Role.STORE_STAFF, True, False, False),
-        (User.Role.STORE_MANAGER, True, False, False),
-        (User.Role.INTAKE_WORKER, False, True, False),
-        (User.Role.ADMIN, False, True, True),
+        (UserRole.BENEFICIARY, False, False, False),
+        (UserRole.STORE_STAFF, True, False, False),
+        (UserRole.STORE_MANAGER, True, False, False),
+        (UserRole.INTAKE_WORKER, False, True, False),
+        (UserRole.ADMIN, False, True, True),
         ("unknown", False, False, False),
         (None, False, False, False),
     ],
@@ -28,7 +38,7 @@ def test_role_permissions(role, store, staff, admin):
     assert (role in STORE_ROLES) is store
     assert (role in STAFF_ROLES) is staff
     assert is_admin(user) is admin
-    assert all(isinstance(role, User.Role) for role in (*STORE_ROLES, *STAFF_ROLES))
+    assert all(isinstance(role, UserRole) for role in (*STORE_ROLES, *STAFF_ROLES))
 
 
 @pytest.mark.parametrize(

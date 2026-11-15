@@ -42,6 +42,7 @@ from iris.seedset import (
 
 # Exception: fictional rows in states the workflows cannot create. See the module docstring.
 from modules.accounts.models import User
+from modules.accounts.queries import UserRole
 from modules.categories.models import Category
 from modules.households.domain.expiry import (
     InvalidApprovedMonths,
@@ -188,10 +189,7 @@ def _ensure_people(
 
 def _ensure_user(planned: PlannedPerson, store: Store | None, password: str) -> User:
     """Create one account. Store staff and managers must point at a store."""
-    if (
-        planned.role in {User.Role.STORE_STAFF, User.Role.STORE_MANAGER}
-        and store is None
-    ):
+    if planned.role in {UserRole.STORE_STAFF, UserRole.STORE_MANAGER} and store is None:
         raise CommandError(f"{planned.email} needs a store.")
     seed_id = _seed_id("user", planned.email)
     existing = _existing(User, seed_id, email=planned.email)
@@ -228,7 +226,7 @@ def _ensure_households(
     intake = [
         people[person.email]
         for person in plan.people
-        if person.role == User.Role.INTAKE_WORKER
+        if person.role == UserRole.INTAKE_WORKER
     ]
     households: dict[int, Household] = {}
     for planned in plan.households:

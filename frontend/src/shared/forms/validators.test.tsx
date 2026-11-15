@@ -10,6 +10,7 @@ import {
   hasLength,
   isAcceptedFile,
   isDateInRange,
+  isEmail,
   isMoneyInRange,
   isPhone,
   isPostalCode,
@@ -85,6 +86,32 @@ describe("phone and postal code follow the backend rule, whatever the case and s
       expect(isPhone()(value)).not.toBeNull();
     },
   );
+});
+
+describe("email domains are dot-separated labels, checked in linear time (FIX-31)", () => {
+  it.each(["marie@example.ca", "marie.tremblay+iris@banque-alimentaire.qc.ca"])(
+    "accepts %j",
+    (value) => {
+      expect(isEmail()(value)).toBeNull();
+    },
+  );
+
+  it.each(["marie@example", "marie@example..ca", "marie@.example.ca", "marie@example.ca."])(
+    "refuses %j",
+    (value) => {
+      expect(messageOf(isEmail()(value))).toBe("Entrez un courriel valide.");
+    },
+  );
+
+  it("refuses a long run of dots without backtracking", () => {
+    const value = `a@${".".repeat(100_000)}@`;
+    const started = performance.now();
+    const error = isEmail()(value);
+    const elapsedMs = performance.now() - started;
+
+    expect(messageOf(error)).toBe("Entrez un courriel valide.");
+    expect(elapsedMs).toBeLessThan(100);
+  });
 });
 
 describe("rules explain the problem in French by default", () => {

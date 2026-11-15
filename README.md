@@ -182,6 +182,15 @@ docker compose exec frontend pnpm audit --prod --audit-level high
 
 The TypeScript application and Vite configuration use strict compiler checking.
 
+`pnpm.overrides` in `frontend/package.json` replaces vulnerable packages that
+development tools pull in. Remove each one when its condition is met:
+
+| Override | Why | Remove when |
+| --- | --- | --- |
+| `@typescript-eslint/typescript-estree>minimatch` | typescript-eslint still asks for minimatch 10, which has a denial-of-service advisory. Version 11 keeps the one function it calls (FIX-31). | typescript-eslint accepts minimatch 11: without the override, `pnpm why minimatch` shows only 11.x |
+| `jsdom@30.1.2>undici` | jsdom 30.1.2 pulls a vulnerable Undici 8 (FIX-23). | jsdom moves past 30.1.2, so the override no longer applies |
+| `openapi-typescript@6.7.6>undici` | openapi-typescript 6.7.6 pulls Undici 5 and `@fastify/busboy`, both vulnerable (FIX-23). | openapi-typescript moves past 6.7.6, so the override no longer applies |
+
 ### API Types and Generation Checks
 
 From the repository root, pipe the validated backend schema into the frontend
