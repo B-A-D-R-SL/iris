@@ -253,7 +253,7 @@ record live application/worker/email/photo/proxy checks.
 | Production settings (FIX-04) | Merged; staging inherits their security guards |
 | Release image and React/static serving | Implemented in this branch |
 | Worker supervision, serialized migrations and fictional seed | Implemented in this branch |
-| CI release-image boot and smoke | Implemented; local validation recorded in AI_USAGE |
+| CI release-image boot and smoke | Implemented; local validation recorded in the [wiki's AI usage record](https://github.com/B-A-D-R-SL/iris/wiki/Iteration-4-%E2%80%93-AI-Usage#set-17-azure-staging-environment-and-deploy-workflow) |
 | Deploy workflow after successful main push CI | Implemented; disabled until owner opt-in |
 | Database, private Blob storage and App Service | Owner activation still required |
 | GitHub environment, public image package and OIDC roles | Owner configuration still required |
