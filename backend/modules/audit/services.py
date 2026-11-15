@@ -100,6 +100,23 @@ def _validate_eligibility_decision(
         )
 
 
+def _validate_decision_metadata(
+    target_type: str, metadata: dict[str, str | int]
+) -> None:
+    """Validate eligibility references or the existing staff-decision outcome."""
+    if "decision_id" in metadata or "rule_version" in metadata:
+        _validate_eligibility_decision(target_type, metadata)
+        return
+    if not metadata:
+        return
+    if set(metadata) != {"outcome"} or metadata["outcome"] not in (
+        "approved",
+        "rejected",
+        "review_required",
+    ):
+        raise ValidationError({"metadata": "A supported outcome is required."})
+
+
 def _validate_metadata(
     action: str, target_type: str, metadata: dict[str, str | int]
 ) -> None:
@@ -110,17 +127,7 @@ def _validate_metadata(
         _validate_rule_publication(target_type, metadata)
         return
     if action == AuditEvent.Action.DECISION:
-        if "decision_id" in metadata or "rule_version" in metadata:
-            _validate_eligibility_decision(target_type, metadata)
-            return
-        if not metadata:
-            return
-        if set(metadata) != {"outcome"} or metadata["outcome"] not in (
-            "approved",
-            "rejected",
-            "review_required",
-        ):
-            raise ValidationError({"metadata": "A supported outcome is required."})
+        _validate_decision_metadata(target_type, metadata)
         return
     if action in (AuditEvent.Action.SUSPEND, AuditEvent.Action.REACTIVATE):
         reason = metadata.get("reason")
