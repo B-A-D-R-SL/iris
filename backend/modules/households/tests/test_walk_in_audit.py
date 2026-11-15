@@ -4,18 +4,34 @@
 from uuid import uuid4
 
 import pytest
+from django.apps import apps
 from django.db import OperationalError, transaction
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from adapters.file_store.memory import InMemoryFileStore
 from modules.audit.queries import search_events
 from modules.households.api.serializers import WalkInDraftReadSerializer
 from modules.households.models import Household, HouseholdDraftEvent, Member
 from modules.households.services import create_walk_in, submit_walk_in, update_draft
 from modules.households.tests.factories import HouseholdFactory, WalkInPayloadFactory
+from modules.households.tests.notices.helpers import filed_notice, publish_notice_rule
 
 pytestmark = pytest.mark.django_db
+OPERATIONS = ["create", "view", "update", "submit", "notices", "record_notice"]
+# FIX-29: reading the notices shows the file; recording one changes it.
+EXPECTED_ACTION = {"notices": "view", "record_notice": "update"}
+READ_ROUTES = ["staff-households-detail", "staff-households-notices"]
+
+
+def notice_rows():
+    return list(apps.get_model("documents.IncomeNotice").objects.values())
+
+
+@pytest.fixture(autouse=True)
+def _notice_rule():
+    publish_notice_rule()
 
 
 @pytest.fixture
@@ -32,6 +48,12 @@ def client_for(actor):
 def perform(client, operation, household, data):
     if operation == "create":
         return client.post(reverse("staff-households-create"), data, format="json")
+    if operation in ("notices", "record_notice"):
+        url = reverse("staff-households-notices", kwargs={"id": household.pk})
+        if operation == "notices":
+            return client.get(url)
+        holder = household.members.get(relation=Member.Relation.HOLDER)
+        return client.post(url, filed_notice(holder), format="multipart")
     route = (
         "staff-households-submit"
         if operation == "submit"
@@ -45,7 +67,7 @@ def perform(client, operation, household, data):
     return client.post(url, {}, format="json")
 
 
-@pytest.mark.parametrize("operation", ["create", "view", "update", "submit"])
+@pytest.mark.parametrize("operation", OPERATIONS)
 @pytest.mark.parametrize("role", ["intake_worker", "admin"])
 def test_each_walk_in_operation_records_only_actor_target_and_action(
     operation, role, submission_worker, ready_household_factory, data
@@ -55,11 +77,11 @@ def test_each_walk_in_operation_records_only_actor_target_and_action(
     submission_worker.save()
     household = ready_household_factory()
     response = perform(client_for(submission_worker), operation, household, data)
-    expected_status = 201 if operation == "create" else 200
+    expected_status = 201 if operation in ("create", "record_notice") else 200
     assert response.status_code == expected_status, response.data
-    events = search_events(household=response.data["id"], actor=submission_worker.pk)
-    event = events.get()
-    assert event.action == operation
+    target = response.data["id"] if operation == "create" else household.pk
+    event = search_events(household=target, actor=submission_worker.pk).get()
+    assert event.action == EXPECTED_ACTION.get(operation, operation)
     assert event.actor_role == role
     assert event.target_type == "household"
     # No holder, contact, address, birth date or member data.
@@ -68,13 +90,14 @@ def test_each_walk_in_operation_records_only_actor_target_and_action(
         assert response["Cache-Control"] == "private, no-store"
 
 
-@pytest.mark.parametrize("operation", ["create", "view", "update", "submit"])
+@pytest.mark.parametrize("operation", OPERATIONS)
 def test_audit_insert_failure_prevents_success_and_rolls_back_all_changes(
     operation, submission_worker, ready_household_factory, data, monkeypatch
 ):
     household = ready_household_factory()
     before = list(Household.objects.values())
     members_before = list(Member.objects.values())
+    notices_before = notice_rows()
     events_before = search_events().count()
 
     def fail(*args, **kwargs):
@@ -86,6 +109,8 @@ def test_audit_insert_failure_prevents_success_and_rolls_back_all_changes(
         perform(client_for(submission_worker), operation, household, data)
     assert list(Household.objects.values()) == before
     assert list(Member.objects.values()) == members_before
+    assert notice_rows() == notices_before
+    assert InMemoryFileStore.references() == []
     assert not HouseholdDraftEvent.objects.exists()
     assert search_events().count() == events_before
 
@@ -146,12 +171,13 @@ def test_failed_detail_serialization_records_no_disclosure(
     assert search_events().count() == events_before
 
 
+@pytest.mark.parametrize("route", READ_ROUTES)
 @pytest.mark.parametrize(
     "kind,expected_status",
     [("unknown", 404), ("anonymized", 404), ("inactive", 403), ("anonymous", 401)],
 )
-def test_refused_detail_read_records_no_disclosure(
-    kind, expected_status, submission_worker, ready_household_factory
+def test_refused_read_records_no_disclosure(
+    route, kind, expected_status, submission_worker, ready_household_factory
 ):
     household = ready_household_factory()
     identifier = uuid4() if kind == "unknown" else household.pk
@@ -163,18 +189,19 @@ def test_refused_detail_read_records_no_disclosure(
         submission_worker.save()
     client = APIClient() if kind == "anonymous" else client_for(submission_worker)
     before = search_events().count()
-    response = client.get(reverse("staff-households-detail", kwargs={"id": identifier}))
+    response = client.get(reverse(route, kwargs={"id": identifier}))
     assert response.status_code == expected_status
     assert search_events().count() == before
 
 
-def test_head_detail_probe_does_not_record_a_file_disclosure(
-    submission_worker, ready_household_factory
+@pytest.mark.parametrize("route", READ_ROUTES)
+def test_head_probe_does_not_record_a_file_disclosure(
+    route, submission_worker, ready_household_factory
 ):
     household = ready_household_factory()
     before = search_events().count()
     response = client_for(submission_worker).head(
-        reverse("staff-households-detail", kwargs={"id": household.pk})
+        reverse(route, kwargs={"id": household.pk})
     )
     assert response.status_code == 200
     assert not response.content

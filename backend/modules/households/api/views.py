@@ -99,6 +99,12 @@ class WalkInErrorHandlingMixin:
         return walk_in_exception_handler
 
 
+def record_file_view(request: Request, household_id: UUID) -> None:
+    """SEC-08: record who saw a walk-in file; a HEAD probe shows nothing."""
+    if request.method == "GET":
+        audit_services.record(request.user, "view", "household", household_id, {})
+
+
 class IsIntakeWorkerOrAdmin(BasePermission):
     def has_permission(self, request: Request, view: Any) -> bool:
         """Check the same staff permission used by edits and advertised actions."""
@@ -204,10 +210,7 @@ class WalkInDetailView(WalkInErrorHandlingMixin, GenericAPIView):
             if household is None:
                 raise Http404
             data = self.get_read_serializer(household).data
-            if request.method == "GET":
-                audit_services.record(
-                    request.user, "view", "household", household.pk, {}
-                )
+            record_file_view(request, household.pk)
         response = Response(data)
         response["Cache-Control"] = "private, no-store"
         return response

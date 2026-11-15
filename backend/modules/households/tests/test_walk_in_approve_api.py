@@ -16,6 +16,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from modules.accounts.tests.factories import UserFactory
+from modules.audit.queries import search_events
 from modules.documents import services as document_services
 from modules.documents.tests.factories import IncomeNoticeFactory
 from modules.households.models import Household
@@ -321,7 +322,7 @@ def test_the_summary_gives_the_notice_limits_in_force(
 
 
 def test_the_summary_answers_503_without_notice_settings(
-    staff_client: APIClient, household: Any, monkeypatch: Any
+    staff_client: APIClient, staff: Any, household: Any, monkeypatch: Any
 ) -> None:
     """Same answer as recording a notice when the rule is missing."""
 
@@ -334,10 +335,36 @@ def test_the_summary_answers_503_without_notice_settings(
 
     assert response.status_code == 503
     assert response.json()["code"] == "notice_settings_missing"
+    assert not search_events(actor=staff.pk).exists()
 
 
-def test_the_summary_of_an_unknown_file_answers_404(staff_client: APIClient) -> None:
+def test_the_summary_of_an_unknown_file_answers_404(
+    staff_client: APIClient, staff: Any
+) -> None:
     assert staff_client.get(summary_url(uuid4())).status_code == 404
+    assert not search_events(actor=staff.pk).exists()
+
+
+def test_reading_the_summary_records_who_viewed_the_file(
+    staff_client: APIClient, staff: Any, household: Any
+) -> None:
+    """SEC-08 (FIX-29): the summary shows the household's income."""
+    staff_client.get(summary_url(household.pk))
+
+    event = search_events(household=household.pk).get()
+    assert (event.action, event.actor_id, event.metadata) == ("view", staff.pk, {})
+
+
+def test_a_summary_probe_or_refusal_records_no_view(
+    staff_client: APIClient, household: Any
+) -> None:
+    """HEAD shows nothing, and store staff are refused before anything is read."""
+    store_client = APIClient()
+    store_client.force_login(UserFactory(role="store_staff", store=StoreFactory()))
+
+    assert staff_client.head(summary_url(household.pk)).status_code == 200
+    assert store_client.get(summary_url(household.pk)).status_code == 403
+    assert not search_events(household=household.pk).exists()
 
 
 def test_the_summary_sends_a_submitted_file_with_a_missing_notice_to_review(
