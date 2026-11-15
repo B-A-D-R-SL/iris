@@ -12,6 +12,7 @@ from django.db.models import QuerySet
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from modules.audit import services as audit_services
 from modules.documents import services as document_services
 from modules.households.domain.person import is_adult
 from modules.households.models import Household, HouseholdDraftEvent, Member
@@ -93,4 +94,7 @@ def _save_walk_in_notice(
         actor_role=getattr(staff_user, "role", ""),
         action=HouseholdDraftEvent.Action.UPDATED,
     )
-    return document_services.save_prepared_notice(member.pk, prepared, staff_user)
+    notice = document_services.save_prepared_notice(member.pk, prepared, staff_user)
+    # SEC-08 (FIX-29): the central audit log, in the same transaction as the notice.
+    audit_services.record(staff_user, "update", "household", household.pk, {})
+    return notice

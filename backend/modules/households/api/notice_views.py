@@ -23,6 +23,7 @@ from modules.households.api.views import (
     IsIntakeWorkerOrAdmin,
     WalkInErrorHandlingMixin,
     _service_validation,
+    audited_file_response,
 )
 from modules.households.models import Household
 
@@ -41,7 +42,8 @@ class WalkInNoticeView(WalkInErrorHandlingMixin, GenericAPIView):
         notices = queries.walk_in_notices(id, request.user)
         if notices is None:
             raise Http404
-        return Response(WalkInNoticeReadSerializer(notices, many=True).data)
+        data = WalkInNoticeReadSerializer(notices, many=True).data
+        return audited_file_response(request, id, data)
 
     @extend_schema(
         request={"multipart/form-data": WalkInNoticeInputSerializer},

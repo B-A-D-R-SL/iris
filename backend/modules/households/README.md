@@ -231,11 +231,13 @@ transaction as the household change. These services also append central
 `audit.services.record` events: `create`, `update`, and `submit`, targeting the
 household UUID with empty metadata. Both histories roll back if either write
 fails. Submission is audited for both submitted and duplicate-review outcomes.
+Recording a notice also appends an `update` event in the notice's transaction (FIX-29).
 
-Detail GET requests append a `view` event after successful authorization and
-serialization, before returning data. Audit failure prevents disclosure;
+GET requests for the detail, the notices list and the decision summary append a
+`view` event (`api.views.audited_file_response`) after successful authorization and
+serialization, before returning data (FIX-29). Audit failure prevents disclosure;
 unknown, anonymized and unauthorized files create no view event. HEAD probes
-return no file body and create no event. Detail responses use
+return no file body and create no event. All three responses use
 `Cache-Control: private, no-store`. Query helpers stay read-only; staff search
 keeps its existing one-view-event-per-returned-file batch. No names, contact
 details, addresses, dates of birth, consent values or search text enter metadata.
