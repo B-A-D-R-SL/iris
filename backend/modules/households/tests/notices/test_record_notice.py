@@ -15,6 +15,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from adapters.file_store.memory import InMemoryFileStore
+from modules.documents import services as document_services
 from modules.documents.queries import current_notices
 from modules.households.models import Household, HouseholdDraftEvent
 from modules.households.notice_services import record_walk_in_notice
@@ -155,6 +156,63 @@ def test_br_doc_007_child_is_refused(
     assert response.status_code == 400
     assert "member" in response.data["fields"]
     assert InMemoryFileStore.references() == []
+
+
+def withdraw_consent(household: Any) -> None:
+    Household.objects.filter(pk=household.pk).update(
+        consent_data_processing_at=None, consent_text_version=""
+    )
+
+
+def assert_nothing_kept(household: Any, holder: Any) -> None:
+    assert current_notices([holder.pk]) == {}
+    assert InMemoryFileStore.references() == []
+    assert not HouseholdDraftEvent.objects.filter(household=household).exists()
+
+
+def test_prv_02_notice_is_refused_until_the_household_consents(
+    household: Any, holder: Any, worker: Any, monkeypatch: Any
+) -> None:
+    withdraw_consent(household)
+    uploads: list[Any] = []
+    monkeypatch.setattr(
+        document_services, "prepare_staff_notice", lambda *args: uploads.append(args)
+    )
+
+    response = post_notice(
+        api_client(worker), household, filed_notice(holder), HTTP_ACCEPT_LANGUAGE="fr"
+    )
+
+    assert response.status_code == 400
+    assert response.data["fields"] == {
+        "consent_data_processing": [
+            "Enregistrez le consentement du foyer avant d'ajouter un avis."
+        ]
+    }
+    assert uploads == []  # refused before the file reaches storage
+    assert_nothing_kept(household, holder)
+
+
+def test_prv_02_consent_withdrawn_during_the_upload_still_refuses(
+    household: Any, holder: Any, worker: Any, monkeypatch: Any
+) -> None:
+    """The check under the row lock catches consent removed after the first one."""
+    prepare = document_services.prepare_staff_notice
+
+    def prepare_then_withdraw(*args: Any) -> Any:
+        prepared = prepare(*args)
+        withdraw_consent(household)
+        return prepared
+
+    monkeypatch.setattr(
+        document_services, "prepare_staff_notice", prepare_then_withdraw
+    )
+
+    response = post_notice(api_client(worker), household, filed_notice(holder))
+
+    assert response.status_code == 400
+    assert list(response.data["fields"]) == ["consent_data_processing"]
+    assert_nothing_kept(household, holder)
 
 
 @pytest.mark.parametrize(

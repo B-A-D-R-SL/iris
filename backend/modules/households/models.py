@@ -167,6 +167,11 @@ class Household(models.Model):
             ),
         ]
 
+    @property
+    def has_data_processing_consent(self) -> bool:
+        """PRV-02: the consent time and its text version are stored together."""
+        return bool(self.consent_data_processing_at and self.consent_text_version)
+
     def clean_fields(self, exclude: Collection[str] | None = None) -> None:
         normalize_model_contacts(
             self,

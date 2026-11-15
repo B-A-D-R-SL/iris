@@ -39,7 +39,7 @@ def worker() -> Any:
 @pytest.fixture
 def holder() -> Any:
     return MemberFactory(
-        household=HouseholdFactory(phone="+15145550101"),
+        household=HouseholdFactory(phone="+15145550101", consented=True),
         relation="holder",
         first_name="Example",
         last_name="Holder",

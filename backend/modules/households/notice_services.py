@@ -20,10 +20,21 @@ from modules.households.queries import walk_ins_for_staff
 
 
 def _notice_member(household: Household, data: Mapping[str, Any]) -> Member:
-    """BR-DOC-007: the adult of this draft walk-in that the notice is for."""
+    """BR-DOC-007: the adult of this draft walk-in that the notice is for.
+
+    PRV-02 (FIX-30): no notice is taken before the household consents.
+    """
     if household.status != Household.Status.DRAFT:
         raise ValidationError(
             {"status": _("Notices can only be added to a draft file.")}
+        )
+    if not household.has_data_processing_consent:
+        raise ValidationError(
+            {
+                "consent_data_processing": _(
+                    "Record the household's consent before adding a notice."
+                )
+            }
         )
     member_id = data.get("member")
     member = (
@@ -44,8 +55,9 @@ def record_walk_in_notice(
     """Record an adult's notice or non-filing reason on a draft walk-in (BR-DOC-007).
 
     The file is checked and stored first, with no lock held, so a slow upload never
-    blocks draft edits or approval of this file. The row is then locked, the draft
-    and member checked again, and the notice saved; on failure the file is removed.
+    blocks draft edits or approval of this file. The row is then locked, the draft,
+    consent and member checked again, and the notice saved; on failure the file is
+    removed.
     """
     require_walk_in_staff(staff_user)
     # Same scope as every walk-in path: walk-in channel, not anonymized.
