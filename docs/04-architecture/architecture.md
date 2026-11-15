@@ -1,9 +1,4 @@
 <!-- AI contribution: 50% or more AI-generated -->
-<!-- File-length exception: the container/module diagrams and walk-in, partner
-onboarding and reservation/pickup sequences share module ownership and transaction
-boundaries. Keep their household/reservation state diagrams beside the sequences
-so reviewers can verify which persisted state authorizes each transition and
-which email work starts only after the business transaction commits. -->
 
 # Iris architecture — Release 1 draft
 
@@ -63,7 +58,9 @@ A technical spike does not make it an active Release 1 dependency.
 - Money uses integer cents. Datetimes are timezone-aware.
 - React supports French and English and separates public, household,
   store and staff areas.
-- Data and staging services are located in Azure Canada East.
+- The eventual production target is Azure Canada East (SET-24).
+  Fictional-data staging hosting is pending a region/subscription decision;
+  existing ACS email data stays in Canada.
 - Logs and audit metadata exclude sensitive document contents and
   income values.
 - Release 1 staging uses generated test data. The project requires the
@@ -118,6 +115,12 @@ gates. The Release 1 deployment scope below remains staging.
 Django, allauth and Procrastinate also manage framework tables.
 These are not additional business models in the 14-model ERD.
 
+`modules.common` holds shared contact-value utilities, with no tables or Django
+app registration. Its `domain.contact` normalization is pure Python; Django,
+DRF and form adapters delegate to it outside `domain/`. Stores and households
+use this neutral package without importing each other's internals. Import-linter
+continues to enforce the business-module boundaries and domain purity (FIX-14).
+
 Reporting is not introduced into the Release 1 workflows here.
 
 ## Frontend and adapters
@@ -138,6 +141,39 @@ Eligibility, ownership and stock decisions remain on the backend.
 | document_reader | Proposed in [ADR 0005](../adr/0005-notice-reading.md): Gemini on Vertex AI, Montréal; fallback Azure AI Document Intelligence, Canada Central. Pending B.A.D.R.'s decision | A fake returning the values in `mock-data/notices/truth.csv` |
 
 Adapters keep provider-specific calls outside `domain/`.
+
+### Notice files (T-03.18.2)
+
+`file_store` (`backend/adapters/file_store/`) stores notices of assessment in
+one private container under random names (`income-notices/<uuid>`); the
+container has no public access (an existing container that allows public access
+is refused before any upload) and Iris never hands out a storage URL. Staff
+open a file in two steps: `GET /api/staff/notices/{id}/file/` returns a link to
+Iris itself, signed for that staff user and valid `notice_upload.link_minutes`
+(5) as set when the link is issued; `GET /api/staff/notice-files/{token}/`
+checks the user's session and the link, reads the whole file from storage and
+returns it as an attachment. The `FILE_STORE_BACKEND` setting selects Azure Blob
+(Azurite in Docker Compose) or the in-memory fake used by tests; the store is
+built once per process (`adapters/file_store/registry.py`). Without storage,
+uploads and downloads answer 503 `storage_unavailable`; without the
+`notice_upload` rule they answer 503 `notice_settings_missing`. Who may use these
+endpoints is one rule, `accounts.queries.is_intake_staff`.
+
+**Performance:** files are at most `notice_upload.max_bytes` (10 MB) and pass
+through Django on upload and download; a download holds the whole file in memory
+while it is sent. Only intake workers and admins use these endpoints, a few
+notices per household visit, so this load is small for one App Service
+instance. Notice validation and Blob Storage upload happen before the household
+row is locked. The service then locks and rechecks the draft and adult before
+saving the notice and draft history in one transaction; a save failure rolls
+back those writes and invokes prepared-file cleanup. Only the final database
+writes hold the household lock, so storage retries do not block draft edits.
+Django parses the multipart request first (large parts go to a temporary file),
+then Iris reads at most one byte over the limit, so an
+oversized file is refused before anything reaches Blob Storage; the reverse
+proxy's request-size limit bounds the request itself. If online registration
+(US-21) raises the volume, direct uploads to Blob Storage with short-lived write
+tokens are the next step.
 
 The later `document_reader` interface is not invoked by the Release 1
 staff-entry flow. Its interface and the provider comparison are in
@@ -176,7 +212,7 @@ flowchart LR
     I["Iris — Release 1"]
     RQ["Revenu Québec notice of assessment<br/>provided by the household"]
     SC["Statistics Canada<br/>income-threshold reference table"]
-    AZ["Azure Canada East<br/>hosting, private files and email"]
+    AZ["Azure staging — hosting region pending<br/>private files; ACS email data in Canada"]
 
     HH -->|"Sign in, browse and reserve"| I
     ST -->|"Post goods and confirm pickup"| I
@@ -191,10 +227,13 @@ flowchart LR
 
 ### 2. High-level architecture — containers
 
-The API and worker use the same release image.
+The API and worker use the same release image. `backend/iris/release.py`
+supervises Gunicorn and Procrastinate together: either child exiting stops both
+and fails the container; shutdown signals reach both process groups. Startup and
+supervision are implemented, while live Azure verification remains pending.
 
-This is a logical process view. Worker startup and supervision remain
-deployment decisions.
+This is a logical process view of fictional-data staging. Its hosting region and
+subscription are pending; the eventual production target is Canada East.
 
 AI Document Intelligence appears in the team target architecture,
 but its online-reading flow is deferred beyond Release 1.
@@ -205,7 +244,7 @@ flowchart TB
         React["React 19 + TypeScript<br/>public, household, store and staff areas"]
     end
 
-    subgraph Azure["Azure Canada East — Release 1 staging"]
+    subgraph Azure["Azure — fictional-data staging; hosting region pending"]
         subgraph Iris["Iris deployment — common release image"]
             API["Django 6.1 + Django REST Framework<br/>serves the built React application"]
             Worker["Procrastinate worker<br/>email and scheduled lifecycle jobs"]
@@ -213,8 +252,8 @@ flowchart TB
 
         DB[("PostgreSQL 17<br/>application data and job queue")]
         Blob[("Private Blob Storage<br/>notices and listing photos")]
-        Mail["Communication Services<br/>email"]
-        Vault["Key Vault<br/>runtime secrets"]
+        Mail["Communication Services<br/>email data in Canada"]
+        Vault["Existing Key Vault — West US 2<br/>runtime secrets"]
     end
 
     React -->|"HTTPS /api"| API
@@ -278,6 +317,10 @@ The shared-interface allowance comes from the team architecture.
 The households-to-accounts arrow is present in the supplied diagram
 collection.
 
+Audit also reads the public Eligibility query to verify that an actorless event
+matches a saved automatic decision, including its household, outcome and rule
+version. This read never calls the decision service or writes business state.
+
 Households gathers the required household, member and income evidence
 through public interfaces and passes the decision inputs to Eligibility.
 Eligibility calculates and records the decision without calling back
@@ -328,15 +371,22 @@ represented as an active Release 1 environment here.
 The diagram describes the SET-17 branch's implementation and proposed student
 staging topology; it is not evidence that hosting or deployment is active.
 
-Status (13 November 2026): the resource group, Key Vault and ACS email were
+Status (14 November 2026): the resource group, Key Vault and ACS email were
 provisioned by Ammar. The branch now includes a non-root release image,
 serialized migrations/seeding, coupled web/worker supervision, CI image smoke
 and a disabled-by-default main-after-CI deploy workflow. Database, storage,
-App Service, OIDC and live verification remain owner activation steps. The
-student policy excludes Canadian compute regions: fictional staging uses
-West US 2; ACS data remains in Canada. B.A.D.R.'s Canadian production target
-stays under SET-24. Review the [temporary staging ADR](adr-set17-student-staging.md)
-and [budget-gated activation guide](../guides/azure-staging-operations.md).
+App Service, OIDC and live verification remain owner activation steps.
+**The hosting region and subscription decision is pending.** The overlapping
+student-subscription and Concordia location policies allow only West US 2 and
+West US, but PostgreSQL creation failed in both. The team is pursuing student
+capacity and access to B.A.D.R.'s nonprofit credit in parallel. Do not provision
+the database, storage or App Service until the team selects the region and
+subscription; keep those three services together in the chosen region. Existing
+resource group and Key Vault remain in West US 2; ACS email data remains in Canada.
+B.A.D.R.'s eventual Canada East production target stays under SET-24. Review the
+[policy and capacity status](../guides/azure-staging.md#subscription-and-region),
+[temporary staging ADR](adr-set17-student-staging.md) and
+[budget-gated activation guide](../guides/azure-staging-operations.md).
 
 ```mermaid
 
@@ -345,12 +395,12 @@ flowchart LR
     Git["GitHub<br/>feature branch and pull request"]
     CI["CI checks<br/>review and merge to main"]
 
-    subgraph Stage["iris-staging — temporary West US 2 compute; ACS Canada data"]
+    subgraph Stage["iris-staging — fictional data; hosting region pending"]
         App["Azure App Service<br/>Iris release image: web application and worker"]
         DB[("PostgreSQL Flexible Server")]
         Blob[("Private Blob Storage")]
-        Mail["Communication Services email"]
-        Vault["Key Vault"]
+        Mail["Communication Services email<br/>data in Canada"]
+        Vault["Existing Key Vault<br/>West US 2"]
         Logs["Structured container logs<br/>no paid telemetry workspace for SET-17"]
     end
 
@@ -370,362 +420,28 @@ flowchart LR
 
 ### 6. Sequence — walk-in registration
 
-Flagged households remain unapproved. The full review queue is outside
-Release 1.
-
-US-17 built the first part (draft creation and step-by-step saving,
-React screens at `/staff/walk-in`). Its creation and edit events are
-recorded locally in `HouseholdDraftEvent` until the central audit log
-(US-62) supports them. The notices and approval part is US-18.
-
-
-```mermaid
-sequenceDiagram
-    actor IW as Intake worker
-    participant H as Households service
-    participant D as Documents service
-    participant E as Eligibility service
-    participant AC as Accounts service
-    participant A as Audit service
-    participant N as Notification job
-    actor HC as Household contact
-
-    Note over IW,H: React and DRF authenticate staff and check permissions before service calls
-
-    IW->>H: create_walk_in(holder, identity check, consent) — first "Continue" or "Save draft"
-    H->>H: Save draft household and holder as member 1, consent time and text version
-    H->>H: Record HouseholdDraftEvent "created" (local until US-62)
-    H-->>IW: Draft id; the screen moves to /staff/walk-in/{id}
-
-    loop Each later step (address, members, review)
-        IW->>H: update_draft(id, step values)
-        H->>H: Save draft changes, replace other members
-        H->>H: Record HouseholdDraftEvent "updated"
-    end
-
-    loop Each adult
-        IW->>D: Record staff-entered notice or non-filing reason
-        D->>D: Save evidence and private file reference when supplied
-    end
-
-    IW->>H: approve_walk_in()
-    H->>H: Check completeness, verification and duplicate flags
-
-    rect rgb(24, 42, 62)
-        Note over H,A: Approval outcome and associated writes share a database transaction
-
-        H->>H: Prepare household and member decision inputs
-        H->>D: Read recorded income evidence through public query
-        D-->>H: Income evidence and verification status
-        H->>E: decide_for_household(household_id, decision_inputs)
-        E->>E: Save decision inputs, result and applied rule version
-        E-->>H: Eligibility result and threshold
-
-        alt Eligible, verified and no review reason
-            H->>H: Save approval and validity dates
-
-            opt Holder has email and account setup is needed
-                H->>AC: Prepare set-password invitation
-            end
-
-            H->>A: Record approval
-        else Requires clarification or review
-            H->>H: Set review_required
-            H->>A: Record flagged outcome
-        else Not eligible
-            H->>H: Set rejected
-            H->>A: Record rejection outcome
-        end
-    end
-
-    opt Approval committed and invitation prepared
-        H-->>N: Queue setup email after commit
-    end
-
-    H-->>IW: Return saved outcome and permitted explanation
-
-    opt Invitation email queued
-        N-->>HC: Deliver setup link independently
-    end
-```
-
-
+See the [full section](architecture-workflows.md#6-sequence--walk-in-registration).
 
 ### 7. Sequence — partner onboarding
 
-The proposed store manager is the contact designated in the partner
-application. Approval and rejection notifications use that person's
-recorded email address. Receiving a rejection email does not require
-an Iris account or invitation.
-
-```mermaid
-sequenceDiagram
-    actor B as Business applicant
-    actor AD as Administrator
-    participant API as Staff applications API
-    participant S as Stores service
-    participant AC as Accounts service
-    participant A as Audit service
-    participant N as Notification job
-    actor M as Proposed store manager
-
-    B->>S: submit_application(form)
-    S->>S: Validate and save submitted application
-    S-->>N: Queue confirmation email after commit
-
-    AD->>API: GET /api/staff/partner-applications/?status=submitted
-    API->>API: Check active admin (else 401 or 403)
-    API->>S: partner_applications(status), oldest first
-    S-->>API: Page of applications
-    API-->>AD: 200 list
-
-    alt Approve
-        AD->>API: POST /api/staff/partner-applications/{id}/approve/
-        API->>S: approve_application(application, admin)
-        rect rgb(24, 42, 62)
-            Note over S,A: One transaction, failure rolls back all approval writes
-            S->>S: Create active Store
-            S->>AC: create_invitation(role=store_manager, store)
-            AC-->>S: Invitation prepared
-            S->>S: Save approved application and decision information
-            S->>A: Record approval
-        end
-        S-->>API: Approved application (409 if already decided)
-        API-->>AD: 200 application
-
-        S-->>N: Queue invitation email after commit
-        N-->>M: Deliver invitation link
-
-        M->>AC: accept_invitation(token, password)
-        AC->>AC: Verify expiry and one-use token, refuse an already registered email
-        AC->>AC: Create active User with invited identity, role and Store and mark invitation accepted
-        AC-->>M: Account ready for sign-in
-    else Reject
-        AD->>API: POST /api/staff/partner-applications/{id}/reject/ {reason}
-        API->>S: reject_application(application, admin, reason)
-        S->>S: Save rejected status and required reason (400 if blank or over 500)
-        S->>A: Record rejection
-        API-->>AD: 200 application
-        S-->>N: Queue decision email after commit
-        N-->>M: Notify proposed store manager of rejection
-    end
-```
-
-The US-04 backend creates new accounts only: an existing active or inactive
-account with the same email is refused case-insensitively. Acceptance commits
-user creation and invitation consumption together and does not sign the user in
-or change an existing browser session. Issuance stores only the unique SHA-256
-hash of a token generated from 32 random bytes and saves an expiry from the active
-`invitations.expires_after_days` rule (default seven days); later rule versions
-affect only new invitations. The raw token is returned for the calling workflow's
-email. US-13 partner approval, rejection and operator invitation reissue now use
-US-57's shared queue/templates/EmailLog; links use `PUBLIC_APP_ORIGIN`. Reissue
-invalidates previous unaccepted links atomically, and the worker checks stale
-invitation jobs before transport without claiming recall of in-flight messages.
-Staff/team issuing screens and household linking remain US-05, US-06 and US-18;
-the acceptance page is #431.
-
-
+See the [full section](architecture-workflows.md#7-sequence--partner-onboarding).
 
 ### 8. Sequence — reserve and pickup
 
-The Listings module owns the stock UPDATE.
-Reservations owns the reservation INSERT.
-
-Code uniqueness remains per listing in the earlier ERD, so
-store-and-code lookup must not assume global uniqueness.
-
-Rejecting ambiguous matches is the proposed safe error branch pending
-the final lookup policy.
-
-Invalid or duplicate confirmations do not create a second pickup.
-
-```mermaid
-
-sequenceDiagram
-    actor HH as Household user
-    participant R as Reservations service
-    participant H as Households queries
-    participant L as Listings service and queries
-    participant DB as PostgreSQL
-    participant A as Audit service
-    actor ST as Store staff
-
-    HH->>R: reserve(listing, quantity)
-    R->>H: Check approved, valid and not suspended
-    H-->>R: Current household eligibility
-    R->>R: Validate quantity and configured reservation limits
-
-    break Invalid request, ineligible household or limit reached
-        R-->>HH: Reject reservation before changing stock
-    end
-
-    rect rgb(24, 42, 62)
-        Note over R,A: One PostgreSQL transaction for stock, reservation and audit
-
-        R->>L: take_units(listing, quantity)
-        L->>DB: Conditional UPDATE of own listing stock counter
-        DB-->>L: Number of rows changed
-        L-->>R: Allocation result
-
-        alt One row changed
-            R->>DB: INSERT reservation with pickup code
-            R->>A: Record reservation
-            R->>R: Commit
-        else No stock
-            R->>R: Roll back
-        end
-    end
-
-    Note over R,DB: An insert or code-uniqueness failure also rolls back the stock change
-
-    alt Committed
-        R-->>HH: Pickup code and QR
-    else Failed
-        R-->>HH: Sold-out or validation outcome
-    end
-
-    ST->>R: lookup(permitted_store, code)
-    R->>L: Query listings in the staff member's permitted store
-    R->>R: Resolve a unique reservation match
-
-    alt Unique authorized match
-        R->>H: Get permitted pickup display name
-        R-->>ST: First name and last initial, item and quantity
-
-        ST->>R: confirm_pickup(reservation)
-        R->>R: Recheck store, state and timing, save pickup once
-        R->>A: Record pickup in the same transaction
-        R-->>ST: Confirmation outcome
-    else Missing, ambiguous or unauthorized match
-        R-->>ST: Reject lookup without exposing household details
-    end
-```
-
-
+See the [full section](architecture-workflows.md#8-sequence--reserve-and-pickup).
 
 ### 9. State — household file
 
-This is the staff-led Release 1 subset of the supplied state diagram.
-
-Online registration, awaiting-visit routing and the full review
-workflow are not introduced.
-
-Validity and suspension remain visible because reservation eligibility
-uses them.
-
-Each reservation checks expiry even if a scheduled status update has
-not run.
-
-Rejection/suspension reason storage must be aligned with the selected
-schema.
-
-```mermaid
-
-stateDiagram-v2
-    [*] --> draft
-    draft --> submitted: Staff submits complete walk-in file
-    submitted --> approved: Staff verifies eligibility and no review reason
-    submitted --> review_required: Duplicate or other clarification flag
-    submitted --> rejected: Not eligible
-    approved --> renewal_needed: Configured validity expires
-    approved --> suspended: Admin suspends with reason
-    suspended --> approved: Admin reactivates while valid
-
-    note right of review_required
-        Flag stored on Household.
-        Full review queue is deferred.
-        Resolution policy needs agreement.
-    end note
-
-    note right of renewal_needed
-        Approval validity follows RuleSet.
-        Baseline duration is twelve months.
-        Renewal workflow is not expanded here.
-    end note
-```
-
-
+See the [full section](architecture-workflows.md#9-state--household-file).
 
 ### 10. State — reservation
 
-
-```mermaid
-
-stateDiagram-v2
-    [*] --> reserved: Atomic stock allocation and reservation commit
-    reserved --> picked_up: Authorized store confirms
-    reserved --> cancelled: Household cancels
-    reserved --> cancelled_by_store: Listing cancelled or store deactivated
-    reserved --> no_show: Pickup window ends without confirmation
-    no_show --> picked_up: Staff confirms within configured grace
-
-    picked_up --> [*]
-    cancelled --> [*]
-    cancelled_by_store --> [*]
-
-    note right of cancelled
-        late_cancel is a flag,
-        not a separate state.
-    end note
-
-    note right of no_show
-        No strike table is introduced.
-        Source grace is twenty-four hours.
-        Confirm and configure the rule.
-        Stock release timing needs agreement.
-    end note
-```
-
-
+See the [full section](architecture-workflows.md#10-state--reservation).
 
 ## Review points
 
-These decisions remain open. The diagrams do not select missing
-database fields or relationships to fill these gaps.
-
-| Area | Decision needed |
-| --- | --- |
-| Holder/account linkage | Confirm how the household contact connects to their Member and optional User records. Do not require an account for every walk-in or assume a particular foreign key while this remains open. |
-| Partner form storage | Resolved by US-12 (#445): flat address columns as on Store, `goods_categories` as a text array of category codes, plus `expected_frequency`, `opening_hours`, `consent_contact` and `language` columns. See [PartnerApplication](../03-design/database-schema.md#partnerapplication). |
-| Pickup lookup | The earlier uniqueness rule is `(listing, pickup_code)`. Agree code collision handling or lookup identifiers for a store containing multiple listings. QR payload format is not selected here. |
-| Household flags and reasons | Agree the minimum Release 1 handling for `review_required` files and where rejection/suspension reasons are stored. The full review queue is deferred. |
-| Lifecycle timing | Confirm the configured approval-validity and late-confirmation settings. The team draft supplies twelve months and twenty-four hours respectively. |
-| Cancellation/no-show stock | Agree when stock is released and how late pickup confirmation interacts with release. No counter behavior is invented by the state diagram. |
-| Worker deployment | SET-17 proposes one shared-image instance with coupled Gunicorn/Procrastinate supervision and worker-process readiness. Queue progress and real email delivery still require live checks; scale-out/production isolation remain later decisions. |
-| Dependency contracts | Align the supplied architecture and diagram collection where their permitted arrows differ. Public service/query access must not introduce domain import cycles. |
+See the [full section](architecture-workflows.md#review-points).
 
 ### Failed pickup attempts and no-shows — proposed handling
 
-The following handling is proposed for Release 1 and requires team
-agreement. These decisions can be finalized before implementing the
-reservation and pickup features.
-
-| Situation | Proposed handling |
-| --- | --- |
-| Incorrect, missing or ambiguous pickup code | Refuse pickup without changing stock or cancelling a reservation. |
-| Identity cannot be verified | Refuse pickup and keep the reservation until its collection deadline, including any agreed grace period. The accepted verification method remains to be decided. |
-| Pickup window ends without collection | Mark the reservation as `no_show`. |
-| Agreed grace period expires without collection | Release the reservation's allocated quantity exactly once and prevent further pickup confirmation against that released reservation. |
-
-The supplied diagrams allow late pickup confirmation within a
-24-hour grace period. Confirm whether this rule applies to Release 1
-before implementation.
-
-If a grace period is retained, stock must not be released while the
-same reservation can still be confirmed for pickup.
-
-Releasing an allocation does not automatically reopen the listing.
-Whether the goods can be offered again depends on the listing's status,
-collection window and the goods' continued availability and suitability.
-
-Before implementation, agree on:
-
-- What information is required to verify pickup identity.
-- Whether a grace period applies and its duration.
-- When reserved stock is released.
-- How stock release prevents duplicate releases or conflicting pickup
-  confirmations.
-
-Once agreed, update the reserve-and-pickup sequence, reservation state
-diagram and relevant business rules together.
+See the [full section](architecture-workflows.md#failed-pickup-attempts-and-no-shows--proposed-handling).

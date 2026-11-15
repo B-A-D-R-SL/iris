@@ -12,11 +12,10 @@ from django.utils.functional import Promise
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
+from modules.common.api.fields import CanadianPhoneField, PostalCodeField
 from modules.stores.models import (
-    CANADIAN_PHONE_PATTERN,
     NAME_PATTERN,
     NEQ_PATTERN,
-    POSTAL_CODE_PATTERN,
     STREET_NUMBER_PATTERN,
     ApplicationStatus,
     BusinessType,
@@ -98,14 +97,16 @@ class PartnerApplicationSerializer(serializers.Serializer):
     street_name = _text(MESSAGES["street_name"], min_length=2, max_length=120)
     unit = _text(MESSAGES["unit"], optional=True, max_length=10)
     city = _text(MESSAGES["city"], max_length=80)
-    postal_code = _text(MESSAGES["postal_code"], max_length=7)
+    postal_code = PostalCodeField(error_messages=_errors(MESSAGES["postal_code"]))
     contact_first_name = _text(MESSAGES["name"], max_length=100)
     contact_last_name = _text(MESSAGES["name"], max_length=100)
     contact_role = _text(MESSAGES["contact_role"], optional=True, max_length=100)
     contact_email = serializers.EmailField(
         max_length=254, error_messages=_errors(MESSAGES["contact_email"])
     )
-    contact_phone = _text(MESSAGES["contact_phone"], max_length=16)
+    contact_phone = CanadianPhoneField(
+        error_messages=_errors(MESSAGES["contact_phone"])
+    )
     goods_categories = serializers.ListField(
         child=_text(MESSAGES["goods_categories"], max_length=64),
         allow_empty=False,
@@ -156,11 +157,6 @@ class PartnerApplicationSerializer(serializers.Serializer):
     def validate_unit(self, value: str | None) -> str | None:
         return _blank_to_none(value)
 
-    def validate_postal_code(self, value: str) -> str:
-        _matches(POSTAL_CODE_PATTERN, value, MESSAGES["postal_code"])
-        compact = value.replace(" ", "").upper()
-        return f"{compact[:3]} {compact[3:]}"
-
     def validate_contact_first_name(self, value: str) -> str:
         return _matches(NAME_PATTERN, value, MESSAGES["name"])
 
@@ -172,9 +168,6 @@ class PartnerApplicationSerializer(serializers.Serializer):
 
     def validate_contact_email(self, value: str) -> str:
         return value.lower()
-
-    def validate_contact_phone(self, value: str) -> str:
-        return _matches(CANADIAN_PHONE_PATTERN, value, MESSAGES["contact_phone"])
 
     def validate_goods_categories(self, value: list[str]) -> list[str]:
         return list(dict.fromkeys(value))  # drop repeats, keep the chosen order

@@ -2,8 +2,8 @@
 # I have drafted a plan, told AI to implement it, and reviewed the code
 """Reservations, following docs/03-design/database-schema.md.
 
-Pickup workflows stay with the reservation stories. These columns exist so
-the SET-18 seed can store fictional reservations.
+The SET-18 seed added the table; US-41 adds the timestamps and the indexes
+from the team pack's ``reservations_reservation`` design.
 """
 
 import uuid
@@ -65,6 +65,8 @@ class Reservation(models.Model):
         on_delete=models.PROTECT,
         related_name="reservations_confirmed",
     )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = _("Reservation")
@@ -85,6 +87,18 @@ class Reservation(models.Model):
             models.CheckConstraint(
                 condition=Q(made_by_type__in=MadeByType.values),
                 name="reservations_made_by_type_valid",
+            ),
+        ]
+        indexes = [  # noqa: RUF012 - Django reads declarative model metadata.
+            # A household's active reservations: the US-41 limits, "my reservations".
+            models.Index(
+                fields=["household", "status"],
+                name="reservations_household_status",
+            ),
+            # A listing's live reservations: today's pickups, no-shows, cancelling.
+            models.Index(
+                fields=["status", "listing"],
+                name="reservations_status_listing",
             ),
         ]
 

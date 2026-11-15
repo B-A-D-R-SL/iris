@@ -136,3 +136,9 @@ SPECTACULAR_SETTINGS = {
     **SPECTACULAR_SETTINGS,
     "SERVE_PERMISSIONS": ["iris.api.IsActiveAdmin"],
 }
+
+# Notice files go to private Azure Blob Storage; the connection string comes from
+# the environment (App Service settings), never from the repository.
+FILE_STORE_BACKEND = env(
+    "FILE_STORE_BACKEND", default="adapters.file_store.azure_blob.from_settings"
+)

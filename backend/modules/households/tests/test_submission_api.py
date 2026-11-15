@@ -7,6 +7,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from modules.accounts.tests.factories import UserFactory
+from modules.documents.tests.factories import IncomeNoticeFactory
 from modules.households.models import Household
 from modules.households.tests.factories import HouseholdFactory
 
@@ -80,6 +81,7 @@ def test_main_path_creates_draft_and_submits_through_api_and_database(
     assert created.status_code == 201, created.data
     existing = HouseholdFactory(unit="4", status=Household.Status.APPROVED)
     household = Household.objects.get(pk=created.data["id"])
+    IncomeNoticeFactory(member=household.members.get(), did_not_file=True)
     response = client.post(submit_url(household), {}, format="json")
     assert response.status_code == 200, response.data
     household.refresh_from_db()

@@ -48,8 +48,6 @@ function layerRule(layer) {
 const OVER_THE_LIMIT = {
   // FIX-06 (#632)
   "src/features/categories/CategoriesPage.tsx": { lines: 225 },
-  // FIX-14 (#640)
-  "src/shared/auth/SignOutButton.tsx": { lines: 51 },
   // No issue yet: listed in the FIX-13 pull request.
   "src/areas/household/pages/ListingDetail.tsx": { lines: 70 },
   "src/areas/public/pages/PartnerApply.tsx": { lines: 329 },

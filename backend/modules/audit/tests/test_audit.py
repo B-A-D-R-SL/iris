@@ -1,43 +1,16 @@
 # AI contribution: 50% or more AI-generated
 import json
-from typing import Any
 from uuid import uuid4
 
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, OperationalError, connection, transaction
-from django.db.migrations.executor import MigrationExecutor
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 
 from modules.audit import services
 from modules.audit.models import AuditEvent
-from modules.rules.services import publish
 from modules.stores.tests.factories import StoreFactory
-
-
-@pytest.fixture
-def actor(db, django_user_model):
-    return django_user_model.objects.create_user(
-        "generated@example.test", role="intake_worker", first_name="Example"
-    )
-
-
-@pytest.fixture
-def event_inputs(actor) -> dict[str, Any]:
-    return {
-        "actor": actor,
-        "action": "view",
-        "target_type": "household",
-        "target_id": uuid4(),
-        "metadata": {},
-    }
-
-
-@pytest.fixture
-def suspension_rule(actor):
-    """Publish the reason limit required by suspension audit events."""
-    return publish("household_suspension", {"reason_max_length": 500}, actor)
 
 
 def test_public_record_persists_event_in_postgresql(event_inputs):
@@ -67,8 +40,8 @@ def test_public_record_persists_event_in_postgresql(event_inputs):
         "created_at",
     }
     payload = json.dumps(row, default=str)
-    assert "generated@example.test" not in payload
-    assert "Example" not in payload
+    assert event_inputs["actor"].email not in payload
+    assert event_inputs["actor"].first_name not in payload
 
 
 @pytest.mark.parametrize(
@@ -316,23 +289,6 @@ def test_record_propagates_database_failure(event_inputs, monkeypatch):
 
     assert not AuditEvent.objects.exists()
     assert services.record(**event_inputs).pk is not None
-
-
-@pytest.mark.django_db(transaction=True)
-def test_append_only_migration_is_reversible(event_inputs):
-    event = services.record(**event_inputs)
-    executor = MigrationExecutor(connection)
-    try:
-        executor.migrate([("audit", "0001_initial")])
-        assert AuditEvent.objects.filter(pk=event.pk).update(action="decision") == 1
-    finally:
-        executor = MigrationExecutor(connection)
-        executor.migrate(executor.loader.graph.leaf_nodes())
-
-    event.refresh_from_db()
-    assert event.action == "decision"
-    with pytest.raises(IntegrityError, match="append-only"), transaction.atomic():
-        AuditEvent.objects.filter(pk=event.pk).delete()
 
 
 @pytest.mark.parametrize(

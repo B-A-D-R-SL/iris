@@ -1,8 +1,4 @@
 <!-- AI contribution: 50% or more AI-generated -->
-<!-- File-length exception: keep authentication conventions, the cross-module
-endpoint catalog with role/status columns, and implementation-gap notes together
-so routing, access rules and generated-schema coverage can be reviewed against
-one contract. Existing module guides link to its stable endpoint-section anchors. -->
 
 # API
 
@@ -31,8 +27,8 @@ application role is checked independently of Django's `is_staff` flag. They stay
 public with local/test settings for developer tooling. Schema generation through
 `manage.py spectacular` remains available without an HTTP session.
 The schema describes health and implemented DRF endpoints, including `/api/me/`,
-categories and invitation acceptance; it does not describe allauth operations
-or the planned business APIs.
+categories and invitation acceptance; it does not describe allauth operations,
+the staging-only readiness probe, or planned business APIs.
 `pnpm gen:api` produces the generated declarations, and the existing CI workflow
 is configured to reject missing or outdated generated types. See the
 [generation guide](../guides/api-generation.md).
@@ -51,7 +47,8 @@ Production applies DRF anonymous and authenticated request limits, initially
 Operators configure these with `DRF_ANON_THROTTLE_RATE` and
 `DRF_USER_THROTTLE_RATE`. The partner application endpoint retains its existing
 **5/hour/IP** limit shared by anonymous and signed-in callers. Allauth keeps its
-separate sign-in protection; the plain Django health probe is not DRF-throttled.
+separate sign-in protection; the plain Django health and staging readiness probes
+are not DRF-throttled.
 
 An exceeded DRF limit returns HTTP 429 with
 `{"code": "throttled", "message": "…", "fields": {}}` and `Retry-After`.
@@ -90,9 +87,21 @@ for the browser behavior and allauth's separate trusted-proxy setting.
 | Method         | Path                     | Who    | Purpose            | Status      |
 | -------------- | ------------------------ | ------ | ------------------ | ----------- |
 | GET            | `/api/health/`           | Anyone | `{"status": "ok"}` | Implemented |
+| GET/HEAD       | `/api/ready/`            | Anyone (no session) | Staging readiness: database connectivity, worker process and release revision | Implemented (staging only) |
 | GET            | `/api/categories/`       | Anyone | Active categories  | Implemented |
 | GET/POST       | `/api/staff/categories/` | Admin  | List every category (active or not); add one | Implemented (US-35) |
 | PATCH          | `/api/staff/categories/{code}/` | Admin | Rename, change food or default value, deactivate or reactivate; no delete | Implemented (US-35) |
+
+`/api/ready/` is a public plain Django view registered only by
+`iris.settings.staging` through `iris.staging_urls`. It accepts GET and HEAD and
+disables caching. It reads the supervised worker PID from `/run/iris/worker.pid`,
+requires a PID greater than one and checks that process exists with
+`os.kill(pid, 0)`, then executes database `SELECT 1`. Success returns HTTP 200;
+GET includes `{"status": "ok", "revision": "<IRIS_RELEASE_SHA>"}` (revision defaults
+to `local` when unset). A database error, unavailable PID/process or invalid PID
+returns HTTP 503 with `{"status": "unavailable"}`. HEAD has the corresponding
+status and headers without a response body. Process existence does not establish
+queue progress or provider email delivery; those require live verification.
 
 ### Accounts
 
@@ -227,7 +236,12 @@ optional fields may be empty or omitted. Any other field, such as `status`, is r
 ```
 
 `goods_categories` holds codes from `GET /api/categories/`. `contact_phone` is
-E.164, as produced by the shared `PhoneField`.
+stored in E.164, as produced by the shared `PhoneField`. Direct requests also
+accept ten national digits, optional `1`/`+1`, and familiar phone punctuation;
+the backend normalizes before checking canonical lengths. Postal codes accept
+lowercase/unspaced input and whitespace, returning uppercase with one space in
+stored records. Partner and walk-in fields use the same contact rules documented
+in [forms-and-fields.md](../02-requirements/forms-and-fields.md#shared-rules).
 
 | Status | Body |
 | --- | --- |
@@ -242,62 +256,8 @@ US-13 staff screens exist.
 
 ### Households and notices
 
-| Method     | Path                                                    | Who                  | Purpose                                           | Status  |
-| ---------- | ------------------------------------------------------- | -------------------- | ------------------------------------------------- | ------- |
-| GET        | `/api/households/me/`                                   | Beneficiary          | Status, expiry, members (names), alternate        | Planned |
-| GET/PUT    | `/api/households/me/application/`                       | Beneficiary          | Draft application, steps 1 to 3                   | Planned |
-| POST       | `/api/households/me/notices/`                           | Beneficiary          | Upload a notice for a member (multipart)          | Planned |
-| PATCH      | `/api/households/me/notices/{id}/`                      | Beneficiary          | Confirm or correct read values, or `did_not_file` | Planned |
-| POST       | `/api/households/me/application/submit/`                | Beneficiary          | Submit                                            | Planned |
-| PATCH      | `/api/households/me/alternate/`                         | Beneficiary          | Alternate for pickups                             | Planned |
-| POST       | `/api/households/me/renewal/`                           | Beneficiary          | Start a renewal                                   | Planned |
-| GET        | `/api/staff/households/?q=`                             | Intake worker, admin | Partial, accent-insensitive search; authorized non-anonymized files, pagination, audits and server-derived `can_resume` and `can_open` | Implemented (US-63, US-32) |
-| POST/PATCH | `/api/staff/households/`, `/api/staff/households/{id}/` | Intake worker, admin | Walk-in create and edit (drafts only)             | Implemented (US-17) |
-| POST       | `/api/staff/households/{id}/submit/`                    | Intake worker, admin | Submit saved walk-in registration; possible duplicates go to review | Implemented (US-25; proposed endpoint for review) |
-| POST       | `/api/staff/households/{id}/notices/`                   | Intake worker, admin | Walk-in notice (scan + typed values)              | Planned |
-| POST       | `/api/staff/households/{id}/approve/`                   | Intake worker, admin | Approve a walk-in (eligibility runs)              | Planned |
-| GET        | `/api/staff/households/{id}/`                           | Intake worker, admin | Read any non-anonymized online or walk-in file in any status, including status reason, expiry, member number and server-derived actions | Implemented (US-17, US-32) |
-| GET        | `/api/staff/notices/{id}/file/`                         | Intake worker, admin | Signed URL valid 5 minutes (audited)              | Planned |
-| POST       | `/api/staff/households/{id}/suspend/`, `/reactivate/`   | Admin                | With `reason`; preserves expiry                    | Implemented (US-32) |
-| GET/POST   | `/api/staff/households/{id}/notes/`                     | Intake worker, admin | Staff notes                                       | Planned |
-
-US-32 suspension/reactivation emails include the reason after household-service
-whitespace normalization, active RuleSet length validation and sensitive-data
-refusal. The default limit is 500 characters; the schema permits up to 2,000.
-The existing 500-character model bound still applies when suspension stores the
-status reason; this email change does not enlarge that field. Reactivation clears
-the stored field and can retain a longer validated reason in its audit/email.
-The shared notification templates preserve the accepted text with HTML escaping,
-without copying it into EmailLog or application logs. Households without email
-still change status normally. Known-template email validation/configuration
-problems are recorded as delivery failures and do not undo a valid status
-change; household authorization and reason validation remain enforced.
-
-Active intake workers and admins may read, edit and submit shared,
-non-anonymized walk-in files, including another worker's and unassigned files.
-Edits and submissions still require a draft. `created_by` records provenance,
-not exclusive ownership.
-
-Submission accepts `{}`. It needs an address, one holder, an identity check, and
-consent. The household limit comes from `household_size.max_people`; the seed
-default is 15 people, including the holder. Approval is separate.
-
-Success returns 200 with `{id, status, status_reason, submitted_at}`. A clean file
-is `submitted`; a possible duplicate is `review_required` with reason
-`POSSIBLE_DUPLICATE`. Details of matching files are not returned.
-Suspended files remain duplicate candidates. Files whose `expires_at` is in the
-past are excluded from both address and person matching.
-Invalid or repeated submission returns 400; signed-out or deactivated sessions,
-401; refused signed-in roles, 403; anonymized, online or unknown files, 404.
-Access is checked before request validation.
-Create, edit and submit return 503 with code `household_unavailable` and a generic
-retry message when required household-size rules are missing or invalid.
-Submission also returns this response if a duplicate advisory lock times out;
-the draft and its members remain unchanged. The positive setting
-`HOUSEHOLD_DUPLICATE_LOCK_TIMEOUT_MS` defaults to 5000 milliseconds and applies
-only while acquiring those advisory locks. See the
-[households module](../../backend/modules/households/README.md) for candidate
-statuses and locking steps.
+See the [household and notice API](household-api.md) for endpoints, access rules,
+walk-in submission behavior and transactional audit guarantees.
 
 ### Listings and reservations
 
@@ -322,6 +282,19 @@ the backend logs a safe event and never substitutes a public URL.
 The view is in reservations, the module
 allowed to read both households and listings.
 
+US-41 adds reserving. `POST /api/reservations/` with `{listing_id, quantity}`
+(quantity 1 to 10, default 1) reserves for the signed-in household and answers
+201 with `{id, listing_id, quantity, pickup_code, status, created_at}`.
+Errors use `{code, message, fields}`: 400 `validation_error` or
+`quantity_over_listing_limit`; 401 signed out; 403 other roles or
+`household_not_approved`; 404 `listing_not_available` (closed, cancelled,
+ended, unknown, or not visible to the household); 409 `sold_out`,
+`not_enough_units` or `too_many_active_reservations`; 503
+`reservations_unavailable` (no `reservations` rule in effect) or
+`pickup_code_unavailable`. Rules BR-RES-006 to BR-RES-010. US-41 also adds
+`max_per_household` to each `GET /api/listings/` card, so the listing screen can
+show the household limit and the quantity picker.
+
 | Method   | Path                                       | Who                  | Purpose                                          | Status  |
 | -------- | ------------------------------------------ | -------------------- | ------------------------------------------------ | ------- |
 | GET      | `/api/listings/?category=&store=&today=`   | Approved beneficiary | Visible listings (tier timing applied)           | Implemented (US-36); tier timing waits for US-51 |
@@ -330,7 +303,7 @@ allowed to read both households and listings.
 | GET      | `/api/store/listings/categories/`          | Store staff          | Categories the store may post in (prohibited ones left out) | Implemented |
 | PATCH    | `/api/store/listings/{id}/`                | Store staff          | Edit (quantity ≥ reserved)                       | Planned |
 | POST     | `/api/store/listings/{id}/cancel/`         | Store staff          | Cancel; reservations cancelled without strikes   | Planned |
-| POST     | `/api/reservations/`                       | Approved beneficiary | `{listing_id, quantity}` → reservation with code | Planned |
+| POST     | `/api/reservations/`                       | Approved beneficiary | `{listing_id, quantity}` → reservation with code | Implemented (US-41) |
 | GET      | `/api/reservations/me/?status=`            | Beneficiary          | My reservations and history                      | Planned |
 | POST     | `/api/reservations/{id}/cancel/`           | Beneficiary          | Cancel                                           | Planned |
 | GET      | `/api/store/pickups/?date=`                | Store staff          | Today's expected pickups                         | Planned |
@@ -406,103 +379,32 @@ and `alternate` are a first name and last initial or `null`
 
 ## Implementation gaps and team decisions
 
-The rules and endpoint catalog above preserve the team draft. The following
-gaps are recorded for review; this publication does not change backend or
-frontend behavior, select new routes, or change the release scope.
+See the [full section](api-implementation-notes.md#implementation-gaps-and-team-decisions).
 
 ### Errors and pagination
 
-The shared DRF exception handler normalizes throttling responses only. A global
-`code/message/fields` envelope for other errors is not configured; plain Django
-and allauth retain their own response formats. DRF has no default
-pagination class or page size configured. The draft's paging query, maximum,
-and response fields are therefore a target contract, not verified behavior.
-The paging response notation in the conventions table lists keys rather than
-a complete JSON payload.
+See the [full section](api-implementation-notes.md#errors-and-pagination).
 
 ### Authentication and permissions
 
-The backend mounts django-allauth headless once at `/api/auth/`; its actual
-subpaths include `/api/auth/browser/v1/...` and `/api/auth/app/v1/...`.
-The browser frontend uses the browser/v1 sign-in and session routes with a
-session cookie and the CSRF cookie's value in `X-CSRFToken`. DRF uses the
-accounts module's session authentication class; BasicAuthentication is disabled.
-
-**Team decision pending:** confirm whether the versioned app authentication
-surface should remain public. See [authentication routing](../guides/auth-routing.md).
-
-DRF defaults to `IsAuthenticated`, but this is not the role-and-ownership
-matrix required by the draft. The [business rules permission matrix](../02-requirements/business-rules.md)
-defines the intended role and ownership checks for the
-matrix remain dependencies of the planned endpoints. The draft's `Who`
-column does not establish that framework authentication operations all have
-identical access requirements.
+See the [full section](api-implementation-notes.md#authentication-and-permissions).
 
 ### Dates, money, and languages
 
-The backend has `USE_TZ=True` and `TIME_ZONE="America/Montreal"`. DRF uses
-ISO 8601, but its default datetime field converts values to the current
-timezone rather than enforcing UTC output. With the current settings,
-`2026-10-21T20:00:00Z` serializes as `2026-10-21T16:00:00-04:00`.
-There are no business datetime responses to verify yet.
-
-**Team decision pending:** clarify how the draft's timezone rule applies to
-date-only fields, such as dates of birth and best-before dates documented in
-[forms and fields](../02-requirements/forms-and-fields.md). The UTC rule in the
-draft is retained without choosing an interpretation or changing serializers.
-
-Integer cents and `*_cents` naming align with the existing
-[review rules](../05-process/review-rules.md) and field design. Money-bearing
-business endpoints remain planned, so their serialization is not yet verified.
-
-The backend configures Django's `LocaleMiddleware` for French and English.
-A supported `django_language` cookie takes precedence over `Accept-Language`,
-with French as the fallback. DRF throttling messages use the selected language;
-`test_throttled_responses_are_translated` in `backend/tests/test_api.py` verifies
-French and English request headers. This does not establish translation coverage
-for every endpoint or change the error-format limitations described above.
+See the [full section](api-implementation-notes.md#dates-money-and-languages).
 
 ### UUID identifiers
 
-The draft specifies UUID strings. `accounts.User` uses a UUID primary key and
-`GET /api/me/` serializes it as a UUID string. Rule versions retain integer
-primary keys and do not expose a public business API yet.
-
-**Team decision pending:** confirm how public UUID identifiers map to those
-rule versions. This document does not authorize replacing their identifiers.
+See the [full section](api-implementation-notes.md#uuid-identifiers).
 
 ### Draft path ambiguities
 
-The following draft entries are preserved exactly pending clarification:
-
-- `/api/staff/reports/export.csv?start=&end=` has no trailing slash, although
-  the general path rule requires one.
-- Resolved for categories (US-35, #501): `GET`/`POST /api/staff/categories/`
-  and `PATCH /api/staff/categories/{code}/`. The code identifies a category
-  because the public API exposes no database IDs; there is no `DELETE`.
-- `/reactivate/` is abbreviated alongside the household suspension path.
-
-**Team decision pending:** confirm the export-path exception, method-to-path
-mapping, and full reactivation path. No additional paths or methods are inferred.
+See the [full section](api-implementation-notes.md#draft-path-ambiguities).
 
 ### Release scope
 
-The catalog spans more than the current
-[Release 1 architecture scope](../04-architecture/architecture.md#scope).
-That scope defers online registration, automatic approval, priority tiers,
-strikes, the full review queue, privacy-rights workflows, reporting, and the
-stretch modules. Some draft descriptions also depend on those deferred
-features, such as tier timing, strikes, and opening a review case.
-
-**Team decision pending:** reconcile endpoint milestones and those descriptions
-with the release scope before implementing them. Their presence in this API
-catalog does not make them implemented or add them to Release 1.
+See the [full section](api-implementation-notes.md#release-scope).
 
 ## Implementation references
 
-- [Backend URL configuration](../../backend/iris/urls.py)
-- [Django and DRF settings](../../backend/iris/settings/base.py)
-- [Health endpoint](../../backend/iris/views.py)
-- [Health frontend consumer](../../frontend/src/shared/api/health.ts)
-- [Partner application endpoint](../../backend/modules/stores/api/views.py)
-- [API generation and drift checks](../guides/api-generation.md)
+See the [full section](api-implementation-notes.md#implementation-references).

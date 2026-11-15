@@ -1,7 +1,7 @@
 # Reservations module
 
 **Owner pair:** Goods
-**Status:** Reservation table added for the SET-18 seed. The browse endpoint (US-36) and pickup lookup/confirmation (US-44) are implemented. Reserving is still open.
+**Status:** Reservation table added for the SET-18 seed. The browse endpoint (US-36), reserving (US-41) and pickup lookup/confirmation (US-44) are implemented.
 
 ## Responsibility
 
@@ -19,8 +19,18 @@ Own the reservations feature boundary within the Iris modular monolith.
 
 ## Public functions
 
-`Reservation` stores the columns from the database design so `manage.py seed` can insert fictional reservations.
+`Reservation` stores the columns from the database design. The SET-18 seed
+inserts fictional reservations; US-41 added `created_at`, `updated_at` and the
+indexes `(household, status)` and `(status, listing)`.
 
+- `services.reserve(user, household_id, listing_id, quantity, now=None)`
+  (US-41): reserve units for an approved household in one transaction. It
+  locks the household (`households.services.lock_approved_household`), checks
+  the limits (`domain/limits.py`), takes the units
+  (`listings.services.take_units`, one conditional UPDATE) and saves the
+  reservation with a new 6-character code (`domain/codes.py`), drawing again
+  on a clash. Raises `services.ReservationRefused(code)` with nothing changed.
+  Rules BR-RES-006 to BR-RES-010 in `docs/02-requirements/business-rules.md`.
 - `queries.lookup_pickup(staff, code, now=...)`: the reservation a typed or
   scanned code names at the staff member's store, as a `Pickup` (first name and
   last initial only). Raises `domain.pickup.PickupRefused` with a code such as
@@ -45,6 +55,9 @@ Confirming does not change listing stock.
   `beneficiary` gets 403 (`permission_denied`), and so does a household that is
   not approved or has expired (`household_not_approved`). Invalid filters get
   400.
+- `POST /api/reservations/` (US-41, `api/reserve_views.py`): reserve for the
+  signed-in household; 201 with the pickup code. Refusals and their statuses
+  are listed in `docs/03-design/api.md`.
 
 The view is here, not in `listings/api/`, because reservations is the module
 allowed to read both `households.queries` (is the household approved?) and
@@ -61,11 +74,15 @@ Do not import another module's models or internal domain code.
 
 ## Future implementation
 
-Reserving a listing (US-41) is still open. Pickup lookup and confirmation
-(US-44) and browse (US-36) are implemented above.
+Browse (US-36), reserving (US-41) and pickup lookup and confirmation (US-44)
+are implemented above. Cancelling a reservation (US-43) and no-shows are still
+open.
 
 ## Audit events
 
-No audit events yet: `AuditEvent` has no pickup action, so the reservation row
-keeps who confirmed and when (`confirmed_by`, `picked_up_at`). A confirmed
-pickup logs `pickup_confirmed` after the commit, with no names or codes.
+No audit events yet: `AuditEvent` only has the actions `view` and
+`decision`. The reservation row keeps who made it and when (`made_by`,
+`made_by_type`, `created_at`) and who confirmed the pickup and when
+(`confirmed_by`, `picked_up_at`). A reservation logs `reservation_created` and
+a confirmed pickup logs `pickup_confirmed` after the commit, with no names or
+codes.

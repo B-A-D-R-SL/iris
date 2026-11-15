@@ -22,11 +22,60 @@ _STANDARD_LOG_FIELDS = frozenset(logging.LogRecord("", 0, "", 0, "", (), None)._
 
 _request_id: ContextVar[str | None] = ContextVar("iris_request_id", default=None)
 _AUTH_USER_EVENTS = frozenset({"sign_in_succeeded", "signed_out"})
+_CONTACT_FIELDS = frozenset({"phone", "contact_phone", "postal_code"})
 _HTTP_METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"})
 _PHOTO_REFERENCE = re.compile(r"listing-photos/[0-9a-f]{32}\.(?:jpg|png)")
 _EXCEPTION_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,127}")
 _REASON_CODES = frozenset(
-    {"unhandled_exception", "smtp_error", "connection_error", "transport_error"}
+    {
+        "unhandled_exception",
+        "smtp_error",
+        "connection_error",
+        "transport_error",
+        "title_length",
+        "description_length",
+        "quantity_range",
+        "unit_choice",
+        "household_range",
+        "value_range",
+        "confirmation_required",
+        "timezone_required",
+        "pickup_start_range",
+        "pickup_duration",
+        "unsafe_listing",
+        "category_prohibited",
+        "best_before_required",
+        "best_before_too_early",
+        "category_inactive",
+        "photo_type",
+        "photo_size",
+        "photo_invalid",
+        "listing_validation_failed",
+        "store_access_denied",
+        "safety_contract_invalid",
+        "safety_checker_missing",
+        "photo_store_unconfigured",
+        "photo_store_failed",
+        "listing_rules_missing",
+        "posting_rules_invalid",
+        "safety_rules_invalid",
+        "email_already_registered",
+    }
+)
+_WALK_IN_EVENTS = frozenset({"walk_in_decision", "walk_in_invitation_skipped"})
+_WALK_IN_OUTCOMES = frozenset({"approved", "rejected", "review_required"})
+_WALK_IN_REASON_CODES = frozenset(
+    {
+        "ADDRESS_MISMATCH",
+        "DID_NOT_FILE",
+        "INCOME_ABOVE_LICO",
+        "INCOME_NOT_CONFIRMED",
+        "NAME_MISMATCH",
+        "NOTICE_MISSING",
+        "NOTICE_NOT_SEEN",
+        "POSSIBLE_DUPLICATE",
+        "TAX_YEAR_NOT_ACCEPTED",
+    }
 )
 _SESSION_CHECK_PATH = "/api/auth/browser/v1/auth/session"
 _SESSION_REQUEST_LINE = re.compile(
@@ -195,6 +244,20 @@ def _add_photo_reference(
         payload["photo_ref"] = photo_ref
 
 
+def _add_contact_field(
+    payload: dict[str, str | int], record: logging.LogRecord, event: str
+) -> None:
+    """Allow only a known field name for rejected contact normalization."""
+    field = getattr(record, "field", None)
+    if (
+        record.name == "iris.validation"
+        and event == "contact_normalization_rejected"
+        and isinstance(field, str)
+        and field in _CONTACT_FIELDS
+    ):
+        payload["field"] = field
+
+
 def _add_eligibility_fields(
     payload: dict[str, str | int], record: logging.LogRecord, event: str
 ) -> None:
@@ -233,6 +296,43 @@ def _add_partner_application(
     payload["application_id"] = str(application_id)
 
 
+def _add_listing_fields(
+    payload: dict[str, str | int], record: logging.LogRecord, event: str
+) -> None:
+    """Permit only opaque publication IDs on the listings success event."""
+    if record.name != "iris.listings" or event != "listing_published":
+        return
+    for field in ("listing_id", "store_id"):
+        value = getattr(record, field, None)
+        if isinstance(value, UUID):
+            payload[field] = str(value)
+
+
+def _add_walk_in_fields(
+    payload: dict[str, str | int], record: logging.LogRecord, event: str
+) -> None:
+    """Allow an opaque household ID, a fixed outcome and registered reason codes."""
+    if record.name != "iris.households" or event not in _WALK_IN_EVENTS:
+        return
+    household_id = getattr(record, "household_id", None)
+    if isinstance(household_id, UUID):
+        payload["household_id"] = str(household_id)
+    if event != "walk_in_decision":
+        return
+    outcome = getattr(record, "outcome", None)
+    if isinstance(outcome, str) and outcome in _WALK_IN_OUTCOMES:
+        payload["outcome"] = outcome
+    codes = getattr(record, "reason_codes", None)
+    if (
+        isinstance(codes, tuple)
+        and codes
+        and all(
+            isinstance(code, str) and code in _WALK_IN_REASON_CODES for code in codes
+        )
+    ):
+        payload["reason_codes"] = ",".join(codes)
+
+
 class JsonLogFormatter(logging.Formatter):
     """Serialize an allowlist of fields instead of arbitrary log message text."""
 
@@ -253,9 +353,12 @@ class JsonLogFormatter(logging.Formatter):
         _add_auth_user(payload, record, event)
         _add_request_fields(payload, record)
         _add_photo_reference(payload, record, event)
+        _add_contact_field(payload, record, event)
         _add_smtp_code(payload, record, event)
         _add_eligibility_fields(payload, record, event)
         _add_partner_application(payload, record, event)
+        _add_listing_fields(payload, record, event)
+        _add_walk_in_fields(payload, record, event)
         return json.dumps(payload, separators=(",", ":"))
 
 

@@ -162,7 +162,9 @@ the database covered by the confirmed allowance.
 5. **Configuration / General settings**: HTTPS only, minimum TLS 1.2, Always On,
    health check **`/api/ready/`**. Disable FTP and SCM basic publishing credentials;
    the deployment uses OIDC, not a publish profile. Set startup timeout to 600
-   seconds to allow initial migrations/seeding. Do not override the image CMD.
+   seconds to allow initial migrations/seeding. The deployment smoke check uses
+   the same 600-second allowance, including requests and retry waits; each
+   request timeout is capped by the remaining allowance. Do not override the image CMD.
 6. PostgreSQL **Networking**: add each IPv4 address from the app's **outbound IP
    addresses and possible/additional outbound addresses** as an individual
    start=end firewall rule. No `0.0.0.0`/all-Azure rule or `0.0.0.0–255.255.255.255`

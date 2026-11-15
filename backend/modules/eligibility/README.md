@@ -2,7 +2,7 @@
 # Eligibility module
 
 **Owner pair:** Fairness & partners
-**Status:** US-16 rule, decision service, and persistence implemented; household evidence integration pending
+**Status:** US-16 decisions and US-18 household evidence integration implemented
 
 ## Responsibility
 
@@ -50,7 +50,7 @@ That public query must return an object with:
 
 - `household`: persisted Household instance matching the requested UUID
 - `household_size`: holder and all members, counting each person once
-- `adult_count`: number of members aged 18 or older on the application date
+- `adult_count`: number of members aged 18 or older on the decision date
 - `adult_incomes_cents`: one confirmed line-199 income per adult, in integer cents
 
 The reader must verify all of the following:
@@ -62,12 +62,14 @@ The reader must verify all of the following:
 5. A `did_not_file` declaration is sent for staff review, not counted as zero.
 6. The list of incomes contains exactly `adult_count` verified values.
 
-Do not substitute fixture values or assume missing income is zero.
-The service fails closed while the reader is unavailable.
+The reader now checks current US-18 notices, names, postal codes, in-person
+verification and accepted tax years. It uses Montreal's current date for ages.
+It locks the household for the caller's transaction, matching staff edits and
+notice entry. Invalid evidence is refused, never replaced with zero income.
 
 **Dependencies:** US-17 household members and US-18 IncomeNotice records.
-The current database-backed service tests mock the public evidence reader;
-they do not establish end-to-end notice verification.
+The US-18 approval tests exercise this reader and the real decision service
+together; the eligibility unit tests still isolate the reader contract.
 
 ## Decision persistence
 
@@ -78,7 +80,18 @@ PostgreSQL trigger enforcing this rule.
 
 ## Audit events
 
-Eligibility decision audit events must be recorded through audit.services.record() once US-62 is integrated. This is pending; decision records alone do not satisfy SEC-08.
+FIX-08 records every successful decision through `audit.services.record` in the
+same transaction as the `EligibilityDecision` insert (SEC-08). The event uses
+action `decision`, targets the household UUID for household audit searches, and
+contains exactly `decision_id` (UUID), `outcome` (`eligible` or `ineligible`), and
+`rule_version` (the LICO version number). No income, threshold, evidence or
+personal details enter audit metadata (SEC-09). Staff decisions retain the saved
+actor and role; automatic decisions use a null actor and role `system`.
+
+An audit failure rolls back the decision; a failed calculation or decision save
+creates no audit event. An outer rollback removes both and prevents the existing
+after-commit success log. Recalculation appends another decision/event without
+rewriting history. Audit persistence does not depend on the application log.
 
 ## Sensitive income snapshots and erasure
 
