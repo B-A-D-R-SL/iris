@@ -106,6 +106,5 @@ catalog does not make them implemented or add them to Release 1.
 - [Backend URL configuration](../../backend/iris/urls.py)
 - [Django and DRF settings](../../backend/iris/settings/base.py)
 - [Health endpoint](../../backend/iris/views.py)
-- [Health frontend consumer](../../frontend/src/shared/api/health.ts)
 - [Partner application endpoint](../../backend/modules/stores/api/views.py)
 - [API generation and drift checks](../guides/api-generation.md)

@@ -295,7 +295,7 @@ def reserve(
     # The time is read after the lock: waiting for it must not let a request
     # pass a file expiry or a pickup end that came meanwhile.
     moment = timezone.now() if now is None else now
-    # TODO(strikes story): refuse a household blocked by strikes here.
+    # US-54 (#534) adds the check that refuses a household blocked by strikes.
 
     # 2. Every check that needs no change. Nothing has been changed yet.
     _check_request(household_id, listing_id, quantity, moment)

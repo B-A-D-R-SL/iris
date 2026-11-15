@@ -33,9 +33,8 @@ the staging-only readiness probe, or planned business APIs.
 is configured to reject missing or outdated generated types. See the
 [generation guide](../guides/api-generation.md).
 
-The current frontend health consumer still declares its own `HealthResponse`
-and validates responses at runtime. Generated types are available; existing
-consumers have not been rewritten to use them.
+Generated types are available; existing frontend API clients still declare
+their own types and validate responses at runtime.
 
 Categories were added by
 [reference module #377](https://github.com/B-A-D-R-SL/iris/issues/377).

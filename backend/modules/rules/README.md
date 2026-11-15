@@ -1,20 +1,18 @@
 # Rules module
 
 **Owner pair:** Fairness & partners
-**Status:** SET-14 architecture skeleton
+**Status:** Rule versions, schemas and seed command built; no API yet
 
 ## Responsibility
 
-Own the rules feature boundary within the Iris modular monolith.
+Versioned business rule values (limits, durations, thresholds) that other modules read.
 
 ## Layers
 
-- `api/`: HTTP validation, permissions, and routing
 - `domain/`: Pure Python business rules; no Django dependencies
 - `services.py`: Public write operations and transactions
 - `queries.py`: Public read-only operations
 - `models.py`: Module-owned Django models
-- `tasks.py`: Background jobs when necessary
 - `tests/`: Domain, service, and API tests
 
 ## Public functions
@@ -27,12 +25,12 @@ Own the rules feature boundary within the Iris modular monolith.
 Other modules must communicate through public services or queries.
 Do not import another module's models or internal domain code.
 
-## Future implementation
+## Planned work
 
-TODO: Module owner defines business operations, model ownership,
-API endpoints, tests, and applicable audit events.
+- US-69 (#560): rule settings screens. Adds the staff `api/` for reading and
+  publishing rule values.
 
-Do not treat this scaffold as implemented business functionality.
+The module adds `api/` and `tasks.py` when a story needs them.
 
 ## Audit events
 
