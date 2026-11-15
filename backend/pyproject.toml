@@ -139,6 +139,11 @@ ignore_imports = [
     "modules.households.tests.approval.** -> modules.notifications.tasks",
     "modules.notifications.tests.test_services -> modules.accounts.tests.factories",
     "modules.audit.tests.** -> modules.stores.tests.factories",
+    "modules.audit.tests.** -> modules.households.tests.factories",
+    "modules.audit.tests.** -> modules.accounts.tests.factories",
+    "modules.audit.tests.** -> modules.eligibility.tests.factories",
+    "modules.eligibility.tests.** -> modules.accounts.tests.factories",
+    "modules.eligibility.tests.** -> modules.households.tests.factories",
     "modules.rules.tests.test_rule_set_versions -> modules.accounts.tests.factories",
     "modules.households.tests.** -> modules.accounts.tests.factories",
     "modules.households.tests.** -> modules.stores.tests.factories",
@@ -176,6 +181,7 @@ ignore_imports = [
     # Accounts owns role groups used by permissions across modules.
     "modules.** -> modules.accounts.queries",
     "modules.audit.services -> modules.privacy.services",
+    "modules.audit.services -> modules.eligibility.queries",
     "modules.households.services -> modules.privacy.services",
 
     # stores -> accounts

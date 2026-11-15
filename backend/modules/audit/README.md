@@ -15,14 +15,26 @@ Staff household search uses
 role and UUIDs; action/target type/empty metadata are fixed. Foreign keys remain
 database-enforced. Batch inserts join the caller's transaction and roll back with
 it. This avoids repeated actor lookups and never accepts search text as metadata.
-The actor must be a saved user. Target types use lowercase identifiers such as
+Human actors must be saved users. Automatic eligibility decisions use a null
+actor and `actor_role="system"`; no artificial user account is created. A null
+actor is refused for other audit events. Target types use lowercase identifiers such as
 `household`; target IDs accept strings, integers, or UUIDs (stored as strings).
 Valid household UUID strings are normalized to lowercase with hyphens so they
 match household search. Other target identifiers are preserved.
 
-The supported actions are `view`, `decision`, `rule_published`, `suspend`, and `reactivate`.
-Views accept empty metadata. Decisions accept `{}` or
+The supported actions are `view`, `create`, `update`, `submit`, `decision`,
+`rule_published`, `suspend`, and `reactivate`.
+Household views, creation, edits and submission accept only empty metadata.
+Existing decisions accept `{}` or
 `{"outcome": "approved" | "rejected" | "review_required"}`.
+Eligibility decisions target the household (so household audit search includes
+them) and require exactly `{"decision_id": "<canonical UUID>", "outcome":
+"eligible" | "ineligible", "rule_version": <positive integer>}`. Names, contact
+details, dates of birth, income amounts, thresholds and document text are refused
+as additional metadata. System decisions must also reference a saved automatic
+decision whose household, outcome and rule version match the event, verified
+through the public eligibility query. Staff decisions cannot be relabelled as
+system events, and nonexistent decision IDs are refused.
 For `rule_published` on `rule_set_version`, metadata instead contains the supported
 `rule_type` and positive integer `version`. Suspension and reactivation accept a
 `reason` validated against the configured length limit and sensitive-data checks.
@@ -46,6 +58,21 @@ docker compose exec backend python manage.py migrate --noinput
 ```
 
 Requires the US-01 accounts migrations. Audit setup needs no manual SQL.
+Migration `0006_household_events_and_system_actor` adds household actions and
+permits null system actors, preserving existing rows and the append-only trigger.
+Reversing it restores Django's earlier model state but deliberately leaves the
+database actor column nullable. Existing system events survive rollback without
+deletion or reassignment, and the foreign key and append-only trigger remain in
+place. Reapplying the migration is safe with those preserved rows.
+Migration `0007_enforce_system_actor` adds a database check: a null actor requires
+the `system` role, `decision` action and `household` target; a human actor cannot
+use the `system` role. ORM, bulk inserts and direct SQL enforce the same rule.
+The non-atomic migration adds the check as `NOT VALID`, commits the brief table
+lock, then validates existing history separately so normal reads/writes can
+continue during the scan.
+Reversing `0007` removes that check without changing any event data; the nullable
+column and append-only protection retained by `0006` still preserve system history.
+
 ## Admin search
 
 `GET /api/staff/audit/` is restricted to active administrators.
