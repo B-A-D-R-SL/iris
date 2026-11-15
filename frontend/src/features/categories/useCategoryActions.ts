@@ -25,10 +25,10 @@ function useRefreshCategories() {
   };
 }
 
-/** Deactivate or reactivate a category, then report the outcome. */
+/** Deactivate or reactivate a category, then report the outcome and which category it was. */
 function useSetActive(
   nameOf: (category: StaffCategory) => string,
-  report: (outcome: CategoryOutcome) => void,
+  report: (outcome: CategoryOutcome, code: string) => void,
 ) {
   const { t, i18n } = useTranslation();
   const refresh = useRefreshCategories();
@@ -41,15 +41,16 @@ function useSetActive(
       ),
     onSuccess: (category) => {
       const done = category.is_active ? "reactivated" : "deactivated";
-      report({ type: "success", message: t(`${adminKey}.${done}`, { name: nameOf(category) }) });
+      const message = t(`${adminKey}.${done}`, { name: nameOf(category) });
+      report({ type: "success", message }, category.code);
       refresh();
     },
-    onError: (error) => {
+    onError: (error, { category }) => {
       const message =
         error instanceof CategoryFailed
           ? error.message || t(`${adminKey}.saveError`)
           : t(`${adminKey}.networkError`);
-      report({ type: "error", message });
+      report({ type: "error", message }, category.code);
     },
   });
 }
@@ -63,8 +64,10 @@ export function useCategoryActions() {
   const [outcome, setOutcome] = useState<CategoryOutcome | null>(null);
 
   const nameOf = (category: StaffCategory) => (isEnglish ? category.name_en : category.name_fr);
-  const setActive = useSetActive(nameOf, (result) => {
-    setToDeactivate(null);
+  const setActive = useSetActive(nameOf, (result, code) => {
+    // Close the confirmation only if it is for the category that finished: a
+    // reactivation ending must not close another category's open confirmation.
+    setToDeactivate((current) => (current?.code === code ? null : current));
     setOutcome(result);
   });
   /** Starting an action clears the message left by the previous one. */
