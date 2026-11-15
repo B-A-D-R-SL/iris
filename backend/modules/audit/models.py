@@ -11,6 +11,8 @@ class AuditEvent(models.Model):
         RULE_PUBLISHED = "rule_published"
         SUSPEND = "suspend"
         REACTIVATE = "reactivate"
+        UPDATE = "update"
+        DEACTIVATE = "deactivate"
 
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     actor_role = models.CharField(max_length=20)
