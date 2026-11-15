@@ -174,8 +174,7 @@ If no issue is found this way, fall back to `.plans/`, `docs/` and commit messag
 ### Questions
 
 Then one AskUserQuestion call with only the questions that apply (skip any you are certain about,
-except the AI level and the tasks, which the developer always confirms). If more than four
-apply, ask the rest in a second call straight after.
+except the AI level, the tasks and the AI usage wiki entry, which the developer always confirms). If more than four apply, ask the rest in a second call straight after.
 
 1. **Issue** (only if the story was not found with certainty), header "Issue": "Which issue does this PR
    `close`/`belong to` (into `main` it must close it)?" Options: the candidates you found;
