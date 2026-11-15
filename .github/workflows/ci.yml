@@ -234,6 +234,21 @@ jobs:
           path: frontend/coverage/lcov.info
           if-no-files-found: error
 
+  containers:
+    name: Container images and Compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - name: Test smoke runner security boundaries
+        run: python3 -m unittest discover -s tools/tests -p "test_container_smoke.py"
+
+      - name: Build and smoke-test non-root images
+        run: bash tools/container-smoke.sh
+
   secret-scan:
     # FIX-17 (#643): Code Quality Rubric 5.1, no committed secrets.
     name: Secret scanning (gitleaks)

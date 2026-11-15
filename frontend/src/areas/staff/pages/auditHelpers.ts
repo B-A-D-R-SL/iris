@@ -27,6 +27,7 @@ export function useAuditLabels(): Record<string, string> {
     rule_published: t("audit.search.actionRulePublished"),
     suspend: t("audit.search.actionSuspend"),
     reactivate: t("audit.search.actionReactivate"),
+    deactivate: t("audit.search.actionDeactivate"),
     approved: t("audit.search.outcomeApproved"),
     rejected: t("audit.search.outcomeRejected"),
     review_required: t("audit.search.outcomeReview"),
@@ -34,6 +35,7 @@ export function useAuditLabels(): Record<string, string> {
     ineligible: t("audit.search.outcomeIneligible"),
     household: t("audit.search.targetHousehold"),
     rule_set_version: t("audit.search.targetRuleSetVersion"),
+    store: t("audit.search.targetStore"),
   };
 }
 

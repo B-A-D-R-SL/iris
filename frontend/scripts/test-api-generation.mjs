@@ -192,7 +192,8 @@ test("temporary output is confined to the permitted directory", async (t) => {
     const output = join(directory, "generated.d.ts");
     await writeFile(output, "Do not overwrite.\n");
     for (const check of [false, true]) {
-      const result = runGenerator(directory, check);
+      // Rejected output targets must fail before reading schema bytes from stdin.
+      const result = runGenerator(directory, check, { input: "" });
       assert.equal(result.status, 1, result.stderr);
       assert.match(result.stderr, /Temporary output requires a private iris-api-generation-/);
       assert.equal(await readFile(output, "utf8"), "Do not overwrite.\n");
@@ -216,7 +217,8 @@ for (const [name, createLink] of [
       const output = join(directory, "generated.d.ts");
       await createLink(victim, output);
       for (const check of [false, true]) {
-        const result = runGenerator(directory, check);
+        // Avoid a broken input pipe when the target is rejected before schema reading.
+        const result = runGenerator(directory, check, { input: "" });
         assert.equal(result.status, 1, result.stderr);
         assert.match(
           result.stderr,

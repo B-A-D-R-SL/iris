@@ -1,2 +1,8 @@
 {# AI contribution: 50% or more AI-generated #}
-{% autoescape off %}Le commerce a annulé votre réservation. Connectez-vous à Iris pour consulter vos réservations et les offres disponibles.{% endautoescape %}
+{% autoescape off %}Bonjour,
+
+Votre réservation de {{ quantity }} × {{ listing_title }} chez {{ store_name }} a été annulée, car le commerce ne peut plus offrir cette cueillette.
+
+Vous n’y êtes pour rien et cela ne compte pas contre vous. Connectez-vous à Iris pour consulter vos réservations et les autres offres disponibles.
+
+L’équipe Iris{% endautoescape %}

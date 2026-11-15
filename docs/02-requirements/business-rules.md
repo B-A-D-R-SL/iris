@@ -157,6 +157,17 @@ exclude a file.
 | BR-HH-SUSPEND-003 | A localized status email, including the workflow's normalized and privacy-validated reason, is queued after commit when the household has an email. A counter-only file without email can still change status. Delivery failure does not undo the change. |
 | BR-HH-SUSPEND-004 | A status reason is limited by the active `household_suspension.reason_max_length` RuleSet value (default 500, schema ceiling 2,000). Suspension also retains the existing 500-character `Household.status_reason` model bound; reactivation clears that stored field and may use a longer validated reason under its active rule. Reasons containing personal, identity, document or financial information are refused before an audit event or email job is created. |
 
+## Store administration (US-14)
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-STORE-001 | Only an active administrator can edit, deactivate or reactivate a store. An edit may change the name, address, phone, contact email, opening hours and pickup instructions; never the ID, the B.A.D.R. flag, the partner application link, the timestamps or the active status. The contact email is separate from the store manager's sign-in email, which an edit never changes. Address edits show on every listing of the store. Each edit that changes something records an `update` audit event with the changed field names only. |
+| BR-STORE-002 | Deactivating a store stops it posting and cancels its `published` listings whose pickup has not ended. Listings and reservations whose pickup already ended are left for the no-show process (US-45). |
+| BR-STORE-003 | The `reserved` reservations on those listings become `cancelled_by_store` with no strike, and each one queues a `reservation_cancelled_by_store` email naming the quantity, listing and store, in the household's language, after commit. A household without an email is not emailed. The store, listings, reservations, emails and audit event commit together. |
+| BR-STORE-004 | The B.A.D.R. store cannot be deactivated. Deactivating an inactive store or reactivating an active one is refused. Reactivation lets the store post again and restores nothing that was cancelled. |
+| BR-STORE-005 | Deactivation and reactivation require a reason of at most 500 trimmed characters without personal, identity, document or financial details. It is stored only in the `deactivate` or `reactivate` audit event; the deactivation event also records the numbers of cancelled listings and reservations. |
+| BR-STORE-006 | Opening hours give each day one opening and closing time (`HH:MM`, closing after opening) or mark it closed, with at least one open day. Free-text hours copied from a partner application are kept as read-only notes. |
+
 ## Notifications (US-57)
 
 | Rule ID | Business rule |

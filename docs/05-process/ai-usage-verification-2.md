@@ -402,3 +402,29 @@ AI-assisted files for this entry:
     - `reserve()` read the clock before waiting for the household lock, so a request that waited could pass a file expiry or a pickup end that came meanwhile; the clock is now read after the lock.
 - **Remaining:**
   - Choose whether the confirmation keeps its in-place screen or gets its own route; peer review and CI.
+
+### US-14 Admin edits or deactivates a store (#452: #453, #454)
+
+- **Feature or task:** US-14 (#452), an admin edits, deactivates or reactivates a store. Tasks T-02.14.1 tests (#453) and T-02.14.2 store admin API and screen (#454).
+- **What the AI produced:** with Claude Code, from a plan Ryan reviewed and decided on first (`.plans/US-14/`): the pure store rules (opening hours, reason, changed fields); `update_store`, `deactivate_store` and `reactivate_store` with their queries; `listings.services.cancel_all_for_store`; `reservations.services.cancel_for_cancelled_listings`; the `update` and `deactivate` audit actions with their metadata rules; the store cancellation email naming the quantity, listing and store; the five admin endpoints; the Stores list and edit screens from Figma W7 with the deactivate and reactivate dialogs; French and English text; tests and documentation.
+- **Owner's decisions:**
+  - Deactivation cancels listings first, then the reservations on those listings, in one transaction run by the stores service; listings cannot call reservations back because reservations already imports listings.
+  - Only listings and reservations whose pickup has not ended are cancelled; ended ones are left for US-45 no-shows.
+  - An edit never changes the ID, B.A.D.R. flag, application, timestamps or status; the status changes only through deactivate and reactivate. The store contact email is edited, never the manager's sign-in email.
+  - Reactivation is included, as Figma W7.5 shows it, and restores nothing. The B.A.D.R. store cannot be deactivated.
+  - Deactivation and reactivation both need a reason (at most 500 characters, kept only in the audit event), although the Figma dialogs have no reason box.
+  - One email per cancelled reservation, naming the quantity, listing and store, with a fixed "not caused by you" sentence instead of the admin action.
+  - Audit events record the changed field names, never their values. Address edits show on every listing (no copy). One PR, opened by Ryan.
+  - After his own end-to-end test, Ryan asked that the Stores list, its table, the edit heading and the deactivate and reactivate dialogs match Figma W7 (nodes 261:6107, 261:6370 and 261:8057), including the Figma subtitle about coordinators and managers, with the row hover kept; and that changed but unsaved fields show "*" after their label, with a notice at the top, so the admin can check edits before saving. The form documentation follows the screen's label "Nom du commerce".
+- **How we verified it:** new backend tests for the pure rules, the audit metadata, listing and reservation cancellation, the store services (every editable field, refusals, B.A.D.R., 409, reasons, rollback) and the API (every role, 404, field errors, French messages, schema) plus an API-to-database test of edit, deactivate and reactivate, and a test that a store deactivated through the US-14 service can no longer post (AC2); frontend tests for the form helpers, both screens, the dialogs, typed 24-hour times, the unsaved-change markers, the hours error clearing, server and network errors, both languages, the admin-only route and axe. Ruff, mypy, import-linter, migrations check, TypeScript, ESLint and Prettier pass; new frontend code is about 96% covered. Ryan then ran the whole flow by hand on local data (`.plans/US-14/us14_demo_data.py`): edit, deactivate with the emails in Mailpit, posting refused, reactivate, audit log, B.A.D.R. and both languages.
+- **Problems found and corrections:**
+  - The AI first assumed the team pack had no store reactivation; Ryan found it in Figma W7.5, and the decision was reversed.
+  - `Store.full_clean()` refused any edit of a store whose opening hours were still empty (B.A.D.R. and approved partners); the edit now validates only the submitted fields.
+  - The privacy check does not treat a phone number as sensitive, so a test reason was changed to an ID number the check does catch.
+  - Locally the backend container forces local settings, so delivery and connection-reuse tests fail without `--ds=iris.settings.test`; they fail the same way on `main`.
+  - ESLint's 50-line limit split the store pages into smaller components and a `useStoreSave` hook.
+  - Ryan's manual test found the opening-hours boxes hard to use: the browser time picker showed "--:--" and, in a 12-hour locale, turned a typed 20:00 into 02:00. They became 24-hour text boxes that add the colon ("2000" becomes 20:00, "8" becomes 08:00 on leaving the box). A first version of that completion turned "08:3" into "00:83"; its own test caught it before use.
+  - After a save refused for missing hours, a bare "! invalid" stayed under the grid once the hours were fixed: the client-side marker error was shown as text and never cleared. The grid now clears it as soon as every day is valid and never displays the marker; a test repeats Ryan's steps.
+  - The AI's first dialog, heading and table did not follow the Figma sizes, borders and spacing; they were redone from the Figma design context. Replacing Mantine's table scroll container then removed its scrollbar padding, which had made the last row look taller.
+  - Copying the whole frontend source into the dev container at once triggered hundreds of hot reloads and left Ryan's browser tab blank; the build itself was fine. Restarting the dev server fixed it, and later syncs copy only changed files.
+- **Remaining:** peer review and CI; tell the Staff & insight pair about the new audit actions.

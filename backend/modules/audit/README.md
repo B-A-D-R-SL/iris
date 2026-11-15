@@ -23,8 +23,9 @@ Valid household UUID strings are normalized to lowercase with hyphens so they
 match household search. Other target identifiers are preserved.
 
 The supported actions are `view`, `create`, `update`, `submit`, `decision`,
-`rule_published`, `suspend`, and `reactivate`.
-Household views, creation, edits and submission accept only empty metadata.
+`rule_published`, `suspend`, `reactivate` and `deactivate`.
+Household views, creation, edits and submission accept only empty metadata; store
+edits (`update` on `store`) are described below.
 Existing decisions accept `{}` or
 `{"outcome": "approved" | "rejected" | "review_required"}`.
 Eligibility decisions target the household (so household audit search includes
@@ -38,6 +39,12 @@ system events, and nonexistent decision IDs are refused.
 For `rule_published` on `rule_set_version`, metadata instead contains the supported
 `rule_type` and positive integer `version`. Suspension and reactivation accept a
 `reason` validated against the configured length limit and sensitive-data checks.
+Store events (US-14) use target type `store`: `update` accepts `{"fields": "..."}`,
+the comma-separated names of the changed fields (lowercase identifiers, at most
+300 characters, never the values); `deactivate` accepts exactly `reason`,
+`listings_cancelled` and `reservations_cancelled` (non-negative integers); and
+`reactivate` on a store accepts `{"reason": "..."}`. Store reasons are limited to
+500 characters, with the same sensitive-data checks as household reasons.
 Each action accepts only its defined metadata keys.
 Callers must supply record identifiers rather than personal data as targets.
 
