@@ -343,13 +343,24 @@ ignore_imports = [
 ]
 
 [tool.ruff.lint]
-# Windows Docker bind mounts may report Python files as executable.
-ignore = ["EXE002"]
+ignore = [
+  # Windows Docker bind mounts may report Python files as executable.
+  "EXE002",
+  # Exceptions are named for the condition they report (HolderTooYoung,
+  # ReservationRefused), so the Error suffix is optional. PEP 8 asks for it only
+  # when the exception is an error. Documented on the wiki Naming Conventions page.
+  "N818",
+]
 extend-select = [
   "DTZ",      # Rule 6: no naive datetimes (datetime.now() without tz, etc.)
   "TID251",   # Rules 6 and 9 + test rules: banned APIs listed below
   "PLR2004",  # Rule 2: magic numbers in comparisons (only kept for domain/, see below)
+  "N",        # PEP 8 names (pep8-naming), as on the wiki Naming Conventions page
+  "C901",     # Cyclomatic complexity, limit below (Code Quality Rubric 3.3)
 ]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 # Rule 9: outside services only through adapters
