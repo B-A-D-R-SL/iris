@@ -88,6 +88,24 @@ def release_units(listing_id: UUID, quantity: int) -> None:
         raise RuntimeError("Reserved listing units are inconsistent.")
 
 
+def lock_listings(listing_ids: list[UUID]) -> None:
+    """Lock these listing rows, in id order, for the rest of the caller's transaction.
+
+    Lock order: code that changes both listings and their reservations locks
+    the listings first, then the reservations, as store deactivation does
+    (US-14). Taking them in the other order lets two such transactions wait on
+    each other until PostgreSQL aborts one as a deadlock.
+    """
+    if not connection.in_atomic_block:
+        raise RuntimeError("lock_listings must run inside a transaction.")
+    list(
+        Listing.objects.select_for_update()
+        .filter(pk__in=listing_ids)
+        .order_by("pk")
+        .values_list("pk", flat=True)
+    )
+
+
 class PostingUnavailableError(Exception):
     """A dependency failed; the reason is diagnostic and never user-facing."""
 
@@ -409,3 +427,30 @@ def take_units(listing_id: UUID, quantity: int, *, now: datetime) -> bool:
         quantity_total__gte=F("quantity_reserved") + quantity,
     ).update(quantity_reserved=F("quantity_reserved") + quantity)
     return changed == 1
+
+
+def cancel_all_for_store(store_id: UUID, *, now: datetime) -> list[UUID]:
+    """Cancel a deactivated store's listings whose pickup has not ended (US-14).
+
+    Locks the rows first, so a reservation waiting in ``take_units`` sees the
+    cancelled status once this transaction commits and takes nothing. Listings
+    whose pickup already ended are left as they are: their unclaimed
+    reservations become no-shows (US-45), not store cancellations. Reserved
+    counts stay as history. Returns the cancelled listing ids, oldest id first.
+    """
+    if not connection.in_atomic_block:
+        raise RuntimeError("cancel_all_for_store must run inside a transaction.")
+    if now.utcoffset() is None:
+        raise ValueError("The supplied clock must be timezone-aware.")
+    # rule: BR-STORE-002 only listings still open for pickup are cancelled.
+    listing_ids = list(
+        Listing.objects.select_for_update()
+        .filter(store_id=store_id, status=ListingStatus.PUBLISHED, pickup_end__gt=now)
+        .order_by("pk")
+        .values_list("pk", flat=True)
+    )
+    if listing_ids:
+        Listing.objects.filter(pk__in=listing_ids).update(
+            status=ListingStatus.CANCELLED, cancelled_at=now
+        )
+    return listing_ids

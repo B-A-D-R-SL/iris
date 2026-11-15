@@ -89,7 +89,6 @@ describe("screens not built yet have no route (FIX-13)", () => {
     ["/store", "store_staff"],
     ["/store/listings", "store_manager"],
     ["/staff/review", "admin"],
-    ["/staff/stores", "admin"],
   ] as const)("shows %s as not found", async (route, user) => {
     renderApp(route, user);
     expect(await screen.findByRole("heading", { name: "Page introuvable" })).toBeInTheDocument();
@@ -197,6 +196,7 @@ describe("staff area", () => {
       "Foyers",
       "Inscription en personne",
       "Partenaires",
+      "Commerces",
       "Catégories",
       "Journal d'audit",
     ]);

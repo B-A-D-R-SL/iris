@@ -5,7 +5,8 @@ import re
 
 SENSITIVE_HOUSEHOLD_REASON = re.compile(
     r"\b(?:sin|social insurance|nas|assurance sociale|income|salary|revenu|salaire|"
-    r"immigration|permanent resident|citizen|refugee|réfugié|refugie|passport|"
+    r"immigration|permanent resident|r[ée]sidente? permanente?|citizen|refugee|"
+    r"réfugié|refugie|passport|"
     r"passeport|document text|texte de document|contact|named?|nommée?)\b"
     r"|[\w.+-]+@[\w.-]+\.[a-z]{2,}"
     r"|\b\d{3}[ -]?\d{3}[ -]?\d{3}\b"

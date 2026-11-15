@@ -374,3 +374,15 @@ def search(q: str) -> QuerySet[Household]:
         )
         .order_by("member_number", "pk")
     )
+
+
+def email_contacts(household_ids: Iterable[UUID]) -> dict[UUID, tuple[str | None, str]]:
+    """Email address (or None) and preferred language per file, for notices.
+
+    Used by reservations to tell households their reservation was cancelled
+    (US-14); a walk-in file without an email gets no message.
+    """
+    rows = Household.objects.filter(pk__in=list(household_ids)).values_list(
+        "pk", "email", "preferred_language"
+    )
+    return {pk: (email or None, language) for pk, email, language in rows}
