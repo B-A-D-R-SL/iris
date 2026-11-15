@@ -27,8 +27,8 @@ application role is checked independently of Django's `is_staff` flag. They stay
 public with local/test settings for developer tooling. Schema generation through
 `manage.py spectacular` remains available without an HTTP session.
 The schema describes health and implemented DRF endpoints, including `/api/me/`,
-categories and invitation acceptance; it does not describe allauth operations
-or the planned business APIs.
+categories and invitation acceptance; it does not describe allauth operations,
+the staging-only readiness probe, or planned business APIs.
 `pnpm gen:api` produces the generated declarations, and the existing CI workflow
 is configured to reject missing or outdated generated types. See the
 [generation guide](../guides/api-generation.md).
@@ -47,7 +47,8 @@ Production applies DRF anonymous and authenticated request limits, initially
 Operators configure these with `DRF_ANON_THROTTLE_RATE` and
 `DRF_USER_THROTTLE_RATE`. The partner application endpoint retains its existing
 **5/hour/IP** limit shared by anonymous and signed-in callers. Allauth keeps its
-separate sign-in protection; the plain Django health probe is not DRF-throttled.
+separate sign-in protection; the plain Django health and staging readiness probes
+are not DRF-throttled.
 
 An exceeded DRF limit returns HTTP 429 with
 `{"code": "throttled", "message": "…", "fields": {}}` and `Retry-After`.
@@ -86,9 +87,21 @@ for the browser behavior and allauth's separate trusted-proxy setting.
 | Method         | Path                     | Who    | Purpose            | Status      |
 | -------------- | ------------------------ | ------ | ------------------ | ----------- |
 | GET            | `/api/health/`           | Anyone | `{"status": "ok"}` | Implemented |
+| GET/HEAD       | `/api/ready/`            | Anyone (no session) | Staging readiness: database connectivity, worker process and release revision | Implemented (staging only) |
 | GET            | `/api/categories/`       | Anyone | Active categories  | Implemented |
 | GET/POST       | `/api/staff/categories/` | Admin  | List every category (active or not); add one | Implemented (US-35) |
 | PATCH          | `/api/staff/categories/{code}/` | Admin | Rename, change food or default value, deactivate or reactivate; no delete | Implemented (US-35) |
+
+`/api/ready/` is a public plain Django view registered only by
+`iris.settings.staging` through `iris.staging_urls`. It accepts GET and HEAD and
+disables caching. It reads the supervised worker PID from `/run/iris/worker.pid`,
+requires a PID greater than one and checks that process exists with
+`os.kill(pid, 0)`, then executes database `SELECT 1`. Success returns HTTP 200;
+GET includes `{"status": "ok", "revision": "<IRIS_RELEASE_SHA>"}` (revision defaults
+to `local` when unset). A database error, unavailable PID/process or invalid PID
+returns HTTP 503 with `{"status": "unavailable"}`. HEAD has the corresponding
+status and headers without a response body. Process existence does not establish
+queue progress or provider email delivery; those require live verification.
 
 ### Accounts
 
