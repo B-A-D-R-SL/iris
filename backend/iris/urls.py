@@ -18,6 +18,8 @@ urlpatterns = [
     # Public listing categories
     path("api/categories/", include("modules.categories.api.urls")),
     path("api/staff/audit/", include("modules.audit.api.urls")),
+    # Notice of assessment file links and downloads for staff (US-18)
+    path("api/staff/", include("modules.documents.api.urls")),
     # Category management for admins (US-35)
     path("api/staff/categories/", include("modules.categories.api.staff_urls")),
     # Store pickup lookup and confirmation (US-44)

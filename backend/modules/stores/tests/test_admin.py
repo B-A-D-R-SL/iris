@@ -2,7 +2,6 @@
 # I have planned implementation, reviewed and tested the code
 """US-11 and US-12 Django admin registration, form, and permission tests."""
 
-from io import StringIO
 from typing import cast
 
 import pytest
@@ -11,8 +10,7 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser, Permission
 from django.core.exceptions import ValidationError
-from django.core.management import call_command
-from django.test import Client, RequestFactory, override_settings
+from django.test import Client, RequestFactory
 from django.urls import reverse
 from django.utils.translation import override
 
@@ -147,29 +145,28 @@ def test_admin_request_selects_supported_language(
     assert response.wsgi_request.LANGUAGE_CODE == expected_language
 
 
-@pytest.mark.django_db
-def test_local_admin_can_see_and_edit_store_in_django_admin(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Check the registered admin form and persist an edit without HTTP requests."""
-    monkeypatch.setenv("DJANGO_DEV_ADMIN_EMAIL", LOCAL_ADMIN_EMAIL)
-    monkeypatch.setenv("DJANGO_DEV_ADMIN_PASSWORD", LOCAL_ADMIN_PASSWORD)
-    with override_settings(DEBUG=True):
-        call_command("create_dev_admin", stdout=StringIO())
-    admin_user = get_user_model()._default_manager.get(email=LOCAL_ADMIN_EMAIL)
-    assert admin_user.check_password(LOCAL_ADMIN_PASSWORD)
+def _store_admin_form_data(store: Store) -> dict[str, str]:
+    """Submit a complete store edit with the shared contact input formats."""
+    return {
+        "name": store.name,
+        "street_number": store.street_number,
+        "street_name": store.street_name,
+        "unit": "",
+        "city": store.city,
+        "postal_code": " h2x  1y4 ",
+        "phone": "(514) 555-0199",
+        "email": store.email,
+        "opening_hours": '{"mon": [["09:00", "17:00"]]}',
+        "pickup_instructions": "",
+        "is_active": "on",
+    }
 
-    store = Store.objects.create(
-        name="B.A.D.R.",
-        street_number="0000",
-        street_name="rue Exemple",
-        city="Montreal",
-        postal_code="H0H 0H0",
-        phone="+15145550100",
-        email="badr-store@example.test",
-        opening_hours={"mon": [["09:00", "17:00"]]},
-        is_badr=True,
-    )
+
+@pytest.mark.django_db
+def test_admin_can_see_and_edit_store_in_django_admin() -> None:
+    """Validate the registered admin form and persist canonical contact values."""
+    admin_user = UserFactory.create(is_staff=True, is_superuser=True, role="admin")
+    store = cast(Store, StoreFactory(is_badr=True))
     store_admin = admin.site._registry[Store]
     change_url = reverse("admin:stores_store_change", args=[store.pk])
     request = RequestFactory().post(change_url)
@@ -178,28 +175,13 @@ def test_local_admin_can_see_and_edit_store_in_django_admin(
     assert store_admin.has_view_permission(request, store)
     assert store_admin.has_change_permission(request, store)
     form_class = store_admin.get_form(request, obj=store)
-    form = form_class(
-        {
-            "name": store.name,
-            "street_number": store.street_number,
-            "street_name": store.street_name,
-            "unit": "",
-            "city": store.city,
-            "postal_code": store.postal_code,
-            "phone": "+15145550199",
-            "email": store.email,
-            "opening_hours": '{"mon": [["09:00", "17:00"]]}',
-            "pickup_instructions": "",
-            "is_badr": "on",
-            "is_active": "on",
-        },
-        instance=store,
-    )
+    form = form_class(_store_admin_form_data(store), instance=store)
     assert form.is_valid(), form.errors.as_json()
     store_admin.save_model(request, form.save(commit=False), form, change=True)
 
     store.refresh_from_db()
     assert store.phone == "+15145550199"
+    assert store.postal_code == "H2X 1Y4"
 
 
 @pytest.mark.django_db

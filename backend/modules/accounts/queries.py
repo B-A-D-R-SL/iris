@@ -10,6 +10,8 @@ from modules.accounts.roles import UserRole
 
 STORE_ROLES = (UserRole.STORE_STAFF, UserRole.STORE_MANAGER)
 STAFF_ROLES = (UserRole.INTAKE_WORKER, UserRole.ADMIN)
+# Other modules may not import accounts.roles (import-linter), so the role is shared here.
+BENEFICIARY_ROLE = UserRole.BENEFICIARY
 
 
 def is_admin(user: object) -> bool:
@@ -18,6 +20,15 @@ def is_admin(user: object) -> bool:
         getattr(user, "is_authenticated", False)
         and getattr(user, "is_active", False)
         and getattr(user, "role", None) == UserRole.ADMIN
+    )
+
+
+def is_intake_staff(user: object) -> bool:
+    """Return whether the user is an active intake worker or administrator."""
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and getattr(user, "is_active", False)
+        and getattr(user, "role", None) in STAFF_ROLES
     )
 
 

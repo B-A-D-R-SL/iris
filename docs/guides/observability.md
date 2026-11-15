@@ -11,6 +11,12 @@ The `iris.auth` events `sign_in_succeeded` and `signed_out` also allow `user_id`
 validated as a UUID. This is the only account identifier allowed in logs;
 failed sign-ins and lockouts do not identify the account.
 
+The `iris.validation` INFO event `contact_normalization_rejected` allows only a
+`field` name from `phone`, `contact_phone` or `postal_code`. This metadata is
+accepted only for that logger and event. No contact value, model identifier or
+exception is logged. Invalid input remains unchanged so model validation can
+collect all field errors; blank and excluded fields emit no rejection event.
+
 Unsupported allauth mail prefixes produce the static INFO event
 `authentication_email_skipped` on `iris.auth`. This event includes no recipient,
 template prefix, context, token or exception information; the adapter returns
@@ -112,6 +118,18 @@ other paths and other 4xx responses keep WARNING; 5xx responses keep ERROR.
 `ExpectedSessionCheckFilter` is configured on `django.request` and
 `django.server` in `iris/settings/base.py` to avoid duplicate warnings.
 
+
+## Walk-in decision events (US-18)
+
+`iris.households` emits `walk_in_decision` at INFO after the approval
+transaction commits. The formatter keeps `household_id` (a validated UUID),
+`outcome` (`approved`, `rejected` or `review_required`) and `reason_codes`, a
+comma-separated list written only when every code is a registered review or
+rejection code (for example `NAME_MISMATCH` or `INCOME_ABOVE_LICO`); an approval
+has no codes. `walk_in_invitation_skipped` keeps `household_id` and the reason
+`email_already_registered`. These fields are allowed only for these two events;
+names, incomes, emails and staff identifiers are never written. A rolled-back
+approval emits no event.
 
 ## Listing posting events (FIX-01)
 

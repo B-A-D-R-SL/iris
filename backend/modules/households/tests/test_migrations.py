@@ -26,6 +26,16 @@ def _latest():
     return executor.loader.graph.leaf_nodes("households")
 
 
+@pytest.fixture(autouse=True)
+def _restore_schema():
+    try:
+        yield
+    finally:
+        # Rolling households back also un-applies dependent notice migrations.
+        executor = MigrationExecutor(connection)
+        _migrate(executor.loader.graph.leaf_nodes())
+
+
 def test_seeded_rows_survive_the_upgrade():
     worker = UserFactory(role="intake_worker")
     old_apps = _migrate(SET18)

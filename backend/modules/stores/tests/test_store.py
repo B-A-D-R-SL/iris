@@ -69,7 +69,7 @@ def test_store_defaults_and_optional_address_fields(
         ("name", ""),
         ("email", "not-an-email"),
         ("postal_code", "invalid"),
-        ("phone", "514-555-0100"),
+        ("phone", "+441234567890"),
     ],
 )
 def test_store_rejects_invalid_required_details(

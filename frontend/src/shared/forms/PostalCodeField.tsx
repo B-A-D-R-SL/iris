@@ -18,7 +18,6 @@ export function PostalCodeField(props: PostalCodeFieldProps) {
       value={props.value ?? ""}
       onChange={(event) => props.onChange(normalizePostalCode(event.currentTarget.value))}
       placeholder="A1A 1A1"
-      maxLength={7}
       autoComplete="postal-code"
       autoCapitalize="characters"
       spellCheck={false}

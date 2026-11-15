@@ -44,6 +44,11 @@ service, including the normalized, privacy-validated reason. The household
 workflow's `_status_reason` remains responsible for the active RuleSet limit
 and sensitive-data validation before audit or email queueing.
 
+`queue_set_password_email(email=..., token=..., language=...)` is the US-18
+walk-in approval wrapper. It builds `PUBLIC_APP_ORIGIN/invitation/<token>` and
+sends `walk_in_set_password` through `send`. A missing or invalid origin becomes
+a failed EmailLog (`email_configuration_invalid`) rather than undoing approval.
+
 ## Template catalog
 
 Every key has French and English subject/plain-text files under

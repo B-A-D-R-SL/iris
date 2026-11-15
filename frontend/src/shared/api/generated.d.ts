@@ -87,6 +87,26 @@ export interface paths {
     /** Edit an existing walk-in household draft */
     patch: operations["staff_households_partial_update"];
   };
+  "/api/staff/households/{id}/approve/": {
+    /**
+     * Decide a walk-in file: approved, rejected or sent to review
+     * @description Runs eligibility on the recorded notices. Answers 200 with the outcome; 400 when the file is incomplete or cannot be decided in its status.
+     */
+    post: operations["staff_households_approve_create"];
+  };
+  "/api/staff/households/{id}/decision-summary/": {
+    /**
+     * What the decision would use and whether it goes to review
+     * @description Read-only. Household size, total income, the LICO threshold, the adults who need a notice and the notice limits. 503 when the notice_upload rule is missing.
+     */
+    get: operations["staff_households_decision_summary_retrieve"];
+  };
+  "/api/staff/households/{id}/notices/": {
+    /** List the current notice of each member of a walk-in file */
+    get: operations["staff_households_notices_list"];
+    /** Record an adult's notice of assessment or non-filing reason */
+    post: operations["staff_households_notices_create"];
+  };
   "/api/staff/households/{id}/reactivate/": {
     /** Reactivate a household file (administrator) */
     post: operations["staff_households_reactivate_create"];
@@ -98,6 +118,14 @@ export interface paths {
   "/api/staff/households/{id}/suspend/": {
     /** Suspend a household file (administrator) */
     post: operations["staff_households_suspend_create"];
+  };
+  "/api/staff/notice-files/{token}/": {
+    /** Download a notice of assessment file through a signed link */
+    get: operations["staff_notice_files_retrieve"];
+  };
+  "/api/staff/notices/{id}/file/": {
+    /** Get a short-lived link to a notice of assessment file */
+    get: operations["staff_notices_file_retrieve"];
   };
   "/api/staff/partner-applications/": {
     /**
@@ -479,6 +507,11 @@ export interface components {
       title: string;
       /** @default item */
       unit?: string;
+    };
+    NoticeFileLink: {
+      /** Format: date-time */
+      expires_at: string;
+      url: string;
     };
     /**
      * @description Each day is a range, or null when closed. ``notes`` is read-only text
@@ -971,6 +1004,33 @@ export interface components {
      * @enum {string}
      */
     UnitEnum: "item" | "bundle";
+    /** @description The outcome staff explain to the household at the counter. */
+    WalkInDecision: {
+      /** Format: date-time */
+      approved_at: string | null;
+      /** Format: date-time */
+      expires_at: string | null;
+      /** Format: uuid */
+      id: string;
+      invitation_not_sent: boolean;
+      status: string;
+      status_reason: string;
+    };
+    /** @description Numbers and next step the API works out before the decision. */
+    WalkInDecisionSummary: {
+      adult_count: number;
+      adult_member_ids: readonly string[];
+      approved_months: number | null;
+      eligible: boolean | null;
+      household_size: number;
+      notice_rules: components["schemas"]["WalkInNoticeRules"];
+      ready_for_decision: boolean;
+      threshold_cents: number | null;
+      total_income_cents: number | null;
+      /** Format: date-time */
+      valid_until: string | null;
+      will_go_to_review: boolean;
+    };
     WalkInDraftInput: {
       address?: components["schemas"]["AddressInput"];
       consent_data_processing?: boolean;
@@ -1036,6 +1096,49 @@ export interface components {
       | "renewal_needed"
       | "suspended"
       | "rejected";
+    WalkInNoticeInput: {
+      /** @default false */
+      did_not_file?: boolean;
+      did_not_file_reason?: string | null;
+      /** Format: binary */
+      file?: string | null;
+      /** Format: uuid */
+      member: string;
+      name_on_notice?: string | null;
+      /** Format: date */
+      notice_date?: string | null;
+      postal_code_on_notice?: string | null;
+      seen_in_person?: boolean | null;
+      tax_year?: number | null;
+      total_income_cents?: number | null;
+    };
+    /** @description The recorded notice; the private file reference is never returned. */
+    WalkInNoticeRead: {
+      /** Format: date-time */
+      created_at: string;
+      did_not_file_reason: string;
+      has_file: boolean;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      member: string;
+      name_on_notice: string;
+      /** Format: date */
+      notice_date: string | null;
+      postal_code_on_notice: string;
+      seen_in_person: boolean;
+      source: string;
+      status: string;
+      tax_year: number | null;
+      total_income_cents: number | null;
+    };
+    /** @description notice_upload limits the notice cards check before sending. */
+    WalkInNoticeRules: {
+      earliest_tax_year: number;
+      max_bytes: number;
+      max_income_cents: number;
+      reason_max_length: number;
+    };
     WalkInSubmissionRead: {
       /** Format: uuid */
       id: string;
@@ -1507,6 +1610,77 @@ export interface operations {
       };
     };
   };
+  /**
+   * Decide a walk-in file: approved, rejected or sent to review
+   * @description Runs eligibility on the recorded notices. Answers 200 with the outcome; 400 when the file is incomplete or cannot be decided in its status.
+   */
+  staff_households_approve_create: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["WalkInDecision"];
+        };
+      };
+    };
+  };
+  /**
+   * What the decision would use and whether it goes to review
+   * @description Read-only. Household size, total income, the LICO threshold, the adults who need a notice and the notice limits. 503 when the notice_upload rule is missing.
+   */
+  staff_households_decision_summary_retrieve: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["WalkInDecisionSummary"];
+        };
+      };
+    };
+  };
+  /** List the current notice of each member of a walk-in file */
+  staff_households_notices_list: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["WalkInNoticeRead"][];
+        };
+      };
+    };
+  };
+  /** Record an adult's notice of assessment or non-filing reason */
+  staff_households_notices_create: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["WalkInNoticeInput"];
+      };
+    };
+    responses: {
+      201: {
+        content: {
+          "application/json": components["schemas"]["WalkInNoticeRead"];
+        };
+      };
+    };
+  };
   /** Reactivate a household file (administrator) */
   staff_households_reactivate_create: {
     parameters: {
@@ -1597,6 +1771,38 @@ export interface operations {
       404: {
         content: {
           "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+    };
+  };
+  /** Download a notice of assessment file through a signed link */
+  staff_notice_files_retrieve: {
+    parameters: {
+      path: {
+        token: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/pdf": string;
+          "image/jpeg": string;
+          "image/png": string;
+        };
+      };
+    };
+  };
+  /** Get a short-lived link to a notice of assessment file */
+  staff_notices_file_retrieve: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["NoticeFileLink"];
         };
       };
     };

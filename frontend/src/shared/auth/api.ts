@@ -3,7 +3,7 @@
 const AUTH = "/api/auth/browser/v1/auth";
 
 export type AuthErrorCode =
-  "invalid_credentials" | "locked" | "invalid_code" | "unavailable" | "profile_unavailable";
+  "invalid_credentials" | "locked" | "unavailable" | "profile_unavailable";
 
 export class AuthError extends Error {
   readonly code: AuthErrorCode;
@@ -71,18 +71,18 @@ async function readBody(response: Response): Promise<AuthBody> {
   }
 }
 
-/** A 401 with mfa_authenticate is a pending second step, not a signed-in user. */
+/** Password-only sign-in until US-09 supplies the server's MFA flow. */
 export async function loginWithPassword(
   email: string,
   password: string,
   language: string,
-): Promise<"authenticated" | "mfa_required"> {
+): Promise<void> {
   const response = await send("POST", "/login", language, { email, password });
   // A live browser session can remain after a failed /api/me/ lookup.
-  if (response.ok || response.status === 409) return "authenticated";
+  if (response.ok || response.status === 409) return;
   const body = await readBody(response);
   if (response.status === 401 && body.data?.flows?.some((flow) => flow.id === "mfa_authenticate")) {
-    return "mfa_required";
+    throw new AuthError("unavailable");
   }
   if (body.errors?.some((error) => error.code === "too_many_login_attempts")) {
     throw new AuthError("locked");
@@ -90,13 +90,6 @@ export async function loginWithPassword(
   if (response.status === 400 || response.status === 401) {
     throw new AuthError("invalid_credentials");
   }
-  throw new AuthError("unavailable");
-}
-
-export async function loginWithCode(code: string, language: string): Promise<void> {
-  const response = await send("POST", "/2fa/authenticate", language, { code });
-  if (response.ok) return;
-  if (response.status === 400 || response.status === 401) throw new AuthError("invalid_code");
   throw new AuthError("unavailable");
 }
 
