@@ -41,6 +41,9 @@ services:
   backend:
     build:
       context: ./backend
+      args:
+        APP_UID: ${IRIS_UID:-1000}
+        APP_GID: ${IRIS_GID:-1000}
     restart: unless-stopped
     environment:
       DJANGO_SETTINGS_MODULE: iris.settings.local
@@ -74,6 +77,9 @@ services:
       - "127.0.0.1:${IRIS_BACKEND_PORT:-8000}:8000"
     volumes:
       - ./backend:/app
+      # Shared synthetic cases used by the documented container-based tests.
+      - ./mock-data/validation:/mock-data/validation:ro
+      - ./frontend/src/shared/forms/unicodeCombining.ts:/frontend/src/shared/forms/unicodeCombining.ts:ro
     depends_on:
       db:
         condition: service_healthy
@@ -93,6 +99,8 @@ services:
     command: pnpm dev --host 0.0.0.0
     ports:
       - "127.0.0.1:${IRIS_FRONTEND_PORT:-5174}:5173"
+    volumes:
+      - ./mock-data/validation:/mock-data/validation:ro
     depends_on:
       backend:
         condition: service_started
@@ -122,6 +130,9 @@ services:
   worker:
     build:
       context: ./backend
+      args:
+        APP_UID: ${IRIS_UID:-1000}
+        APP_GID: ${IRIS_GID:-1000}
     restart: unless-stopped
     environment:
       DJANGO_SETTINGS_MODULE: iris.settings.local

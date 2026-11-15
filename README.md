@@ -88,6 +88,13 @@ The development environment works with default local settings. No manual environ
 
 Optionally, copy `.env.example` to `.env` at the repository root to customize local ports and credentials. Never commit `.env`.
 
+The backend, worker and frontend run as non-root users. On Linux, if `id -u` or
+`id -g` differs from `1000`, set `IRIS_UID` and `IRIS_GID` in the root `.env` to
+those values and rebuild. This lets backend tools write coverage, caches and
+photo-demo output through the source bind mount. See the
+[container hardening guide](docs/guides/container-hardening.md) for image contents,
+dependency installation, permission handling and smoke checks.
+
 | Service | Internal Port | Host Port |
 | --- | --- | --- |
 | Frontend | 5173 | 5174 |
@@ -202,6 +209,7 @@ changes so the container runs the current version.
 
 - **backend**: ruff lint and format, mypy, import-linter module boundaries, missing migrations, `check --deploy --fail-level WARNING` with production settings and CI-only values (FIX-17), pytest against PostgreSQL 17 with at least 70% total coverage, pip-audit, `pnpm gen:api --check`, and `pnpm test:api`.
 - **frontend**: ESLint, Prettier, `tsc`, Vitest with coverage, production build, `pnpm audit` (high and critical vulnerabilities fail).
+- **containers** (FIX-24): builds both application images, checks non-root startup and excluded synthetic secrets, starts all six Compose services, exercises developer tools and verifies frontend Watch synchronization in a disposable project. Run `bash tools/container-smoke.sh` locally; see the [container guide](docs/guides/container-hardening.md).
 - **secret-scan** (FIX-17): gitleaks 8.30.1 (exact release, SHA-256 checked) scans the pull request's commits, or the commits pushed to `main`; a manual run (`workflow_dispatch`) scans the whole history. A finding fails the job. Accepted false positives are in `.gitleaks.toml`: Microsoft's public Azurite key, and made-up passwords in test files (provider-specific rules still apply there).
 - **zap-baseline** (FIX-17, SEC-10): starts the backend with production settings over plain HTTP (`iris.settings.ci_scan`), PostgreSQL 17 and the seed data, then runs the OWASP ZAP 2.17.0 baseline scan (image pinned by digest) from the public `/admin/login/` page (`/api/docs/` is admin-only since FIX-04). `.github/scripts/zap_gate.py` fails the job on any High-risk alert not set to `IGNORE` in `.zap/rules.tsv` (each with its reason); lower risks are listed in the log. The HTML and JSON reports are uploaded as the `zap-baseline-report` artifact.
 
