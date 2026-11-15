@@ -105,7 +105,7 @@ database, and verifies that nested application resource directories survive the
 build. Watch checks cover file addition, modification and deletion, plus frontend
 replacement after a dependency manifest changes. CI runs the same check in addition to the existing backend and
 frontend quality jobs. Local results and review corrections are recorded in
-[the verification history](../05-process/ai-usage-verification-3.md#fix-24-dockerfile-hardening-615).
+[the wiki's AI usage record](https://github.com/B-A-D-R-SL/iris/wiki/Iteration-4-%E2%80%93-AI-Usage#fix-24-dockerfile-hardening).
 
 HTTP probes are restricted to the disposable frontend's published
 `127.0.0.1` port and three fixed health/asset paths. The runner rejects non-loopback

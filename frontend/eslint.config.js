@@ -46,8 +46,6 @@ function layerRule(layer) {
  * The pull request that splits a file removes its line (design-system.md, "Size").
  */
 const OVER_THE_LIMIT = {
-  // FIX-06 (#632)
-  "src/features/categories/CategoriesPage.tsx": { lines: 225 },
   // No issue yet: listed in the FIX-13 pull request.
   "src/areas/household/pages/ListingDetail.tsx": { lines: 70 },
   "src/areas/public/pages/PartnerApply.tsx": { lines: 329 },

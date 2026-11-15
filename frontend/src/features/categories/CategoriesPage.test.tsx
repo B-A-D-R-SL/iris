@@ -302,6 +302,56 @@ describe("CategoriesPage", () => {
     ).toBeVisible();
   });
 
+  it("shows the server's message when it refuses a deactivation", async () => {
+    mockApi({
+      update: () =>
+        Response.json({ message: "Catégorie verrouillée.", fields: {} }, { status: 409 }),
+    });
+    renderWithProviders(<CategoriesPage />);
+    await screen.findByText("Boulangerie");
+
+    await userEvent.click(button("Désactiver Boulangerie"));
+    const dialog = await screen.findByRole("dialog", { name: "Désactiver Boulangerie ?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Désactiver" }));
+
+    expect(await screen.findByText("Catégorie verrouillée.")).toBeVisible();
+    expect(screen.getByText("La modification n'a pas été enregistrée")).toBeVisible();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("says the server refused when the refusal has no message", async () => {
+    mockApi({ update: () => new Response(null, { status: 503 }) });
+    renderWithProviders(<CategoriesPage />);
+    await screen.findByText("Fournitures scolaires");
+
+    await userEvent.click(button("Réactiver Fournitures scolaires"));
+
+    expect(
+      await screen.findByText("Le serveur a refusé la modification. Réessayez."),
+    ).toBeVisible();
+  });
+
+  it("keeps another category's confirmation open when a reactivation ends", async () => {
+    let finish: () => void = () => {};
+    const fetchMock = mockApi();
+    const respond = fetchMock.getMockImplementation();
+    fetchMock.mockImplementation(async (input, init) => {
+      if (init?.method !== "PATCH") return respond!(input, init);
+      await new Promise<void>((resolve) => (finish = resolve));
+      return Response.json({ ...school, is_active: true });
+    });
+    renderWithProviders(<CategoriesPage />);
+    await screen.findByText("Fournitures scolaires");
+
+    await userEvent.click(button("Réactiver Fournitures scolaires"));
+    await userEvent.click(button("Désactiver Boulangerie"));
+    await screen.findByRole("dialog", { name: "Désactiver Boulangerie ?" });
+    await act(async () => finish());
+
+    expect(await screen.findByText("Fournitures scolaires est de nouveau active.")).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "Désactiver Boulangerie ?" })).toBeVisible();
+  });
+
   it("is open to admins inside the staff area", async () => {
     mockApi();
     renderWithProviders(<App />, { route: "/staff/categories" });

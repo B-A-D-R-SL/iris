@@ -49,6 +49,7 @@ its tasks, its milestone and the Iris project. Then it asks:
 | Which level for files missing an AI contribution line? | The three levels; it adds the line and commits it | Changed files have no header |
 | Why is there no test change? | Likely reasons, e.g. "refactor only, existing tests cover it", or your own | Code changed but no test file did |
 | Which milestone? | The story's milestone first | The story and tasks have different milestones |
+| Is this PR's AI help recorded on the wiki? | **Draft it for me**, **Already recorded**, or **Not needed** | Always |
 
 ### Then it runs
 

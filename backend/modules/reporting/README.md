@@ -1,40 +1,34 @@
 # Reporting module
 
 **Owner pair:** Staff & insight
-**Status:** SET-14 architecture skeleton
+**Status:** Not started
 
 ## Responsibility
 
-Own the reporting feature boundary within the Iris modular monolith.
+Staff dashboards and exports built from listings, reservations and households.
 
-## Layers
+## Planned work
 
-- `api/`: HTTP validation, permissions, and routing
-- `domain/`: Pure Python business rules; no Django dependencies
-- `services.py`: Public write operations and transactions
-- `queries.py`: Public read-only operations
-- `models.py`: Module-owned Django models
-- `tasks.py`: Background jobs when necessary
-- `tests/`: Domain, service, and API tests
+- US-70 (#562): dashboard for any date range
+- US-71 (#563): export reports to CSV
+- US-72 (#564): estimated value redistributed
+- US-83 (#577): unmet needs by category
+
+A module adds its files (`models.py`, `services.py`, `queries.py`,
+`domain/`, `api/`, `tasks.py`, `tests/`) when the story that needs them
+starts. See [the reference module](../../../docs/guides/reference-module.md)
+for what each file holds.
 
 ## Public functions
 
-No public functions implemented yet.
+None yet.
 
 ## Architectural rules
 
 Other modules must communicate through public services or queries.
 Do not import another module's models or internal domain code.
 
-## Future implementation
-
-TODO: Module owner defines business operations, model ownership,
-API endpoints, tests, and applicable audit events.
-
-Do not treat this scaffold as implemented business functionality.
-
 ## Audit events
 
-No audit events are implemented as part of SET-14.
-Document emitted event names here when the module's
-business workflows are implemented.
+None yet. Document emitted event names here when the module's
+workflows are built.
