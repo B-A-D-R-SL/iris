@@ -9,12 +9,14 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import pytest
+from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from adapters.file_store.memory import InMemoryFileStore
+from modules.audit.queries import search_events
 from modules.documents import services as document_services
 from modules.documents.queries import current_notices
 from modules.households.models import Household, HouseholdDraftEvent
@@ -158,22 +160,38 @@ def test_br_doc_007_child_is_refused(
     assert InMemoryFileStore.references() == []
 
 
-def withdraw_consent(household: Any) -> None:
-    Household.objects.filter(pk=household.pk).update(
-        consent_data_processing_at=None, consent_text_version=""
+NO_CONSENT = {"consent_data_processing_at": None, "consent_text_version": ""}
+
+
+def withdraw_consent(household: Any, **missing: Any) -> None:
+    Household.objects.filter(pk=household.pk).update(**(missing or NO_CONSENT))
+
+
+def kept_rows(household: Any) -> tuple[list[Any], list[Any]]:
+    """Every notice of the household, superseded ones too, and its audit events."""
+    notices = apps.get_model("documents.IncomeNotice").objects.filter(
+        member__household=household
     )
+    events = search_events(household=household.pk)
+    return list(notices.values()), list(events.values())
 
 
-def assert_nothing_kept(household: Any, holder: Any) -> None:
-    assert current_notices([holder.pk]) == {}
+def assert_nothing_kept(household: Any, before: tuple[list[Any], list[Any]]) -> None:
+    assert kept_rows(household) == before
     assert InMemoryFileStore.references() == []
     assert not HouseholdDraftEvent.objects.filter(household=household).exists()
 
 
+# Consent counts only with both its time and its text version.
+@pytest.mark.parametrize(
+    "missing",
+    [{"consent_data_processing_at": None}, {"consent_text_version": ""}],
+)
 def test_prv_02_notice_is_refused_until_the_household_consents(
-    household: Any, holder: Any, worker: Any, monkeypatch: Any
+    household: Any, holder: Any, worker: Any, monkeypatch: Any, missing: Any
 ) -> None:
-    withdraw_consent(household)
+    withdraw_consent(household, **missing)
+    before = kept_rows(household)
     uploads: list[Any] = []
     monkeypatch.setattr(
         document_services, "prepare_staff_notice", lambda *args: uploads.append(args)
@@ -190,13 +208,14 @@ def test_prv_02_notice_is_refused_until_the_household_consents(
         ]
     }
     assert uploads == []  # refused before the file reaches storage
-    assert_nothing_kept(household, holder)
+    assert_nothing_kept(household, before)
 
 
 def test_prv_02_consent_withdrawn_during_the_upload_still_refuses(
     household: Any, holder: Any, worker: Any, monkeypatch: Any
 ) -> None:
     """The check under the row lock catches consent removed after the first one."""
+    before = kept_rows(household)
     prepare = document_services.prepare_staff_notice
 
     def prepare_then_withdraw(*args: Any) -> Any:
@@ -212,7 +231,7 @@ def test_prv_02_consent_withdrawn_during_the_upload_still_refuses(
 
     assert response.status_code == 400
     assert list(response.data["fields"]) == ["consent_data_processing"]
-    assert_nothing_kept(household, holder)
+    assert_nothing_kept(household, before)
 
 
 @pytest.mark.parametrize(
