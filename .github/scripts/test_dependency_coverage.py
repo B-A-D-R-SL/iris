@@ -93,11 +93,17 @@ class DependencyCoverageTest(unittest.TestCase):
         commands = [step["run"] for step in steps if "run" in step]
         self.assertEqual(commands, ["pnpm audit --audit-level high"])
 
-    def test_every_update_is_weekly_and_groups_minor_and_patch(self):
+    def test_every_update_is_weekly_and_groups_only_minor_and_patch(self):
+        # Major updates can break an API, so each one gets its own pull request.
         for update in load(DEPENDABOT)["updates"]:
             with self.subTest(ecosystem=update["package-ecosystem"]):
                 self.assertEqual(update["schedule"]["interval"], "weekly")
-                self.assertLessEqual({"minor", "patch"}, grouped_update_types(update))
+                self.assertEqual(grouped_update_types(update), {"minor", "patch"})
+
+    def test_group_without_update_types_bundles_major_updates(self):
+        # The case the test above rejects: a pattern-only group takes every update type.
+        update = {"groups": {"all": {"patterns": ["*"]}}}
+        self.assertEqual(grouped_update_types(update), {"major", "minor", "patch"})
 
     def test_grouped_update_types_ignore_security_groups(self):
         # A security-only group must not count as grouping the weekly version updates.

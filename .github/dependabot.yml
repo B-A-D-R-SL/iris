@@ -69,5 +69,7 @@ updates:
     cooldown:
       default-days: 7
     groups:
-      github-actions:
+      # Without update-types a group takes major updates too; they stay one per action.
+      github-actions-minor-and-patch:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
