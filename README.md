@@ -217,6 +217,18 @@ changes so the container runs the current version.
 - **secret-scan** (FIX-17): gitleaks 8.30.1 (exact release, SHA-256 checked) scans the pull request's commits, or the commits pushed to `main`; a manual run (`workflow_dispatch`) scans the whole history. A finding fails the job. Accepted false positives are in `.gitleaks.toml`: Microsoft's public Azurite key, and made-up passwords in test files (provider-specific rules still apply there).
 - **zap-baseline** (FIX-17, SEC-10): starts the backend with production settings over plain HTTP (`iris.settings.ci_scan`), PostgreSQL 17 and the seed data, then runs the OWASP ZAP 2.17.0 baseline scan (image pinned by digest) from the public `/admin/login/` page (`/api/docs/` is admin-only since FIX-04). `.github/scripts/zap_gate.py` fails the job on any High-risk alert not set to `IGNORE` in `.zap/rules.tsv` (each with its reason); lower risks are listed in the log. The HTML and JSON reports are uploaded as the `zap-baseline-report` artifact.
 
+Dependency updates and audits (FIX-25):
+
+- **Dependabot** ([`.github/dependabot.yml`](.github/dependabot.yml)) opens weekly update pull requests on Mondays for the uv projects (`backend`, `tools/mock_notices`, `tools/notice_reading_spike`), the frontend (pnpm) and the GitHub Actions. Minor and patch updates are grouped; major updates come one per dependency. Releases wait 7 days before being proposed; security updates open as soon as an advisory is published. PR policy and Commit policy skip Dependabot's pull requests, which still need CI and a review.
+- **Dependency audit** ([`dependency-audit.yml`](.github/workflows/dependency-audit.yml)) runs `pip-audit` on the lock file of every uv project, `tools/` included, and `pnpm audit --audit-level high` on all frontend dependencies, development ones included. It runs on pull requests and pushes that change a manifest or lock file, every Monday, and on demand. It is not a required check, so a new advisory in a development tool shows without blocking merges; the required `frontend` job keeps auditing production dependencies only. `.github/scripts/test_dependency_coverage.py` fails when a project with a lock file is missing from either file.
+
+To audit a `tools/` project locally, from the repository root:
+
+```bash
+uv export --project tools/mock_notices --locked --all-groups --no-emit-project --format requirements-txt --output-file /tmp/requirements.txt
+uvx pip-audit --strict --disable-pip --require-hashes --requirement /tmp/requirements.txt
+```
+
 The ZAP gate also fails missing or malformed reports and reports with no scanned
 sites; a valid scanned site with zero alerts passes. The production check and
 ZAP jobs supply CI-only SMTP, public sender and HTTPS origin values to satisfy
@@ -228,6 +240,7 @@ flowchart LR
     pr --> fe["frontend<br/>eslint, prettier, tsc,<br/>vitest + coverage, build, pnpm audit"]
     pr --> gl["secret-scan<br/>gitleaks on the new commits"]
     pr --> zap["zap-baseline<br/>backend + seed data,<br/>ZAP baseline, High risk fails"]
+    pr -. "lock file changed,<br/>or weekly" .-> audit["dependency-audit (not required)<br/>pip-audit on every uv project,<br/>pnpm audit incl. dev dependencies"]
     be --> sonar["sonar<br/>SonarQube Cloud quality gate"]
     fe --> sonar
     be --> merge{"All green, CodeRabbit<br/>and a teammate approve?"}
