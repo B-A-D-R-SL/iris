@@ -21,10 +21,6 @@ permissions: {}
 
 jobs:
   commit-policy:
-    # FIX-25 (#616): Dependabot writes its own subjects ("Bump x from 1.0 to 1.1"), so its
-    # pull requests are skipped, as PR policy skips them (EXEMPT_AUTHORS in pr_policy.py).
-    # The pull request's author cannot be forged, and a skipped job passes a required check.
-    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Validate PR commit subjects with the base branch hook
@@ -33,6 +29,8 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          DEPENDABOT_EMAIL: 49699333+dependabot[bot]@users.noreply.github.com
         run: |
           set -euo pipefail
           # Read Git objects only. No pull-request files are checked out.
@@ -59,6 +57,15 @@ jobs:
           git rev-list --reverse --no-merges "$BASE_SHA..$HEAD_SHA" > "$commit_list"
 
           while IFS= read -r commit; do
+            # FIX-25 (#616): Dependabot writes its own subjects ("Bump x from 1.0 to 1.1"),
+            # and PR policy exempts it too (EXEMPT_AUTHORS in pr_policy.py). Only Dependabot's
+            # own commits, on a pull request Dependabot opened, are skipped: the pull request
+            # author cannot be forged, and a commit someone else pushes there is still checked.
+            if [ "$PR_AUTHOR" = "dependabot[bot]" ] \
+              && [ "$(git show -s --format=%ae "$commit")" = "$DEPENDABOT_EMAIL" ]; then
+              echo "Skipping Dependabot commit $commit"
+              continue
+            fi
             git show -s --format=%B "$commit" > "$message_file"
             if ! "$validator" "$message_file"; then
               echo "::error::Commit $commit has an invalid subject"
