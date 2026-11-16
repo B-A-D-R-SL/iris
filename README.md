@@ -228,14 +228,14 @@ changes so the container runs the current version.
 
 Dependency updates and audits (FIX-25):
 
-- **Dependabot** ([`.github/dependabot.yml`](.github/dependabot.yml)) opens weekly update pull requests on Mondays for the uv projects (`backend`, `tools/mock_notices`, `tools/notice_reading_spike`), the frontend (pnpm) and the GitHub Actions. Minor and patch updates are grouped; major updates come one per dependency. Releases wait 7 days before being proposed; security updates open as soon as an advisory is published. PR policy and Commit policy skip Dependabot's pull requests, which still need CI and a review.
+- **Dependabot** ([`.github/dependabot.yml`](.github/dependabot.yml)) opens weekly update pull requests on Mondays for the uv projects (`backend`, `tools/mock_notices`, `tools/notice_reading_spike`), the frontend (pnpm) and the GitHub Actions. Minor and patch updates are grouped; major updates come one per dependency. Releases wait 7 days before being proposed; security updates open as soon as an advisory is published. PR policy skips Dependabot's pull requests, and Commit policy skips the commits Dependabot writes in them (a commit anyone else pushes there is still checked). They still need CI and a review.
 - **Dependency audit** ([`dependency-audit.yml`](.github/workflows/dependency-audit.yml)) runs `pip-audit` on the lock file of every uv project, `tools/` included, and `pnpm audit --audit-level high` on all frontend dependencies, development ones included. It runs on pull requests and pushes that change a manifest or lock file, every Monday, and on demand. It is not a required check, so a new advisory in a development tool shows without blocking merges; the required `frontend` job keeps auditing production dependencies only. `.github/scripts/test_dependency_coverage.py` fails when a project with a lock file is missing from either file.
 
 To audit a `tools/` project locally, from the repository root:
 
 ```bash
 uv export --project tools/mock_notices --locked --all-groups --no-emit-project --format requirements-txt --output-file /tmp/requirements.txt
-uvx pip-audit --strict --disable-pip --require-hashes --requirement /tmp/requirements.txt
+uvx pip-audit==2.10.1 --strict --disable-pip --require-hashes --requirement /tmp/requirements.txt
 ```
 
 The ZAP gate also fails missing or malformed reports and reports with no scanned
