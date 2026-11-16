@@ -1,4 +1,12 @@
+<!-- AI contribution: 50% or more AI-generated -->
+
 # Project overview
+
+This page describes the whole-project target across releases. **Release 1 uses
+staff-led walk-in registration:** staff upload notices and enter their values.
+Online household uploads, AI reading/automatic approval and priority tiers are
+future work, not active Release 1 features. See the
+[Release 1 architecture scope](../04-architecture/architecture.md#scope).
 
 **Iris** is a web app for **B.A.D.R.**, a Montréal nonprofit. It does two things:
 
@@ -32,19 +40,18 @@ Two promises shape everything: no real personal data goes into Iris before B.A.D
 
 ## Releases
 
-| Release | Due | What B.A.D.R. gets |
+| Release | Due | Planned delivery |
 | --- | --- | --- |
-| Release 1 | Tue Nov 17, 2026 | Partners apply and are approved; staff register and approve walk-in households; stores post; households browse, reserve and pick up with a code. Staging online. |
+| Release 1 | Tue Nov 17, 2026 | Partners apply and are approved; staff register and approve walk-in households; stores post; households browse, reserve and pick up with a code. Staging is the deployment target; Azure activation and live verification are pending in the 15 November review. |
+| Release 2 (tentative) | Fri Feb 5, 2027 | Online registration with AI reading and automatic approval; priority tiers and strikes; review queue; privacy rights; production. Pilot with real households once the privacy assessment is signed. |
+| Release 3 (tentative) | Tue Apr 13, 2027 | Reporting, needs, assistant and furniture if time allows; accessibility and security audit; user acceptance testing; French admin guide and handover. |
 
-TENTATIVES
-
-| Release 2 | Fri Feb 5, 2027 | Online registration with AI reading and automatic approval; priority tiers and strikes; review queue; privacy rights; production. Pilot with real households once the privacy assessment is signed. |
-
-TENTATIVES
-
-
-| Release 3 | Tue Apr 13, 2027 | Reporting, needs, assistant and furniture if time allows; accessibility and security audit; user acceptance testing; French admin guide and handover. |
-
+**Staging status — reviewed 15 November 2026:** the release image and deployment
+workflow are implemented, but staging is not deployed in the owner's recorded
+[SET-17 activation status](https://github.com/B-A-D-R-SL/iris/pull/700#issuecomment-6887009431).
+The database, storage and App Service still need activation after the hosting
+region/subscription decision. A merged PR or closed setup issue does not establish
+a live environment. See the [deployment status](../04-architecture/architecture.md#5-release-1-deployment).
 
 ## People
 

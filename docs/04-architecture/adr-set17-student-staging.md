@@ -4,6 +4,10 @@
 
 Status: proposed in the SET-17 branch for team review, 13 November 2026.
 Updated 14 November 2026: the hosting region is pending (see below).
+Reviewed 15 November 2026: repository implementation merged in
+[PR #700](https://github.com/B-A-D-R-SL/iris/pull/700), present in the architecture
+snapshot at `a022580`. The hosting/cost proposal and live activation remain
+pending; merging implementation did not approve a region or deploy Azure.
 Issue: [#408](https://github.com/B-A-D-R-SL/iris/issues/408).
 
 ## Context

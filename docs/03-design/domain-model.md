@@ -1,8 +1,15 @@
 <!-- AI contribution: 50% or more AI-generated -->
 
-# Iris domain model — Release 1 draft
+# Iris domain model — Release 1 implementation
 
 This domain model describes the confirmed business concepts and how they relate. The ERD documents their stored fields and database relationships.
+
+Reviewed 15 November 2026 against `main` at `a022580` for SET-21 (#412).
+The existing [database schema and ERD](database-schema.md#erd) now covers all
+15 application models and 27 concrete foreign keys. The
+[architecture review](../04-architecture/architecture.md#release-1-review)
+records the code differences and their PR/issue evidence. Deferred workflows
+are distinguished below from relationships already stored in the database.
 
 ## Changes over sprints
 
@@ -18,6 +25,7 @@ Iris follows an Agile methodology. Small design changes can be made in later spr
 | Partner application | PartnerApplication | stores | A business request to become a partner. |
 | Household | Household | households | A household registration and approval file. |
 | Household member | Member | households | A person belonging to a household. |
+| Local registration history | HouseholdDraftEvent | households | Who created, edited or submitted a walk-in draft; retained alongside central audit. |
 | Income evidence | IncomeNotice | documents | Income evidence for an adult member, or their required non-filing explanation. |
 | Eligibility decision | EligibilityDecision | eligibility | A preserved assessment of household eligibility and the inputs and rules used. |
 | Rule version | RuleSetVersion | rules | A preserved version of configurable business rules. |
@@ -51,6 +59,7 @@ flowchart LR
         Household["Household<br/>Household"]
         Member["Household member<br/>Member"]
         IncomeNotice["Income evidence<br/>IncomeNotice"]
+        HouseholdDraftEvent["Local registration history<br/>HouseholdDraftEvent"]
     end
 
     subgraph Eligibility["Eligibility and rules"]
@@ -71,7 +80,10 @@ flowchart LR
 
     User ---|"Optional store assignment"| Store
     Invitation ---|"Optional store assignment"| Store
+    PartnerApplication ---|"Optional stored link on resulting store"| Store
+    Household ---|"Optional holder account; walk-in linking deferred"| User
     Household ---|"Contains members"| Member
+    Household ---|"Retains registration history"| HouseholdDraftEvent
     Member ---|"Has income evidence"| IncomeNotice
     Household ---|"Has eligibility assessments"| EligibilityDecision
     RuleSetVersion ---|"Supplies applied rules"| EligibilityDecision
@@ -81,12 +93,14 @@ flowchart LR
     Reservation ---|"Claims goods from"| Listing
 
     classDef concept fill:#14283e,stroke:#64748b,color:#ffffff;
-    class User,Invitation,Store,PartnerApplication,Household,Member,IncomeNotice,EligibilityDecision,RuleSetVersion,Category,Listing,Reservation,AuditEvent,EmailLog concept;
+    class User,Invitation,Store,PartnerApplication,Household,Member,HouseholdDraftEvent,IncomeNotice,EligibilityDecision,RuleSetVersion,Category,Listing,Reservation,AuditEvent,EmailLog concept;
 ```
 
 ## Partner onboarding actions
 
-These arrows describe what the application does. They do not establish stored links between an application, its resulting store, its invitation, and the resulting user.
+These arrows describe business actions. The stored links are Store.application,
+Invitation.store and User.store; neither application-to-invitation nor
+invitation-to-accepted-user has a dedicated foreign key.
 
 ```mermaid
 
@@ -110,7 +124,11 @@ The invitation email is sent after the transaction commits.
 
 Acceptance creates a new active user with the invited identity, role and optional store assignment. An existing active or inactive account with the same email is refused case-insensitively; acceptance never overwrites it or switches the browser session.
 
-The invitation's expiry is saved when it is issued, using the active invitation lifetime rule (seven days by default). Later rule versions apply only to new invitations. The acceptance backend belongs to US-04; the invitation page is #431, while issuing workflows, email delivery, partner approval and household linking belong to US-05, US-06, US-13 and US-18.
+The invitation's expiry is saved when issued, using the active lifetime rule
+(seven days by default). Later rule versions apply only to new invitations.
+US-04's acceptance page (#431), partner approval (US-13), walk-in setup email
+(US-18) and shared queued delivery (US-57) are implemented. Staff/team issuing
+screens remain US-05/US-06; household account linking is Release 2 US-93 (#704).
 
 ## Confirmed business rules
 
@@ -127,6 +145,12 @@ The invitation's expiry is saved when it is issued, using the active invitation 
 - Walk-in registration records an in-person identity-check confirmation without storing identity-document details.
 - Each adult needs accepted income evidence or a required non-filing explanation.
 - Income evidence is recorded for the individual member.
+- The holder is a Member with relation `holder`; the optional holder User is a
+  separate relationship. Walk-in approval sends an invitation but acceptance
+  does not yet link that account to its file (US-93).
+- Adult notices or non-filing reasons are recorded while draft, followed by
+  submission/duplicate checking and then approval. Non-filing or other evidence
+  review reasons leave the file in `review_required`; the review queue is deferred.
 
 ### Eligibility
 
@@ -143,11 +167,17 @@ The invitation's expiry is saved when it is issued, using the active invitation 
 - Stock allocation and reservation creation are atomic.
 - Household eligibility and configured reservation limits are checked.
 - Pickup confirmation records who confirmed collection and when.
+- Household suspension cancels reserved claims and releases their stock. Store
+  deactivation cancels open listings and their reserved claims without releasing
+  counters; reactivation restores neither. No-show processing and late correction
+  remain deferred, even though their statuses exist.
 
 ### Supporting records
 
 - Audit events record actions without copying sensitive information into event metadata.
 - Email delivery records track notification delivery without storing email content.
+- Local HouseholdDraftEvent history remains separate from the database-protected
+  central audit. EmailLog `sent` means provider acceptance, not inbox delivery.
 
 ## Sources
 

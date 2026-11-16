@@ -4,9 +4,20 @@ Mermaid ERD and module migration order form one cross-module schema contract.
 Keep them together so changes such as EmailLog's User foreign key or the required
 store assignment for store roles can be checked against all three representations
 in the same review. -->
-# Iris database schema — Release 1 draft
+# Iris database schema — Release 1 implementation
 
-This is a logical design draft based on the documented requirements. Field labels describe the information to store, and types describe logical values. This document does not establish a deployed SQL schema.
+Reviewed 15 November 2026 for [SET-21 (#412)](https://github.com/B-A-D-R-SL/iris/issues/412)
+against local `main` at `a022580640be604eaf08f56aedd2f6d548583c65` (through PR #710).
+The existing field tables and ERD below are updated from the models and migrations;
+this is an implementation snapshot, not a live database inspection. The
+[architecture review](../04-architecture/architecture.md#release-1-review)
+records the differences, reasons and PR/issue evidence.
+
+There are 15 application models across 11 model-owning modules and 27 concrete
+application foreign keys. Priority, Review, Reporting and Privacy have no model
+tables in this snapshot; Privacy does have a shared reason-validation service.
+Fields use Django model names; FK database columns append `_id`. SQL nullability
+is distinct from a blank form value. Framework tables are described separately.
 
 ## Changes over sprints
 
@@ -27,7 +38,13 @@ Iris follows an Agile methodology. Small design changes can be made in later spr
 
 Users sign in with email and password through Django/allauth. The User password field stores an encoded password hash and its hashing metadata. Django handles password hashing and verification. Password hashes are excluded from API responses.
 
-Household sign-up uses email verification. An invited person accepts a one-use invitation to create a new active User carrying the invited role and optional store assignment. Existing active or inactive accounts with the invited email are refused case-insensitively and are not overwritten. A store can have multiple managers and staff.
+Public household sign-up remains closed; email verification belongs to US-02.
+An invited person accepts a one-use invitation to create a new active User carrying
+the invited role and optional store assignment. Existing active or inactive accounts
+with the invited email are refused case-insensitively and are not overwritten
+(the #430 clarification). Acceptance neither signs in nor switches an existing
+session. A store can have multiple managers and staff. Settings prefer Argon2
+password hashes and retain PBKDF2 for verification of existing hashes.
 
 Sources: [Issue #422](https://github.com/B-A-D-R-SL/iris/issues/422), [Issue #426](https://github.com/B-A-D-R-SL/iris/issues/426), [Issue #428](https://github.com/B-A-D-R-SL/iris/issues/428), [Issue #433](https://github.com/B-A-D-R-SL/iris/issues/433), [Django password storage](https://docs.djangoproject.com/en/stable/topics/auth/passwords/).
 
@@ -51,6 +68,11 @@ A person who can sign in to Iris.
 | role | string | — | `beneficiary`, `store_staff`, `store_manager`, `intake_worker`, or `admin`. |
 | store | reference | Foreign key | Required for store staff and managers; nullable for other roles. Deletion is protected while users reference the store. |
 | is_active | boolean | — | Whether the account is active. |
+| last_login | datetime | — | Most recent sign-in time; Django authentication metadata. Nullable. |
+| is_superuser | boolean | — | Django permission bypass flag; distinct from the Iris admin role. |
+| is_staff | boolean | — | Django admin-site access flag; distinct from the Iris role. |
+| created_at | datetime | — | Creation time. |
+| updated_at | datetime | — | Last-save time. |
 
 **Documented constraints and business rules**
 
@@ -81,11 +103,12 @@ An invitation to create a new active account with an assigned role. Acceptance d
 | first_name | string | — | Recipient first name. |
 | last_name | string | — | Recipient last name. |
 | role | string | — | Role assigned on acceptance. |
-| store | reference | Foreign key | Optional store assignment. |
+| store | reference | Foreign key | Optional store assignment. Nullable. |
 | token_hash | string | Unique key | SHA-256 hash of the invitation token; not the raw token. |
 | expires_at | datetime | — | Expiration saved when issued, using the active `invitations.expires_after_days` rule. |
-| accepted_at | datetime | — | Acceptance time; unset before acceptance. |
-| invited_by | reference | — | Person who issued the invitation, when applicable. |
+| accepted_at | datetime | — | Acceptance time; unset before acceptance. Nullable. |
+| invited_by | reference | Foreign key | Person who issued the invitation, when applicable. Nullable. |
+| id | uuid | Primary key | Stable UUID identifier. |
 
 **Documented constraints and business rules**
 
@@ -108,17 +131,19 @@ An approved partner store, including the B.A.D.R. store.
 | name | string | — | Store name. |
 | street_number | string | — | Civic number. |
 | street_name | string | — | Street name. |
-| unit | string | — | Unit or suite. |
+| unit | string | — | Unit or suite. Nullable. |
 | city | string | — | City name. |
 | postal_code | string | — | Postal code. |
 | phone | string | — | Contact phone number. |
 | email | string | — | Contact email. |
 | opening_hours | json | — | Three stored forms. A completed weekly schedule has keys `mon` to `sun`, each `{"open": "HH:MM", "close": "HH:MM"}` or null when closed, plus an optional read-only `notes` (BR-STORE-006). A store just approved from a partner application holds only `{"notes": "..."}`, and the B.A.D.R. placeholder holds `{}`. Consumers must not assume the day keys exist until an admin saves the schedule. |
-| pickup_instructions | string | — | Instructions for collecting goods. |
+| pickup_instructions | string | — | Instructions for collecting goods. Nullable. |
 | is_badr | boolean | — | Identifies the B.A.D.R. store. |
 | is_active | boolean | — | Whether the store is active. |
 | application | reference | FK, UK | Nullable one-to-one to the PartnerApplication that created the store (column `application_id`). Set by the US-13 approval; null for B.A.D.R. and manually created stores. PROTECT. |
 | created_at | datetime | — | Store creation time. |
+| id | uuid | Primary key | Stable UUID identifier. |
+| updated_at | datetime | — | Last-save time. |
 
 **Documented constraints and business rules**
 
@@ -189,12 +214,12 @@ Migration history: the SET-18 seed (#617) created the first table (`0001_initial
 
 | Field | Logical type | Key | Details |
 | --- | --- | --- | --- |
-| holder | reference | Foreign key, unique | Holder's user account; empty for walk-ins without online access. |
-| member_number | string | Unique | Optional short file number. |
+| holder | reference | FK, UK | Optional holder User, distinct from the holder Member. Walk-in linking is refused by model validation; accepting its invitation does not populate this field. US-93 (#704, Release 2) owns that path. Nullable. |
+| member_number | string | Unique key | Optional short file number. Nullable. |
 | channel | string | — | Registration channel: walk-in or online. |
 | status | string | — | Household file status. |
 | status_reason | string | — | Optional reason for the current status. |
-| email | string | — | Optional holder email; without it a walk-in is served only at the counter. |
+| email | string | — | Optional holder email; without it a walk-in is served only at the counter. Nullable. |
 | preferred_language | string | — | `fr` or `en`; used for emails. |
 | street_number | string | — | Civic number. |
 | street_name | string | — | Street name. |
@@ -205,17 +230,22 @@ Migration history: the SET-18 seed (#617) created the first table (`0001_initial
 | phone | string | — | Household contact phone. |
 | alternate_name, alternate_phone, alternate_email | string | — | Optional alternate for pickups. |
 | identity_checked_in_person | boolean | — | Staff checked photo ID in person; nothing about the ID is stored. |
-| consent_data_processing_at | datetime | — | When the person agreed to data processing (walk-in: notice read aloud); empty until given. |
+| consent_data_processing_at | datetime | — | When the person agreed to data processing (walk-in: notice read aloud); empty until given. Nullable. |
 | consent_text_version | string | — | Version of the consent text that was read, for example `2026-11-v1`. US-20 may move consents to a separate record later. |
-| created_by | reference | — | Person who created the household file. |
+| created_by | reference | Foreign key | Person who created the household file. Nullable. |
 | created_at | datetime | — | Household file creation time. |
 | updated_at | datetime | — | Last change to the file. |
-| verified_by | reference | — | Staff member who checked the identity. |
-| verified_at | datetime | — | Identity check time. |
-| submitted_at | datetime | — | Submission time. |
-| approved_at | datetime | — | Approval time. |
-| expires_at | datetime | — | Approval expiration time. |
-| anonymized_at | datetime | — | Time personal data was removed. |
+| verified_by | reference | Foreign key | Staff member who checked the identity. Nullable. |
+| verified_at | datetime | — | Identity check time. Nullable. |
+| submitted_at | datetime | — | Submission time. Nullable. |
+| approved_at | datetime | — | Approval time. Nullable. |
+| expires_at | datetime | — | Approval expiration time. Nullable. |
+| anonymized_at | datetime | — | Time personal data was removed. Nullable. |
+| id | uuid | Primary key | Stable UUID identifier. |
+| search_email_key | string | — | Stored generated normalized email key; internal search field. Nullable. |
+| search_number_key | string | — | Stored generated normalized member-number key; internal search field. Nullable. |
+| search_address_key | string | — | Stored generated duplicate-address search key. |
+| search_address_text | string | — | Stored generated full-address search text. |
 
 **Confirmed information requirements**
 
@@ -251,6 +281,8 @@ A person belonging to a household.
 | person_key | string | — | Normalized person identity used to find possible duplicates. |
 | created_at | datetime | — | When the member was added. |
 | updated_at | datetime | — | Last change to the member. |
+| id | uuid | Primary key | Stable UUID identifier. |
+| search_name_key | string | — | Stored generated normalized name key; excludes birth date. |
 
 **Documented constraints and business rules**
 
@@ -265,15 +297,18 @@ Source: [Issue #463](https://github.com/B-A-D-R-SL/iris/issues/463).
 
 **Owner module:** `households`.
 
-A write-once record of who created or edited a walk-in draft. It is temporary: it will be replaced by the central audit log once US-62 supports household events.
+A local record of who created, edited or submitted a walk-in draft. It remains
+alongside central AuditEvent after FIX-08 (PR #701); it has no database append-only
+trigger and does not replace the central audit guarantee.
 
 | Field | Logical type | Key | Details |
 | --- | --- | --- | --- |
 | household | reference | Foreign key | Draft that was created or edited. |
 | actor | reference | Foreign key | Staff member who acted. |
 | actor_role | string | — | Their role at that moment. |
-| action | string | — | `created` or `updated`. |
+| action | string | — | `created`, `updated` or `submitted`. |
 | created_at | datetime | — | When it happened. |
+| id | bigint | Primary key | Bigint primary key. |
 
 **Documented constraints and business rules**
 
@@ -296,16 +331,16 @@ An adult member income-evidence record or a non-filing explanation.
 | status | string | — | `confirmed` (values from a notice) or `did_not_file`. |
 | source | string | — | Source of recorded values; staff entry uses `staff`. |
 | file_ref | string | — | Opaque private storage reference (`income-notices/<random>`); never a URL or the uploaded file name. |
-| tax_year | integer | — | Tax year represented. |
-| total_income_cents | integer | — | Line 199 assessed income: Montant etabli; integer cents. |
+| tax_year | integer | — | Tax year represented. Nullable. |
+| total_income_cents | integer | — | Line 199 assessed income: Montant etabli; integer cents. Nullable. |
 | name_on_notice | string | — | Name recorded on the notice. |
 | postal_code_on_notice | string | — | Postal code recorded on the notice. |
-| notice_date | date | — | Notice issuance date. |
+| notice_date | date | — | Notice issuance date. Nullable. |
 | seen_in_person | boolean | — | Whether staff saw the notice in person. |
 | did_not_file_reason | string | — | Required explanation for a non-filing adult. |
 | recorded_by | reference | Foreign key | Staff user who recorded the entry. |
 | created_at | datetime | — | When the entry was recorded. |
-| superseded_at | datetime | — | When a newer entry replaced this one; empty for the current notice. |
+| superseded_at | datetime | — | When a newer entry replaced this one; empty for the current notice. Nullable. |
 
 **Documented constraints and business rules**
 
@@ -345,14 +380,15 @@ An immutable record of calculation inputs and eligibility result.
 | ruleset_version | reference | Foreign key | Applied rule version. |
 | eligible | boolean | — | Eligibility result. |
 | decided_by_type | string | — | Whether the decision was made by a person or automatically. |
-| decided_by | reference | — | Decision maker, when applicable. |
+| decided_by | reference | Foreign key | Decision maker, when applicable. Nullable. |
 | created_at | datetime | — | Decision recording time. |
+| id | uuid | Primary key | Stable UUID identifier. |
 
 **Documented constraints and business rules**
 
 | Rule | Enforcement |
 | --- | --- |
-| Preserve the input snapshot, applied threshold, rule version, result, and time. Existing decisions are never updated. | Eligibility service. |
+| Preserve the input snapshot, applied threshold, rule version, result, and time. Existing decisions are never updated. | Eligibility service/model and PostgreSQL UPDATE/DELETE rejection trigger. |
 | Sum accepted income for members aged eighteen or older. Income at or below the household-size threshold is eligible. | Eligibility calculation. |
 | Use the seven-or-more threshold group for households of seven or more. | Eligibility calculation. |
 
@@ -370,14 +406,15 @@ A preserved version of configurable business rules.
 | version | integer | — | Version number. |
 | values | json | — | Versioned settings; JSONB documented. |
 | effective_from | datetime | — | When the version takes effect. |
-| created_by | reference | — | Person who published the rule version. |
+| created_by | reference | Foreign key | Person who published the rule version. |
 | created_at | datetime | — | Creation time. |
+| id | bigint | Primary key | Bigint primary key. |
 
 **Documented constraints and business rules**
 
 | Rule | Enforcement |
 | --- | --- |
-| The combination of rule_type and version is unique. Publishing creates a new version and preserves previous versions. | Composite unique constraint and publishing service. |
+| The combination of rule_type and version is unique. Publishing creates a new version and preserves previous versions. | Composite unique constraint, publishing service and ORM mutation refusal; no database append-only trigger. |
 | Validate values against the schema for the rule type. | Rule validation service. |
 
 **Documented indexes**
@@ -396,12 +433,13 @@ An approved category of goods.
 
 | Field | Logical type | Key | Details |
 | --- | --- | --- | --- |
-| code | string | — | Category code. |
+| code | string | Unique key | Category code. |
 | name_fr | string | — | French category name. |
 | name_en | string | — | English category name. |
 | is_food | boolean | — | Whether food-safety rules apply. |
 | default_value_cents | integer | — | Default estimated monetary value in cents. |
 | is_active | boolean | — | Whether the category is available for selection. |
+| id | uuid | Primary key | Stable UUID identifier. |
 
 **Documented constraints and business rules**
 
@@ -425,20 +463,25 @@ Goods offered by an active store.
 | store | reference | Foreign key | Offering store. |
 | category | reference | Foreign key | Goods category. |
 | title | string | — | Listing title. |
-| description | string | — | Optional description. |
+| description | string | — | Optional description. Nullable. |
 | quantity_total | integer | — | Total offered units. |
 | quantity_reserved | integer | — | Reserved units. |
 | unit | string | — | item or bundle. |
 | max_per_household | integer | — | Quantity limit per household. |
 | pickup_start | datetime | — | Pickup window start. |
 | pickup_end | datetime | — | Pickup window end. |
-| best_before | date | — | Required for food; applicability differs for non-food. |
-| photo_ref | string | — | Optional stored photo reference. |
-| estimated_value_cents | integer | — | Optional estimated value in cents. |
-| status | string | — | Listing status. |
-| safe_confirmed_by | reference | — | Person who confirmed listing safety. |
+| best_before | date | — | Required for food: on or after the pickup end date (Montréal time) plus `listing_safety.best_before_margin_days`; non-food bypasses this safety check. Nullable. |
+| photo_ref | string | — | Optional stored photo reference. Nullable. |
+| estimated_value_cents | integer | — | Optional estimated value in cents. Nullable. |
+| status | string | — | `published`, `closed` or `cancelled`; sold out is derived from stock counters. |
+| safe_confirmed_by | reference | Foreign key | Person who confirmed listing safety. |
 | safe_confirmed_at | datetime | — | Safety confirmation time. |
 | published_at | datetime | — | Publication time. |
+| id | uuid | Primary key | Stable UUID identifier. |
+| cancelled_at | datetime | — | Time store deactivation cancelled the listing. Nullable. |
+| created_by | uuid | Foreign key | User who posted the listing. PROTECT. |
+| created_at | datetime | — | Creation time. |
+| updated_at | datetime | — | Last-save time. |
 
 **Documented constraints and business rules**
 
@@ -465,9 +508,12 @@ A household claim on goods from a listing.
 | status | string | — | Reservation status. |
 | late_cancel | boolean | — | Cancellation during the pickup window. |
 | made_by_type | string | — | Whether the reservation was made by the household or staff. |
-| made_by | reference | — | Person who created the reservation. |
-| picked_up_at | datetime | — | Collection confirmation time. |
-| confirmed_by | reference | — | Person who confirmed collection. |
+| made_by | reference | Foreign key | Person who created the reservation. |
+| picked_up_at | datetime | — | Collection confirmation time. Nullable. |
+| confirmed_by | reference | Foreign key | Person who confirmed collection. Nullable. |
+| id | uuid | Primary key | Stable UUID identifier. |
+| created_at | datetime | — | Reservation creation time. |
+| updated_at | datetime | — | Reservation last-save time; bulk/status-only writes do not automatically refresh it. |
 
 **Documented constraints and business rules**
 
@@ -492,19 +538,20 @@ An accountable record of access or action.
 
 | Field | Logical type | Key | Details |
 | --- | --- | --- | --- |
-| actor | reference | — | Person who performed the action. |
+| actor | reference | Foreign key | Nullable for a saved automatic household eligibility decision only; then actor_role is `system`. Human actors are saved Users. PROTECT. |
 | actor_role | string | — | Role at the time of the action. |
 | action | string | — | Recorded action. |
 | target_type | string | — | Affected record type. |
 | target_id | identifier | — | Identifier of the affected record. |
 | metadata | json | — | Event details without personal data. |
 | created_at | datetime | — | Event recording time. |
+| id | bigint | Primary key | Bigint primary key. |
 
 **Documented constraints and business rules**
 
 | Rule | Enforcement |
 | --- | --- |
-| Events are append-only. Normal updates and deletes are refused by the database; metadata excludes personal data. | Database protection and audit service. |
+| Events are append-only. UPDATE, DELETE and TRUNCATE are refused; metadata excludes personal data. Null actor requires system role, decision action and household target. | Database trigger/CHECK and public audit service; the service also verifies the saved automatic decision. |
 
 Sources: [Issue #547](https://github.com/B-A-D-R-SL/iris/issues/547), [Issue #549](https://github.com/B-A-D-R-SL/iris/issues/549), [Issue #567](https://github.com/B-A-D-R-SL/iris/issues/567).
 
@@ -518,13 +565,13 @@ Email-delivery status without retained email content.
 | --- | --- | --- | --- |
 | id | UUID | Primary key | One delivery's stable identifier across retries. |
 | to_email | string | — | Recipient address. A failed validation record may retain a database-safe malformed address; empty when the input cannot be represented safely in this field. |
-| user | reference | Foreign key | Optional account; `SET_NULL` preserves delivery metadata when the user is deleted. |
+| user | reference | Foreign key | Optional account; `SET_NULL` preserves delivery metadata when the user is deleted. Nullable. |
 | template_key | string | — | Template used. |
 | language | string | — | Captured recipient preference, `fr` or `en`. |
 | status | string | — | `pending`, `sending`, `retrying`, `sent` or `failed`. |
 | attempts | integer | — | Transport attempts started by the worker, initially zero; distinct from the queue's execution count. |
 | error | string | — | Bounded internal error code; no provider exception text. |
-| sent_at | datetime | — | Set after transport/provider acceptance; unset for other statuses. This is not inbox-delivery confirmation. |
+| sent_at | datetime | — | Set after transport/provider acceptance; unset for other statuses. This is not inbox-delivery confirmation. Nullable. |
 | created_at | datetime | — | Delivery record creation time. |
 | updated_at | datetime | — | Last delivery-state update. |
 
@@ -545,271 +592,372 @@ email interface remain separate work. See [notification rules](../02-requirement
 
 Sources: [Issue #538](https://github.com/B-A-D-R-SL/iris/issues/538), [Issue #541](https://github.com/B-A-D-R-SL/iris/issues/541).
 
+## Cross-model constraints and deletion rules
+
+| Area | Database and service boundary |
+| --- | --- |
+| IDs | UUIDs except bigint IDs for RuleSetVersion, AuditEvent and HouseholdDraftEvent |
+| User / Invitation | Store-role assignment CHECK on both; User email is unique and has an additional `Lower(email)` unique constraint; Invitation token hash is unique |
+| Store / application | At most one `is_badr=true` Store; optional application one-to-one; partial unique submitted contact email; application consent/category/status/rejection checks |
+| Household / Member | Optional unique holder User and member number; partial unique holder Member per household; walk-in account-link refusal is model validation, not a SQL CHECK |
+| IncomeNotice | Partial unique current notice per member; CHECK enforces confirmed versus non-filer shape; superseded rows/files remain |
+| EligibilityDecision | Positive household size/threshold, nonnegative total, valid decider type and actor-null consistency CHECKs; snapshot consistency validated by model/service; ORM and PostgreSQL append-only protection |
+| RuleSetVersion | Unique `(rule_type, version)`; active lookup index `(rule_type, effective_from, version)`; ORM rejects updates/deletes; unlike AuditEvent and EligibilityDecision it has no append-only database trigger |
+| Listing | Bounded quantities/value, `0 <= quantity_reserved <= quantity_total`, end after start, valid unit/status CHECKs; publication and food rules in services/domain |
+| Reservation | Unique `(listing, pickup_code)`; positive quantity and valid status/made-by type CHECKs; household and per-listing limits in service transaction |
+| AuditEvent | Database append-only trigger; null actor only for `system` / `decision` / `household`; public service validates saved automatic decision and metadata |
+| EmailLog | Valid language CHECK; `sent_at` required exactly when status is sent; outcome/time index; `sent` is transport acceptance |
+
+All concrete FKs use Django `PROTECT`, with three exceptions:
+`Member.household` uses `CASCADE`, while `Invitation.invited_by` and
+`EmailLog.user` use `SET_NULL`. Protected notice/history references can still
+prevent deletion of a household/member. `on_delete` describes Django's deletion
+behavior; it is not a claim that PostgreSQL uses identical SQL cascade clauses.
+
+Household search adds four stored generated search columns on Household, one
+on Member, and six trigram GIN indexes including phone. Migrations install
+`pg_trgm` and `unaccent`; generated keys are internal and excluded from APIs.
+
 ## Relationships in plain language
 
-| First model | Relationship | Second model | Meaning |
-| --- | --- | --- | --- |
-| Store | One-to-many | User | Each User has zero or one Store; a Store has zero or many Users. |
-| Store | One-to-many | Invitation | Each Invitation has zero or one Store; a Store has zero or many Invitations. |
-| Household | One-to-many | Member | Each Member belongs to one Household; draft households may have zero or many Member rows. |
-| Member | One-to-many | IncomeNotice | Each IncomeNotice belongs to one Member. A Member may have zero or many notices, including notices from different tax years. |
-| User | One-to-many | IncomeNotice | Each IncomeNotice records the staff User who entered it; a User may record many notices. |
-| Household | One-to-many | EligibilityDecision | Each decision belongs to one Household; a Household may have many decisions. |
-| RuleSetVersion | One-to-many | EligibilityDecision | Each decision uses one rule version; a version may be used by many decisions. |
-| Store | One-to-many | Listing | Each Listing belongs to one Store; a Store may have many Listings. |
-| Category | One-to-many | Listing | Each Listing uses one Category; a Category may be used by many Listings. |
-| Household | One-to-many | Reservation | Each Reservation belongs to one Household; a Household may have many Reservations. |
-| Listing | One-to-many | Reservation | Each Reservation belongs to one Listing; a Listing may have many Reservations. |
+Each row corresponds to one concrete FK. A parent may have zero children;
+a nullable FK permits no parent. `on_delete` is Django deletion behavior,
+not a claim of identical PostgreSQL cascade clauses.
 
-One-to-many means that one record of the first model can be related to multiple records of the second model. Optional store assignments are described in the Meaning column.
+| Parent | Child.field | Cardinality | Nullable FK | Django on_delete |
+| --- | --- | --- | --- | --- |
+| Store | User.store | One-to-many | Yes | PROTECT |
+| Store | Invitation.store | One-to-many | Yes | PROTECT |
+| User | Invitation.invited_by | One-to-many | Yes | SET_NULL |
+| PartnerApplication | Store.application | One-to-one | Yes | PROTECT |
+| User | PartnerApplication.decided_by | One-to-many | Yes | PROTECT |
+| User | Household.holder | One-to-one | Yes | PROTECT |
+| User | Household.created_by | One-to-many | Yes | PROTECT |
+| User | Household.verified_by | One-to-many | Yes | PROTECT |
+| Household | Member.household | One-to-many | No | CASCADE |
+| Household | HouseholdDraftEvent.household | One-to-many | No | PROTECT |
+| User | HouseholdDraftEvent.actor | One-to-many | No | PROTECT |
+| Member | IncomeNotice.member | One-to-many | No | PROTECT |
+| User | IncomeNotice.recorded_by | One-to-many | No | PROTECT |
+| Household | EligibilityDecision.household | One-to-many | No | PROTECT |
+| RuleSetVersion | EligibilityDecision.ruleset_version | One-to-many | No | PROTECT |
+| User | EligibilityDecision.decided_by | One-to-many | Yes | PROTECT |
+| User | RuleSetVersion.created_by | One-to-many | No | PROTECT |
+| Store | Listing.store | One-to-many | No | PROTECT |
+| Category | Listing.category | One-to-many | No | PROTECT |
+| User | Listing.safe_confirmed_by | One-to-many | No | PROTECT |
+| User | Listing.created_by | One-to-many | No | PROTECT |
+| Listing | Reservation.listing | One-to-many | No | PROTECT |
+| Household | Reservation.household | One-to-many | No | PROTECT |
+| User | Reservation.made_by | One-to-many | No | PROTECT |
+| User | Reservation.confirmed_by | One-to-many | Yes | PROTECT |
+| User | AuditEvent.actor | One-to-many | Yes | PROTECT |
+| User | EmailLog.user | One-to-many | Yes | SET_NULL |
 
 ## ERD
 
-The field tables and diagram contain the same fields, logical types, key labels, and descriptions.
-[Open the ERD diagram](https://mermaid.live/edit#pako:eNrFWutv2zgS_1cE39ckl3eb5FPatLe967bdpO0BhwACLdE2G4nUkpSTbLb_-80MH5Jl0U5wC1yxWEvkzPAxr9-M8jQpVMkn5xOurwSba1bf6luZwb8bqzTP1J-7u-op-2a4zs6z24lqrFCSVZmhaWaMmMuaS3s7GWX8IJfCMuR5LvsvqjV8oaoy-9OJ-JXXU796oaRlQpoN1O8qMRdTUQn7eMULYcLKC2ay0g_0-K_bit9w-51rotwiBNYqs-nj8Kye66MwVsg5UTbK2N4yb5nlc6Ufx0gLNyf-4JvOdc1BBcvuJmt216cPAhPUmt5h83ahVTtfdIyk2afwhv-M1SiJ10xU2bd_Afc3KX5veYa62hXSzex1InpMDWj0XukSmK5-MDlXuzWTbA4Lc4mGVnYUoJDFTiZkUbUlsuI7_tbcspJZdpFJvoS92QXPmgq0vmv5g438e5lbAFZmsmQgcCZ4VZ5nn759_JgJk0llM1ZV6p6X43udCW1sLlnN8Yh4DTSS4cg4R8UGDDiwgb5ZKIm0b9FsC-vfZYv2nODQfMa15mVeweFauDlgf6_h8haZ0tk7Oa-EWYzzalXFjeHzgIokgyDufe89avZzyh_34j36OwSzJ1WUqmiRAEZopRq0OjSGqYLlmQTuHI4tlritfy84sDt1sqJQrbQkneZ7_D_DQy9ypM3zdnIN_tkI2NAms1xRdcfxEn13XFuU7tVwjT_uPuGq4BBwaN6ArRb_o2JGF7XqjsscXQh4b3653D08OSWPytSMrlx0t0m0F-QfOKPZvRsaSAYf5FbA2flDIyB-5MyC7J5WaNyLFGu3EdnducGiif8y3gIxXWStNNxmUz6jY26_IzoISANzvJ18gbANy98vFNiSaSm-9c-6A1Mcrr5pKlGwaTVqaC6Gj9mYV70jSGscfjgHQyG_RncXS1FsdPPAEeTj24YFWimsC8MWo4Bp4QbGKQvIWLQD-NkQlyA5sSrHgIyXSG8Zvv1VYSw4Z-AYc80fqDnVcAkM-UK12pDZczQpTAc4cpH98-bzpzcYKEwDDgghPgYipxXLzF1i16K4a5sc0ILVbYHWYMh-e69gc3DsquIFLTlXqjTpUDZlJWr3QwleiDsxtI03e5d7V3vXe85RXxgInXOPhcEVFyo0Z9GD3LlpaMT1olV_YdpKri-d6SfD6LQ1QnJjgi2-8e8brCey2MdmhQXfx1kAPUx5kWPa0I0WhnfOEgPdb0STdTQbLaxwlpWvRPZgbtviemDux_fAuyW6B1Yf5ePu_fhY4h1wPsc3Biwvd8B7PjUQJPo79EPj9DXoz4GNSM_KUvhHIcFTajKihIGHncKvwRxJe6UnqyC4h_kUFIMAZFt0T9NOa2GBbgeDtlZLfAIv1fwHT7MHXJ-DU2BUAfAZUDskKUBStPULkPJ7C6msJMd3IteP1KUaFFuGVHNZ1kICyIbwBMyYcfy0QzSdm6WcOEgjJ477S7lvh__HvLZYMCm5gz9ztykU5ofPs3tW3SFSh50qWYF3brn2brWZqLgf__8mu84OG4hkiHzwNDj512W-76wSqB-wMYkGXkENVkKtJlkpwKibbYkRXERjILzjuPSnToSf6Jc3uPOdjApIcImZkCXKNwJASVa2znq42ZyAOzUV_UiQNOCQN4ZYyY-T5S5WVP-sDDSwllQqWt0LlHKUvtc2EyZesJsoi7bznd6KZyBRH1E8EqU30O8mlhXsGznSyDf6r29aPI1fRndMAvsDvQpJkH4BuKDmab9aSX1-vZdUNJ4llfDwDuh_uZrlU6HtwhWXZL8lhywNAREudZ6qg3jlrgiDlHuEAr_J7gWcTK5qO2H2ZCTr3uXGM0FADNz9BU7Vqy4LVfNPyoqCp7TkLt-pyF8WGKzBAgOZM77ELRQE4DQvlC635rcPA86NkRYQcEEh0z1AJRdWycAKWw7wGPhnM8RMmq7BuIGUvVQcMuQM3U-LJar3y9X7v0MIsYqQKAKAePqBDAGwbI6olT3kj5xh5P_KHjJ61LzB_pJcz8-RS2HUddeWF0CJd_ERzefg7AyLWwiWcCpHcJ79il6AFb2Fmk1cRDHEOX44NOAcjEU6jYK9oJHH-1LO4Nzs1tSwIqhXHj1PHjmOm8npGY2XhGGNSqUvDieQlOFQyAuZeyPv6gWnaoPVelwZbsZ7QwIYiRIPknvVe3B0HWBQDxwRJGIgVu4CsUtubWXHXGesOfrSODfltIRXfMJqInduwO9X-GmA_B73jRdSsKpoqzEEVgFAcqfxFmiiCd5I1hiw_9AlIarg3kI2raUcPmp467sc2PdNW6Pc0P9YEW62SbULcCmSGsRRJRedpCN4vqTgt5GzUxROJVO3bitwb5svfZOcdBm2g5OZn0mYNCeDoXqpZzuwgFm1sAGid9A7VJn9sjngfcC5kCIZOCaAChbyAhpyaxXWK2AU1ePz8H00ZWys602NozQwijJcnKAsnsAHg-8OYyAfbzac_iv-gDGBGrBVkdJ10BCBInoaBebUenEppCMFXQbpoe3S9XqT-Gg249S6yGda1U5NLjSGrVj8TuHpXgxUm3aK_W4PDjeY2rg-3m5rksTPMqNFlisSIk26DqDkM9Ndq74IPGkkRjwcVeWb-huZeo2kmVJlzx_wddewGUePQkclo31MGEjJZwwDISk_hpYrN5pxAxdFlUEN9mAZ7IUIUyFmW3srngg7XEsmKvQkitiGV2vF98_ht6yn7V1yMCsPsNabbz3zCvsgpn9gmy-OJfrpwlK8Cluh91SoMoUWjYe6sWztDSd08TtgAcSvOaEjdHL6VXgmUAEWjGYba_yuh1ndP44xrtbWwvIaw-S0lWWVQno1ID2IqHmXw28nv_l1IafWIKnpp7-UR_o-LMAXjWt_oVeoAmSp7jMa3cLJZbnGB2NjqGsKFpz7bwk9nIMWh35yEQO6y0ClwLt2fWBCPkCTrMCt8uB59dNM6ea2AufoWwPfi9I659voc8OKIljoaCXRcxqIENidgwKxHusIhBlCSySPQkpKNQNxrjHtgpAf3V6Ox-Du2L_ga7E5Xvc_ayeiQ9g_uXr0CT-avJ4BUL3mBRdL_xli1LyHnvhMB_Qm7VPLjXjYLRZMY2e0-xKBjbxkqol671_FqO5DcK6whC-w7KCuMz34yrxsXbBbBF_z7pXoEQPQSgAy3dtMH5OttnSUHi1PewW3WyHdrOqtsylogEnBJTsI0L_UzYbZyxfP8JNOW2OGetmWwr5bYtcyYaegc6UHaIdr7LOHlvJYczo0HpE5X_nS7D7m0hWEYmazgNCa8RXtJmoI0nPA_17xl4TlEPoT79hnHxG-kenAK8r-pzMd97gqawynhr8HQaREF1rCgKgMNZJUaz3sx5QLVM_ChU7OdpD-Dj_NfFTzUXgI-WD9bxB84zdpWa2hpvmlMaoQZNY4sq3aCCvyuiFvdh2xr_6V6uBUuy_-EUmkDmNb4ssVVG2AtR_Hg0sIf8zipuwKQxhLfBrWmuw-ktNAMs_ApfrsAik_pavJzmSuRTk5t7rlO5Oag5fj6-QJiW4nYGk1v53gH0JNmYGnnd74d6YF3rlBgicnFemKu7lWAJAc39_2pweHh_ueFSkaDelaP0KAUdrTHJweHZ0cr9N85Q-2Tzejf-t0b9AVdZ_y9PDsuDjrUeLHnD5BecZfzV71COy2tbS6_1yGUx0cH74-4quz6B2DaZz9eSt_wkU3TP5HqTrcNf012eR8xioDb22DmvN_SBhJQHN4qlbayfnBCYmYnD9NHibnu2cnr_ZeHe7Df0fH-2dHZwc7k0cYPjk42Ts5PTo-Pjl5fXx28Or4587kD1r1YO_07Oj09f7J4fHrw9P947PXP_8LJxqypQ)
+The existing diagram now includes all 15 models, their concrete fields and all
+27 application foreign keys. Fields match the tables above; UUID/bigint
+identify the stored key types. `FK, UK` denotes a one-to-one relationship.
+An optional parent endpoint reflects SQL nullability. Partial uniqueness
+(one holder Member or current notice) remains in the constraint notes.
+
+[Open the ERD diagram](https://mermaid.live/view#pako:eJzFPGtv28aWf-VAF0UTrOTGed3WXizgJuk2e9M0GzstsDBAjMhDaWpyhpkZylbT_qD9HfePXZwzD1LSSHbqLDYfYpEzc2Z43i_y06TUFU5OJl999Ukq6U7g0-XELbHFy8kJXE7mwuLlZArh5i_CSDFv0NLoJxourxZG96ry0__2aH78-PEjv6IzshVm_UI32oTh4-dPnjx7ujF8gTduPKXmfxtTvtemQjOe9Pzp359-O_eTGqlwPCYeCSzDEdwB4EZf_1zFcx8_ffztE0wDr1aotkb-_PPPr766VGheSrEwor1UAADnThsE_cdspj_BB4sGTsDSvczwa7WSTjip1eYkXpabI-kCq2K-9hPfCeMUmrOua2TpJ_GyP8I-JyCGoV3YmeUnUGEpq9Eew4I_4EfdW1zqpoIToD9odoGO55QGhcvC2py3QiNrOZo4DP7hZ_-E7ZxxuYwjeyamGy-NqB2Rze2u4nMcXCBKp8PDha3_iPQodYtvtZMl4bflwV2oW9MMlsSyBx7wVSMXci4b6dYvsZTWE2Pr3O_7Bs_R_YKGxw8uNX2DFl2x8pN3CZBfliV_2Ghr-136eq4Ls99I66RabLL2C-Fwoc16d1IZRna3HQESNRalVrU07Z4zjgBuHS6OxIdBi2YVub7xg3uIszn3ADNtTmxFhVne35y254HC3LO-kjm23CBlK2TzRtNT95bYcTTlk_9N_6wzhIBOWHutTQWXk5e_CbXQs1YoscAKUJHyr4YZS2GXU5CqbPqKltI1_W3RiUo4cQoKV2jALRG6Rkg1IwWb1h-B3wCsE6oSpoJaYlOdwNsPb96AtKC0A9E0-hqro8vJcNJKOHSyRWiEdUWjF1LB5eQnbR2JEuHCyoWaSQU06zRuI3q3ROWiMounPIK3fdOQmdrYZK51g0KBtIXtOzSEuoQT6NC00jKjz9f0QFA3YnEKFXNK6aA2uuUHf22kBVG1UoHRW3sElNfSWFco0SJcTpgsfAfoTm4-P_Z4Ot3YnT1-Aifqejg9H2dmpUMQZYm3nX7n3CPIonRyRQf5dYluGYgtylL3yhEN_fjG6r6XFcgK3v0DLifnjjAPXT9vZMn8CbIiKtUSTe7hkbgZPtDaF8LiTCqLyko-Ra_kxx4T9XlqDka31IrO_EIrJ0oXrlVP2jo732CNxmBVNEIterGgxbUBbQDVKVRYi74hrOUWE_bINUKFtSylMOup13meKvHCS5kheXLiCotrba7oUhtPrl0U8jr4gTDxHj_20mAFtTbhvie5UBUEyPYUVGB0nqaZXHQ6ewQvsUGWCmmhM9ph6bCC66VskIligVGAqkSmMO-RF8qoWYUjDNMFwaWh_Py-q4b5b4R1MytWuLngz6i0Rg7Pp8Mc9eHD65d3YiXCXik7SXpjL8dsiOgw_-5yOqzJC-sms7ynP8ISI2MFWrGYdk6oMiNKIz74uSPUiCbc8xBaVG6Pkgu7On2FqiD17QXr_Mez2eNnz1mhg66Z4nLAPE8_ZfVMI0Zc-1t5-uJNJw1aT99XdOGhEJWJxZCYzvZYTaG3fBrWICzQw6b2KMGpHZqiEmvLXkx-U4-vyFVnCXvBIvTKooM51oylAbd5LHn2St61R_U7NFYruF7qcPwtLE39owUXm0DuAk9s7V2j-3N0YDYPbh-PWWcQXeHVHcmoXMnygPaL8yNsutoLvFeSMP6B_pAu6qXbh9awopRuzadw671QO22daAryPwj1fAV09SW0e1QDcf6uEviNKK07VFItiqXujSWDh3jVrMGWS6z6BuG_zn9-OyV6G70SDUkH2plWzTqMkLFoO7cmV6hEHyBljy_Lq74rpLLO9CXzPlxOXo8vSX2XummwZJ91oXVlb3dj5qIicr-OHGSZY78_Ojt6efT-KKPSbzPzXskcMPKj-BJ--MfUK5d4TNAKZ07PiDhOM8BMyOmWwkWTMtr0QambvlXjHQpZPTyCc5LrNc_8cD47fpII4q0foy49crCOvWiaddqEN7BH8O79zxevXlzcwch5cSu_sKnLIGOfgnjnEx9whescR81Jr6K1UYQfE76Pnz2CcimMKB0ae3CZW3e0bGF0iey9kD_cCnOFbgpzccU3DVoneiOUm0IpapxS5LJCJclnKBipU-iWwrSiXE-hFqYtOqOrviQvp9RtS6pjXWizEEr-HnQoOylZTYcf4XLy3z3OsQRUDk1npI1iPgW8EaVr1nD8CCq5kC77hNua8PvwxCCqyqC1p0HxsKrxjFGBsHB2fAbHZ8e3K8svADAo1C8AKSjaLwBpUx1_iaN51VtsuFlv0BFrTsF2okRLulVbZ3S3pIvluluiypI1Qhv7X_cGFjyz5GHtC-bi_GhV3uhrNKWweApzpLSPHamx4Jp_bVPMwt5NUlqHNkhmTihRSaEC64NU8Oro-PnTKes6vBFt1yD82_Gz46fPnj17dPz4SQ7qNc45HrycLJ3r7Mk33xA5sQJZA0e6arGxjFIi3vAUITdDBiX5KjFfwzxgT0E4aJAcX61wCijKZXTxhAPbz0MwnTXPNx1HI0Vt8GOPqiQmroRs1lO4Zhs8hVYrt6QfuiyFZQLlQG2b8B8MIlBOYhNXXze9mq1QwXewnB1_C8uvc8BatNZHgoknRFXJ8FOqWpuWtVjWppaa4lZXBGp694PukG6eY6QyVqfQ9pZ8VXCmR3jwRlzD42chZziFa-mWI2v0MB-HjIPWByFcfRjD1zQcPH3mXBttcjjIlD3dpaCsTIzv8_pPuJ5wy0R1ZFDThtE7Ilff4G9M1RyMKiQcC4OCPK9RfMs-dXYtG8QhP-md9DOKnKV1Rjht-AnCDHjA3sHDW8x8hMcGO-VBeSgCuIN7kNh7j6UfMor3iAB4vvcqB18rcWYYoGzRNJPmCcM-mX0Ev4rmipRRI9UVEURy-N9brMi3anWFDaxEIyvm79MQQfFMZ8eRYqXRp_E63fWNcJQ8kNbn-Y7IQfvuCTz4298fPZ3CeyQFcXSUFzU6V7TTm09ml9pQIN4kF_9wtLEUSqGP-heeM-ig4fYJXIdHpwSJolrRQSYfKMcH8PcPxRjbBOH7pyzFuncgHYh0BGmBEsGcAGjWpCi9PPbk7Rx-ylsSVkxJ1ngs6oeCqOEJy3E49f8VVw6qthPGUWaDnokGv0xo-YvnatJQivR3I3_HCpKJ7Q5HnsEBKq6Qtn07AAgD42Q5nXnqKeE01FJVBN1KkvOq9z4_5r1WFKZcegcjbHXunawFKjQcxIwO71nvCtenlFpEw0LDIKIcHuKksJmn4h1286I6C0xwz1038bmzbULTLEyMO-yJg7agcjEiA7bum2YbIs3NUrzhZ3MY2Xhg0DjCguaD-iw5BxBR5u4DY0fR3A4jhflsWNy6KJdYXmFVSFV0PsvFFqiuIYyQDnAayBgp8FM4HcjVHzEnTcbFg5eswxi_e-xk8IKoDkPRINUiyEFju_kr2XquHflDiIVBLy00HYbp8CCozBM6BNVUDYoKRKP76uFpyLr0yskGFnKF6hYLEc5EJI_1UdIM4VdwksrorRETcZLiWljed9OXfPzo8fPZ8fFsdcz27vEjaAWZ0FUCwZ6WAIudIP4Lnh2QtTR5rCXXKu9f5J9uSI0GHyykRmO-6i5LN1K5aSUOOd0DQDZM5-DZDfGUv0O4Y_z2xnAlb9eksqcz1G930rHjbNFyw0Afyu-Ougw8RM_xXp95uIH5Oc8bZOU2jCWojLLXYZUHdTdqKa3WLalWD-KCbnqBEI0XBM94xFL7tGreL91yXv5K_or9pkXK3zGOd9zb0CJxf982HpfJs-WYSOVLB9IGkt1axQnHunsJJyzI128IMfxfoetiLo1b-uKs11foqF6sEMQiX_bBxuOe3FL_0y5lx36hVJucnHVimCF2_Y6gOSO33sfdoCe-g_1nXLHZxxtyddCCxwbh5g5MmZR-FDxhfSLir3HkFi_shlyjvp4Rg87lQlL9OrDo9_6y25NmzbEnwx0MQ9RJZBkqmY1duXtjj-oR-0JlUQa2CRtMI0Z88SXYiT0rtYlZrYslSl8L9mGGcNBqrhvekWLSwVJ0HarRZqOi7ajdaZ8aCMODBoAYb_p0GWGE9RQFpbvYC8hi9P2UEGepIkebA64Icok-lvX9VgdDu9R3Aw9WounR-mhZBBeDsyeVrAqlKW25x9jp3pQc3Pgfuk57gwd6Gp4MlTMsntbfyGuvBguDNVtNQY0OnZEr0jvkYlGMN9ToH_jHnvnD2m_-3QhV6fY_HsaeHAEf3r-BYGz7rtGCDuXD6G3dRg78gmo-4qZYo6DY7kLcAP802BkkN2av8Qmy5DSFWf5YRcl-z-XkDenE4---o0o1WqK3n3ACP5FSp4o8WQd5ms7AKw-7GKyptCqCL3g5eUs6KSFee_3iR2-JCDfAjMqOd4HGFsHfL_j3wOPW9lyMZp14uG5nEdWGIx4LcJ5vLNXe0_6DO55Nq424NZNaw5uuEcqbIfLCiNPVrJaNj2z7xu1K3ahzcay5uI2H9FZCE-cVicc_xwR4ofDuTUZiR_4wPTRWGwAEKLymDAsDMchV18p7CFphDAu2_c1AyAO1-lxn5P-ZbzNHxn6QjqxUprWFlb9vpmz4Rkr28GOKpuyb3bQ0p_OZyEFEbZLRcyU6u9QuRj48K6pVqbrecV4jSGZG8ocDbkn_ed8S0NirsQHZHgTplgYtg4ywuEya9McwIQ8mabQEJ-q1tG7QpTSUO8RWD23IOIdz0CCEkaxgI7MRW98RR1EZdVvSRllxL2qxIDuuxcecOYsLtZaS5RTRASRx7p2mekRJxe7bM-eJtVvBbWi3N7PsF-gEy4sxO-rZRPhWC_FfdsiiV903GHF1QX90DRYdJarz7LAb7Weyl9wMElyCNJH6BgLkU-73-B4qXfatN4z5YLqukUtgBTsWI70Xj0F9gDbM-6wImLsp7TLo3b2s-Dkte4lGqUf7_t1KbElDJ-eoXLjXptfG1-xUuRwKjPsiN16BRMtXakHYOLBk1OhSa12NRIsuZ9RYTqJJ8s4ysM6pg1DlKpg1kl56GXpD0TrZsmPeaoWOuJYn7lFzt3TepEeh5puVkENXp0XuChpROlEutrjf11iN-w3rGoPbvN085Hk0npNn_yeVi9O9HNGcdKwR41H5Oq8MbWlkF4KflEQa3d6joaKof-yFT3ayX0oKgv9qeiCsODuf1xFpocFQnSEfKvzcXbZZvpAOW1LG815Vew7Wihty9orBJaA2F78nNLKVjpT6nnRAkujQRGadMLTvO76Ea6kqfQ189-A6VNXOKlS7e8EcrStCH-VWGzKJzgkE48NdDZzL9TBpAwbwgBx988__DRnIh9A1vY0vXBRe8o5GuxStMAupuP_z1HuoJLG-CZ97Kyjl7AWWs2y3FMookZ2CqnHzbExyJz_gcHiT5HtL_hPQQQFsyf0d0qX0bltU6VMoG219gF9SFNE01CRgiVO4hGihQiOJG9muWKfLq1g1zCRSd96a2c2npkg4kCXgd48zvgnPZ6gDPfzd27KM6VH94nf8asBtixIqRmlSr6gqZBUa6rxxGjNjeJ5DaeFtK_shhjYUJW6DuXvL4Jfuix-_M3Rf_R6pHN4sCKotPuRtsct7LFGu-HWgrIra1qN3Up9BLYUi7bm8maXWxdQIS9Td4z0kKRqjKVNZiGaXai-FZxXfYEU8EzoaehN71Luxesy2Lfg3vHLuuhkdZOyxb9YstMlkg3y6y4M-WPsY7bFf2WNV9F3gyTEityX1kIjcTXkMdPqs4GFMss8tUYzXNhsSdArzvrn6xvOA79K-NtKhhUr7987G4RIZAYoLYdRmkERv9Are_TLIowTw2_GLOiK8KpGONOIQHIWOKQSkxzklFlDjLC_ZxbV12B7Bj30rwpgFQS8L8Qak2_Y0PueSxu9TutjjNCUIyh2W285Wv495of1znTALdFF2zjgIwphxArp9YJWsxo3uJp1sE8puWBffCaSogSlaoeNmuNigs1F5uwP3eii3xb3pDc19qvtnRXaskSs06685RUzMMcqVi9JoS3kyR32YWczoYvd9p9DlcARnUAvZeOcktHVFVFO92hAaKKdGj00v-XNMBK1oqMtxaHCJWbXrGMpyfoisLsnUHMfpYvYUmjVwfSs1he1IBecSN19uCu2Hp3D-6qLgl0W74IzbhKWBlOks_uVCnoL709URXdh2bAZ8yesiXHI2LV8oTH1WL0TneuO5LOC5S17kFGIb1mF3DxXxyxRs_EGkXcdb3PXkKZY1rsLR-dkBvTBC2Y565NJN9v-H2kp805A-6CBZ3f2ORufeBv3YY49fW8AbLPtgKPb0gaIxmlvq6WsPnJcLTUB-gCw1ue_UxUGVGWqY4B5CUu7bvTaDb0l9Gd6jRBeDivh83yRQwwtd8U2v4X1Hj2F6v-OCmC68ZSzVXN_MEu-Mzd9nZroChCA7f6mmHo8xo7PGCYPSmEwnLb1-IavJyWT0-Y309Y3Mxze2v70x_vTGzpc3xh_eyH53Y_xljD1f3Rh_dGPzmxvjT25sfnFjE2z63sb4cxvjr21sfGxjMp0sDGGkFo3F6aQT6n-0bicn1DQ9nRjdL5Zp0GM0fJjDT_nzX1zJK9w)
+
+[Edit the ERD source](https://mermaid.live/edit#pako:eJzFPGtv28aWf-VAF0UTrOTGed3WXizgJuk2e9M0GzstsDBAjMhDaWpyhpkZylbT_qD9HfePXZwzD1LSSHbqLDYfYpEzc2Z43i_y06TUFU5OJl999Ukq6U7g0-XELbHFy8kJXE7mwuLlZArh5i_CSDFv0NLoJxourxZG96ry0__2aH78-PEjv6IzshVm_UI32oTh4-dPnjx7ujF8gTduPKXmfxtTvtemQjOe9Pzp359-O_eTGqlwPCYeCSzDEdwB4EZf_1zFcx8_ffztE0wDr1aotkb-_PPPr766VGheSrEwor1UAADnThsE_cdspj_BB4sGTsDSvczwa7WSTjip1eYkXpabI-kCq2K-9hPfCeMUmrOua2TpJ_GyP8I-JyCGoV3YmeUnUGEpq9Eew4I_4EfdW1zqpoIToD9odoGO55QGhcvC2py3QiNrOZo4DP7hZ_-E7ZxxuYwjeyamGy-NqB2Rze2u4nMcXCBKp8PDha3_iPQodYtvtZMl4bflwV2oW9MMlsSyBx7wVSMXci4b6dYvsZTWE2Pr3O_7Bs_R_YKGxw8uNX2DFl2x8pN3CZBfliV_2Ghr-136eq4Ls99I66RabLL2C-Fwoc16d1IZRna3HQESNRalVrU07Z4zjgBuHS6OxIdBi2YVub7xg3uIszn3ADNtTmxFhVne35y254HC3LO-kjm23CBlK2TzRtNT95bYcTTlk_9N_6wzhIBOWHutTQWXk5e_CbXQs1YoscAKUJHyr4YZS2GXU5CqbPqKltI1_W3RiUo4cQoKV2jALRG6Rkg1IwWb1h-B3wCsE6oSpoJaYlOdwNsPb96AtKC0A9E0-hqro8vJcNJKOHSyRWiEdUWjF1LB5eQnbR2JEuHCyoWaSQU06zRuI3q3ROWiMounPIK3fdOQmdrYZK51g0KBtIXtOzSEuoQT6NC00jKjz9f0QFA3YnEKFXNK6aA2uuUHf22kBVG1UoHRW3sElNfSWFco0SJcTpgsfAfoTm4-P_Z4Ot3YnT1-Aifqejg9H2dmpUMQZYm3nX7n3CPIonRyRQf5dYluGYgtylL3yhEN_fjG6r6XFcgK3v0DLifnjjAPXT9vZMn8CbIiKtUSTe7hkbgZPtDaF8LiTCqLyko-Ra_kxx4T9XlqDka31IrO_EIrJ0oXrlVP2jo732CNxmBVNEIterGgxbUBbQDVKVRYi74hrOUWE_bINUKFtSylMOup13meKvHCS5kheXLiCotrba7oUhtPrl0U8jr4gTDxHj_20mAFtTbhvie5UBUEyPYUVGB0nqaZXHQ6ewQvsUGWCmmhM9ph6bCC66VskIligVGAqkSmMO-RF8qoWYUjDNMFwaWh_Py-q4b5b4R1MytWuLngz6i0Rg7Pp8Mc9eHD65d3YiXCXik7SXpjL8dsiOgw_-5yOqzJC-sms7ynP8ISI2MFWrGYdk6oMiNKIz74uSPUiCbc8xBaVG6Pkgu7On2FqiD17QXr_Mez2eNnz1mhg66Z4nLAPE8_ZfVMI0Zc-1t5-uJNJw1aT99XdOGhEJWJxZCYzvZYTaG3fBrWICzQw6b2KMGpHZqiEmvLXkx-U4-vyFVnCXvBIvTKooM51oylAbd5LHn2St61R_U7NFYruF7qcPwtLE39owUXm0DuAk9s7V2j-3N0YDYPbh-PWWcQXeHVHcmoXMnygPaL8yNsutoLvFeSMP6B_pAu6qXbh9awopRuzadw671QO22daAryPwj1fAV09SW0e1QDcf6uEviNKK07VFItiqXujSWDh3jVrMGWS6z6BuG_zn9-OyV6G70SDUkH2plWzTqMkLFoO7cmV6hEHyBljy_Lq74rpLLO9CXzPlxOXo8vSX2XummwZJ91oXVlb3dj5qIicr-OHGSZY78_Ojt6efT-KKPSbzPzXskcMPKj-BJ--MfUK5d4TNAKZ07PiDhOM8BMyOmWwkWTMtr0QambvlXjHQpZPTyCc5LrNc_8cD47fpII4q0foy49crCOvWiaddqEN7BH8O79zxevXlzcwch5cSu_sKnLIGOfgnjnEx9whescR81Jr6K1UYQfE76Pnz2CcimMKB0ae3CZW3e0bGF0iey9kD_cCnOFbgpzccU3DVoneiOUm0IpapxS5LJCJclnKBipU-iWwrSiXE-hFqYtOqOrviQvp9RtS6pjXWizEEr-HnQoOylZTYcf4XLy3z3OsQRUDk1npI1iPgW8EaVr1nD8CCq5kC77hNua8PvwxCCqyqC1p0HxsKrxjFGBsHB2fAbHZ8e3K8svADAo1C8AKSjaLwBpUx1_iaN51VtsuFlv0BFrTsF2okRLulVbZ3S3pIvluluiypI1Qhv7X_cGFjyz5GHtC-bi_GhV3uhrNKWweApzpLSPHamx4Jp_bVPMwt5NUlqHNkhmTihRSaEC64NU8Oro-PnTKes6vBFt1yD82_Gz46fPnj17dPz4SQ7qNc45HrycLJ3r7Mk33xA5sQJZA0e6arGxjFIi3vAUITdDBiX5KjFfwzxgT0E4aJAcX61wCijKZXTxhAPbz0MwnTXPNx1HI0Vt8GOPqiQmroRs1lO4Zhs8hVYrt6QfuiyFZQLlQG2b8B8MIlBOYhNXXze9mq1QwXewnB1_C8uvc8BatNZHgoknRFXJ8FOqWpuWtVjWppaa4lZXBGp694PukG6eY6QyVqfQ9pZ8VXCmR3jwRlzD42chZziFa-mWI2v0MB-HjIPWByFcfRjD1zQcPH3mXBttcjjIlD3dpaCsTIzv8_pPuJ5wy0R1ZFDThtE7Ilff4G9M1RyMKiQcC4OCPK9RfMs-dXYtG8QhP-md9DOKnKV1Rjht-AnCDHjA3sHDW8x8hMcGO-VBeSgCuIN7kNh7j6UfMor3iAB4vvcqB18rcWYYoGzRNJPmCcM-mX0Ev4rmipRRI9UVEURy-N9brMi3anWFDaxEIyvm79MQQfFMZ8eRYqXRp_E63fWNcJQ8kNbn-Y7IQfvuCTz4298fPZ3CeyQFcXSUFzU6V7TTm09ml9pQIN4kF_9wtLEUSqGP-heeM-ig4fYJXIdHpwSJolrRQSYfKMcH8PcPxRjbBOH7pyzFuncgHYh0BGmBEsGcAGjWpCi9PPbk7Rx-ylsSVkxJ1ngs6oeCqOEJy3E49f8VVw6qthPGUWaDnokGv0xo-YvnatJQivR3I3_HCpKJ7Q5HnsEBKq6Qtn07AAgD42Q5nXnqKeE01FJVBN1KkvOq9z4_5r1WFKZcegcjbHXunawFKjQcxIwO71nvCtenlFpEw0LDIKIcHuKksJmn4h1286I6C0xwz1038bmzbULTLEyMO-yJg7agcjEiA7bum2YbIs3NUrzhZ3MY2Xhg0DjCguaD-iw5BxBR5u4DY0fR3A4jhflsWNy6KJdYXmFVSFV0PsvFFqiuIYyQDnAayBgp8FM4HcjVHzEnTcbFg5eswxi_e-xk8IKoDkPRINUiyEFju_kr2XquHflDiIVBLy00HYbp8CCozBM6BNVUDYoKRKP76uFpyLr0yskGFnKF6hYLEc5EJI_1UdIM4VdwksrorRETcZLiWljed9OXfPzo8fPZ8fFsdcz27vEjaAWZ0FUCwZ6WAIudIP4Lnh2QtTR5rCXXKu9f5J9uSI0GHyykRmO-6i5LN1K5aSUOOd0DQDZM5-DZDfGUv0O4Y_z2xnAlb9eksqcz1G930rHjbNFyw0Afyu-Ougw8RM_xXp95uIH5Oc8bZOU2jCWojLLXYZUHdTdqKa3WLalWD-KCbnqBEI0XBM94xFL7tGreL91yXv5K_or9pkXK3zGOd9zb0CJxf982HpfJs-WYSOVLB9IGkt1axQnHunsJJyzI128IMfxfoetiLo1b-uKs11foqF6sEMQiX_bBxuOe3FL_0y5lx36hVJucnHVimCF2_Y6gOSO33sfdoCe-g_1nXLHZxxtyddCCxwbh5g5MmZR-FDxhfSLir3HkFi_shlyjvp4Rg87lQlL9OrDo9_6y25NmzbEnwx0MQ9RJZBkqmY1duXtjj-oR-0JlUQa2CRtMI0Z88SXYiT0rtYlZrYslSl8L9mGGcNBqrhvekWLSwVJ0HarRZqOi7ajdaZ8aCMODBoAYb_p0GWGE9RQFpbvYC8hi9P2UEGepIkebA64Icok-lvX9VgdDu9R3Aw9WounR-mhZBBeDsyeVrAqlKW25x9jp3pQc3Pgfuk57gwd6Gp4MlTMsntbfyGuvBguDNVtNQY0OnZEr0jvkYlGMN9ToH_jHnvnD2m_-3QhV6fY_HsaeHAEf3r-BYGz7rtGCDuXD6G3dRg78gmo-4qZYo6DY7kLcAP802BkkN2av8Qmy5DSFWf5YRcl-z-XkDenE4---o0o1WqK3n3ACP5FSp4o8WQd5ms7AKw-7GKyptCqCL3g5eUs6KSFee_3iR2-JCDfAjMqOd4HGFsHfL_j3wOPW9lyMZp14uG5nEdWGIx4LcJ5vLNXe0_6DO55Nq424NZNaw5uuEcqbIfLCiNPVrJaNj2z7xu1K3ahzcay5uI2H9FZCE-cVicc_xwR4ofDuTUZiR_4wPTRWGwAEKLymDAsDMchV18p7CFphDAu2_c1AyAO1-lxn5P-ZbzNHxn6QjqxUprWFlb9vpmz4Rkr28GOKpuyb3bQ0p_OZyEFEbZLRcyU6u9QuRj48K6pVqbrecV4jSGZG8ocDbkn_ed8S0NirsQHZHgTplgYtg4ywuEya9McwIQ8mabQEJ-q1tG7QpTSUO8RWD23IOIdz0CCEkaxgI7MRW98RR1EZdVvSRllxL2qxIDuuxcecOYsLtZaS5RTRASRx7p2mekRJxe7bM-eJtVvBbWi3N7PsF-gEy4sxO-rZRPhWC_FfdsiiV903GHF1QX90DRYdJarz7LAb7Weyl9wMElyCNJH6BgLkU-73-B4qXfatN4z5YLqukUtgBTsWI70Xj0F9gDbM-6wImLsp7TLo3b2s-Dkte4lGqUf7_t1KbElDJ-eoXLjXptfG1-xUuRwKjPsiN16BRMtXakHYOLBk1OhSa12NRIsuZ9RYTqJJ8s4ysM6pg1DlKpg1kl56GXpD0TrZsmPeaoWOuJYn7lFzt3TepEeh5puVkENXp0XuChpROlEutrjf11iN-w3rGoPbvN085Hk0npNn_yeVi9O9HNGcdKwR41H5Oq8MbWlkF4KflEQa3d6joaKof-yFT3ayX0oKgv9qeiCsODuf1xFpocFQnSEfKvzcXbZZvpAOW1LG815Vew7Wihty9orBJaA2F78nNLKVjpT6nnRAkujQRGadMLTvO76Ea6kqfQ189-A6VNXOKlS7e8EcrStCH-VWGzKJzgkE48NdDZzL9TBpAwbwgBx988__DRnIh9A1vY0vXBRe8o5GuxStMAupuP_z1HuoJLG-CZ97Kyjl7AWWs2y3FMookZ2CqnHzbExyJz_gcHiT5HtL_hPQQQFsyf0d0qX0bltU6VMoG219gF9SFNE01CRgiVO4hGihQiOJG9muWKfLq1g1zCRSd96a2c2npkg4kCXgd48zvgnPZ6gDPfzd27KM6VH94nf8asBtixIqRmlSr6gqZBUa6rxxGjNjeJ5DaeFtK_shhjYUJW6DuXvL4Jfuix-_M3Rf_R6pHN4sCKotPuRtsct7LFGu-HWgrIra1qN3Up9BLYUi7bm8maXWxdQIS9Td4z0kKRqjKVNZiGaXai-FZxXfYEU8EzoaehN71Luxesy2Lfg3vHLuuhkdZOyxb9YstMlkg3y6y4M-WPsY7bFf2WNV9F3gyTEityX1kIjcTXkMdPqs4GFMss8tUYzXNhsSdArzvrn6xvOA79K-NtKhhUr7987G4RIZAYoLYdRmkERv9Are_TLIowTw2_GLOiK8KpGONOIQHIWOKQSkxzklFlDjLC_ZxbV12B7Bj30rwpgFQS8L8Qak2_Y0PueSxu9TutjjNCUIyh2W285Wv495of1znTALdFF2zjgIwphxArp9YJWsxo3uJp1sE8puWBffCaSogSlaoeNmuNigs1F5uwP3eii3xb3pDc19qvtnRXaskSs06685RUzMMcqVi9JoS3kyR32YWczoYvd9p9DlcARnUAvZeOcktHVFVFO92hAaKKdGj00v-XNMBK1oqMtxaHCJWbXrGMpyfoisLsnUHMfpYvYUmjVwfSs1he1IBecSN19uCu2Hp3D-6qLgl0W74IzbhKWBlOks_uVCnoL709URXdh2bAZ8yesiXHI2LV8oTH1WL0TneuO5LOC5S17kFGIb1mF3DxXxyxRs_EGkXcdb3PXkKZY1rsLR-dkBvTBC2Y565NJN9v-H2kp805A-6CBZ3f2ORufeBv3YY49fW8AbLPtgKPb0gaIxmlvq6WsPnJcLTUB-gCw1ue_UxUGVGWqY4B5CUu7bvTaDb0l9Gd6jRBeDivh83yRQwwtd8U2v4X1Hj2F6v-OCmC68ZSzVXN_MEu-Mzd9nZroChCA7f6mmHo8xo7PGCYPSmEwnLb1-IavJyWT0-Y309Y3Mxze2v70x_vTGzpc3xh_eyH53Y_xljD1f3Rh_dGPzmxvjT25sfnFjE2z63sb4cxvjr21sfGxjMp0sDGGkFo3F6aQT6n-0bicn1DQ9nRjdL5Zp0GM0fJjDT_nzX1zJK9w)
+
+The first link opens the diagram-only view, without saved pan/zoom offsets.
+Use zoom to inspect individual tables; the editable source is the same diagram
+as the Markdown below. Detailed field explanations remain in the tables above.
 
 ```mermaid
 %%{init: {"theme": "base", "themeVariables": {"background": "#0b1220", "primaryColor": "#163354", "primaryTextColor": "#ffffff", "primaryBorderColor": "#64748b", "lineColor": "#a0aec0", "textColor": "#ffffff", "rowOdd": "#14283e", "rowEven": "#14283e"}}}%%
 erDiagram
-    Store o|--o{ User : "required for store roles"
-    Store o|--o{ Invitation : "optional store assignment"
-    PartnerApplication |o--o| Store : "approval creates"
-    Household ||--o{ Member : "contains"
-    Household ||--o{ HouseholdDraftEvent : "draft history"
-    Member ||--o{ IncomeNotice : "provides"
-    User ||--o{ IncomeNotice : "records"
-    Household ||--o{ EligibilityDecision : "has decisions"
-    RuleSetVersion ||--o{ EligibilityDecision : "used by"
-    Store ||--o{ Listing : "posts"
-    Category ||--o{ Listing : "categorizes"
-    Household ||--o{ Reservation : "makes"
-    Listing ||--o{ Reservation : "reserved through"
-
+    Store o|--o{ User : store
+    Store o|--o{ Invitation : store
+    User o|--o{ Invitation : invited_by
+    PartnerApplication o|--o| Store : application
+    User o|--o{ PartnerApplication : decided_by
+    User o|--o| Household : holder
+    User o|--o{ Household : created_by
+    User o|--o{ Household : verified_by
+    Household ||--o{ Member : household
+    Household ||--o{ HouseholdDraftEvent : household
+    User ||--o{ HouseholdDraftEvent : actor
+    Member ||--o{ IncomeNotice : member
+    User ||--o{ IncomeNotice : recorded_by
+    Household ||--o{ EligibilityDecision : household
+    RuleSetVersion ||--o{ EligibilityDecision : ruleset_version
+    User o|--o{ EligibilityDecision : decided_by
+    User ||--o{ RuleSetVersion : created_by
+    Store ||--o{ Listing : store
+    Category ||--o{ Listing : category
+    User ||--o{ Listing : safe_confirmed_by
+    User ||--o{ Listing : created_by
+    Listing ||--o{ Reservation : listing
+    Household ||--o{ Reservation : household
+    User ||--o{ Reservation : made_by
+    User o|--o{ Reservation : confirmed_by
+    User o|--o{ AuditEvent : actor
+    User o|--o{ EmailLog : user
 
     User {
-        string id PK "UUID user identifier."
-        string email UK "Case-insensitive unique sign-in email."
         string password "Django-managed encoded password hash, including hashing metadata; never the plain-text password. Django standard field: NULL is not allowed."
+        datetime last_login "Most recent sign-in time; Django authentication metadata. Nullable."
+        boolean is_superuser "Django permission bypass flag; distinct from the Iris admin role."
         string first_name "User first name."
         string last_name "User last name."
-        string phone "Contact phone number."
-        string preferred_language "French or English."
-        string role "User role."
-        reference store FK "Required for store roles; nullable otherwise."
+        boolean is_staff "Django admin-site access flag; distinct from the Iris role."
         boolean is_active "Whether the account is active."
+        uuid id PK "Stable public user identifier."
+        string email UK "Case-insensitive unique sign-in email."
+        string phone "Contact phone number."
+        string preferred_language "fr or en; default fr."
+        string role "beneficiary, store_staff, store_manager, intake_worker, or admin."
+        uuid store FK "Required for store staff and managers; nullable for other roles. Deletion is protected while users reference the store."
+        datetime created_at "Creation time."
+        datetime updated_at "Last-save time."
     }
 
     Invitation {
+        uuid id PK "Stable UUID identifier."
         string email "Recipient email."
         string first_name "Recipient first name."
         string last_name "Recipient last name."
         string role "Role assigned on acceptance."
-        reference store FK "Optional store assignment."
+        uuid store FK "Optional store assignment. Nullable."
         string token_hash UK "SHA-256 hash of the invitation token; not the raw token."
-        datetime expires_at "Expiration saved from the active invitations rule when issued."
-        datetime accepted_at "Acceptance time; unset before acceptance."
-        reference invited_by "Person who issued the invitation, when applicable."
+        datetime expires_at "Expiration saved when issued, using the active invitations.expires_after_days rule."
+        datetime accepted_at "Acceptance time; unset before acceptance. Nullable."
+        uuid invited_by FK "Person who issued the invitation, when applicable. Nullable."
     }
 
     Store {
+        uuid id PK "Stable UUID identifier."
         string name "Store name."
         string street_number "Civic number."
         string street_name "Street name."
-        string unit "Unit or suite."
+        string unit "Unit or suite. Nullable."
         string city "City name."
         string postal_code "Postal code."
         string phone "Contact phone number."
         string email "Contact email."
-        json opening_hours "Operating hours; JSONB is specified by the Store task."
-        string pickup_instructions "Instructions for collecting goods."
+        json opening_hours "Weekly schedule JSON, approval notes-only JSON, or empty placeholder."
+        string pickup_instructions "Instructions for collecting goods. Nullable."
         boolean is_badr "Identifies the B.A.D.R. store."
         boolean is_active "Whether the store is active."
-        reference application "Optional one-to-one: application that created the store."
+        uuid application FK, UK "Nullable one-to-one to the PartnerApplication that created the store (column application_id). Set by the US-13 approval; null for B.A.D.R. and manually created stores. PROTECT."
         datetime created_at "Store creation time."
+        datetime updated_at "Last-save time."
     }
 
     PartnerApplication {
-        string business_name "Business name."
-        string business_type "Business type."
-        string neq "Optional Quebec enterprise number."
-        string street_number "Civic number."
-        string street_name "Street name."
-        string unit "Optional unit."
-        string city "City name."
-        string postal_code "Postal code."
-        string contact_first_name "Contact first name."
-        string contact_last_name "Contact last name."
-        string contact_role "Optional contact role."
-        string contact_email "Contact email (citext)."
-        string contact_phone "Contact phone number."
-        string website "Optional website."
-        string goods_categories "Category codes (text array)."
-        string expected_frequency "Expected donation frequency."
-        string opening_hours "Opening hours."
+        uuid id PK "Primary key."
+        string business_name "2 to 150 characters."
+        string business_type "grocery, supermarket, bakery, restaurant, cafe, convenience_store, pharmacy, farm_producer, community_organization, other."
+        string neq "Quebec enterprise number, exactly 10 digits."
+        string street_number "Business address; postal code stored as A1A 1A1."
+        string street_name "Business address; postal code stored as A1A 1A1."
+        string unit "Business address; postal code stored as A1A 1A1."
+        string city "Business address; postal code stored as A1A 1A1."
+        string postal_code "Business address; postal code stored as A1A 1A1."
+        string contact_first_name "Letters, spaces, apostrophes, hyphens."
+        string contact_last_name "Letters, spaces, apostrophes, hyphens."
+        string contact_role "Optional role."
+        string contact_email "Lowercase; becomes the store manager's sign-in after approval."
+        string contact_phone "Canadian number in E.164, for example +15145550123."
+        string website "https:// added if missing."
+        list goods_categories "Stable category codes; at least one, each active at submission."
+        string expected_frequency "daily, weekly, monthly, occasional."
+        string opening_hours "Free text, for example 'lun-ven 9 h-18 h'."
         string message "Optional additional information."
-        boolean consent_contact "Consent to be contacted."
-        string language "Email language: fr or en."
-        string status "submitted, approved, or rejected."
-        string decision_reason "Decision explanation; required for rejection."
-        reference decided_by "Administrator who decided the application."
-        datetime decided_at "Decision time."
+        boolean consent_contact "Consent to be contacted; must be true (Law 25 record, with created_at)."
+        string language "fr (default) or en; language of the emails to the contact, who has no account."
+        string status "submitted (default), approved, rejected."
+        string decision_reason "Required when rejected."
+        uuid decided_by FK "Administrator who decided (US-13). PROTECT."
+        datetime decided_at "Decision time (US-13)."
+        datetime created_at "Submission time."
     }
 
     Household {
-        reference holder "Holder's account; empty for walk-ins without online access."
-        string member_number "Optional short file number."
+        uuid id PK "Stable UUID identifier."
+        uuid holder FK, UK "Optional holder User, distinct from the holder Member. Walk-in linking is refused by model validation; accepting its invitation does not populate this field. US-93 (#704, Releas..."
+        string member_number UK "Optional short file number. Nullable."
         string channel "Registration channel: walk-in or online."
         string status "Household file status."
-        string status_reason "Optional reason for the current status."
-        string email "Optional holder email."
+        string email "Optional holder email; without it a walk-in is served only at the counter. Nullable."
         string preferred_language "fr or en; used for emails."
+        string phone "Household contact phone."
         string street_number "Civic number."
         string street_name "Street name."
         string unit "Optional apartment or unit."
         string city "City name."
         string postal_code "Validated, normalized Canadian postal code."
         string address_key "Normalized address, including unit, used to find possible duplicates."
-        string phone "Household contact phone."
+        string search_email_key "Stored generated normalized email key; internal search field. Nullable."
+        string search_number_key "Stored generated normalized member-number key; internal search field. Nullable."
+        string search_address_key "Stored generated duplicate-address search key."
+        string search_address_text "Stored generated full-address search text."
         string alternate_name "Optional alternate for pickups."
-        boolean identity_checked_in_person "Photo ID checked in person; nothing about the ID stored."
-        datetime consent_data_processing_at "When data-processing consent was given."
-        string consent_text_version "Version of the consent text read."
-        reference created_by "Person who created the household file."
+        string alternate_phone "Optional alternate for pickups."
+        string alternate_email "Optional alternate for pickups."
+        boolean identity_checked_in_person "Staff checked photo ID in person; nothing about the ID is stored."
+        datetime consent_data_processing_at "When the person agreed to data processing (walk-in: notice read aloud); empty until given. Nullable."
+        string consent_text_version "Version of the consent text that was read, for example 2026-11-v1. US-20 may move consents to a separate record later."
+        datetime submitted_at "Submission time. Nullable."
+        datetime approved_at "Approval time. Nullable."
+        datetime expires_at "Approval expiration time. Nullable."
+        string status_reason "Optional reason for the current status."
+        uuid created_by FK "Person who created the household file. Nullable."
+        uuid verified_by FK "Staff member who checked the identity. Nullable."
+        datetime verified_at "Identity check time. Nullable."
+        datetime anonymized_at "Time personal data was removed. Nullable."
         datetime created_at "Household file creation time."
         datetime updated_at "Last change to the file."
-        reference verified_by "Staff member who checked the identity."
-        datetime verified_at "Identity check time."
-        datetime submitted_at "Submission time."
-        datetime approved_at "Approval time."
-        datetime expires_at "Approval expiration time."
-        datetime anonymized_at "Time personal data was removed."
-    }
-
-    HouseholdDraftEvent {
-        reference household FK "Draft that was created or edited."
-        reference actor FK "Staff member who acted."
-        string actor_role "Role at that moment."
-        string action "created or updated."
-        datetime created_at "When it happened."
     }
 
     Member {
-        reference household FK "Household containing this member."
+        uuid id PK "Stable UUID identifier."
+        uuid household FK "Household containing this member."
         string first_name "Member first name."
         string last_name "Member last name."
         date date_of_birth "Used to determine age."
         string relation "Relationship within the household."
         string person_key "Normalized person identity used to find possible duplicates."
+        string search_name_key "Stored generated normalized name key; excludes birth date."
         datetime created_at "When the member was added."
         datetime updated_at "Last change to the member."
     }
 
+    HouseholdDraftEvent {
+        bigint id PK "Bigint primary key."
+        uuid household FK "Draft that was created or edited."
+        uuid actor FK "Staff member who acted."
+        string action "created, updated or submitted."
+        string actor_role "Their role at that moment."
+        datetime created_at "When it happened."
+    }
+
     IncomeNotice {
-        reference member FK "Member whose income evidence is recorded."
-        string id PK "UUID notice identifier."
-        string status "confirmed or did_not_file."
+        uuid id PK "Notice identifier used by the staff file link."
+        uuid member FK "Member whose income evidence is recorded."
+        string status "confirmed (values from a notice) or did_not_file."
         string source "Source of recorded values; staff entry uses staff."
-        string file_ref "Opaque private storage reference."
-        integer tax_year "Tax year represented."
-        integer total_income_cents "Line 199 assessed income: Montant etabli; integer cents."
+        string file_ref "Opaque private storage reference (income-notices/<random>); never a URL or the uploaded file name."
+        integer tax_year "Tax year represented. Nullable."
+        bigint total_income_cents "Line 199 assessed income: Montant etabli; integer cents. Nullable."
         string name_on_notice "Name recorded on the notice."
         string postal_code_on_notice "Postal code recorded on the notice."
-        date notice_date "Notice issuance date."
+        date notice_date "Notice issuance date. Nullable."
         boolean seen_in_person "Whether staff saw the notice in person."
         string did_not_file_reason "Required explanation for a non-filing adult."
-        reference recorded_by FK "Staff user who recorded the entry."
+        uuid recorded_by FK "Staff user who recorded the entry."
         datetime created_at "When the entry was recorded."
-        datetime superseded_at "When a newer entry replaced it; empty if current."
+        datetime superseded_at "When a newer entry replaced this one; empty for the current notice. Nullable."
     }
 
     EligibilityDecision {
-        reference household FK "Household being assessed."
+        uuid id PK "Stable UUID identifier."
+        uuid household FK "Household being assessed."
         integer household_size "Household size used for the calculation."
         list adult_incomes_cents "Snapshot of the adult income inputs, in cents."
-        integer household_income_cents "Sum of accepted adult incomes in cents."
-        integer threshold_cents "Applied income threshold in cents."
+        bigint household_income_cents "Sum of accepted adult incomes in cents."
+        bigint threshold_cents "Applied income threshold in cents."
         integer threshold_year "Threshold reference year."
-        reference ruleset_version FK "Applied rule version."
+        bigint ruleset_version FK "Applied rule version."
         boolean eligible "Eligibility result."
         string decided_by_type "Whether the decision was made by a person or automatically."
-        reference decided_by "Decision maker, when applicable."
+        uuid decided_by FK "Decision maker, when applicable. Nullable."
         datetime created_at "Decision recording time."
     }
 
     RuleSetVersion {
+        bigint id PK "Bigint primary key."
         string rule_type "Type of settings."
         integer version "Version number."
         json values "Versioned settings; JSONB documented."
         datetime effective_from "When the version takes effect."
-        reference created_by "Person who published the rule version."
+        uuid created_by FK "Person who published the rule version."
         datetime created_at "Creation time."
     }
 
-        Category {
-        string code "Category code."
+    Category {
+        uuid id PK "Stable UUID identifier."
+        string code UK "Category code."
         string name_fr "French category name."
         string name_en "English category name."
         boolean is_food "Whether food-safety rules apply."
-        integer default_value_cents "Default estimated monetary value in cents."
+        bigint default_value_cents "Default estimated monetary value in cents."
         boolean is_active "Whether the category is available for selection."
     }
 
     Listing {
-        reference store FK "Offering store."
-        reference category FK "Goods category."
+        uuid id PK "Stable UUID identifier."
+        uuid store FK "Offering store."
+        uuid category FK "Goods category."
         string title "Listing title."
-        string description "Optional description."
+        string description "Optional description. Nullable."
         integer quantity_total "Total offered units."
         integer quantity_reserved "Reserved units."
         string unit "item or bundle."
         integer max_per_household "Quantity limit per household."
         datetime pickup_start "Pickup window start."
         datetime pickup_end "Pickup window end."
-        date best_before "Required for food; applicability differs for non-food."
-        string photo_ref "Optional stored photo reference."
-        integer estimated_value_cents "Optional estimated value in cents."
-        string status "Listing status."
-        reference safe_confirmed_by "Person who confirmed listing safety."
+        date best_before "Required for food: on or after the pickup end date (Montréal time) plus listing_safety.best_before_margin_days; non-food bypasses this safety check. Nullable."
+        string photo_ref "Optional stored photo reference. Nullable."
+        bigint estimated_value_cents "Optional estimated value in cents. Nullable."
+        string status "published, closed or cancelled; sold out is derived from stock counters."
+        uuid safe_confirmed_by FK "Person who confirmed listing safety."
         datetime safe_confirmed_at "Safety confirmation time."
         datetime published_at "Publication time."
+        datetime cancelled_at "Time store deactivation cancelled the listing. Nullable."
+        uuid created_by FK "User who posted the listing. PROTECT."
+        datetime created_at "Creation time."
+        datetime updated_at "Last-save time."
     }
 
     Reservation {
-        reference listing FK "Reserved listing."
-        reference household FK "Receiving household."
+        uuid id PK "Stable UUID identifier."
+        uuid listing FK "Reserved listing."
+        uuid household FK "Receiving household."
         integer quantity "Reserved units."
         string pickup_code "Six-character collection code."
         string status "Reservation status."
         boolean late_cancel "Cancellation during the pickup window."
         string made_by_type "Whether the reservation was made by the household or staff."
-        reference made_by "Person who created the reservation."
-        datetime picked_up_at "Collection confirmation time."
-        reference confirmed_by "Person who confirmed collection."
+        uuid made_by FK "Person who created the reservation."
+        datetime picked_up_at "Collection confirmation time. Nullable."
+        uuid confirmed_by FK "Person who confirmed collection. Nullable."
+        datetime created_at "Reservation creation time."
+        datetime updated_at "Reservation last-save time; bulk/status-only writes do not automatically refresh it."
     }
 
     AuditEvent {
-        reference actor "Person who performed the action."
+        bigint id PK "Bigint primary key."
+        uuid actor FK "Nullable for a saved automatic household eligibility decision only; then actor_role is system. Human actors are saved Users. PROTECT."
         string actor_role "Role at the time of the action."
         string action "Recorded action."
         string target_type "Affected record type."
-        identifier target_id "Identifier of the affected record."
+        string target_id "Identifier of the affected record."
         json metadata "Event details without personal data."
         datetime created_at "Event recording time."
     }
 
     EmailLog {
-        uuid id PK "Stable delivery identifier."
-        string to_email "Recipient address."
-        reference user FK "Optional account; SET_NULL."
+        uuid id PK "One delivery's stable identifier across retries."
+        string to_email "Recipient address. A failed validation record may retain a database-safe malformed address; empty when the input cannot be represented safely in this field."
+        uuid user FK "Optional account; SET_NULL preserves delivery metadata when the user is deleted. Nullable."
         string template_key "Template used."
-        string language "Template language."
-        string status "Delivery status."
-        integer attempts "Delivery attempts."
-        string error "Safe internal error code."
-        datetime sent_at "Provider acceptance time; not inbox delivery."
-        datetime created_at "Record creation time."
-        datetime updated_at "Last state update."
+        string language "Captured recipient preference, fr or en."
+        string status "pending, sending, retrying, sent or failed."
+        integer attempts "Transport attempts started by the worker, initially zero; distinct from the queue's execution count."
+        string error "Bounded internal error code; no provider exception text."
+        datetime sent_at "Set after transport/provider acceptance; unset for other statuses. This is not inbox-delivery confirmation. Nullable."
+        datetime created_at "Delivery record creation time."
+        datetime updated_at "Last delivery-state update."
     }
+
 ```
 
 ## Module ownership
@@ -834,22 +982,37 @@ Source: [Issue #553](https://github.com/B-A-D-R-SL/iris/issues/553).
 
 ## Migration order
 
-This order follows the documented model dependencies. Django migration dependencies enforce the order when migration files are generated from the implemented models.
+Use the checked-in Django migration dependencies, not the earlier nine-stage
+future-generation sketch. The custom User is in accounts' first migration;
+Store precedes its User assignments; PartnerApplication precedes Store.application.
+Documents needs Member; EligibilityDecision needs Household and RuleSetVersion;
+Listing needs Store and Category; Reservation needs Household and Listing.
+Household search/duplicate branches and audit publication/suspension branches
+have explicit merge migrations.
 
-| Stage | Models or change | Documented dependency |
-| --- | --- | --- |
-| 1 | accounts: initial User | Django requires a custom user model in the first migration of its app. |
-| 2 | stores: Store; categories: Category; rules: RuleSetVersion | Create these before the dependent models below. |
-| 3 | accounts: add User.store and create Invitation | Their store references depend on Store. |
-| 4 | households: Household, then Member | Member references Household. |
-| 5 | documents: IncomeNotice | IncomeNotice references Member. |
-| 6 | eligibility: EligibilityDecision | References Household and RuleSetVersion. |
-| 7 | listings: Listing | References Store and Category. |
-| 8 | reservations: Reservation | References Household and Listing. |
-| 9 | stores: PartnerApplication; audit: AuditEvent; notifications: EmailLog | Include the remaining documented models. User, Store, and Invitation are available at this stage. This placement does not assert additional foreign-key dependencies. |
+| Module | Current migration leaf |
+| --- | --- |
+| accounts | `0005_invitation` |
+| stores | `0005_shared_contact_validation` |
+| households | `0007_shared_contact_validation` |
+| reservations | `0002_reservation_timestamps_and_indexes` |
+| audit | `0008_auditevent_store_actions` |
+| eligibility | `0002_append_only` |
+| categories, documents, rules, notifications, listings | `0001_initial` |
 
-Django, allauth, sessions, and background-job packages manage their supporting tables through their own migrations.
+Applied databases receive new migrations for later changes; this documentation
+update does not generate or apply migrations.
 
-This plan can evolve over sprints with the reviewed model design. Applied databases receive new migrations for subsequent changes.
+### Supporting tables
 
-Source: [Django custom user migration requirements](https://docs.djangoproject.com/en/stable/topics/auth/customizing/#changing-to-a-custom-user-model).
+`accounts/0003_auth_cache` creates `accounts_auth_cache` with `cache_key` PK,
+serialized `value`, `expires` and an expiry index. It backs authentication
+rate limits across processes and is not an ORM business model. Django
+admin/auth/session/allauth tables, inherited User group/permission many-to-many
+join tables and Procrastinate job tables are infrastructure outside this ERD.
+
+Sources: owning modules' models and migrations under
+[`backend/modules`](../../backend/modules/); metadata and migration dependencies
+checked without a database connection. The
+[architecture evidence](../04-architecture/architecture.md#implementation-evidence)
+links the Release 1 PRs and issues behind these changes.
