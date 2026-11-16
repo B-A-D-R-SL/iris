@@ -4,7 +4,7 @@
 import pytest
 from django.core.cache import cache
 
-from modules.accounts.models import User
+from modules.accounts.queries import UserRole
 from modules.accounts.tests.factories import UserFactory
 from modules.categories.tests.factories import CategoryFactory
 from modules.stores.tests.factories import StoreFactory
@@ -21,17 +21,17 @@ def clean_quotas():
     cache.clear()
 
 
-def generated_user(role=User.Role.BENEFICIARY, **overrides):
+def generated_user(role=UserRole.BENEFICIARY, **overrides):
     """Generate database-valid store users as well as the other application roles."""
     store = (
         StoreFactory()
-        if role in (User.Role.STORE_MANAGER, User.Role.STORE_STAFF)
+        if role in (UserRole.STORE_MANAGER, UserRole.STORE_STAFF)
         else None
     )
     return UserFactory(role=role, store=store, **overrides)
 
 
-@pytest.mark.parametrize("role", User.Role.values)
+@pytest.mark.parametrize("role", UserRole.values)
 def test_production_docs_allow_only_the_active_application_admin(role):
     """Both real documentation routes enforce the Iris role, without is_staff."""
     user = generated_user(role, is_staff=False)
@@ -44,12 +44,12 @@ print(json.dumps([response.status_code for response in responses]))
 """,
         str(user.pk),
     )
-    assert result == ([200, 200] if role == User.Role.ADMIN else [403, 403])
+    assert result == ([200, 200] if role == UserRole.ADMIN else [403, 403])
 
 
 def test_django_staff_flag_does_not_grant_production_documentation_access():
     """SEC-05: Django admin-site access cannot replace the Iris admin role."""
-    user = generated_user(User.Role.INTAKE_WORKER, is_staff=True)
+    user = generated_user(UserRole.INTAKE_WORKER, is_staff=True)
     result = production_api(
         """
 from modules.accounts.models import User
@@ -66,7 +66,7 @@ print(json.dumps([client.get(url, secure=True).status_code
 def test_production_docs_refuse_anonymous_and_inactive_admin(inactive_admin):
     """Possessing an inactive account cannot provide access to either document."""
     identifier = (
-        str(generated_user(User.Role.ADMIN, is_active=False).pk)
+        str(generated_user(UserRole.ADMIN, is_active=False).pk)
         if inactive_admin
         else ""
     )

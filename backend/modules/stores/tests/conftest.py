@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from django.utils import timezone
 
-from modules.accounts.models import User
+from modules.accounts.queries import UserRole
 from modules.accounts.tests.factories import UserFactory
 from modules.notifications.tasks import send_email
 from modules.rules.models import RuleSetVersion
@@ -15,7 +15,7 @@ from modules.rules.models import RuleSetVersion
 
 @pytest.fixture
 def admin():
-    return UserFactory(role=User.Role.ADMIN)
+    return UserFactory(role=UserRole.ADMIN)
 
 
 @pytest.fixture

@@ -17,7 +17,8 @@ import { centsToDollars } from "./formats";
 export type Rule<T> = (value: T) => ReactNode;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Domain labels exclude the dot, so each character has one way to match (linear time, no ReDoS).
+const EMAIL = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
 const BYTES_PER_MB = 1024 * 1024;
 
 export function validationMessage(messageKey: string, values?: Record<string, unknown>): ReactNode {

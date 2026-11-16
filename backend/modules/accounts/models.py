@@ -31,15 +31,13 @@ class UserManager(BaseUserManager["User"]):
     ) -> "User":
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
-        extra_fields.setdefault("role", User.Role.ADMIN)
+        extra_fields.setdefault("role", UserRole.ADMIN)
         if not extra_fields["is_staff"] or not extra_fields["is_superuser"]:
             raise ValueError("Superusers must have is_staff and is_superuser enabled")
         return self.create_user(email, password, **extra_fields)
 
 
 class User(AbstractUser):
-    Role = UserRole
-
     username = None  # type: ignore[assignment]
     date_joined = None  # type: ignore[assignment]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -49,7 +47,7 @@ class User(AbstractUser):
         max_length=2, choices=[("fr", "Français"), ("en", "English")], default="fr"
     )
     role = models.CharField(
-        max_length=20, choices=Role.choices, default=Role.BENEFICIARY
+        max_length=20, choices=UserRole.choices, default=UserRole.BENEFICIARY
     )
     store = models.ForeignKey(
         "stores.Store", null=True, blank=True, on_delete=models.PROTECT
@@ -81,7 +79,7 @@ class Invitation(models.Model):
     email = models.EmailField(_("Email address"))
     first_name = models.CharField(_("First name"), max_length=150)
     last_name = models.CharField(_("Last name"), max_length=150)
-    role = models.CharField(_("Role"), max_length=20, choices=User.Role.choices)
+    role = models.CharField(_("Role"), max_length=20, choices=UserRole.choices)
     store = models.ForeignKey(
         "stores.Store",
         verbose_name=_("Store"),

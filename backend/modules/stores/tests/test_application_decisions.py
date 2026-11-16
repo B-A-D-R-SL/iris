@@ -11,7 +11,8 @@ from django.db import transaction
 
 from adapters.mailer.base import MailerError
 from adapters.mailer.fake import get_fake_mailer
-from modules.accounts.models import Invitation, User
+from modules.accounts.models import Invitation
+from modules.accounts.queries import UserRole
 from modules.accounts.tests.factories import UserFactory
 from modules.audit.models import AuditEvent
 from modules.notifications.models import EmailLog
@@ -50,7 +51,7 @@ def test_approval_creates_store_invitation_and_audit_after_commit(
     assert store.name == application.business_name
     assert store.opening_hours == {"notes": application.opening_hours}
     invitation = Invitation.objects.get(store=store)
-    assert invitation.role == User.Role.STORE_MANAGER
+    assert invitation.role == UserRole.STORE_MANAGER
     assert invitation.email == application.contact_email
     assert invitation.invited_by == admin
     event = AuditEvent.objects.get(target_id=str(application.pk))
@@ -101,7 +102,7 @@ def test_rejection_requires_reason_and_sends_after_commit(
         services.reject_application(application, admin, "again")
 
 
-@pytest.mark.parametrize("role,active", [(User.Role.ADMIN, False)])
+@pytest.mark.parametrize("role,active", [(UserRole.ADMIN, False)])
 def test_decision_requires_active_admin(role, active):
     application = PartnerApplicationFactory()
     user = UserFactory(role=role, is_active=active)
@@ -181,10 +182,10 @@ def test_invitation_failure_rolls_back_store_and_decision(settings, admin):
 @pytest.mark.parametrize(
     "role",
     [
-        User.Role.BENEFICIARY,
-        User.Role.INTAKE_WORKER,
-        User.Role.STORE_MANAGER,
-        User.Role.STORE_STAFF,
+        UserRole.BENEFICIARY,
+        UserRole.INTAKE_WORKER,
+        UserRole.STORE_MANAGER,
+        UserRole.STORE_STAFF,
     ],
 )
 @pytest.mark.parametrize("decision", ["approve", "reject"])
@@ -196,7 +197,7 @@ def test_each_non_admin_role_cannot_decide(role, decision, settings):
     user = UserFactory(
         role=role,
         store=StoreFactory()
-        if role in (User.Role.STORE_MANAGER, User.Role.STORE_STAFF)
+        if role in (UserRole.STORE_MANAGER, UserRole.STORE_STAFF)
         else None,
     )
     application = PartnerApplicationFactory()
@@ -299,7 +300,7 @@ def test_bad_email_origin_keeps_the_committed_approval(
     assert application.status == ApplicationStatus.APPROVED
     assert application.decided_by == admin and application.decided_at is not None
     store = Store.objects.get(application=application)
-    assert Invitation.objects.get(store=store).role == User.Role.STORE_MANAGER
+    assert Invitation.objects.get(store=store).role == UserRole.STORE_MANAGER
     assert AuditEvent.objects.get(target_id=str(application.pk)).metadata == {
         "outcome": "approved"
     }
@@ -321,7 +322,7 @@ def test_invitation_operations_authorize_before_bad_email_configuration(
     application = PartnerApplicationFactory()
     with pytest.raises(PermissionDenied):
         getattr(services, operation)(
-            application, UserFactory(role=User.Role.BENEFICIARY)
+            application, UserFactory(role=UserRole.BENEFICIARY)
         )
 
 

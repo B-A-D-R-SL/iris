@@ -14,6 +14,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from modules.accounts.models import User
+from modules.accounts.queries import UserRole
 from modules.accounts.tests.factories import UserFactory
 from modules.audit.models import AuditEvent
 from modules.households.tests.factories import HouseholdFactory
@@ -38,10 +39,10 @@ def _reservation(**values: Any) -> Reservation:
 
 LIST_URL = "/api/staff/stores/"
 NON_ADMIN_ROLES = [
-    User.Role.BENEFICIARY,
-    User.Role.STORE_STAFF,
-    User.Role.STORE_MANAGER,
-    User.Role.INTAKE_WORKER,
+    UserRole.BENEFICIARY,
+    UserRole.STORE_STAFF,
+    UserRole.STORE_MANAGER,
+    UserRole.INTAKE_WORKER,
 ]
 WEEK = {
     "mon": {"open": "08:00", "close": "20:00"},
@@ -68,7 +69,7 @@ def reactivate_url(store_id: object) -> str:
 
 @pytest.fixture
 def admin() -> User:
-    return cast(User, UserFactory(role=User.Role.ADMIN))
+    return cast(User, UserFactory(role=UserRole.ADMIN))
 
 
 @pytest.fixture
@@ -79,9 +80,7 @@ def admin_client(admin: User) -> APIClient:
 
 
 def _signed_in(role: str) -> APIClient:
-    store = (
-        _store() if role in (User.Role.STORE_STAFF, User.Role.STORE_MANAGER) else None
-    )
+    store = _store() if role in (UserRole.STORE_STAFF, UserRole.STORE_MANAGER) else None
     client = APIClient(HTTP_ACCEPT_LANGUAGE="en")
     client.force_login(UserFactory(role=role, store=store))
     return client
@@ -129,7 +128,7 @@ def test_non_admins_get_403_and_nothing_changes(role: str) -> None:
 
 def test_inactive_admin_gets_403() -> None:
     client = APIClient(HTTP_ACCEPT_LANGUAGE="en")
-    client.force_login(UserFactory(role=User.Role.ADMIN, is_active=False))
+    client.force_login(UserFactory(role=UserRole.ADMIN, is_active=False))
     for response in _every_endpoint(client, _store()):
         assert response.status_code in (401, 403)
 

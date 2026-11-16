@@ -10,7 +10,7 @@ from typing import Any, cast
 import pytest
 from django.utils import timezone, translation
 
-from modules.accounts.models import User
+from modules.accounts.queries import UserRole
 from modules.accounts.tests.factories import UserFactory
 from modules.households.models import Household, Member
 from modules.households.tests.factories import HouseholdFactory, MemberFactory
@@ -88,10 +88,10 @@ def pickup_case(db: Any, monkeypatch: pytest.MonkeyPatch) -> Iterator[SimpleName
         now=NOW,
         store=store,
         other_store=other_store,
-        staff=UserFactory(role=User.Role.STORE_STAFF, store=store),
-        manager=UserFactory(role=User.Role.STORE_MANAGER, store=store),
-        other_staff=UserFactory(role=User.Role.STORE_STAFF, store=other_store),
-        beneficiary=UserFactory(role=User.Role.BENEFICIARY),
+        staff=UserFactory(role=UserRole.STORE_STAFF, store=store),
+        manager=UserFactory(role=UserRole.STORE_MANAGER, store=store),
+        other_staff=UserFactory(role=UserRole.STORE_STAFF, store=other_store),
+        beneficiary=UserFactory(role=UserRole.BENEFICIARY),
         listing=open_listing(store),
         other_listing=open_listing(other_store),
         household=pickup_household(),
