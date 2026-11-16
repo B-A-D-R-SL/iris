@@ -1,0 +1,72 @@
+# AI contribution: 50% or more AI-generated
+# FIX-25 (#616): weekly, grouped dependency updates, so security alerts do not pile up.
+#
+# - Minor and patch updates come in one pull request per group, across all its directories.
+# - Major updates come one per dependency: they can break the API and need their own review.
+# - Security updates are grouped the same way; they open as soon as an advisory is published,
+#   without waiting for the schedule or the cooldown.
+# - The cooldown waits 7 days after a release before proposing it, so a hijacked release is
+#   more likely to be pulled before it reaches a pull request.
+#
+# The Python projects use uv, so they use the "uv" ecosystem: it updates pyproject.toml and
+# uv.lock together, which `uv sync --locked` in CI requires. pnpm projects use "npm".
+# .github/scripts/test_dependency_coverage.py fails when a locked project is missing here.
+version: 2
+
+updates:
+  - package-ecosystem: "uv"
+    directories:
+      - "/backend"
+      - "/tools/mock_notices"
+      - "/tools/notice_reading_spike"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Montreal"
+    cooldown:
+      default-days: 7
+    groups:
+      python-minor-and-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+      python-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Montreal"
+    cooldown:
+      default-days: 7
+    groups:
+      frontend-production-minor-and-patch:
+        applies-to: version-updates
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      frontend-development-minor-and-patch:
+        applies-to: version-updates
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+      frontend-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # Actions are pinned to full commit SHAs with the release in a comment; Dependabot
+  # updates both.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Montreal"
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns: ["*"]
