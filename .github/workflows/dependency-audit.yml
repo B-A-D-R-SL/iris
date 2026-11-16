@@ -41,7 +41,9 @@ permissions:
 
 concurrency:
   group: dependency-audit-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Only a newer push to the same pull request cancels a run; a push to main must not
+  # cancel the weekly scheduled audit, which shares its group.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   python:

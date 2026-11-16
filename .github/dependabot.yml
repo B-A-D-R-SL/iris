@@ -11,6 +11,7 @@
 # The Python projects use uv, so they use the "uv" ecosystem: it updates pyproject.toml and
 # uv.lock together, which `uv sync --locked` in CI requires. pnpm projects use "npm".
 # .github/scripts/test_dependency_coverage.py fails when a locked project is missing here.
+# America/Toronto is Montréal's time zone; "America/Montreal" is only a deprecated alias.
 version: 2
 
 updates:
@@ -23,7 +24,7 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "06:00"
-      timezone: "America/Montreal"
+      timezone: "America/Toronto"
     cooldown:
       default-days: 7
     groups:
@@ -40,7 +41,7 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "06:00"
-      timezone: "America/Montreal"
+      timezone: "America/Toronto"
     cooldown:
       default-days: 7
     groups:
@@ -64,7 +65,7 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "06:00"
-      timezone: "America/Montreal"
+      timezone: "America/Toronto"
     cooldown:
       default-days: 7
     groups:
