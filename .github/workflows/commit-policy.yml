@@ -21,6 +21,10 @@ permissions: {}
 
 jobs:
   commit-policy:
+    # FIX-25 (#616): Dependabot writes its own subjects ("Bump x from 1.0 to 1.1"), so its
+    # pull requests are skipped, as PR policy skips them (EXEMPT_AUTHORS in pr_policy.py).
+    # The pull request's author cannot be forged, and a skipped job passes a required check.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Validate PR commit subjects with the base branch hook
