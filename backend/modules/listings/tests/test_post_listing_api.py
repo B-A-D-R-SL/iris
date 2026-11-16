@@ -19,6 +19,7 @@ from rest_framework.test import APIClient
 from modules.listings import services
 from modules.listings.domain.posting import Refusal
 from modules.listings.models import Listing
+from modules.listings.tests.factories import ListingFactory
 from modules.rules.domain.schemas import DEFAULT_RULE_VALUES
 from modules.rules.models import RuleSetVersion
 from modules.stores import services as store_services
@@ -401,3 +402,24 @@ def test_us33_collection_does_not_implement_browsing_yet(
     posting_case: SimpleNamespace, posting_client: APIClient
 ) -> None:
     assert posting_client.get(reverse("store-listing-create")).status_code == 405
+
+
+@pytest.mark.parametrize("earlier_listings", [0, 10])
+def test_fix19_posting_takes_a_fixed_number_of_queries(
+    posting_case: SimpleNamespace,
+    posting_client: APIClient,
+    django_assert_num_queries: Any,
+    earlier_listings: int,
+) -> None:
+    # FIX-19 performance evidence (wiki Performance page): the count does not
+    # grow with the store's listings. Store, category and two rules: 4. Model
+    # validation: 5 existence checks, then 7 constraint checks of 3 queries each
+    # (savepoint, check, release): 26. Savepoint, insert, release: 3. Response
+    # category and store location: 2. A new query must change this on purpose.
+    for _ in range(earlier_listings):
+        ListingFactory(store=posting_case.store, category=posting_case.category)
+    with django_assert_num_queries(35):
+        response = posting_client.post(
+            reverse("store-listing-create"), payload(posting_case), format="json"
+        )
+    assert response.status_code == 201
