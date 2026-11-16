@@ -53,12 +53,24 @@ def dependabot_directories(ecosystem: str) -> set[str]:
     return {folder.strip("/") or "." for folder in folders}
 
 
+def grouped_update_types(update: dict) -> set[str]:
+    """Version update types (major, minor, patch) that one of the update's groups bundles.
+
+    A group without "update-types" bundles all three; security-only groups don't count.
+    """
+    grouped: set[str] = set()
+    for group in update.get("groups", {}).values():
+        if group.get("applies-to", "version-updates") == "version-updates":
+            grouped.update(group.get("update-types", ["major", "minor", "patch"]))
+    return grouped
+
+
 class DependencyCoverageTest(unittest.TestCase):
     def test_finds_the_uv_projects_tools_included(self):
         # Guards the helper itself: an empty set would make the comparisons below pass.
-        self.assertTrue(
-            {"backend", "tools/mock_notices", "tools/notice_reading_spike"}
-            <= locked_projects("uv.lock")
+        self.assertLessEqual(
+            {"backend", "tools/mock_notices", "tools/notice_reading_spike"},
+            locked_projects("uv.lock"),
         )
 
     def test_dependabot_updates_exactly_the_uv_projects(self):
@@ -81,11 +93,21 @@ class DependencyCoverageTest(unittest.TestCase):
         commands = [step["run"] for step in steps if "run" in step]
         self.assertEqual(commands, ["pnpm audit --audit-level high"])
 
-    def test_every_update_is_weekly_and_grouped(self):
+    def test_every_update_is_weekly_and_groups_minor_and_patch(self):
         for update in load(DEPENDABOT)["updates"]:
             with self.subTest(ecosystem=update["package-ecosystem"]):
                 self.assertEqual(update["schedule"]["interval"], "weekly")
-                self.assertTrue(update["groups"], "updates must be grouped")
+                self.assertLessEqual({"minor", "patch"}, grouped_update_types(update))
+
+    def test_grouped_update_types_ignore_security_groups(self):
+        # A security-only group must not count as grouping the weekly version updates.
+        update = {
+            "groups": {
+                "security": {"applies-to": "security-updates", "patterns": ["*"]},
+                "minor": {"update-types": ["minor"]},
+            }
+        }
+        self.assertEqual(grouped_update_types(update), {"minor"})
 
 
 if __name__ == "__main__":
