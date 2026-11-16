@@ -16,7 +16,8 @@ from django.utils import timezone
 from adapters.mailer.base import MailerError
 from adapters.mailer.fake import get_fake_mailer
 from modules.accounts import services as account_services
-from modules.accounts.models import Invitation, User
+from modules.accounts.models import Invitation
+from modules.accounts.queries import UserRole
 from modules.accounts.tests.factories import UserFactory
 from modules.audit.models import AuditEvent
 from modules.notifications.models import EmailLog
@@ -85,7 +86,7 @@ def test_approval_email_failure_is_recoverable_with_a_fresh_link(
     replacement = Invitation.objects.get(token_hash=sha256(token.encode()).hexdigest())
     assert replacement.token_hash != previous_hash
     account = account_services.accept_invitation(token, "GeneratedTestPassword!8374")
-    assert account.role == User.Role.STORE_MANAGER and account.store == previous.store
+    assert account.role == UserRole.STORE_MANAGER and account.store == previous.store
     application.refresh_from_db()
     assert application.status == ApplicationStatus.APPROVED
     assert Store.objects.filter(application=application).count() == 1
@@ -182,8 +183,8 @@ def test_recovery_command_requires_admin_and_never_prints_contact_or_token(
     assert application.contact_email not in output.getvalue()
     assert token not in output.getvalue()
     for user in (
-        UserFactory(role=User.Role.BENEFICIARY),
-        UserFactory(role=User.Role.ADMIN, is_active=False),
+        UserFactory(role=UserRole.BENEFICIARY),
+        UserFactory(role=UserRole.ADMIN, is_active=False),
     ):
         with pytest.raises(CommandError, match="active admin"):
             call_command(

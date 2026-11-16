@@ -14,7 +14,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import close_old_connections, connection, transaction
 from django.utils import timezone
 
-from modules.accounts.models import User
+from modules.accounts.queries import UserRole
 from modules.accounts.tests.factories import UserFactory
 from modules.reservations import queries, services
 from modules.reservations.domain import pickup
@@ -449,7 +449,7 @@ def test_us44_confirm_rechecks_the_window(
 
 
 @pytest.mark.parametrize(
-    "role", [User.Role.BENEFICIARY, User.Role.INTAKE_WORKER, User.Role.ADMIN]
+    "role", [UserRole.BENEFICIARY, UserRole.INTAKE_WORKER, UserRole.ADMIN]
 )
 def test_us44_accounts_without_a_store_role_are_denied(
     pickup_case: SimpleNamespace, make_reservation: MakeReservation, role: str
@@ -468,7 +468,7 @@ def test_us44_inactive_staff_are_denied(
 ) -> None:
     # rule: BR-RES-001
     staff = UserFactory(
-        role=User.Role.STORE_STAFF, store=pickup_case.store, is_active=False
+        role=UserRole.STORE_STAFF, store=pickup_case.store, is_active=False
     )
     reservation = make_reservation()
     with pytest.raises(PermissionDenied):

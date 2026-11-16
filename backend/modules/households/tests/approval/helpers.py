@@ -29,8 +29,11 @@ def decisions(household: Any) -> Any:
 
 
 def audit_events(household: Any) -> Any:
-    return apps.get_model("audit.AuditEvent").objects.filter(
-        target_id=str(household.pk)
+    """Oldest first: without an order, PostgreSQL may return rows in any order."""
+    return (
+        apps.get_model("audit.AuditEvent")
+        .objects.filter(target_id=str(household.pk))
+        .order_by("created_at", "pk")
     )
 
 

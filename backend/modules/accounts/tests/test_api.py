@@ -8,6 +8,7 @@ from django.conf import settings
 from rest_framework.test import APIClient
 
 from modules.accounts.models import User
+from modules.accounts.roles import UserRole
 from modules.accounts.tests.factories import InvitationInputFactory, UserFactory
 from modules.stores.tests.factories import StoreFactory
 
@@ -15,7 +16,7 @@ pytestmark = pytest.mark.django_db
 URL = "/api/invitations/accept/"
 LOGIN = "/api/auth/browser/v1/auth/login"
 PASSWORD = "invitation-test-password-429"
-CALLER_ROLES = (None, *User.Role.values)
+CALLER_ROLES = (None, *UserRole.values)
 
 
 def post(client: APIClient, token: Any, password: Any = PASSWORD, **extra: Any) -> Any:
@@ -57,7 +58,7 @@ def test_valid_token_is_allowed_for_anonymous_and_every_role(
     """The saved invitation controls the new account, independently of its caller."""
     invited_store: Any = StoreFactory()
     token, invitation = issue_invitation(
-        role=User.Role.STORE_MANAGER, store=invited_store
+        role=UserRole.STORE_MANAGER, store=invited_store
     )
     client = APIClient()
     caller: Any = None
@@ -71,7 +72,7 @@ def test_valid_token_is_allowed_for_anonymous_and_every_role(
 
     assert response.status_code == 200
     recipient = User.objects.get(email=invitation.email)
-    assert recipient.role == User.Role.STORE_MANAGER
+    assert recipient.role == UserRole.STORE_MANAGER
     assert recipient.store_id == invited_store.pk
     assert recipient.is_active and recipient.check_password(PASSWORD)
     if caller:
@@ -227,7 +228,7 @@ def test_request_cannot_override_invitation_identity_or_privileges(
     other_store: Any = StoreFactory()
     other_recipient: Any = InvitationInputFactory()
     value = {
-        "role": User.Role.ADMIN,
+        "role": UserRole.ADMIN,
         "store": str(other_store.pk),
         "email": other_recipient["email"],
     }[field]
@@ -247,7 +248,7 @@ def test_existing_email_is_refused_even_when_registered_after_invitation(
     """Neither an active nor an inactive existing account may be overwritten."""
     token, invitation = issue_invitation()
     existing: Any = UserFactory(
-        email=invitation.email.upper(), role=User.Role.ADMIN, is_active=is_active
+        email=invitation.email.upper(), role=UserRole.ADMIN, is_active=is_active
     )
     before = list(User.objects.order_by("pk").values())
 
@@ -266,7 +267,7 @@ def test_authenticated_session_requires_csrf_before_acceptance(
     """A public endpoint still protects an existing cookie-authenticated session."""
     token, invitation = issue_invitation()
     client = APIClient(enforce_csrf_checks=True)
-    client.force_login(UserFactory(role=User.Role.ADMIN))
+    client.force_login(UserFactory(role=UserRole.ADMIN))
     before = list(User.objects.order_by("pk").values())
 
     response = post(client, token)
@@ -283,7 +284,7 @@ def test_acceptance_with_csrf_preserves_the_existing_browser_session(
 ) -> None:
     """Accept a new recipient without silently switching the signed-in caller."""
     token, invitation = issue_invitation()
-    caller: Any = UserFactory(role=User.Role.ADMIN)
+    caller: Any = UserFactory(role=UserRole.ADMIN)
     client = APIClient(enforce_csrf_checks=True)
     client.force_login(caller)
     csrf_token = "c" * 32
