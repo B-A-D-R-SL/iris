@@ -1,9 +1,9 @@
 # AI contribution: 50% or more AI-generated
 """Prepare listing photos before storage, without Django or provider dependencies."""
 
+import struct
 from dataclasses import dataclass
 from io import BytesIO
-from struct import error as StructError
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
@@ -127,5 +127,5 @@ def process_photo(
         raise
     except (Image.DecompressionBombError, Image.DecompressionBombWarning):
         raise PhotoValidationError("too_many_pixels") from None
-    except (UnidentifiedImageError, OSError, SyntaxError, ValueError, StructError):
+    except (UnidentifiedImageError, OSError, SyntaxError, ValueError, struct.error):
         raise PhotoValidationError("invalid_image") from None
