@@ -10,6 +10,27 @@ stays in the repository so the record is easy to find. **Do not add entries here
 other AI usage files in the repository.** The PR policy check fails a pull request that changes this
 file or adds such a file.
 
+## AI tools we use
+
+The same list, with entry counts per tool, is on the wiki's
+[AI Usage](https://github.com/B-A-D-R-SL/iris/wiki/AI-Usage#tools-we-use) page.
+
+| Tool | Used for |
+| --- | --- |
+| Claude (Anthropic) | Drafting the first planning material in Iteration 1: requirements, backlog structure, diagrams and documentation drafts. |
+| Claude Code (Anthropic) | Writing code, tests and documents in the repository for an assigned issue, under the owner's direction. |
+| ChatGPT (OpenAI) | Writing code, tests, configuration and documentation for an assigned issue; debugging; French and English terminology. |
+| OpenAI Codex | Writing code, tests and documentation in the repository for an assigned issue, under the owner's direction. |
+| CodeRabbit | Automated review comments on every pull request. Two one-line suggestions were committed from its review on October 21, 2026. Its review never replaces a teammate's. |
+| GitHub Copilot | Automated review comments on some pull requests. It wrote no code. |
+
+The record for each iteration:
+[Iteration 1](https://github.com/B-A-D-R-SL/iris/wiki/Iteration-1-%E2%80%93-AI-Usage) ·
+[Iteration 2](https://github.com/B-A-D-R-SL/iris/wiki/Iteration-2-%E2%80%93-AI-Usage) ·
+[Iteration 3](https://github.com/B-A-D-R-SL/iris/wiki/Iteration-3-%E2%80%93-AI-Usage) ·
+[Iteration 4](https://github.com/B-A-D-R-SL/iris/wiki/Iteration-4-%E2%80%93-AI-Usage) ·
+[Iteration 5](https://github.com/B-A-D-R-SL/iris/wiki/Iteration-5-%E2%80%93-AI-Usage)
+
 ## Recording AI help
 
 1. **Source files.** Every file you write or change starts with one of the three levels:
