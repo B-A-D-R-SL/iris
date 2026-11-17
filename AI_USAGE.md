@@ -12,6 +12,10 @@ file or adds such a file.
 
 ## AI tools we use
 
+This list is the one exception to "only points there": the course rubric reads the AI tools from this
+file. Keep it in step with the wiki. A change to it fails the PR policy check on purpose, so a
+maintainer merges it after a teammate's review.
+
 The same list, with entry counts per tool, is on the wiki's
 [AI Usage](https://github.com/B-A-D-R-SL/iris/wiki/AI-Usage#tools-we-use) page.
 
