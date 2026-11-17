@@ -4,8 +4,8 @@
 
 How to build a screen that fits Iris. Everything here follows the
 [wireframes](https://www.figma.com/design/mxXyzEOGl4nuDVdYeoRNPA/Wireframes) (Components page),
-[forms-and-fields.md](../02-requirements/forms-and-fields.md) and the permission matrix in
-[business-rules.md](../02-requirements/business-rules.md).
+[forms-and-fields.md](../02-requirements/forms-and-fields.md) and the
+[permission matrix in business-rules.md](../02-requirements/business-rules.md#permission-matrix).
 
 ## Where things are
 

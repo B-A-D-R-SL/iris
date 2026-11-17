@@ -1,11 +1,70 @@
 <!-- AI contribution: 50% or more AI-generated -->
 # Business rules
 
-Every rule Iris applies, with its default value. Values marked *(setting)* are stored in the rule settings module (`rules`) and can be changed by an admin without a developer; changing one creates a new version, so past decisions stay reproducible. Code never hard-codes these values: business-rule functions in `domain/` receive them as arguments.
+Every rule Iris applies, with its default value. Values marked *(setting)* are stored as versioned rule sets in the rule settings module (`rules`, model `RuleSetVersion`); publishing a new value creates a new version, so past decisions stay reproducible. Business-rule functions in `domain/` receive these values as arguments. Some fixed limits are not settings, for example the 500-character decision reasons (BR-PARTNER-04, BR-STORE-005) and the 6-character pickup code (BR-RES-010).
 
-Decisions taken where B.A.D.R. had not specified anything are marked **Default**. They can be changed later through the settings or an ADR.
+**Who can change a setting today:** only a developer or operator. Release 1 has no rules API, no settings screen and no Django admin page for rules. Values are loaded by the `seed_rules` management command (`backend/modules/rules/management/commands/seed_rules.py`) and changed by calling `rules.services.publish()`. An admin settings screen is planned in [US-69 #560](https://github.com/B-A-D-R-SL/iris/issues/560).
+
+Decisions taken where B.A.D.R. had not specified anything are marked **Default**. They can be changed later through a new rule version or an ADR.
 
 Each module owner publishes and updates their rules in this document through reviewed pull requests.
+
+## Permission matrix
+
+Who may do what in Release 1, taken from the DRF permission classes (the server
+decision) and the React route guards (which only shape the interface). Checked
+against `main` at `c13fc04` on November 17, 2026. Every permission also requires
+an active account (`is_active`); Django's `is_staff` flag is not used. DRF's
+default is `IsAuthenticated` (`backend/iris/settings/base.py`), and
+`backend/tests/test_endpoint_access.py` keeps the inventory of every endpoint's
+access rule.
+
+Roles: **A** admin, **IW** intake worker, **SM** store manager, **SS** store staff,
+**B** beneficiary (household account), **Anon** not signed in. "Yes" means the
+server allows it; "–" means it refuses it.
+
+| Capability | API (permission class) | A | IW | SM | SS | B | Anon | React route and guard |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Apply to become a partner | `POST /api/partner-applications/` (`AllowAny`, 5/hour/IP) | Yes | Yes | Yes | Yes | Yes | Yes | `/partner/apply`, public |
+| Accept an invitation | `POST /api/invitations/accept/` (`AllowAny`) | Yes | Yes | Yes | Yes | Yes | Yes | `/invitation/:token`, public |
+| Read active categories | `GET /api/categories/` (`AllowAny`) | Yes | Yes | Yes | Yes | Yes | Yes | used by public and store forms |
+| Read own profile | `GET /api/me/` (default `IsAuthenticated`) | Yes | Yes | Yes | Yes | Yes | – | sign-in and every guard |
+| Search households, open a file | `/api/staff/households/` (`IsIntakeWorkerOrAdmin`, households) | Yes | Yes | – | – | – | – | `/staff/households`, `/staff/households/:id`: `RequireHouseholdSearch` (asks the API) |
+| Register a walk-in, record notices, submit, approve | `/api/staff/households/…` (`IsIntakeWorkerOrAdmin`, households) | Yes | Yes | – | – | – | – | `/staff/walk-in…`: `RequireRole` staff (A, IW) |
+| Open a notice file | `/api/staff/notices/{id}/file/`, `/api/staff/notice-files/{token}/` (`IsIntakeWorkerOrAdmin`, documents) | Yes | Yes | – | – | – | – | inside the walk-in and household screens |
+| Suspend or reactivate a household | `/api/staff/households/{id}/suspend/`, `…/reactivate/` (`IsAdmin`, households) | Yes | – | – | – | – | – | button on `/staff/households/:id`, shown from the API's advertised actions |
+| Decide partner applications | `/api/staff/partner-applications/` (`IsActiveAdmin`, stores) | Yes | – | – | – | – | – | `/staff/partners`: `RequireRole` admin |
+| Edit, deactivate, reactivate stores | `/api/staff/stores/` (`IsStoreAdmin`, stores) | Yes | – | – | – | – | – | `/staff/stores`, `/staff/stores/:id`: `RequireRole` admin |
+| Create and edit categories | `/api/staff/categories/` (`IsActiveAdmin`, categories) | Yes | – | – | – | – | – | `/staff/categories`: `RequireRole` admin |
+| Search the audit log | `/api/staff/audit/` (`IsAuditAdmin`) | Yes | – | – | – | – | – | `/staff/audit`: `RequireRole` admin |
+| Post a listing (own store only) | `/api/store/listings/`, `/api/store/listings/categories/` (`IsStorePoster`) | – | – | Yes | Yes | – | – | `/store/listings/new`: `RequireRole` store (SM, SS) |
+| Look up and confirm a pickup (own store only) | `/api/store/pickups/` (`IsPickupStaff`) | – | – | Yes | Yes | – | – | `/store/confirm`: `RequireRole` store |
+| Browse listings | `GET /api/listings/` (`IsBeneficiary` + linked approved, unexpired household) | – | – | – | – | Yes | – | `/listings`, `/listings/:id`: `RequireRole` household (B) |
+| Reserve | `POST /api/reservations/` (`IsBeneficiary` + linked approved, unexpired household) | – | – | – | – | Yes | – | from `/listings/:id` |
+| Read the API schema and docs | `/api/schema/`, `/api/docs/` (`IsActiveAdmin` in `backend/iris/api.py`, deployed settings only) | Yes | – | – | – | – | – | none |
+
+Notes:
+
+- Store accounts must also have an assigned store; listings and pickups are
+  limited to that store (`listings/permissions.py`, `reservations/permissions.py`).
+- Browse and reserve also need the beneficiary account to be linked to an
+  approved, unexpired household. Nothing outside the tests creates that link yet
+  (US-93 [#704](https://github.com/B-A-D-R-SL/iris/issues/704), Release 2), so in
+  a running Release 1 instance no beneficiary passes.
+- Sign-in, sign-out and password reset are allauth routes under `/api/auth/`;
+  public sign-up is closed (`AccountAdapter.is_open_for_signup`).
+- Sources: the permission classes in `backend/modules/*/api/` (households
+  `api/views.py`, documents `api/views.py`, stores `api/staff_views.py` and
+  `api/staff_store_views.py`, categories `api/staff_views.py`, audit
+  `api/views.py`, listings `api/permissions.py`, reservations `api/permissions.py`
+  and `api/store_permissions.py`), the role groups in
+  `backend/modules/accounts/queries.py`, the route guards in
+  `frontend/src/app/routes/*.tsx`, `frontend/src/app/RequireRole.tsx` and
+  `frontend/src/app/RequireHouseholdSearch.tsx`, and the menus in
+  `frontend/src/app/navigation.ts`.
+- Planned, not built: admin invites staff (US-05), manager invites store staff
+  (US-06), today's pickups (US-38), reserve on someone's behalf (US-47), rule
+  settings screens (US-69), staff two-factor sign-in (US-09).
 
 ## Shared household access (US-63)
 
@@ -50,7 +109,7 @@ The following rule IDs are introduced for review with US-44 (#520).
 | BR-RES-001 | Only an active `store_staff` or `store_manager` account assigned to a store can look up or confirm a pickup, and only for reservations on that store's listings. A code that belongs to another store's live reservation is answered "picked up somewhere else", naming no store and no household; any other code is unknown. |
 | BR-RES-002 | A pickup is confirmed only while the reservation is `reserved` and the time is within the listing's pickup window, both ends included. The store, status and window are checked again under a row lock when confirming, so the pickup is recorded once, with the confirming staff member and the time. Late confirmation of a no-show is US-45. |
 | BR-RES-003 | Before confirming, staff see the household holder's and the alternate's first name and last initial, the listing title, the unit and the quantity. No contact detail or full name is sent. An anonymized household is treated as an unknown code. |
-| BR-RES-004 | Pickup codes are unique per listing, not per store. If two `reserved` reservations at the same store share the typed code, the lookup is refused and staff find the person in today's pickups instead. A finished reservation with the same code never hides a live one. |
+| BR-RES-004 | Pickup codes are unique per listing, not per store. If two `reserved` reservations at the same store share the typed code, the lookup is refused (`ambiguous_code`). The intended fallback is the "today's pickups" list ([US-38 #509](https://github.com/B-A-D-R-SL/iris/issues/509)), which is not built yet, although the refusal message already points staff to it. A finished reservation with the same code never hides a live one. |
 | BR-RES-005 | **Default:** Confirming a pickup does not change listing stock: the units stay counted as taken so they are not offered again. |
 
 Codes are compared after removing spaces and changing to uppercase; the length
@@ -209,14 +268,17 @@ The limits come from the versioned `notice_upload` RuleSet, not from
 hardcoded values. BR-DOC-001 to BR-DOC-004 are checked in
 `backend/modules/documents/domain/notice.py`; BR-DOC-005 and BR-DOC-006 in
 `backend/modules/documents/services.py` and the `IncomeNotice` constraints;
-BR-DOC-007 in `backend/modules/households/services.py`.
+BR-DOC-007 in `backend/modules/households/notice_services.py` (consent check at
+line 32, FIX-30) and, for submission, `backend/modules/households/services.py`.
 
 ### Walk-in approval (#469)
 
 Staff record every adult's notice on the draft (BR-DOC-007), submit the file
-(US-25 duplicate check), then approve it (BR-DUP-002): approval accepts
-`submitted` and `review_required` files and refuses a draft. A
-`POSSIBLE_DUPLICATE` file stays in review when approval runs.
+(US-25 duplicate check), then approve it (BR-DUP-002): approval accepts only
+`submitted` files. It refuses a draft ("Submit the file before approving it") and
+a `review_required` file, including a `POSSIBLE_DUPLICATE` one ("This file is
+already waiting for review"); see `backend/modules/households/approval_services.py`.
+Resolving review files is US-66 and US-68.
 
 Every adult needs a current notice or a non-filing reason. Approval rechecks the
 notice against the member's current name, ignoring case and accents and allowing
@@ -240,7 +302,7 @@ commit. The new-account-only invitation rule still applies.
 Every listing belongs to exactly one active category. The category decides two things:
 
 - **Food or not:** a listing in a food category needs a best-before date on or after the pickup end date (margin `best_before_margin_days` in rule type `listing_safety`, default 0 days *(setting)*).
-- **Default value:** when a store leaves the estimated value empty, the listing is valued at the category's default value × quantity (used in reports).
+- **Default value:** intended for reports: when a store leaves the estimated value empty, the listing would be valued at the category's default value × quantity. Release 1 stores `default_value_cents` on each category but never applies it: a listing without an estimated value keeps it empty, and there are no reports yet.
 
 The `code` is the stable identifier used by the API, the database and the partner application form (`goods_categories`); it never changes once a category is in use. Admins can rename or deactivate a category, but a category in use cannot be deleted, only deactivated (US-35). Screens show the name in the user's language.
 
@@ -296,7 +358,7 @@ Stores never post these items (Default):
 - Infant formula past its date
 - Weapons
 
-Prohibited items have **no category**, so they cannot be posted through any category. Staff tick **"Safe and allowed"** on every post to confirm the goods are safe and contain no prohibited item; the confirmation is stored with who and when, and a listing cannot be published without it. The rule type `listing_safety` keeps a list of prohibited category codes *(setting)*, empty by default because no category above is prohibited; an admin can add a code to stop new posts in that category.
+Prohibited items have **no category**, so they cannot be posted through any category. Staff tick **"Safe and allowed"** on every post to confirm the goods are safe and contain no prohibited item; the confirmation is stored with who and when, and a listing cannot be published without it. The rule type `listing_safety` keeps a list of prohibited category codes *(setting)*, empty by default because no category above is prohibited; publishing a new `listing_safety` version with a code stops new posts in that category (a developer step until US-69 adds a settings screen).
 
 ### Safety rules (US-34)
 
@@ -333,11 +395,11 @@ start at BR-RES-006 because US-44 (#520) uses BR-RES-001 to BR-RES-005.
 
 | Rule ID | Business rule |
 | --- | --- |
-| BR-RES-006 | Only a household with status `approved` that has not expired can reserve. Expiry is checked against `expires_at`, so a file the nightly job has not moved yet is still refused. Being blocked by strikes will be added with the strikes story. |
+| BR-RES-006 | Only a household with status `approved` that has not expired can reserve. Expiry is checked against `expires_at`, so an expired file whose saved status is still `approved` is refused (there is no scheduled expiry job yet). Being blocked by strikes will be added with the strikes story. |
 | BR-RES-007 | A household's reservations on one listing, counting only those still `reserved`, add up to at most the listing's `max_per_household`. Two reservations of 1 on a listing with a maximum of 2 are allowed; a third is not. |
 | BR-RES-008 | A household has fewer active (`reserved`) reservations than `reservations.max_active_per_household` (default 3, a setting) before it can reserve again. Picked-up, cancelled and no-show reservations do not count. The household's row is locked while reserving, so two phones at once cannot pass the limit together. |
 | BR-RES-009 | Units are taken with one conditional SQL update, only while the listing is published, its pickup has not ended and enough units are left, in the same transaction as the reservation insert. Simultaneous reservations never over-book. |
-| BR-RES-010 | **Default:** The pickup code is fixed at 6 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no look-alike characters), drawn at random and unique per listing; a clash draws a new code. The length is fixed at 6 (the database column holds 6 characters) and is not a rule setting. |
+| BR-RES-010 | **Default:** The pickup code is fixed at 6 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no look-alike characters), drawn at random and unique per listing; a clash draws a new code. The length is fixed at 6 (the database column holds 6 characters) and is not a rule setting. **Exception (test fixtures):** the fictional seed data uses the codes `000001`, `000002`, … (`backend/iris/seedset.py`, `pickup_code=f"{number:06d}"`), which contain `0` and `1`. They are written directly by `manage.py seed`, not drawn by the reservation service, so they are predictable demo and test values only; real reservations always use the alphabet above. |
 
 The limits are checked in `backend/modules/reservations/domain/limits.py`, the
 code in `domain/codes.py`, the reservation in `services.py`, the household

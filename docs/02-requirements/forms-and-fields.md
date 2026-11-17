@@ -2,7 +2,9 @@
 
 # Forms and fields
 
-Every form in Iris, field by field. **Field** is the name used in the API and the database; it is also the layer name in the Figma wireframes. Labels are the exact text shown on screen (French first, English second). Validation runs in the front end for quick feedback **and** in the back end, which is the authority.
+Every form in Iris, field by field. **Field** is the name used in the API and the database; it is also the layer name in the Figma wireframes. Labels are the exact text shown on screen (French first, English second). The back end validates every field and is the authority. The front end checks only some fields for quick feedback (required fields and formats); where a form leaves a limit to the server, the section says so.
+
+Release 1 status (checked against `main` at `c13fc04`, November 17, 2026): this page also describes designed behaviour that is not built yet. Each such part is marked **Not built in Release 1**.
 
 This page publishes the **partner application**, **store** and **listing** forms (SET-11, #402), and the **walk-in registration** form (US-17, #461). French text comes from the [wireframes](https://www.figma.com/design/mxXyzEOGl4nuDVdYeoRNPA/Wireframes); English text follows the [glossary](../01-project/glossary.md).
 
@@ -41,15 +43,27 @@ On every form:
 
 ## Address fields
 
-Used by the partner application and the store form.
+Used by the partner application, the store form and the walk-in registration.
 
 | Field | Français | English | Type | Required | Rules |
 | --- | --- | --- | --- | --- | --- |
 | `street_number` | Numéro civique | Street number | text | Yes | 1 to 10 characters, digits with an optional letter or fraction, for example `1234` or `1234A` |
 | `street_name` | Rue | Street | text | Yes | 2 to 120 characters, for example `rue Saint-Denis` |
 | `unit` | App. | Apt. | text | No | At most 10 characters |
-| `city` | Ville | City | text | Yes | Default `Montréal` |
+| `city` | Ville | City | text | Yes | At most 80 characters. Default `Montréal` on the partner and walk-in forms |
 | `postal_code` | Code postal | Postal code | postal_code | Yes | May be outside Montréal |
+
+**What the server actually checks (Release 1).** The table above is the design.
+The three forms do not share one address validator yet:
+
+| Form | Server code | Street number | Street name | City | Postal code |
+| --- | --- | --- | --- | --- | --- |
+| Partner application | `backend/modules/stores/api/serializers.py`, pattern `STREET_NUMBER_PATTERN` in `stores/models.py` | `^\d{1,8}(?:[A-Za-z]\| ?\d/\d)?$` (for example `1234A`, `12 1/2`) | 2 to 120 | 1 to 80 | Canadian format |
+| Walk-in registration | `backend/modules/households/api/serializers.py` (`AddressInputSerializer`) | `^\d{1,8}[a-zA-Z]?(?:[/\-]\d{1,3})?$`, at most 10 (for example `1234A`, `12-3`) | 2 to 120 | 1 to 80; province fixed to `QC` | Canadian format |
+| Store edit (admin) | `backend/modules/stores/api/staff_store_serializers.py` and the `Store` model | Required, at most 10 characters, **no format check** | Required, at most 120 (no minimum of 2) | Required, at most 80 | Canadian format |
+
+All three use the shared postal-code rule (`modules.common`), and `unit` is at
+most 10 characters everywhere.
 
 ## Partner application form
 
@@ -113,9 +127,11 @@ Fields changed but not saved show "*" after their label, and a notice at the top
 
 ## Listing form
 
-One phone screen (`/store/listings/new`) to post a listing. The same form is used to edit and to repost a listing. Wireframes: Store page, flows S1, S3 and S5.
+One phone screen (`/store/listings/new`) to post a listing (US-33). The design also uses this form to edit and repost a listing (wireframes: Store page, flows S1, S3 and S5); **editing and reposting are not built in Release 1**, and there is no "My listings" screen or listing edit API.
 
 Defaults: pickup today 16:00 to 18:00, quantity 1, unit `item`, 1 per household.
+
+**Validation in Release 1.** The front end (`frontend/src/areas/store/pages/newListingForm.ts`) checks only that required fields are filled and well formed: photo type, title, category, whole numbers for quantity, maximum per household and value, valid times, and a best-before date for food. The limits in the table (title length, 1 to 999, 1 to 10, pickup timing, value range, best-before margin, prohibited categories) are checked **only by the server**; its 400 messages appear under the matching fields.
 
 | Field | Français | English | Type | Required | Rules |
 | --- | --- | --- | --- | --- | --- |
@@ -131,10 +147,12 @@ Defaults: pickup today 16:00 to 18:00, quantity 1, unit `item`, 1 per household.
 | `pickup_end` | Fin | End | time | Yes | 30 minutes to 12 hours after the start. Stored as a date-time. Help text under both times: "De 30 min à 12 h, au plus 7 jours à l’avance. / 30 min to 12 h, at most 7 days ahead." |
 | Place (screen only) | Lieu | Place | read-only | | The store’s address, from the store form. Help text: "L’adresse de votre commerce. / Your business’s address." |
 | `best_before` | Meilleur avant | Best before | date | Food categories | Hidden until a food category is chosen. On or after the pickup end date (margin 0 days, setting). Help text: "Pour les aliments : le jour de la fin de la cueillette ou après. / For food: the day the pickup ends or later." |
-| `estimated_value` | Valeur estimée | Estimated value | money | No | $0 to $1,000. If empty, category default × quantity. Help text: "Si vide, Iris utilise la valeur par défaut de la catégorie. / If empty, Iris uses the category’s default value." |
+| `estimated_value` | Valeur estimée | Estimated value | money | No | $0 to $1,000. Design: if empty, category default × quantity. **Not built in Release 1:** an empty value is saved as empty (`null`) and the category default is never applied (there are no reports yet). |
 | `safe_and_allowed` | Je confirme que ces produits sont sécuritaires et permis. | I confirm these goods are safe and allowed. | checkbox | Yes, on every post | Stored with who and when. Link: "Voir la liste des produits interdits / See the list of prohibited items" (a placeholder until that list exists) |
 
-Button: **Publier l’offre / Publish listing**, fixed at the bottom of the phone screen. After publishing, the store lands on **Mes offres / My listings** with "Offre publiée / Listing published".
+Button: **Publier l’offre / Publish listing**, fixed at the bottom of the phone screen. In Release 1, after publishing the store stays on the same screen: the form is cleared and a notice at the top says "Listing published" with the title (`useNewListingMutation.ts`). The design's landing on **Mes offres / My listings** is **not built in Release 1**.
+
+The two subsections below (Edit and Repost) are the design only: **not built in Release 1**.
 
 **Edit (S3).** Same form, pre-filled, with a back arrow. Button: **Enregistrer les modifications / Save changes**. Rules:
 
@@ -153,9 +171,9 @@ Error messages:
 | `best_before` | Choisissez le {date} ou après (fin de la cueillette). | Choose {date} or later (end of pickup). |
 | `best_before` (missing, food) | Entrez une date de meilleur avant. Elle est obligatoire pour les aliments. | Enter a best-before date. It is required for food. |
 | `safe_and_allowed` | Cochez cette case pour publier. | Tick this box to publish. |
-| `quantity` (edit) | Entrez {n} ou plus : {n} articles sont déjà réservés. | Enter {n} or more: {n} items are already reserved. |
+| `quantity` (edit, not built) | Entrez {n} ou plus : {n} articles sont déjà réservés. | Enter {n} or more: {n} items are already reserved. |
 | Alert at the top | **Vérifiez {n} champs.** Les champs à corriger sont indiqués plus bas. | **Check {n} fields.** The fields to fix are shown below. |
-| Alert at the top (edit, quantity too low) | **Quantité trop basse.** Il y a déjà {n} articles réservés. Entrez {n} ou plus, ou annulez l’offre. | **Quantity too low.** {n} items are already reserved. Enter {n} or more, or cancel the listing. |
+| Alert at the top (edit, quantity too low; not built) | **Quantité trop basse.** Il y a déjà {n} articles réservés. Entrez {n} ou plus, ou annulez l’offre. | **Quantity too low.** {n} items are already reserved. Enter {n} or more, or cancel the listing. |
 
 ## Walk-in registration form
 

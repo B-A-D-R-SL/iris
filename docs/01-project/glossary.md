@@ -55,7 +55,7 @@ Status codes from `business-rules.md` and their screen labels.
 
 ## Additional screen terms
 
-Terms based on `screens.md`, `user-stories.md`, `business-rules.md`, and `Iris-Requirements.md`.
+Terms based on the wiki's user stories, functional requirements and screen designs, and on `business-rules.md` (see [Sources](#sources)).
 
 | Area | Français | English | Meaning |
 | --- | --- | --- | --- |
@@ -63,7 +63,7 @@ Terms based on `screens.md`, `user-stories.md`, `business-rules.md`, and `Iris-R
 | Accounts | Déconnexion | Sign out | Sign out of an account |
 | Accounts | Créer un compte | Create an account | Create a household account |
 | Accounts | Mot de passe oublié? | Forgot your password? | Request a password reset |
-| Accounts | Code de vérification | Verification code | Two-factor sign-in for staff |
+| Accounts | Code de vérification | Verification code | Two-factor sign-in for staff (planned, US-09, Release 2; not installed in Release 1) |
 | Accounts | Invitation | Invitation | Invitation for a staff or store account |
 | Households | Inscription en personne | Walk-in registration | Registration completed with staff |
 | Households | Demande en ligne | Online application | Application submitted online |
@@ -115,7 +115,7 @@ Labels from `forms-and-fields.md`, grouped by form. Repeated labels are kept whe
 | --- | --- | --- | --- |
 | Sign in | `email` | Courriel | Email address |
 | Sign in | `password` | Mot de passe | Password |
-| Sign in | `code` | Code de vérification | Verification code |
+| Sign in | `code` | Code de vérification | Verification code (planned with US-09; the Release 1 sign-in form has no code step) |
 | Household account sign-up | `email` | Courriel | Email address |
 | Household account sign-up | `password` | Mot de passe | Password |
 | Household account sign-up | `password_confirm` | Confirmer le mot de passe | Confirm password |
@@ -241,9 +241,18 @@ For example, `household.registrationMembers.relations.spousePartner` identifies 
 
 ## Sources
 
-- `Iris-Requirements.md`
-- `user-stories.md`
-- `business-rules.md`
-- `forms-and-fields.md`
-- `screens.md`
-- `overview.md`
+- Wiki [Functional Requirements](https://github.com/B-A-D-R-SL/iris/wiki/Functional-Requirements)
+  and [Non-Functional Requirements](https://github.com/B-A-D-R-SL/iris/wiki/Non-Functional-Requirements)
+- Wiki [User Stories](https://github.com/B-A-D-R-SL/iris/wiki/User-Stories) and the
+  [`user-story` issues](https://github.com/B-A-D-R-SL/iris/issues?q=label%3Auser-story)
+- Wiki [UI Design Overview](https://github.com/B-A-D-R-SL/iris/wiki/UI-Design-Overview),
+  [Mockups](https://github.com/B-A-D-R-SL/iris/wiki/Mockups) and the
+  [Figma wireframes](https://www.figma.com/design/mxXyzEOGl4nuDVdYeoRNPA/Wireframes) (screens)
+- [business-rules.md](../02-requirements/business-rules.md)
+- [forms-and-fields.md](../02-requirements/forms-and-fields.md)
+- [overview.md](overview.md)
+- The translation files in `frontend/src/shared/i18n/`
+
+Many terms above name planned screens (online application, priority, needs,
+privacy rights, assistant, furniture). A term in this glossary does not mean the
+screen exists; see the [project overview](overview.md#users) for what Release 1 does.
