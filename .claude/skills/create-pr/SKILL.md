@@ -210,8 +210,8 @@ except the AI level, the tasks and the AI usage wiki entry, which the developer 
    - The developer can type changes with Other (e.g. "merge 2 into 1", "use T-06.41.4 for 1");
      apply them without asking again unless they are unclear.
 7. **AI usage wiki entry**, header
-   "AI wiki": "The AI usage record is in the wiki, one page per iteration (`AI_USAGE.md` only
-   points there). Is this PR's AI help recorded on the page for `<milestone>`?"
+   "AI wiki": "The AI usage record is in the wiki, one page per iteration (`AI_USAGE.md` lists
+   the tools and points there). Is this PR's AI help recorded on the page for `<milestone>`?"
    - **Draft it for me (Recommended)**: "I'll write the entry in the report for you to paste."
    - **Already recorded**: "The entry is on the wiki page."
    - **Not needed**: "Not a feature or fix built with AI help."
