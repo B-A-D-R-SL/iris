@@ -30,7 +30,6 @@ Ensure Docker is running and Docker Compose supports Watch (v2.22+).
 ```bash
 git clone https://github.com/B-A-D-R-SL/iris.git
 cd iris
-git switch setup
 ```
 
 ### 3. Start Iris
@@ -96,8 +95,13 @@ photo-demo output through the source bind mount. See the
 dependency installation, permission handling and smoke checks.
 
 Compose builds the backend's `development` target so its test and lint tools stay
-available. A normal backend Docker build produces the smaller `runtime` target
-for staging, with application resources and runtime dependencies.
+available. The backend `Dockerfile` also has a smaller `runtime` target (default for
+`docker build backend`) without development tools. The image meant for staging is not
+that one: the [`deploy-staging.yml`](.github/workflows/deploy-staging.yml) workflow and the
+CI release-image smoke test ([`release-image.yml`](.github/workflows/release-image.yml))
+build the root [`Dockerfile`](Dockerfile), whose `release` stage bundles the built frontend
+and the backend with staging settings. Staging has not been deployed yet (see
+[Current Development Status](#current-development-status)).
 
 | Service | Internal Port | Host Port |
 | --- | --- | --- |
@@ -136,7 +140,7 @@ The hooks live in the repository, but each clone needs the one-time Git configur
 - `pre-commit` checks staged changes for whitespace errors.
 - `commit-msg` requires `<ID> <type>(<scope>): <summary>`, for example `T-00.08.3 chore(git): add commit policy hooks`. IDs may start with `T`, `SET`, `FIX`, `US`, or `ES`; `FIX` is for fix tasks raised by audits and reviews, and `SET` stays for setup tasks. Allowed types are `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, and `ci`. Git merge commits are exempt.
 
-The **Commit policy** pull-request check validates new non-merge commits using the hook from the protected base branch. The PR that first adds this workflow needs a teammate's review because the base branch cannot run it yet. After merging it, a repository administrator must require the `commit-policy` job on protected branches and prevent direct pushes for the check to block noncompliant contributions. This public repository also needs an Actions event policy that allows `pull_request_target`; [GitHub's default policy](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target#default-policy-for-pull_request_target) is scheduled to block that event from November 2, 2026.
+The **Commit policy** pull-request check validates new non-merge commits using the hook from the protected base branch. The PR that first adds this workflow needs a teammate's review because the base branch cannot run it yet. The `commit-policy` job is a required check on `main`, so noncompliant commits block the merge. This public repository also needs an Actions event policy that allows `pull_request_target`; [GitHub's default policy](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target#default-policy-for-pull_request_target) is scheduled to block that event from November 2, 2026.
 
 ### Pull requests
 
@@ -218,10 +222,11 @@ changes so the container runs the current version.
 
 ### Continuous Integration
 
-`.github/workflows/ci.yml` runs on every pull request (whatever its target branch) and on every push to `main`. The `backend` and `frontend` jobs are the ones the `main` ruleset (#381) is to require before a merge:
+`.github/workflows/ci.yml` runs on every pull request (whatever its target branch) and on every push to `main`. The `main` ruleset requires four checks before a merge: `backend` and `frontend` (both from `ci.yml`), `pr-policy` ([`pr-policy.yml`](.github/workflows/pr-policy.yml)) and `commit-policy` ([`commit-policy.yml`](.github/workflows/commit-policy.yml)). It also requires one human approval; CodeRabbit's approval does not count as that review. The other `ci.yml` jobs run on every pull request but are not required:
 
-- **backend**: ruff lint and format, mypy, import-linter module boundaries, missing migrations, `check --deploy --fail-level WARNING` with production settings and CI-only values (FIX-17), pytest against PostgreSQL 17 with at least 70% total coverage, pip-audit, `pnpm gen:api --check`, and `pnpm test:api`.
-- **frontend**: ESLint, Prettier, `tsc`, Vitest with coverage, production build, `pnpm audit` (high and critical vulnerabilities fail).
+- **backend** (required): ruff lint and format, mypy, import-linter module boundaries, missing migrations, `check --deploy --fail-level WARNING` with production settings and CI-only values (FIX-17), pytest against PostgreSQL 17 with at least 70% total coverage, pip-audit, `pnpm gen:api --check`, and `pnpm test:api`.
+- **frontend** (required): ESLint, Prettier, `tsc`, Vitest with coverage, production build, `pnpm audit` (high and critical vulnerabilities fail).
+- **photo-expiry**: waits the real five minutes for a private photo link to expire.
 - **containers** (FIX-24): builds both application images, checks non-root startup and excluded synthetic secrets, starts all six Compose services, exercises developer tools and verifies frontend Watch synchronization in a disposable project. Run `bash tools/container-smoke.sh` locally; see the [container guide](docs/guides/container-hardening.md).
 - **secret-scan** (FIX-17): gitleaks 8.30.1 (exact release, SHA-256 checked) scans the pull request's commits, or the commits pushed to `main`; a manual run (`workflow_dispatch`) scans the whole history. A finding fails the job. Accepted false positives are in `.gitleaks.toml`: Microsoft's public Azurite key, and made-up passwords in test files (provider-specific rules still apply there).
 - **zap-baseline** (FIX-17, SEC-10): starts the backend with production settings over plain HTTP (`iris.settings.ci_scan`), PostgreSQL 17 and the seed data, then runs the OWASP ZAP 2.17.0 baseline scan (image pinned by digest) from the public `/admin/login/` page (`/api/docs/` is admin-only since FIX-04). `.github/scripts/zap_gate.py` fails the job on any High-risk alert not set to `IGNORE` in `.zap/rules.tsv` (each with its reason); lower risks are listed in the log. The HTML and JSON reports are uploaded as the `zap-baseline-report` artifact.
@@ -238,6 +243,10 @@ uv export --project tools/mock_notices --locked --all-groups --no-emit-project -
 uvx pip-audit==2.10.1 --strict --disable-pip --require-hashes --requirement /tmp/requirements.txt
 ```
 
+- **release-image** ([`release-image.yml`](.github/workflows/release-image.yml)): builds the root `Dockerfile` as a non-root image, then boots it against PostgreSQL 17 (migrate, seed, `/api/ready/`).
+- **sonar**: the SonarQube Cloud quality gate (see below).
+- **Deploy staging** ([`deploy-staging.yml`](.github/workflows/deploy-staging.yml)): runs after CI succeeds on `main`, but only when the repository variable `STAGING_DEPLOY_ENABLED` is `true`. It is not set, so every run has been skipped; see Current Development Status.
+
 The ZAP gate also fails missing or malformed reports and reports with no scanned
 sites; a valid scanned site with zero alerts passes. The production check and
 ZAP jobs supply CI-only SMTP, public sender and HTTPS origin values to satisfy
@@ -247,16 +256,15 @@ US-57's production guards without Azure credentials or weakening those guards.
 flowchart LR
     pr["Pull request<br/>or push to main"] --> be["backend<br/>ruff, mypy, boundaries, migrations, check --deploy,<br/>pytest + coverage, pip-audit, API types"]
     pr --> fe["frontend<br/>eslint, prettier, tsc,<br/>vitest + coverage, build, pnpm audit"]
-    pr --> gl["secret-scan<br/>gitleaks on the new commits"]
-    pr --> zap["zap-baseline<br/>backend + seed data,<br/>ZAP baseline, High risk fails"]
+    pr --> gl["secret-scan (not required)<br/>gitleaks on the new commits"]
+    pr --> zap["zap-baseline (not required)<br/>backend + seed data,<br/>ZAP baseline, High risk fails"]
     pr -. "lock file changed,<br/>or weekly" .-> audit["dependency-audit (not required)<br/>pip-audit on every uv project,<br/>pnpm audit incl. dev dependencies"]
-    be --> sonar["sonar<br/>SonarQube Cloud quality gate"]
+    be --> sonar["sonar (not required)<br/>SonarQube Cloud quality gate"]
     fe --> sonar
-    be --> merge{"All green, CodeRabbit<br/>and a teammate approve?"}
+    pr --> pol["pr-policy and commit-policy<br/>(required)"]
+    be --> merge{"Four required checks green<br/>and one human approval?"}
     fe --> merge
-    gl --> merge
-    zap --> merge
-    sonar --> merge
+    pol --> merge
     merge -- "merge commit (no squash)" --> main["main"]
 ```
 
@@ -318,8 +326,22 @@ For manual execution, configure `backend/.env` with a valid `DJANGO_SECRET_KEY` 
 
 ## Current Development Status
 
-The initial frontend and backend foundations, Docker Compose environment, database integration, development administrator, and email testing infrastructure are implemented.
+**Release 1 (November 17, 2026) is delivered.** It covers 20 user stories from Iterations 2, 3 and 4, all closed with their code on `main`. The wiki has the per-iteration summaries ([Iteration 4 Summary](https://github.com/B-A-D-R-SL/iris/wiki/Iteration-4-%E2%80%93-Summary)) and the Contributions page.
 
-The initial backend and frontend checks passed. The additional strict TypeScript, logging, routing, and formatting changes should be revalidated using the commands above before the pull request.
+Tests and coverage on `main` at commit `c13fc04` (CI run 43783513530, green):
+
+| Suite | Tests | Coverage |
+| --- | --- | --- |
+| Backend (pytest) | 3,415 | 96.71% (CI fails below 70%) |
+| Frontend (Vitest) | 981 | 94.93% statements |
+
+There are no end-to-end or load tests yet, apart from the search load test.
+
+Known limits of Release 1:
+
+- **Staging was never deployed.** The `deploy-staging` workflow is skipped because `STAGING_DEPLOY_ENABLED` is unset: the Azure subscription is not yet activated. What has been exercised instead is the release image booting in CI and the local Docker Compose environment. See the wiki Deployment Plan and [Azure staging notes](docs/guides/azure-staging.md).
+- **Households cannot sign in yet.** Household browsing (US-36) and reserving (US-41) are implemented and tested at API level, but nothing outside the tests links a household to a user account, and the seed creates no household accounts. Linking is planned in US-93 (Release 2). There is no "my reservations" view and no cancel yet.
+- Two-factor sign-in for staff and removal of notice-photo metadata are planned for Release 2.
+- Only fictional data is used until the Release 2 pilot.
 
 **Azurite:** Compose starts Azurite with `--skipApiVersionCheck`, so the current Azure SDK in `backend/uv.lock` can store and read blobs even when it uses a newer storage API version than Azurite 3.35 knows (checked for T-03.18.2: private container, upload, download and delete).
