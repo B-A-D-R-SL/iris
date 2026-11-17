@@ -1,6 +1,23 @@
 # ADR 0001: Tech stack and modular monolith
 
-Status: Accepted · Date: 2026-10-05
+Status: Accepted · Date: 2026-10-05 · Amended: 2026-11-17 (see below)
+
+> **Amendment, November 17, 2026 (FIX-32, [#739](https://github.com/B-A-D-R-SL/iris/issues/739)).**
+> The decision below is kept as written in October. Where Release 1 differs:
+>
+> - **Two-factor for staff** is not installed yet: `allauth.mfa` is not in
+>   `INSTALLED_APPS`. It is planned for Release 2 ([US-09 #436](https://github.com/B-A-D-R-SL/iris/issues/436), SEC-03).
+> - **AI Document Intelligence** is no longer the chosen notice reader.
+>   [ADR 0005](0005-notice-reading.md) (Proposed) compares it with Gemini on Vertex AI
+>   (Montréal) and proposes Gemini, with Document Intelligence as fallback, pending
+>   B.A.D.R.'s decision. No AI service is used by Release 1 code.
+> - **Hosting region:** Canada East remains the production target (SET-24). The
+>   temporary staging environment cannot use Canadian regions on the student
+>   subscription; see the [SET-17 ADR](../04-architecture/adr-set17-student-staging.md).
+>   Staging has not been deployed.
+> - **"Thresholds and weights in admin settings":** settings are versioned in the
+>   `rules` module, but there is no admin screen or API to change them yet ([US-69 #560](https://github.com/B-A-D-R-SL/iris/issues/560));
+>   they are loaded with `seed_rules`.
 
 ## Context
 

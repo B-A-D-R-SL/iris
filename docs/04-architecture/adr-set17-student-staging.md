@@ -2,13 +2,20 @@
 
 # SET-17: temporary student staging and cost boundary
 
-Status: proposed in the SET-17 branch for team review, 13 November 2026.
-Updated 14 November 2026: the hosting region is pending (see below).
-Reviewed 15 November 2026: repository implementation merged in
-[PR #700](https://github.com/B-A-D-R-SL/iris/pull/700), present in the architecture
-snapshot at `a022580`. The hosting/cost proposal and live activation remain
-pending; merging implementation did not approve a region or deploy Azure.
-Issue: [#408](https://github.com/B-A-D-R-SL/iris/issues/408).
+Status: **Accepted** for the staging design (one release image, opt-in
+deployment, fictional data only, temporary environment); **hosting region and
+subscription still open.**
+
+- Proposed in the SET-17 branch for team review, 13 November 2026.
+- Updated 14 November 2026: the hosting region is pending (see below).
+- Accepted 15 November 2026: the team merged the implementation in
+  [PR #700](https://github.com/B-A-D-R-SL/iris/pull/700) and closed
+  [SET-17 #408](https://github.com/B-A-D-R-SL/iris/issues/408) as completed. The
+  merge did not choose a region or deploy Azure.
+- Checked November 17, 2026 against `main` at `c13fc04`: no region decision has
+  been recorded, `STAGING_DEPLOY_ENABLED` is unset, every `deploy-staging` run was
+  skipped and staging has not been deployed. The region decision will be added
+  here when it is made.
 
 ## Context
 
