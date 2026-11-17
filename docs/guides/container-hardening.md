@@ -47,8 +47,14 @@ The backend Dockerfile provides two runnable targets. Compose explicitly builds
 `development`, which includes the locked development dependencies, test sources
 and repository tools needed by the [README checks](../../README.md).
 
-The last/default target is `runtime`, intended for staging web and worker
-processes. Build it with the usual command:
+The last/default target is `runtime`, a production-style backend image without
+development tools that the smoke runner builds and checks. It is **not** the
+staging image: staging (`.github/workflows/deploy-staging.yml`) and the CI
+release-image smoke test (`.github/workflows/release-image.yml`) both build the
+root [`Dockerfile`](../../Dockerfile), whose final `release` stage bundles the
+built React app with Django/Gunicorn and the Procrastinate worker in one
+container (supervised by `backend/iris/release.py`). Build the backend `runtime`
+target with:
 
 ```bash
 docker build --tag iris-backend:runtime backend

@@ -46,7 +46,13 @@ We will follow a common GitHub workflow:
 5. Address feedback and merge the changes.
 6. Integrate the completed functionality into Project Iris.
 
-Detailed guidelines for branches, commits, pull requests, reviews, and AI usage are available in `CONTRIBUTING.md`.
+Where to find the details:
+
+- Commit message format, the pull request checks and the CI jobs: the [README](../../README.md) ("Commit hooks", "Pull requests", "Continuous Integration").
+- Opening a pull request with `/create-pr`: [CONTRIBUTING.md](../../CONTRIBUTING.md).
+- What reviewers check: [review rules](review-rules.md) (eleven rules; CodeRabbit enforces them with eleven custom pre-merge checks in [`.coderabbit.yaml`](../../.coderabbit.yaml), eight as errors and three as warnings).
+- Merging: the `main` ruleset requires four checks (`backend`, `frontend`, `pr-policy`, `commit-policy`) and one human approval. CodeRabbit's approval does not count as that review. Merge commits only, no squash.
+- AI usage records: the wiki's [AI Usage](https://github.com/B-A-D-R-SL/iris/wiki/AI-Usage) pages; [AI_USAGE.md](../../AI_USAGE.md) points there.
 
 ## Iterations and Integration
 
@@ -58,20 +64,20 @@ At the end of each iteration, we will review completed work, identify remaining 
 
 ## Definition of Done
 
-A user story is considered complete when:
+We use one Definition of Done, the one on the wiki's [Acceptance Criteria](https://github.com/B-A-D-R-SL/iris/wiki/Acceptance-Criteria) page. A user story is complete when:
 
-- Its acceptance criteria have been met.
-- The functionality has been implemented and tested.
-- The changes have been reviewed and merged.
-- It integrates correctly with the rest of Project Iris.
-- Necessary documentation has been updated.
-- B.A.D.R. has reviewed or accepted it when stakeholder approval is required.
+- Every acceptance criterion is met.
+- The unit-tests task and every build task are closed.
+- Screens exist in French and English.
+- CI is green, CodeRabbit comments are answered, and one teammate has given a substantive review.
+- Pull requests and tests are linked in the issue.
+- B.A.D.R. has confirmed the story works, recorded with the `signed-off` label on the issue. The label means B.A.D.R. confirmed it; do not add it without that confirmation.
 
 ## Documentation
 
 Important decisions, changes, and meeting outcomes will be documented when necessary.
 
-Technical decisions can be recorded in `docs/adr/`, and meeting notes in `docs/meetings/`.
+Technical decisions are recorded in `docs/adr/`. Meeting minutes are in the wiki; `docs/meetings/` only holds the note template.
 
 Documentation should help the team understand and maintain the project without creating unnecessary administrative work.
 

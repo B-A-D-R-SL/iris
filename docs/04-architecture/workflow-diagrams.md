@@ -4,7 +4,8 @@
 The diagrams live in [Release 1 workflows](architecture-workflows.md).
 Revised 15 November 2026 against `main` at `a022580`: implemented behavior and
 deferred transitions are distinguished, including the reserve/pickup and
-administrative cancellation paths. See the
+administrative cancellation paths. Refreshed November 17, 2026 against `c13fc04`
+(walk-in consent and audit steps). See the
 [Release 1 review](architecture.md#release-1-review) for evidence and reasons.
 
 <a id="workflow-6"></a>

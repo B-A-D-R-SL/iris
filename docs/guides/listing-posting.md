@@ -9,10 +9,13 @@ The goal is to let an authorized store worker publish an offer, such as five
 loaves of bread available for pickup. The backend checks the request and saves
 the listing through `POST /api/store/listings/`.
 
-**The posting backend and its tests are implemented, but the complete user
-workflow still needs account and photo-storage integration.**
-The tests use explicit stand-ins for those unfinished dependencies. The US-34
-safety checks are connected; see [section 10](#10-us-34-safety-checks).
+**The posting workflow is complete on `main` (checked at `c13fc04`, November 17,
+2026):** accounts carry a role and store (US-01), the private photo-storage
+adapter is connected (FIX-02), and the US-34 safety checks run on every post
+(see [section 10](#10-us-34-safety-checks)). Some unit tests still use stand-ins
+for speed; see [section 7](#7-how-the-tests-work-without-the-unfinished-integrations).
+This guide was first written before those integrations; the sections below are
+updated to match.
 
 ## 1. What can someone do today?
 
@@ -21,13 +24,14 @@ safety checks are connected; see [section 10](#10-us-34-safety-checks).
 | Posting endpoint | Accepts and validates a request, checks permissions, and can save a published listing when its required dependencies are available. |
 | Posting form | Implemented at `/store/listings/new`, including category selection, pickup fields, confirmation, and publication/error feedback. |
 | Frontend API client | Implemented: sends JSON or multipart data to the posting endpoint with CSRF and language headers, and maps 400 field errors back to the form. |
-| Real accounts | The current default Django users lack the required role/store assignments. They are refused; test assignments are not installed in the running app. |
+| Real accounts | Implemented: the custom `User` model (`backend/modules/accounts/models.py`) has `role` and `store`. Active `store_staff` and `store_manager` accounts with a store can post for that store only; other roles are refused. `manage.py seed` creates fictional store accounts for local use. |
 | Safety checks | The backend runs US-34's safety rule: the safe-and-allowed tick, the food best-before date, and prohibited categories. See [section 10](#10-us-34-safety-checks). |
-| Photos | Size, declared type, and JPEG/PNG signatures are checked. Saving photos needs a real private-storage adapter; tests use a fake. |
-| Tests | Can exercise the backend with temporary PostgreSQL records and fake integrations, without waiting for those integrations to be finished. |
+| Photos | Implemented (FIX-02): size, declared type and JPEG/PNG signatures are checked, then `backend/adapters/photos.py` decodes, reorients, resizes and strips metadata, and `backend/adapters/blob_photos.py` uploads privately (Azurite locally). Some tests use a fake store. See the [storage guide](listing-photo-storage.md). |
+| Tests | Exercise the backend with temporary PostgreSQL records; service and API tests can inject fake photo stores and safety checkers. |
 
-The form and API client are implemented, but live publication still depends
-on account integration, and a post with a photo needs the photo-storage adapter.
+The form, API client, accounts and photo storage are all connected. Posting with
+a photo needs a configured photo store (`LISTING_PHOTO_STORE_BACKEND`); see the
+[storage guide](listing-photo-storage.md).
 
 ## 2. The main ideas
 
@@ -145,9 +149,10 @@ versions rather than hard-coding these limits into its validation flow.
 | Category | Must be active and not on `prohibited_category_codes`. |
 | Photo | Optional JPEG/PNG, at most 5 MiB, with a matching byte signature. The adapter receives a 1280-pixel maximum dimension. |
 
-Signature checks do not prove that an entire image is valid. The real adapter
-must decode/verify the image, strip metadata, resize it, and store it privately.
-That adapter is still pending.
+Signature checks do not prove that an entire image is valid. The photo adapter
+(FIX-02, `backend/adapters/photos.py`) then decodes and verifies the image,
+strips its metadata, resizes it and stores it privately; see the
+[storage guide](listing-photo-storage.md).
 
 ## 6. Request and response examples
 
@@ -201,9 +206,12 @@ runtime. Sending translated API errors does not implement frontend UI.
 
 The backend uses Django's ORM for database operations. Input validation and
 server-owned fields add protection, but validation is not HTML sanitization;
-the future UI must display listing text safely as text.
+the UI must display listing text as text (React escapes it by default).
 
 ## 7. How the tests work without the unfinished integrations
+
+(The heading is kept for existing links. The integrations are now finished; the
+tests below still use stand-ins where they keep a test fast and focused.)
 
 Tests create real records in Django's temporary PostgreSQL test database.
 They do not insert fake users or offers into the development database.
@@ -293,21 +301,21 @@ Earlier wider checks reported unrelated frontend CRLF formatting differences
 and dependency-audit findings. They were outside these fixes; the results
 above do not claim that every repository-wide audit or hosted CI check passed.
 
-## 9. What teammates still need to connect
+## 9. Integration status
 
-1. **US-01 accounts:** real role/store assignments and the login/session flow.
-   Databases already using Django's default user need a reviewed migration
-   strategy before switching user models.
+All the integrations this guide originally waited for are connected on `main`:
+
+1. **US-01 accounts:** done. The custom `User` model carries `role` and `store`,
+   and sign-in uses allauth browser sessions ([US-01 #422](https://github.com/B-A-D-R-SL/iris/issues/422)).
 2. **US-34 safety:** done; see [section 10](#10-us-34-safety-checks).
-3. **Photo storage:** connected by FIX-02 through `LISTING_PHOTO_STORE_BACKEND`.
+3. **Photo storage:** done, connected by FIX-02 through `LISTING_PHOTO_STORE_BACKEND`.
    The adapter processes images, uploads privately, deletes failed posts' photos
    and creates five-minute read links for authorized browse results. See the
    [storage guide](listing-photo-storage.md) for local configuration and tests.
-4. **Rule versions:** seed/publish the required rules when the integrations
-   are ready. The existing `seed_rules` command supports the posting defaults;
-   tests publish their own temporary versions.
-5. **Review and acceptance:** teammate review, hosted CI, and the remaining
-   story acceptance checks before considering the complete workflow finished.
+4. **Rule versions:** `seed_rules` loads the posting defaults; tests publish their
+   own temporary versions.
+5. **Review and acceptance:** US-33 ([#491](https://github.com/B-A-D-R-SL/iris/issues/491))
+   is closed. Editing, reposting and a "My listings" screen are not built.
 
 For the wider design, read the [architecture](../04-architecture/architecture.md),
 [API contract](../03-design/api.md), and

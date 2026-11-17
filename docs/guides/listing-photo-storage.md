@@ -20,9 +20,11 @@ If signing fails, listings remain available with `photo_url: null` and a safe
 failure event is logged. No unsigned or public URL is substituted.
 Internal references are not
 serialized. Responses use `Cache-Control: private, no-store` and
-`Referrer-Policy: no-referrer`. No new endpoint or frontend screen is introduced.
-The posting response remains unchanged; the existing listing form can upload
-photos, while rendering browse-card images is a separate frontend change.
+`Referrer-Policy: no-referrer`. No new endpoint is introduced and the posting
+response is unchanged. The listing form uploads photos, and the household
+`/listings` and `/listings/:id` screens render `photo_url`
+(`frontend/src/areas/household/components/ListingCardView.tsx`,
+`frontend/src/areas/household/pages/ListingDetail.tsx`).
 
 ## Storage behaviour
 
@@ -119,11 +121,16 @@ explicit developer command is run; storage tests keep image bytes in memory.
 
 1. Sign in with a store account assigned to an active store. Post a listing with
    a JPEG/PNG. A successful request returns 201 with the normal listing fields.
-2. Sign in as a beneficiary with an approved household. The frontend listings
-   screen is currently a placeholder and does not fetch cards. In the same
-   browser, open `http://localhost:8000/api/listings/` directly; the session cookie
-   is shared on localhost across these ports. Find the card's `photo_url` in the
-   JSON response. Without the approved beneficiary session, access is refused.
+2. Sign in as a beneficiary linked to an approved household. The `/listings`
+   screen shows the photo on the card and on the detail page. To see the raw
+   link, open `http://localhost:8000/api/listings/` in the same browser (the
+   session cookie is shared on localhost across these ports) and find the card's
+   `photo_url`. Without the approved beneficiary session, access is refused.
+   Note: the seed creates no beneficiary account and nothing outside the tests
+   links an account to a household yet (US-93
+   [#704](https://github.com/B-A-D-R-SL/iris/issues/704), Release 2), so this step
+   needs a household linked by hand in a local database; the automated browse
+   photo tests (`modules/reservations/tests/browse/test_photos.py`) cover it.
 3. Open that URL: the processed image should load. Opening the URL without its
    query string must be refused. Do not publish the signed URL in screenshots.
 4. After its five-minute deadline, make a fresh request to the same URL. It

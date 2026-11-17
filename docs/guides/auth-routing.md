@@ -11,7 +11,17 @@ The backend mounts `allauth.headless.urls` **once**, at `/api/auth/`.
 The former `/_allauth/` development route has been removed to avoid duplicate
 Django URL namespaces. US-01 uses the browser sign-in and sign-out operations;
 `/api/me/` supplies the current profile. Public registration stays closed until
-US-02 adds email verification. Password reset and MFA enrollment remain later work.
+US-02 adds email verification. MFA enrollment remains later work (US-09, Release 2).
+
+Password reset is live on the backend: allauth's browser routes
+`/api/auth/browser/v1/auth/password/request` and `.../auth/password/reset` are
+mounted with the rest of `allauth.headless.urls`, and
+`backend/modules/accounts/adapter.py` queues the reset email through the shared
+notifications service (`password_reset` template). There is no frontend reset
+screen yet: `/forgot-password` has no route (see `frontend/src/app/App.test.tsx`,
+"screens not built yet have no route"). The endpoint access test
+(`backend/tests/test_endpoint_access.py`) exempts the whole `api/auth/` prefix,
+because allauth enforces its own authentication there.
 
 FIX-14 removes the dormant frontend two-factor API request and code-entry step
 until US-09 supplies the server flow. `allauth.mfa` is not installed. An unexpected

@@ -1,3 +1,5 @@
+> Historical note: this is the Iteration 1 and 2 plan, kept as written. It is not updated. The architecture now lives in [`docs/04-architecture/architecture.md`](../04-architecture/architecture.md).
+
 # Iterations 1 and 2 in detail
 
 Iteration 1 (Oct 5–6): setup and planning by Ammar and Danial. Iteration 2 (Oct 7–20): foundations and design, so everyone learns the project before building features. Everything is merged by **Sunday Oct 18 at 11:59 pm**, reviewed Monday Oct 19 and submitted Tuesday Oct 20.
@@ -93,12 +95,12 @@ Suggested owner: **Mark Antoun** · 3 points · Oct 7–Oct 18 · depends on —
 
 Done when:
 
-- Publish in the wiki and docs/03-design/architecture.md, starting from the team draft diagrams: system context, high-level architecture (containers), layers inside a module, module dependencies, deployment
+- Publish in the wiki and docs/04-architecture/architecture.md, starting from the team draft diagrams: system context, high-level architecture (containers), layers inside a module, module dependencies, deployment
 - Sequence diagrams for walk-in registration, partner onboarding and reserve-and-pickup; state diagrams for the household file and the reservation
 - PNG exports in docs/03-design/img/ for slides
 
-- [T-00.06.1] **Structure diagrams** (Oct 7–Oct 12; depends on —): C4 context (users, Iris, Azure services), container (browser app, Django API, worker, PostgreSQL, Blob, email, Document Intelligence), module dependencies (allowed arrows only), deployment (Azure Canada East resources). Files: `docs/03-design/architecture.md, docs/03-design/img/`.
-- [T-00.06.2] **Sequence diagrams** (Oct 13–Oct 18; depends on T-00.06.1): Walk-in registration (intake worker -> households service -> eligibility -> audit -> email job) and reserve-and-pickup (household -> reservations service atomic update -> code -> store confirms -> audit). Files: `docs/03-design/architecture.md`.
+- [T-00.06.1] **Structure diagrams** (Oct 7–Oct 12; depends on —): C4 context (users, Iris, Azure services), container (browser app, Django API, worker, PostgreSQL, Blob, email, Document Intelligence), module dependencies (allowed arrows only), deployment (Azure Canada East resources). Files: `docs/04-architecture/architecture.md, docs/03-design/img/`.
+- [T-00.06.2] **Sequence diagrams** (Oct 13–Oct 18; depends on T-00.06.1): Walk-in registration (intake worker -> households service -> eligibility -> audit -> email job) and reserve-and-pickup (household -> reservations service atomic update -> code -> store confirms -> audit). Files: `docs/04-architecture/architecture.md`.
 
 ### [SET-07] Rule settings module
 

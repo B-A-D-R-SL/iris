@@ -6,10 +6,15 @@ canonical overview, as requested, rather than creating companion documents. -->
 # Iris architecture — Release 1 implementation
 
 Reviewed 15 November 2026 for [SET-21 (#412)](https://github.com/B-A-D-R-SL/iris/issues/412)
-against local `main` at `a022580640be604eaf08f56aedd2f6d548583c65`
-(through PR #710). This is a code snapshot, not a deployment certificate or a
-claim that all Release 1 issues are complete. The original
-[initial draft](architecture-initial-draft.md) is preserved.
+against `main` at `a022580` (through PR #710). Refreshed November 17, 2026 for
+FIX-32 ([#739](https://github.com/B-A-D-R-SL/iris/issues/739)) against `main` at
+`c13fc04` (through PR #724), which adds FIX-29
+([PR #715](https://github.com/B-A-D-R-SL/iris/pull/715)), FIX-30
+([PR #716](https://github.com/B-A-D-R-SL/iris/pull/716)) and FIX-06
+([PR #712](https://github.com/B-A-D-R-SL/iris/pull/712)). This is a code
+snapshot, not a deployment certificate: staging has not been deployed (see
+[Release 1 deployment](#5-release-1-deployment)). The original
+[initial draft](architecture-initial-draft.md) is preserved and marked as superseded.
 
 The [Release 1 review below](#release-1-review) records the differences,
 reasons and PR/issue evidence. The existing [database schema and ERD](../03-design/database-schema.md#erd)
@@ -27,8 +32,8 @@ Release 1 includes:
 - Reservations and pickup confirmation.
 - Staff search.
 - Audit records and email delivery.
-- Staging deployment packaging and workflow; live Azure activation/verification
-  remain pending in this reviewed snapshot.
+- Staging deployment packaging and workflow. Staging has not been deployed:
+  Azure activation and live verification are still pending.
 
 Online AI registration and automatic approval, priority tiers, strikes,
 the full review queue, privacy-rights workflows, reporting, needs,
@@ -43,12 +48,20 @@ A `review_required` or `no_show` status does not by itself require a
 
 Walk-in approval can send a set-password invitation, but linking the resulting
 account to its household is Release 2 [US-93 (#704)](https://github.com/B-A-D-R-SL/iris/issues/704).
-The Release 1 browse/reserve path needs an already linked approved household,
-such as the fictional seed accounts. Expiry status jobs, household cancellation
-screens, no-show processing and late pickup confirmation are also deferred.
+The Release 1 browse/reserve path needs a beneficiary account linked to an
+approved household. Walk-in approval creates an account and emails a set-password
+invitation, but nothing outside the tests creates that link, and the seed
+creates no beneficiary accounts (it seeds one admin, two intake workers and store
+accounts only), so in a running Release 1 instance no household can browse or
+reserve. Browse (US-36) and reserve (US-41) are implemented and tested
+at API level. Expiry status jobs, a "my reservations" screen, household
+cancellation, no-show processing and late pickup confirmation are also deferred.
 
-AI Document Intelligence belongs to the later online registration flow.
-A technical spike does not make it an active Release 1 dependency.
+Automatic notice reading belongs to the later online registration flow. The
+provider is not chosen: [ADR 0005](../adr/0005-notice-reading.md) proposes Gemini
+with Azure AI Document Intelligence as fallback. A technical spike
+(`tools/notice_reading_spike`) does not make it a Release 1 dependency; there is
+no LLM or AI service in `backend/` or `frontend/`.
 
 ## Architecture decisions
 
@@ -118,15 +131,17 @@ Configured production guards do not establish a running Azure deployment.
 | audit | AuditEvent | Action records without personal data in event metadata |
 | notifications | EmailLog | Queued email delivery and delivery outcomes |
 | privacy | None | Implemented sensitive-reason validation shared by household, store and audit services; privacy-rights workflows deferred |
-| priority | None | Registered scaffold; priority, tiers and strikes deferred |
-| review | None | Registered scaffold; review-case workflows deferred |
-| reporting | None | Registered scaffold; reporting workflows deferred |
+| priority | None | Registered app with only `apps.py` and a README listing planned stories; priority, tiers and strikes deferred |
+| review | None | Registered app with only `apps.py` and a README; review-case workflows deferred |
+| reporting | None | Registered app with only `apps.py` and a README; reporting workflows deferred |
 
 There are 15 registered business-module packages, 11 with models, and 15
 application models (the original 14 concepts plus `HouseholdDraftEvent`).
 Django/allauth and Procrastinate manage supporting tables. The SQL-created
 `accounts_auth_cache` is additional authentication infrastructure, not an ORM
-business model. Scaffold cleanup is still open in PR #712 at this snapshot.
+business model. FIX-06 ([PR #712](https://github.com/B-A-D-R-SL/iris/pull/712),
+merged November 15, 2026) removed the TODO-only stub files; the three deferred
+apps keep only their app configuration and README.
 
 `modules.common` holds shared contact-value utilities, with no tables or Django
 app registration. Its `domain.contact` normalization is pure Python; Django,
@@ -157,7 +172,7 @@ reserve quantity picker caps its value using `units_left` and
 | Role / area | Implemented routes and landing |
 | --- | --- |
 | Public | `/`, `/sign-in`, `/invitation/:token`, `/partner/apply`; `/privacy` still renders a placeholder |
-| Beneficiary | Lands on `/listings`; `/listings/:id` displays detail and reservation confirmation |
+| Beneficiary | Lands on `/listings`; `/listings/:id` displays detail and reservation confirmation. No beneficiary account is linked to a household outside tests until US-93 (#704) |
 | Store manager / staff | Lands on `/store/listings/new`; `/store/confirm` supports camera scan or typed code |
 | Intake worker / admin | Lands on `/staff/households`; shared household detail at `/staff/households/:id`; walk-in at `/staff/walk-in`, `/staff/walk-in/:id` and `/staff/walk-in/:id/notices` |
 | Admin only | `/staff/partners`, `/staff/stores`, `/staff/stores/:id`, `/staff/categories`, `/staff/audit` |
@@ -271,12 +286,16 @@ Exception class names and approved reason codes may appear; exception text,
 request bodies and document/income contents do not. Logs are separate from
 durable AuditEvent records protected by database triggers.
 
-Central audit covers returned household search results, detail reads,
-create/edit/submit, household decisions/suspension/reactivation, partner
-decisions, store edits/status changes, rule publication and notice-link issuance.
+Central audit covers returned household search results, detail, notice-list
+and decision-summary reads, create/edit/submit, notice recording,
+household decisions/suspension/reactivation, partner decisions, store
+edits/status changes, rule publication and notice-link issuance. FIX-29
+([PR #715](https://github.com/B-A-D-R-SL/iris/pull/715)) added the notice-list and
+decision-summary `view` events (`audited_file_response` in
+`households/api/views.py`) and the notice `update` event
+(`households/notice_services.py:99`, in the notice transaction).
 Reservation creation and pickup emit application logs without central audit
-records. Notice-list/decision-summary reads and central notice-update auditing
-remain open in #713 / PR #715 at this snapshot.
+records.
 
 ### Notice files (T-03.18.2)
 
@@ -327,7 +346,9 @@ All writes go through the module owning the affected table.
 
 Households present their Revenu Québec notices to staff at the walk-in counter.
 Authorized intake workers/admins upload those files and enter the notice values
-in Iris. Households do not upload notices themselves in Release 1.
+in Iris. Households do not upload notices themselves in Release 1. The dotted
+household arrow is not usable yet: no household account is linked to a file
+outside tests until US-93 ([#704](https://github.com/B-A-D-R-SL/iris/issues/704), Release 2).
 
 The notice and threshold arrows represent supplied documents and
 reference data, not live connections to government accounts or APIs.
@@ -343,7 +364,7 @@ flowchart LR
     SC["Statistics Canada<br/>income-threshold reference table"]
     AZ["Azure staging target — activation pending<br/>private files; ACS email data in Canada"]
 
-    HH -->|"Sign in, browse and reserve"| I
+    HH -. "Browse and reserve: built at API level,<br/>account linking is US-93, Release 2" .-> I
     HH -->|"Present notices at the counter"| IW
     ST -->|"Post goods and confirm pickup"| I
     IW -->|"Register households; upload notices;<br/>enter values, decide, search and audit"| I
@@ -402,8 +423,9 @@ The domain layer imports no Django, ORM, network code or adapters.
 Each module writes its own tables. Cross-module access uses public
 service/query interfaces. The one exception is `manage.py seed`
 (`backend/iris/management/commands/seed.py`): it writes fictional rows directly,
-including linked approved households and deferred lifecycle states such as
-`renewal_needed` and `no_show`. Approval and pickup confirmation themselves are
+including approved households (not linked to any user account; the seed creates
+no beneficiary accounts), reservations on them, and deferred lifecycle states
+such as `renewal_needed` and `no_show`. Approval and pickup confirmation themselves are
 implemented workflows. The import-linter contract "Only the seed command imports module
 models" keeps every other file in `iris` and `adapters` out of module models.
 
@@ -517,9 +539,11 @@ contracts, rather than an assumed acyclic module graph, enforce the boundaries.
 
 ### 5. Release 1 deployment
 
-**Staging is the Release 1 deployment target, not a confirmed live deployment.**
-As of this 15 November 2026 review, packaging and deployment workflow code are
-merged; Azure hosting activation and live verification are pending. This matches
+**Staging is the Release 1 deployment target, but it has not been deployed.**
+As of November 17, 2026, packaging and deployment workflow code are merged and
+SET-17 (#408) is closed, but `STAGING_DEPLOY_ENABLED` is unset, every
+`deploy-staging` run was skipped and GitHub records no deployment. Azure hosting
+activation and live verification are pending. This matches
 the owner's [SET-17 activation status](https://github.com/B-A-D-R-SL/iris/pull/700#issuecomment-6887009431)
 and the [project overview](../01-project/overview.md#releases).
 
@@ -629,18 +653,18 @@ intermediate PR descriptions; open work below is not claimed as implemented.
 
 The [Iteration 4 tracker](https://github.com/B-A-D-R-SL/iris/issues/656) includes
 16-17 November buffer days. This review is not a frozen Release1 tag, a wiki
-publication or live deployment verification. Application code and the initial
-architecture draft are unchanged.
+publication or live deployment verification. Application code is unchanged; the
+initial architecture draft only gained a "superseded" banner (FIX-32).
 
 ### Changes and reasons
 
 | Area | Earlier description | Implemented behavior and reason for correction |
 | --- | --- | --- |
 | Baseline | Intended Release 1 draft tied to an earlier 14-model ERD | Identify the exact reviewed commit and separate code completion from deployment. The implementation has 15 models, including local household history. |
-| Module inventory | Eleven modules shown, no implemented Privacy responsibility | All 15 Django apps are registered. Priority, Review and Reporting are scaffolds; Privacy has sensitive-reason validation but no tables/rights workflows. PRs #608, #669, #710; cleanup #712 is still open. |
+| Module inventory | Eleven modules shown, no implemented Privacy responsibility | All 15 Django apps are registered. Priority, Review and Reporting hold only app configuration and a README; Privacy has sensitive-reason validation but no tables/rights workflows. PRs #608, #669, #710; stub cleanup merged in #712. |
 | Public dependency graph | Eligibility does not call back into Households | It calls `households.queries.eligibility_inputs`; Household approval calls Eligibility. US-32/US-14 also add Households → Reservations and Stores → Listings/Reservations. Show allowed bidirectional dependencies rather than asserting an acyclic call graph. |
 | Shared interfaces | Only Rules/Audit/Notifications described as shared | Role checks also use Accounts queries. Audit reads Eligibility to validate automatic decision events and Privacy for reasons; Notifications checks invitation usability through Accounts. Contract-only future edges remain labelled future. |
-| Layer files | Generic service/query/domain/tasks layout implied everywhere | Internal approval/notice helpers exist; many future files are stubs at this commit. `modules.common` is a neutral, unregistered utility package. The seed command is the explicit cross-module model-import exception. |
+| Layer files | Generic service/query/domain/tasks layout implied everywhere | Internal approval/notice helpers exist. FIX-06 (#712) removed the TODO-only stub files. `modules.common` is a neutral, unregistered utility package. The seed command is the explicit cross-module model-import exception. |
 | Staff landing | Earlier `/staff` requirement | The October clarification on #422/#423 is `/staff/households`, implemented in role routing; `/staff` is only a redirect. |
 | Other landings | Issue #422/#423 still says household `/home`, store `/store` | FIX-13 (#695) moves them to `/listings` and `/store/listings/new`, and removes unfinished placeholder routes. Later PRs restore Confirm and Stores routes with real screens. |
 | Frontend layers | Areas described as layouts; frontend simply displays backend decisions | Layouts are in `app/layouts`; area routes are in `app/routes`; screens are in Areas. ESLint enforces downward imports. Reservation controls derive quantity/display state, while server checks remain authoritative. |
@@ -657,7 +681,7 @@ architecture draft are unchanged.
 | Store administration | No transaction/cancellation details | US-14 edits, deactivates and reactivates stores. Only published listings with future pickup end are cancelled; one email is queued per affected reservation. B.A.D.R. cannot be deactivated; reactivation restores no cancelled goods/claims. Reasons are kept in audit, not a new Store field. |
 | Storage | One generic file adapter | Notices use a staff/session-bound Iris proxy; listing photos use a separate processor/Blob adapter with up-to-five-minute read SAS. Sign-out does not revoke an issued SAS. Future reader adapters are not active dependencies. |
 | Email and worker | Generic queued delivery or planned worker | US-57 implements bilingual templates, EmailLog, captured retries and terminal-payload cleanup. SET-17 adds stalled-job recovery. Compose now runs a worker; the release container supervises worker and Gunicorn together. No exactly-once or atomic outbox claim is made. |
-| Audit versus logs | General audit guarantee implied across workflows | Central audits are described only for their actual producers. Reservation/pickup have application logs; notice/summary audit gaps remain open. Database append-only history is distinguished from local draft history and ordinary logs. |
+| Audit versus logs | General audit guarantee implied across workflows | Central audits are described only for their actual producers. Reservation/pickup have application logs; notice/summary reads and notice writes are audited since FIX-29 (#715). Database append-only history is distinguished from local draft history and ordinary logs. |
 | Deployment | SET-17 described as a branch; generic auto-deploy arrow | Packaging is merged. Deployment is disabled unless opted in, gated by current-main successful push CI, uses an image digest and revision-aware smoke checks. Hosting region/capacity and live verification remain pending per #700's owner discussion. |
 | Cross-document scope | Overview's “Staging online” can read as deployed; notice arrows leave the uploader ambiguous; API catalog mixes releases | Overview now distinguishes planned delivery from dated activation status. Context/container diagrams explicitly show staff-only evidence entry, with no AI reader dependency. API catalog/household tables and implementation notes prominently label future/non-R1 endpoints. |
 | HTTP conventions | Uniform draft API, UUIDs/paging/errors implied universal | Document real routed families and exceptions: per-view envelopes/paging, bigint support IDs, allauth-native responses and a staging-only readiness probe outside OpenAPI. Frontend listing detail uses browse results, not a new detail API. |
@@ -668,16 +692,16 @@ architecture draft are unchanged.
 | Item | Observed state / follow-up |
 | --- | --- |
 | Walk-in account access | [US-93 #704](https://github.com/B-A-D-R-SL/iris/issues/704), including #706–#709, is Release 2. New walk-in invitees can create an account but cannot yet attach that account to their file. Existing-account linking and staff walk-in invitation resend are also deferred. |
-| Notice/summary audit coverage | [FIX-29 #713](https://github.com/B-A-D-R-SL/iris/issues/713), [PR #715](https://github.com/B-A-D-R-SL/iris/pull/715) remains open: notice-list and decision-summary reads have no central `view` event, and notice writes have local history only. Do not claim complete SEC-08 coverage. |
-| Consent before notice upload | [FIX-30 #714](https://github.com/B-A-D-R-SL/iris/issues/714), [PR #716](https://github.com/B-A-D-R-SL/iris/pull/716) remains open. Consent is checked at submit/approval, but notice preparation does not yet refuse a draft lacking consent before storing its file. |
+| Notice/summary audit coverage | Done: [FIX-29 #713](https://github.com/B-A-D-R-SL/iris/issues/713), [PR #715](https://github.com/B-A-D-R-SL/iris/pull/715) merged. Notice-list and decision-summary reads record a central `view` event, and notice recording records a central `update` in the notice transaction (`households/notice_services.py:99`). |
+| Consent before notice upload | Done: [FIX-30 #714](https://github.com/B-A-D-R-SL/iris/issues/714), [PR #716](https://github.com/B-A-D-R-SL/iris/pull/716) merged. `households/notice_services.py:32` refuses a notice for a draft without recorded consent before the file is stored, and checks again under the household lock. |
 | Correct another adult after recording evidence | [FIX-27 #666](https://github.com/B-A-D-R-SL/iris/issues/666) is open. Changed non-holder members are replaced, so protected notices prevent that edit; unchanged members keep their rows. Holder edits are in place. |
-| Scaffold removal | [FIX-06 #632](https://github.com/B-A-D-R-SL/iris/issues/632), [PR #712](https://github.com/B-A-D-R-SL/iris/pull/712) is open. Future module/task stubs still exist; their presence is not implementation. |
+| Scaffold removal | Done: [FIX-06 #632](https://github.com/B-A-D-R-SL/iris/issues/632), [PR #712](https://github.com/B-A-D-R-SL/iris/pull/712) merged. Priority, Review and Reporting remain registered with only `apps.py` and a README of planned stories. |
 | No-show, late correction and renewal | [US-46 #525](https://github.com/B-A-D-R-SL/iris/issues/525) and [US-45 #524](https://github.com/B-A-D-R-SL/iris/issues/524) are unimplemented. There is no automatic window-end closure/strike or late pickup override. No scheduled household expiry status transition exists in the reviewed code. |
 | QR, confirmation navigation and central reservation audit | A scanner exists but household QR generation/email is deferred to [US-42 #518](https://github.com/B-A-D-R-SL/iris/issues/518). `ReservationConfirmation.tsx` still links to `/reservations`, whose route is absent, so the link reaches Page not found. Reserve/pickup application logs are not AuditEvents. No implementation or new issue is created by this documentation change. |
 | Partner already has an account | Public submission can still succeed, while approval's new-account invitation requirement refuses it and rolls back the approval. Earlier feedback and existing-user partner policy were explicitly deferred in [PR #665's review](https://github.com/B-A-D-R-SL/iris/pull/665#pullrequestreview-5869027562). |
 | Notice storage activation | Base/staging default `FILE_STORE_BACKEND` is empty. Local settings enable the Azurite backend; staging needs an explicit notice backend in addition to photo configuration. A configured photo store does not establish working notice uploads. |
 | Privacy page and later workflows | `/privacy` remains a placeholder. Public registration, MFA, review queue, privacy-rights workflows, priority/strikes and reporting are not completed Release 1 workflows. |
-| Azure verification | [SET-17 #408](https://github.com/B-A-D-R-SL/iris/issues/408), [PR #700](https://github.com/B-A-D-R-SL/iris/pull/700): owner reports resource group/vault/ACS provisioning; database/storage/App Service activation, region/subscription decision and application-to-provider smoke remain pending. Preserve the ADR rather than selecting a region in this review. |
+| Azure verification | [SET-17 #408](https://github.com/B-A-D-R-SL/iris/issues/408) (closed), [PR #700](https://github.com/B-A-D-R-SL/iris/pull/700): staging has not been deployed as of November 17, 2026. Owner reports resource group/vault/ACS provisioning; database/storage/App Service activation, region/subscription decision and application-to-provider smoke remain pending. Preserve the ADR rather than selecting a region in this review. |
 
 ### Implementation evidence
 

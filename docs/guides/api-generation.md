@@ -19,10 +19,14 @@ team decisions. This guide describes generation tooling; it does not establish
 additional API requirements or imply that every documented convention is
 already implemented.
 
-Categories compliance remains dependent on [reference module #377](https://github.com/B-A-D-R-SL/iris/issues/377).
-SET-12 category seed data is merged into main, but no categories endpoint is
-implemented in this checkout. Categories must be checked against the adopted
-conventions and added to the schema when its module is implemented.
+Every implemented DRF endpoint is in the generated schema, not only health. This
+includes the categories endpoints: the public `GET /api/categories/`
+(`backend/modules/categories/api/urls.py`) and the admin-only
+`/api/staff/categories/` list, create and edit
+(`backend/modules/categories/api/staff_urls.py`, US-35). Allauth routes and the
+staging readiness probe are the exceptions. In deployed settings, `/api/schema/`
+and `/api/docs/` require an active Iris admin (`IsActiveAdmin` in
+`backend/iris/api.py`); local and test settings keep them public.
 
 ## Generator compatibility
 

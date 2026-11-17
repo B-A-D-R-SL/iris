@@ -1,4 +1,26 @@
-# Architecture
+# Architecture (initial draft, superseded)
+
+> **Superseded.** This is the early-iteration draft, kept for history. The current
+> architecture is [architecture.md](architecture.md), with workflows in
+> [architecture-workflows.md](architecture-workflows.md). Main differences
+> (checked against `main` at `c13fc04`, November 17, 2026):
+>
+> - **Region:** this draft puts staging and production in Azure Canada East.
+>   Canada East remains the production target (SET-24), but the student
+>   subscription does not allow Canadian regions; the staging region is still
+>   pending ([SET-17 ADR](adr-set17-student-staging.md)). Staging has not been deployed.
+> - **Deployment trigger:** this draft deploys staging on every merge to `main`.
+>   `deploy-staging.yml` is disabled by default and runs only when
+>   `STAGING_DEPLOY_ENABLED` is set, after successful CI on current `main`. There is
+>   no `release.yml` production workflow.
+> - **Modules:** the `needs` module was never created. The backend has 15
+>   registered modules; `priority`, `review` and `reporting` are empty apps
+>   (README only) and `privacy` holds only reason validation.
+> - **Notice reading:** AI Document Intelligence is not part of Release 1; the
+>   provider is proposed in [ADR 0005](../adr/0005-notice-reading.md) and not chosen.
+>   Notices are uploaded by staff at the walk-in counter, not by households.
+> - **Other:** Compose runs a separate worker service, there is no Application
+>   Insights resource, and photos and notices use separate storage adapters.
 
 Iris is a **modular monolith**: one Django application and one React application, deployed as one container, split inside into modules with strict walls. Each module covers one area of the business, owns its tables, and is owned by one pair. Why this design, what it costs and the alternatives we rejected are in [ADR 0001](../adr/0001-tech-stack.md).
 

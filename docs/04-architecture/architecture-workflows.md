@@ -8,7 +8,9 @@ and [dependency graph](architecture.md#4-release-1-module-dependencies) define t
 
 Revision: 15 November 2026, `main` at `a022580`. Updated implemented walk-in,
 eligibility, invitation, reserve, pickup and cancellation paths; deferred state
-transitions are explicitly labelled. Evidence and remaining gaps are in the
+transitions are explicitly labelled. Refreshed November 17, 2026 against `main`
+at `c13fc04` (FIX-32, [#739](https://github.com/B-A-D-R-SL/iris/issues/739)): the
+walk-in sequence now shows the FIX-30 consent check and the FIX-29 audit events. Evidence and remaining gaps are in the
 [Release 1 review](architecture.md#release-1-review).
 
 The sequences below were traced through HTTP permissions, service transactions,
@@ -40,10 +42,16 @@ decision summary whose "Approve the file" button calls
 `POST /api/staff/households/{id}/approve/`, which runs `approve_walk_in` (#469).
 
 The server's decision-summary endpoint supplies amounts, threshold, adult IDs,
-review routing and calendar-month expiry. Notice recording currently writes only
-local draft history; central notice-update auditing and audited notice/summary
-reads are pending #713 / PR #715. Consent is required at submission, but the
-pre-upload consent checks are pending #714 / PR #716.
+review routing and calendar-month expiry. Notice recording writes local draft
+history and a central `update` audit event in the same transaction
+(`households/notice_services.py:99`, FIX-29,
+[PR #715](https://github.com/B-A-D-R-SL/iris/pull/715)). The notice-list and
+decision-summary reads record a central `view` event before the response
+(`audited_file_response` in `households/api/views.py`). A notice is refused,
+before its file is stored, when the draft has no recorded data-processing
+consent (`households/notice_services.py:32`, FIX-30,
+[PR #716](https://github.com/B-A-D-R-SL/iris/pull/716)); the check runs again
+under the household lock. Submission also requires consent.
 
 
 ```mermaid
@@ -75,26 +83,32 @@ sequenceDiagram
 
     IW->>H: Open /staff/walk-in/{id}/notices: GET /api/staff/households/{id}/notices/
     H->>D: current_notices(members)
+    H->>A: Record central "view" before the response (FIX-29)
     H-->>IW: Saved notices<br/>One card per adult (18 or older), saved ones shown as recorded
 
     loop Each adult
         IW->>IW: Photograph the notice (camera) or choose a file, type tax year and line-199 income, or tick "did not file" with a reason
         IW->>H: POST /api/staff/households/{id}/notices/ (multipart) → record_walk_in_notice(id, member, values or reason, file)
-        H->>H: Check the draft and adult membership before storing anything
+        H->>H: Check draft status, recorded consent (FIX-30) and adult membership before storing anything
+        break No consent, not a draft or not an adult
+            H-->>IW: 400 with the field error<br/>No file stored
+        end
         H->>D: prepare_staff_notice(values, file, staff)
         D->>D: Check notice rules and store the optional file privately, without a household lock
         D-->>H: Prepared notice
-        H->>H: Lock the draft and recheck adult membership
-        Note over H,D: Notice and draft-history writes share one transaction
+        H->>H: Lock the draft and recheck status, consent and adult membership
+        Note over H,A: Notice, draft-history and audit writes share one transaction
         H->>H: Record HouseholdDraftEvent "updated"
         H->>D: save_prepared_notice(member, prepared, staff)
         D->>D: Supersede the current notice and save the prepared entry
-        Note over H,D: A save failure rolls back writes and invokes discard_prepared_notice
+        H->>A: Record central "update" (FIX-29)
+        Note over H,D: A save or audit failure rolls back writes and invokes discard_prepared_notice
         H-->>IW: 201 recorded notice<br/>The decision summary marks the adult
     end
 
     IW->>H: GET /api/staff/households/{id}/decision-summary/
     H->>H: Read adult evidence and preview eligibility when verified
+    H->>A: Record central "view" before the response (FIX-29)
     H-->>IW: Read-only summary, readiness, review reasons and projected validity<br/>No saved eligibility decision or approval
 
     IW->>H: "Submit the file" (every adult has a notice or reason): POST /api/staff/households/{id}/submit/ → submit_walk_in()
@@ -186,8 +200,8 @@ an invitation (including no email or a non-approved file), and for an email
 configuration failure recorded in `EmailLog`. It is not a delivery receipt.
 Other invitation validation or database errors propagate and roll back approval.
 
-Drafts may lack identity verification or consent. Submission requires both;
-the current notice-upload path does not enforce consent before storage. Notice
+Drafts may lack identity verification or consent. Submission requires both, and
+notice recording requires consent before anything is stored (FIX-30). Notice
 entry and draft editing stop after submission. A newly adult member without
 evidence at approval therefore routes the submitted file to review.
 
@@ -309,6 +323,12 @@ it rolls back the new Store and application decision.
 Reservation allocation is implemented by US-41 (PR #691), and lookup/confirmation
 by US-44 (PRs #684 and #686). Central reservation and pickup
 audits below remain planned; their application logs do not provide that guarantee.
+
+The household half of this sequence is implemented and tested at API level, but
+no beneficiary account is linked to a household outside the tests (walk-in
+approval creates an account but doesn't link it), and the seed creates none. Until US-93 ([#704](https://github.com/B-A-D-R-SL/iris/issues/704),
+Release 2) links accounts, no household can browse or reserve in a running
+instance. There is no "my reservations" view and no household cancellation yet.
 
 The Listings module owns the stock UPDATE.
 Reservations owns the reservation INSERT.
@@ -567,7 +587,8 @@ state diagram and business rules together.
 
 ## Code trace and other Release 1 workflows
 
-Paths below are the implementation sources reviewed at `a022580`. Test links
+Paths below are the implementation sources reviewed at `a022580` and rechecked
+at `c13fc04` for the notice consent and audit changes. Test links
 identify existing checks inspected during the review; they do not claim a new
 application-test run. The API boundary performs authentication, role checks and
 input validation before the service calls shown in the sequences.
@@ -575,7 +596,7 @@ input validation before the service calls shown in the sequences.
 | Workflow | Code trace | Logic confirmed in code |
 | --- | --- | --- |
 | Walk-in draft and submission (6) | [Households services](../../backend/modules/households/services.py), [policies](../../backend/modules/households/policies.py), [submission API](../../backend/modules/households/api/views.py); [walk-in tests](../../backend/modules/households/tests/test_walk_in.py) | Only visible walk-in drafts can be edited/submitted. Submission checks complete data, verification, consent and every adult's evidence. Household and shared duplicate-key locks protect the saved outcome and both histories. |
-| Notice entry and summary (6) | [Notice service](../../backend/modules/households/notice_services.py), [evidence queries](../../backend/modules/households/queries.py), [approval services](../../backend/modules/households/approval_services.py); [notice safety tests](../../backend/modules/households/tests/test_walk_in_notice_safety.py) | Storage preparation precedes the household lock; the draft/member checks run again under lock. Summary previews do not save decisions. The server supplies adult IDs and readiness used by the [React decision screen](../../frontend/src/areas/staff/pages/WalkIn/DecisionSummary.tsx). |
+| Notice entry and summary (6) | [Notice service](../../backend/modules/households/notice_services.py), [evidence queries](../../backend/modules/households/queries.py), [approval services](../../backend/modules/households/approval_services.py); [notice safety tests](../../backend/modules/households/tests/test_walk_in_notice_safety.py) | Consent, draft and adult checks run before any file is stored (FIX-30). Storage preparation precedes the household lock; the checks run again under lock, and the notice, draft event and central `update` audit commit together (FIX-29). Notice-list and summary reads are audited. Summary previews do not save decisions. The server supplies adult IDs and readiness used by the [React decision screen](../../frontend/src/areas/staff/pages/WalkIn/DecisionSummary.tsx). |
 | Eligibility and approval (6) | [Approval entry point](../../backend/modules/households/approval_services.py), [outcome helper](../../backend/modules/households/_approval.py), [Eligibility service](../../backend/modules/eligibility/services.py); [outcome tests](../../backend/modules/households/tests/approval/test_outcomes.py), [side-effect tests](../../backend/modules/households/tests/approval/test_side_effects.py) | Approval locks and accepts submitted walk-ins only. Eligibility pulls adult evidence, checks the accepted tax year, seen-in-person flag, name and postal code, then saves inputs/results/rule version. Review evidence never becomes assumed zero income. Validity, household outcome, audits and any invitation commit together. |
 | Partner application/decision/reissue (7) | [Stores services](../../backend/modules/stores/services.py), [Accounts services](../../backend/modules/accounts/services.py); [decision tests](../../backend/modules/stores/tests/test_application_decisions.py) | Submission creates no account/store. A locked submitted application can be decided once. Approval creates Store + manager invitation; rejection requires a reason. Reissue atomically expires old unaccepted links. |
 | Invitation acceptance (7) | [Acceptance API](../../backend/modules/accounts/api/views.py), [Accounts services](../../backend/modules/accounts/services.py); [invitation tests](../../backend/modules/accounts/tests/test_invitations.py) | An unused, unexpired token authorizes only its invited new account. Invitation locking, password validation, User creation and consumption are atomic. Acceptance neither signs in nor links a walk-in household. |
