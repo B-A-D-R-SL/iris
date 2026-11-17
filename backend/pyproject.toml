@@ -395,8 +395,8 @@ max-complexity = 15
 "django.db.models.FloatField".msg = "Rule 6: money is integer cents. Use IntegerField/BigIntegerField (name it *_cents). For a non-money float, add '# noqa: TID251' with a reason."
 "django.db.models.DecimalField".msg = "Rule 6: money is integer cents. Use IntegerField/BigIntegerField (name it *_cents). For a non-money decimal, add '# noqa: TID251' with a reason."
 
-# Test rules: no fixed sleeps (use time-machine)
-"time.sleep".msg = "No fixed sleeps. Freeze the clock with time-machine, or wait on an event/condition."
+# Test rules: no fixed sleeps (patch timezone.now with monkeypatch)
+"time.sleep".msg = "No fixed sleeps. Freeze the clock by patching timezone.now (monkeypatch), or wait on an event/condition."
 
 [tool.ruff.lint.per-file-ignores]
 # Adapters are the one place allowed to call outside services (and back off with sleep)
