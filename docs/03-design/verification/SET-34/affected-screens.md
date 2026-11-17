@@ -1,5 +1,7 @@
 <!-- AI contribution: 50% or more AI-generated -->
 
+> Historical note: the route list below is from the time of SET-34 (Iteration 3). Routes added since are not listed; check `frontend/src/app/App.tsx` for the current ones.
+
 # SET-34 global theme impact
 
 This inventory is for the route tree in `frontend/src/app/App.tsx` on this PR,

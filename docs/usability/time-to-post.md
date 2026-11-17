@@ -2,16 +2,17 @@
 
 # Time to post a listing (US-33, T-05.33.5)
 
-**Status:** prepared on 2026-10-30; sessions planned for 2026-10-30 to 2026-11-01.
-Fill in the [results](#results), [observations](#observations-and-fixes) and
+**Status:** protocol ready, not yet run. The sessions are planned for Iteration 5
+(wiki page [Pilot Usability Testing](https://github.com/B-A-D-R-SL/iris/wiki/Pilot-Usability-Testing)).
+No test user has taken part yet, so the results below are empty. Fill in the [results](#results), [observations](#observations-and-fixes) and
 [outcome](#outcome) after the three sessions.
 
 ## What we check
 
 US-33 (#491) asks that store staff post a listing from their phone "in under a minute
 so that posting fits my shift". Its acceptance criterion: **median time to post 60 seconds
-or less with three test users**. The persona is Karim, a shift supervisor at a partner
-grocery: busy counter, one hand free (personas.md).
+or less with three test users**. The persona is Marc, an employee at a partner
+grocery: busy counter, one hand free ([personas](../01-project/personas.md)).
 
 T-05.33.5 (#496) is done when the median is 60 s or less, **or** when issues are filed
 for what slows people down.
