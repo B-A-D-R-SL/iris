@@ -325,9 +325,9 @@ by US-44 (PRs #684 and #686). Central reservation and pickup
 audits below remain planned; their application logs do not provide that guarantee.
 
 The household half of this sequence is implemented and tested at API level, but
-no beneficiary account is linked to a household outside the tests, and the seed
-creates none. Until US-93 ([#704](https://github.com/B-A-D-R-SL/iris/issues/704),
-Release 2) links accounts, no household can sign in and reserve in a running
+no beneficiary account is linked to a household outside the tests (walk-in
+approval creates an account but doesn't link it), and the seed creates none. Until US-93 ([#704](https://github.com/B-A-D-R-SL/iris/issues/704),
+Release 2) links accounts, no household can browse or reserve in a running
 instance. There is no "my reservations" view and no household cancellation yet.
 
 The Listings module owns the stock UPDATE.

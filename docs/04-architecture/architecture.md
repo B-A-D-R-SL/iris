@@ -49,10 +49,11 @@ A `review_required` or `no_show` status does not by itself require a
 Walk-in approval can send a set-password invitation, but linking the resulting
 account to its household is Release 2 [US-93 (#704)](https://github.com/B-A-D-R-SL/iris/issues/704).
 The Release 1 browse/reserve path needs a beneficiary account linked to an
-approved household. Nothing outside the tests creates that link, and the seed
+approved household. Walk-in approval creates an account and emails a set-password
+invitation, but nothing outside the tests creates that link, and the seed
 creates no beneficiary accounts (it seeds one admin, two intake workers and store
-accounts only), so in a running Release 1 instance no household can sign in,
-browse or reserve. Browse (US-36) and reserve (US-41) are implemented and tested
+accounts only), so in a running Release 1 instance no household can browse or
+reserve. Browse (US-36) and reserve (US-41) are implemented and tested
 at API level. Expiry status jobs, a "my reservations" screen, household
 cancellation, no-show processing and late pickup confirmation are also deferred.
 
