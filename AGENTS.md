@@ -8,7 +8,8 @@
   `No substantial AI-generated code`, `Below 50% AI-generated` or `50% or more AI-generated`.
 - The team's AI usage record is in the GitHub wiki
   ([AI Usage](https://github.com/B-A-D-R-SL/iris/wiki/AI-Usage)), one page per iteration.
-  `AI_USAGE.md` only points there.
+  `AI_USAGE.md` only points there and lists the AI tools the team uses (the course rubric reads the
+  tools from that file); it holds no entries.
 - Never add entries to `AI_USAGE.md` and never create another AI usage file in the repository
   (for example under `docs/`). The PR policy check fails a pull request that does.
 - When asked to record AI usage, follow "For AI assistants" in `AI_USAGE.md`: write the entry in its
