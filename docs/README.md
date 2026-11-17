@@ -19,4 +19,4 @@ contributions and AI usage. Start at the [project wiki](https://github.com/B-A-D
 | [`usability/`](usability/) | Usability test protocol for posting a listing |
 
 Other entry points: the root [README](../README.md) (run, test and CI), [CONTRIBUTING.md](../CONTRIBUTING.md)
-(`/create-pr` and the pull request workflow) and [AI_USAGE.md](../AI_USAGE.md) (points to the wiki's AI Usage pages).
+(branch, commit, review and merge rules, and `/create-pr`) and [AI_USAGE.md](../AI_USAGE.md) (the AI tools we use, and a pointer to the wiki's AI Usage pages).

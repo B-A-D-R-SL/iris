@@ -49,10 +49,10 @@ We will follow a common GitHub workflow:
 Where to find the details:
 
 - Commit message format, the pull request checks and the CI jobs: the [README](../../README.md) ("Commit hooks", "Pull requests", "Continuous Integration").
-- Opening a pull request with `/create-pr`: [CONTRIBUTING.md](../../CONTRIBUTING.md).
+- Branch, commit and pull request rules in short, and opening a pull request with `/create-pr`: [CONTRIBUTING.md](../../CONTRIBUTING.md).
 - What reviewers check: [review rules](review-rules.md) (eleven rules; CodeRabbit enforces them with eleven custom pre-merge checks in [`.coderabbit.yaml`](../../.coderabbit.yaml), eight as errors and three as warnings).
-- Merging: the `main` ruleset requires four checks (`backend`, `frontend`, `pr-policy`, `commit-policy`) and one human approval. CodeRabbit's approval does not count as that review. Merge commits only, no squash.
-- AI usage records: the wiki's [AI Usage](https://github.com/B-A-D-R-SL/iris/wiki/AI-Usage) pages; [AI_USAGE.md](../../AI_USAGE.md) points there.
+- Merging: the `main` ruleset requires four checks (`backend`, `frontend`, `pr-policy`, `commit-policy`) and one human approval. CodeRabbit's approval does not count as that review. Merge commits only, no squash. Repository admins can bypass the ruleset when merging, only for a check that fails by design or for a cause outside the pull request, never to skip the review, and with the reason posted on the pull request ([CONTRIBUTING.md](../../CONTRIBUTING.md#review-and-merge)).
+- AI usage records: the wiki's [AI Usage](https://github.com/B-A-D-R-SL/iris/wiki/AI-Usage) pages; [AI_USAGE.md](../../AI_USAGE.md) lists the AI tools we use and points there; entries go only in the wiki.
 
 ## Iterations and Integration
 
