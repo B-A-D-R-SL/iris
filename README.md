@@ -6,6 +6,7 @@ Iris is a solidarity redistribution platform for sharing food and goods across c
 ## Documentation
 - [Project wiki](https://github.com/B-A-D-R-SL/iris/wiki)
 - [Project board](https://github.com/orgs/B-A-D-R-SL/projects/1)
+- [Release 1 Presentation](https://liveconcordia-my.sharepoint.com/:v:/g/personal/m_paolin_live_concordia_ca/IQD3H2lHGvRqS7I-Ug4CFrFKAXODFitz3TBBdYqp8ZbymUk?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJPbmVEcml2ZUZvckJ1c2luZXNzIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXciLCJyZWZlcnJhbFZpZXciOiJNeUZpbGVzTGlua0NvcHkifX0&e=Fw8Swk)
 
 ## Project Overview
 
