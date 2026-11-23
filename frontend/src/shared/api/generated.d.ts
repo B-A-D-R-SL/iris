@@ -118,6 +118,13 @@ export interface paths {
     /** Reactivate a household file (administrator) */
     post: operations["staff_households_reactivate_create"];
   };
+  "/api/staff/households/{id}/resend-invitation/": {
+    /**
+     * Send a new set-password link to an approved walk-in household
+     * @description For a file with an email and no linked account, when the email failed or the link expired. Earlier links stop working.
+     */
+    post: operations["staff_households_resend_invitation_create"];
+  };
   "/api/staff/households/{id}/submit/": {
     /** Submit a walk-in draft and check for duplicates */
     post: operations["staff_households_submit_create"];
@@ -1800,6 +1807,39 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["HouseholdStatusRead"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+    };
+  };
+  /**
+   * Send a new set-password link to an approved walk-in household
+   * @description For a file with an email and no linked account, when the email failed or the link expired. Earlier links stop working.
+   */
+  staff_households_resend_invitation_create: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["AccountLink"];
         };
       };
       400: {

@@ -3,7 +3,10 @@
 
 from django.urls import path
 
-from modules.households.api.account_views import WalkInLinkAccountView
+from modules.households.api.account_views import (
+    WalkInLinkAccountView,
+    WalkInResendInvitationView,
+)
 from modules.households.api.approval_views import (
     WalkInApproveView,
     WalkInDecisionSummaryView,
@@ -62,5 +65,10 @@ urlpatterns = [
         "staff/households/<uuid:id>/link-account/",
         WalkInLinkAccountView.as_view(),
         name="staff-households-link-account",
+    ),
+    path(
+        "staff/households/<uuid:id>/resend-invitation/",
+        WalkInResendInvitationView.as_view(),
+        name="staff-households-resend-invitation",
     ),
 ]

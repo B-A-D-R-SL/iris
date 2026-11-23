@@ -171,6 +171,13 @@ msgstr "Ce compte est désactivé et ne peut pas être lié."
 msgid "Confirm that you checked the person's ID."
 msgstr "Confirmez que vous avez vérifié la pièce d'identité de la personne."
 
+msgid ""
+"This email address already has an Iris account. Link that account instead of "
+"sending an invitation."
+msgstr ""
+"Ce courriel a déjà un compte Iris. Liez ce compte au lieu d'envoyer une "
+"invitation."
+
 # US-17 walk-in registration (#461)
 msgid "Staff verification is required."
 msgstr "La vérification par le personnel est requise."

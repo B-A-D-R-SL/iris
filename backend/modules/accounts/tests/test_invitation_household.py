@@ -2,13 +2,15 @@
 """US-93: a walk-in invitation names its household and acceptance announces it."""
 
 from collections.abc import Iterator
+from hashlib import sha256
 from typing import Any
 
 import pytest
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 
 from modules.accounts import services
-from modules.accounts.models import User
+from modules.accounts.models import Invitation, User
+from modules.accounts.tests.factories import UserFactory
 from modules.households.tests.factories import HouseholdFactory
 
 pytestmark = pytest.mark.django_db
@@ -71,3 +73,67 @@ def test_receiver_failure_rolls_back_acceptance(issue_invitation: Any) -> None:
     assert not User.objects.filter(email__iexact=invitation.email).exists()
     invitation.refresh_from_db()
     assert invitation.accepted_at is None
+
+
+def reissue(household: Any, email: str, invited_by: Any) -> str:
+    return services.reissue_household_invitation(
+        household_id=household.pk,
+        email=email,
+        first_name="Samira",
+        last_name="Example",
+        invited_by=invited_by,
+    )
+
+
+def test_reissue_expires_previous_household_links(
+    issue_invitation: Any, invitation_clock: Any
+) -> None:
+    household: Any = HouseholdFactory()
+    _, previous = issue_invitation(household_id=household.pk)
+    token = reissue(household, previous.email, UserFactory(role="intake_worker"))
+    previous.refresh_from_db()
+    assert previous.expires_at == invitation_clock.now
+    fresh = Invitation.objects.get(token_hash=sha256(token.encode()).hexdigest())
+    assert fresh.household_id == household.pk
+    assert fresh.role == "beneficiary"
+    assert fresh.expires_at > invitation_clock.now
+
+
+def test_reissue_expires_legacy_link_for_same_email(
+    issue_invitation: Any, invitation_clock: Any
+) -> None:
+    """Links sent before invitations named their household (US-18)."""
+    _, legacy = issue_invitation(email="holder@example.test")
+    reissue(HouseholdFactory(), "holder@example.test", UserFactory(role="admin"))
+    legacy.refresh_from_db()
+    assert legacy.expires_at == invitation_clock.now
+
+
+def test_reissue_leaves_other_households_links(
+    issue_invitation: Any, invitation_clock: Any
+) -> None:
+    other: Any = HouseholdFactory()
+    _, unrelated = issue_invitation(household_id=other.pk)
+    reissue(HouseholdFactory(), "holder@example.test", UserFactory(role="admin"))
+    unrelated.refresh_from_db()
+    assert unrelated.expires_at > invitation_clock.now
+
+
+def test_reissue_refuses_non_staff(issue_invitation: Any) -> None:
+    with pytest.raises(PermissionDenied):
+        reissue(HouseholdFactory(), "holder@example.test", UserFactory())
+    assert not Invitation.objects.exists()
+
+
+def test_resend_when_account_exists_keeps_previous_link(
+    issue_invitation: Any, invitation_clock: Any
+) -> None:
+    household: Any = HouseholdFactory()
+    _, previous = issue_invitation(household_id=household.pk)
+    UserFactory(email=previous.email)
+    with pytest.raises(ValidationError) as caught:
+        reissue(household, previous.email, UserFactory(role="intake_worker"))
+    assert caught.value.code == "email_already_registered"
+    previous.refresh_from_db()
+    assert previous.expires_at > invitation_clock.now
+    assert Invitation.objects.count() == 1

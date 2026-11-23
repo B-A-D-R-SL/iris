@@ -102,3 +102,6 @@ msgstr "Un administrateur actif est requis."
 
 msgid "No unaccepted store-manager invitation exists."
 msgstr "Aucune invitation de gestionnaire de magasin non acceptée n’existe."
+
+msgid "Only active intake workers and admins can invite."
+msgstr "Seuls les intervenants à l'accueil et les administrateurs actifs peuvent inviter."

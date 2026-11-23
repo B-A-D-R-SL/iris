@@ -10,12 +10,14 @@ from typing import Any
 from uuid import UUID
 
 from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.dispatch import Signal
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from modules.accounts import queries
 from modules.accounts.models import Invitation, User
 from modules.accounts.roles import UserRole
 from modules.rules import queries as rule_queries
@@ -136,6 +138,42 @@ def reissue_store_manager_invitation(
     )
     return create_invitation(
         email, first_name, last_name, UserRole.STORE_MANAGER, store, invited_by
+    )
+
+
+@transaction.atomic
+def reissue_household_invitation(
+    *,
+    household_id: UUID,
+    email: str,
+    first_name: str,
+    last_name: str,
+    invited_by: User,
+) -> str:
+    """Expire a walk-in household's earlier links, then issue a fresh one (US-93).
+
+    Also expires unaccepted beneficiary links for the same email that name no
+    household: they were sent before invitations named their household. Raises
+    email_already_registered when the email now has an account; the earlier
+    links then stay usable because the transaction rolls back.
+    """
+    if not queries.is_intake_staff(invited_by):
+        raise PermissionDenied(_("Only active intake workers and admins can invite."))
+    now = timezone.now()
+    # The UPDATE locks these rows, so a concurrent acceptance waits for it.
+    Invitation.objects.filter(
+        Q(household_id=household_id)
+        | Q(household__isnull=True, email__iexact=email, role=UserRole.BENEFICIARY),
+        accepted_at__isnull=True,
+        expires_at__gt=now,
+    ).update(expires_at=now)
+    return create_invitation(
+        email,
+        first_name,
+        last_name,
+        UserRole.BENEFICIARY,
+        invited_by=invited_by,
+        household_id=household_id,
     )
 
 

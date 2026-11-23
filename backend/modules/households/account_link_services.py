@@ -18,10 +18,12 @@ from django.db import IntegrityError, transaction
 from django.utils.translation import gettext_lazy as _
 
 from modules.accounts import queries as account_queries
+from modules.accounts import services as account_services
 from modules.audit import services as audit_services
 from modules.households import account_link_queries
-from modules.households.models import Household
+from modules.households.models import Household, Member
 from modules.households.policies import require_walk_in_staff
+from modules.notifications import services as notification_services
 
 logger = logging.getLogger("iris.households")
 
@@ -30,6 +32,10 @@ NO_EMAIL = _("This file has no email address. The household is served at the cou
 ALREADY_LINKED = _("This file is already linked to an account.")
 NO_ACCOUNT = _("No Iris account uses this file's email address.")
 HAS_HOUSEHOLD = _("This account is already linked to another household.")
+ACCOUNT_EXISTS = _(
+    "This email address already has an Iris account. "
+    "Link that account instead of sending an invitation."
+)
 REFUSALS = {
     "not_beneficiary": _("Staff and store accounts cannot be linked to a household."),
     "inactive": _("This account is deactivated and cannot be linked."),
@@ -126,4 +132,40 @@ def link_existing_account(household_id: UUID, staff: AbstractBaseUser) -> Househ
     if reason is not None:
         raise ValidationError(REFUSALS[reason], code=reason)
     _save_holder(household, account.id, staff, "counter")
+    return household
+
+
+@transaction.atomic
+def resend_invitation(household_id: UUID, staff: AbstractBaseUser) -> Household:
+    """Send a new set-password link when the email failed or the link expired.
+
+    Earlier links for the file stop working. The email is queued after commit.
+    Raises Household.DoesNotExist for an unknown, online or anonymized file.
+    """
+    require_walk_in_staff(staff)
+    household = _locked_walk_in(household_id)
+    email = _require_unlinked_approved_with_email(household)
+    holder = household.members.get(relation=Member.Relation.HOLDER)
+    try:
+        token = account_services.reissue_household_invitation(
+            household_id=household.pk,
+            email=email,
+            first_name=holder.first_name,
+            last_name=holder.last_name,
+            invited_by=staff,  # type: ignore[arg-type]
+        )
+    except ValidationError as exc:
+        if exc.code != "email_already_registered":
+            raise
+        raise ValidationError(ACCOUNT_EXISTS, code="account_exists") from exc
+    notification_services.queue_set_password_email(
+        email=email, token=token, language=household.preferred_language
+    )
+    audit_services.record(staff, "invite", "household", household.pk, {})
+    transaction.on_commit(
+        lambda: logger.info(
+            "walk_in_invitation_resent",
+            extra={"event": "walk_in_invitation_resent", "household_id": household_id},
+        )
+    )
     return household

@@ -22,6 +22,7 @@ from modules.households.api.serializers import (
     AccountLinkSerializer,
     HouseholdErrorSerializer,
     LinkAccountInputSerializer,
+    WalkInSubmissionInputSerializer,
 )
 from modules.households.api.views import (
     IsIntakeWorkerOrAdmin,
@@ -78,3 +79,22 @@ class WalkInLinkAccountView(WalkInAccountView):
     def post(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
         """Link the account and return the file's new account state."""
         return self._respond(request, id, account_link_services.link_existing_account)
+
+
+class WalkInResendInvitationView(WalkInAccountView):
+    # An empty body: no field can be sent.
+    serializer_class = WalkInSubmissionInputSerializer
+
+    @extend_schema(
+        request=WalkInSubmissionInputSerializer,
+        responses=_RESPONSES,
+        tags=["staff households"],
+        summary="Send a new set-password link to an approved walk-in household",
+        description=(
+            "For a file with an email and no linked account, when the email "
+            "failed or the link expired. Earlier links stop working."
+        ),
+    )
+    def post(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
+        """Re-invite the household and return the file's account state."""
+        return self._respond(request, id, account_link_services.resend_invitation)
