@@ -168,6 +168,9 @@ msgstr "Les comptes du personnel et des commerces ne peuvent pas être liés à 
 msgid "This account is deactivated and cannot be linked."
 msgstr "Ce compte est désactivé et ne peut pas être lié."
 
+msgid "Confirm that you checked the person's ID."
+msgstr "Confirmez que vous avez vérifié la pièce d'identité de la personne."
+
 # US-17 walk-in registration (#461)
 msgid "Staff verification is required."
 msgstr "La vérification par le personnel est requise."

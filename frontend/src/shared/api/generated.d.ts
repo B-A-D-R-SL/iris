@@ -101,6 +101,13 @@ export interface paths {
      */
     get: operations["staff_households_decision_summary_retrieve"];
   };
+  "/api/staff/households/{id}/link-account/": {
+    /**
+     * Link the existing account that uses an approved walk-in's email
+     * @description Staff first compare the person's ID with the name on the account (the detail's account block) and send identity_confirmed: true. Only an active beneficiary account without a household is linked.
+     */
+    post: operations["staff_households_link_account_create"];
+  };
   "/api/staff/households/{id}/notices/": {
     /** List the current notice of each member of a walk-in file */
     get: operations["staff_households_notices_list"];
@@ -218,6 +225,35 @@ export interface components {
       token: string;
     };
     /**
+     * @description A file's account state, decided by account_link_queries (US-93).
+     *
+     * The account's names are set only for can_link, for the ID check.
+     */
+    AccountLink: {
+      account_first_name: string | null;
+      account_last_name: string | null;
+      reason: components["schemas"]["AccountLinkReasonEnum"] | components["schemas"]["BlankEnum"];
+      status: components["schemas"]["AccountLinkStatusEnum"];
+    };
+    /**
+     * @description * `not_beneficiary` - not_beneficiary
+     * * `inactive` - inactive
+     * * `has_household` - has_household
+     * @enum {string}
+     */
+    AccountLinkReasonEnum: "not_beneficiary" | "inactive" | "has_household";
+    /**
+     * @description * `linked` - linked
+     * * `can_link` - can_link
+     * * `cannot_link` - cannot_link
+     * * `invited` - invited
+     * * `no_email` - no_email
+     * * `not_applicable` - not_applicable
+     * @enum {string}
+     */
+    AccountLinkStatusEnum:
+      "linked" | "can_link" | "cannot_link" | "invited" | "no_email" | "not_applicable";
+    /**
      * @description * `view` - View
      * * `create` - Create
      * * `update` - Update
@@ -227,6 +263,8 @@ export interface components {
      * * `suspend` - Suspend
      * * `reactivate` - Reactivate
      * * `deactivate` - Deactivate
+     * * `link_account` - Link Account
+     * * `invite` - Invite
      * @enum {string}
      */
     ActionEnum:
@@ -238,7 +276,9 @@ export interface components {
       | "rule_published"
       | "suspend"
       | "reactivate"
-      | "deactivate";
+      | "deactivate"
+      | "link_account"
+      | "invite";
     AddressInput: {
       city: string;
       postal_code: string;
@@ -260,6 +300,8 @@ export interface components {
       target_id: string;
       target_type: string;
     };
+    /** @enum {unknown} */
+    BlankEnum: "";
     /** @description The API's error shape: { code, message, fields }. */
     BrowseError: {
       code: string;
@@ -406,6 +448,10 @@ export interface components {
      * @enum {string}
      */
     LanguageEnum: "fr" | "en";
+    /** @description Staff confirm they compared the person's ID with the name on the account. */
+    LinkAccountInput: {
+      identity_confirmed: boolean;
+    };
     /** @description One card in the browse list, from ``listings.queries.browse_listings``. */
     ListingCard: {
       /** Format: date */
@@ -1053,6 +1099,7 @@ export interface components {
       members?: components["schemas"]["MemberInput"][];
     };
     WalkInDraftRead: {
+      account: components["schemas"]["AccountLink"];
       /** @description Return only actions currently authorized for the requesting user. */
       allowed_actions: readonly string[];
       channel: components["schemas"]["ChannelEnum"];
@@ -1656,6 +1703,46 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["WalkInDecisionSummary"];
+        };
+      };
+    };
+  };
+  /**
+   * Link the existing account that uses an approved walk-in's email
+   * @description Staff first compare the person's ID with the name on the account (the detail's account block) and send identity_confirmed: true. Only an active beneficiary account without a household is linked.
+   */
+  staff_households_link_account_create: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["LinkAccountInput"];
+        "application/x-www-form-urlencoded": components["schemas"]["LinkAccountInput"];
+        "multipart/form-data": components["schemas"]["LinkAccountInput"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["AccountLink"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
+        };
+      };
+      404: {
+        content: {
+          "application/json": components["schemas"]["HouseholdError"];
         };
       };
     };

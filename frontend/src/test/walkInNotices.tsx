@@ -27,6 +27,12 @@ export function draft(status = "draft", statusReason = ""): WalkInDraft {
     expires_at: null,
     allowed_actions: [],
     reason_max_length: 500,
+    account: {
+      status: "not_applicable",
+      reason: "",
+      account_first_name: null,
+      account_last_name: null,
+    },
     email: null,
     preferred_language: "fr",
     phone: "+15145550156",

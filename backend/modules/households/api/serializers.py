@@ -10,6 +10,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from modules.common.api.fields import CanadianPhoneField, PostalCodeField
+from modules.households.account_link_queries import REASONS, STATUSES, account_link
 from modules.households.domain.person import valid_name, validate_birth_date
 from modules.households.limits import max_household_people
 from modules.households.messages import domain_error_message
@@ -182,6 +183,32 @@ class HouseholdStatusReadSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class AccountLinkSerializer(serializers.Serializer):
+    """A file's account state, decided by account_link_queries (US-93).
+
+    The account's names are set only for can_link, for the ID check.
+    """
+
+    status = serializers.ChoiceField(choices=STATUSES, read_only=True)
+    reason = serializers.ChoiceField(choices=REASONS, allow_blank=True, read_only=True)
+    account_first_name = serializers.CharField(read_only=True, allow_null=True)
+    account_last_name = serializers.CharField(read_only=True, allow_null=True)
+
+
+class LinkAccountInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
+    """Staff confirm they compared the person's ID with the name on the account."""
+
+    identity_confirmed = serializers.BooleanField()
+
+    def validate_identity_confirmed(self, value: bool) -> bool:
+        """Linking without the ID check is refused."""
+        if not value:
+            raise serializers.ValidationError(
+                _("Confirm that you checked the person's ID.")
+            )
+        return value
+
+
 class WalkInDraftReadSerializer(serializers.ModelSerializer):
     members = MemberReadSerializer(many=True, read_only=True)
     created_by_email = serializers.EmailField(
@@ -192,6 +219,12 @@ class WalkInDraftReadSerializer(serializers.ModelSerializer):
     )
     allowed_actions = serializers.SerializerMethodField()
     reason_max_length = serializers.SerializerMethodField()
+    account = serializers.SerializerMethodField()
+
+    @extend_schema_field(AccountLinkSerializer)
+    def get_account(self, household: Household) -> dict[str, Any]:
+        """The account state staff see: linked, linkable, invited and so on."""
+        return dict(AccountLinkSerializer(account_link(household)).data)
 
     def get_allowed_actions(self, household: Household) -> list[str]:
         """Return only actions currently authorized for the requesting user."""
@@ -230,5 +263,6 @@ class WalkInDraftReadSerializer(serializers.ModelSerializer):
             "verified_at",
             "allowed_actions",
             "reason_max_length",
+            "account",
         )
         read_only_fields = fields

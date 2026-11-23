@@ -12,6 +12,17 @@ from modules.accounts import queries as account_queries
 from modules.accounts.queries import BENEFICIARY_ROLE, AccountSummary
 from modules.households.models import Household
 
+# The values the API publishes (serializers and the schema enums use these).
+STATUSES = (
+    "linked",
+    "can_link",
+    "cannot_link",
+    "invited",
+    "no_email",
+    "not_applicable",
+)
+REASONS = ("not_beneficiary", "inactive", "has_household")
+
 
 @dataclass(frozen=True)
 class AccountLink:
