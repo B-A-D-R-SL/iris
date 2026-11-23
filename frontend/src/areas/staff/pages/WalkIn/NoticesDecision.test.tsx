@@ -206,9 +206,15 @@ describe("Walk-in notices: saved files and the decision (US-18, T-03.18.4)", () 
     expect(within(card("Nadia Démo")).getByText(/Non fournie/)).toBeVisible();
   });
 
-  it("tells staff when no invitation was sent because the email has an account", async () => {
+  it("tells staff when no invitation was sent and offers to link the account", async () => {
     mockApi(undefined, () => Response.json(decision({ invitation_not_sent: true })), [recorded()], {
       status: "submitted",
+      account: {
+        status: "can_link",
+        reason: "",
+        account_first_name: "Nadia",
+        account_last_name: "Démo",
+      },
     });
     await openPage();
 
@@ -216,8 +222,8 @@ describe("Walk-in notices: saved files and the decision (US-18, T-03.18.4)", () 
 
     expect(await screen.findByText(/Dossier approuvé jusqu'au/)).toBeVisible();
     expect(screen.getByText(/Aucun courriel n'a été envoyé/)).toBeVisible();
-    // US-93 (#704): the account cannot be linked yet, so the note promises no access.
-    expect(screen.getByText(/ne peut pas encore être lié à ce dossier/)).toBeVisible();
+    // US-93: the account is linked only after the ID check, so the note promises no access.
+    expect(await screen.findByRole("button", { name: "Lier ce compte" })).toBeVisible();
     expect(screen.queryByText(/connecter|réinitialiser/)).not.toBeInTheDocument();
   });
 

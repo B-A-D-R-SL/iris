@@ -133,6 +133,27 @@
       "suspendSuccess": "Le dossier du foyer a été suspendu.",
       "reactivateSuccess": "Le dossier du foyer a été réactivé."
     },
+    "account": {
+      "title": "Compte Iris",
+      "linked": "Le compte Iris du foyer est lié à ce dossier. Il peut consulter les offres et réserver en ligne.",
+      "canLink": "Un compte Iris utilise déjà {{email}}. Il n'est pas encore lié à ce dossier.",
+      "invited": "Une invitation à choisir un mot de passe a été envoyée à {{email}}. Le foyer pourra consulter les offres et réserver en ligne une fois le mot de passe choisi.",
+      "noEmail": "Aucun courriel au dossier : le foyer est servi au comptoir. Un compte en ligne est facultatif.",
+      "cannotLinkNotBeneficiary": "{{email}} appartient à un compte du personnel ou d'un commerce, qui ne peut pas être lié à un foyer. Servez le foyer au comptoir ou demandez un autre courriel.",
+      "cannotLinkInactive": "Le compte qui utilise {{email}} est désactivé : il ne peut pas être lié.",
+      "cannotLinkHasHousehold": "Le compte qui utilise {{email}} est déjà lié à un autre foyer.",
+      "link": "Lier ce compte",
+      "linkTitle": "Lier le compte Iris à ce dossier",
+      "linkHelp": "Demandez une pièce d'identité. Liez le compte seulement si le nom qui y figure est celui de la personne.",
+      "holderOnFile": "Personne responsable au dossier : {{name}}",
+      "nameOnAccount": "Nom sur le compte : {{name}}",
+      "identityChecked": "J'ai vérifié la pièce d'identité et ce compte appartient à cette personne.",
+      "linkedSuccess": "Le compte est lié. Le foyer peut maintenant consulter les offres et réserver en ligne.",
+      "resend": "Envoyer une nouvelle invitation",
+      "resendHelp": "Utilisez ce bouton si le courriel n'est pas arrivé ou si le lien a expiré. Le lien précédent ne fonctionnera plus.",
+      "resent": "Une nouvelle invitation a été envoyée. Le lien précédent ne fonctionne plus.",
+      "failed": "La demande a échoué. Réessayez."
+    },
     "browse": {
       "filters": "Filtres",
       "today": "Aujourd'hui",

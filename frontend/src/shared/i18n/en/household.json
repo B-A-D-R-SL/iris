@@ -133,6 +133,27 @@
       "suspendSuccess": "The household file was suspended.",
       "reactivateSuccess": "The household file was reactivated."
     },
+    "account": {
+      "title": "Iris account",
+      "linked": "The household's Iris account is linked to this file. They can browse and reserve online.",
+      "canLink": "An Iris account already uses {{email}}. It is not linked to this file yet.",
+      "invited": "An invitation to choose a password was sent to {{email}}. The household can browse and reserve online once they choose it.",
+      "noEmail": "No email on file: the household is served at the counter. An online account is optional.",
+      "cannotLinkNotBeneficiary": "{{email}} belongs to a staff or store account, which can't be linked to a household. Serve the household at the counter or ask for another email.",
+      "cannotLinkInactive": "The account using {{email}} is deactivated, so it can't be linked.",
+      "cannotLinkHasHousehold": "The account using {{email}} is already linked to another household.",
+      "link": "Link this account",
+      "linkTitle": "Link the Iris account to this file",
+      "linkHelp": "Ask for the person's ID. Link the account only if the name on it is theirs.",
+      "holderOnFile": "Holder on the file: {{name}}",
+      "nameOnAccount": "Name on the account: {{name}}",
+      "identityChecked": "I checked the person's ID and this account belongs to them.",
+      "linkedSuccess": "The account is linked. The household can now browse and reserve online.",
+      "resend": "Send a new invitation",
+      "resendHelp": "Use it if the email didn't arrive or the link expired. The previous link will stop working.",
+      "resent": "A new invitation was sent. The previous link no longer works.",
+      "failed": "The request failed. Try again."
+    },
     "browse": {
       "filters": "Filters",
       "today": "Today",

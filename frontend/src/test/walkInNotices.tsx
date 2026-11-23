@@ -141,7 +141,13 @@ export function mockApi(
   record: () => Response = () => Response.json(recorded(), { status: 201 }),
   approve: () => Response = () => Response.json(decision()),
   saved: RecordedNotice[] = [],
-  file: { status?: string; statusReason?: string; submitTo?: string; expiresAt?: string } = {},
+  file: {
+    status?: string;
+    statusReason?: string;
+    submitTo?: string;
+    expiresAt?: string;
+    account?: WalkInDraft["account"];
+  } = {},
 ) {
   // The file's status, as the server would report it after a submission.
   const state = { status: file.status ?? "draft", reason: file.statusReason ?? "" };
@@ -154,6 +160,7 @@ export function mockApi(
       return Response.json({
         ...draft(state.status, state.reason),
         expires_at: file.expiresAt ?? null,
+        ...(file.account ? { account: file.account } : {}),
       });
     }
     if (url.endsWith(SUBMIT_URL) && method === "POST") {

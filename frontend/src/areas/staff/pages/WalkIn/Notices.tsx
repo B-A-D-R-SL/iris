@@ -34,6 +34,7 @@ import {
 } from "../../../../features/households/walkInApi";
 import { formatDate } from "../../../../shared/forms";
 import { ErrorState, LoadingState, Notice, StatusBadge } from "../../../../shared/ui";
+import { HouseholdAccountCard } from "../HouseholdAccount";
 import { DecisionSummary } from "./DecisionSummary";
 import { NoticeCard } from "./NoticeCard";
 import { adultsOf, fullName, montrealToday } from "./noticeForm";
@@ -116,6 +117,20 @@ interface PageProps {
   summary: Summary;
 }
 
+/** The household's Iris account once the file is approved (US-93); nothing before. */
+function AccountCard({ draft }: { draft: WalkInDraft }) {
+  const holder = draft.members.find((member) => member.relation === "holder");
+  return (
+    <HouseholdAccountCard
+      householdId={draft.id}
+      email={draft.email}
+      holderName={holder ? fullName(holder) : ""}
+      account={draft.account}
+      reloadKey={walkInQueryKey(draft.id)}
+    />
+  );
+}
+
 function NoticesPage({ draft, saved, summary }: PageProps) {
   const { t } = useTranslation();
   const [today] = useState(montrealToday);
@@ -155,6 +170,7 @@ function NoticesPage({ draft, saved, summary }: PageProps) {
         adultMembers={adultMembers}
         notices={notices}
       />
+      <AccountCard draft={draft} />
       <Group gap="sm">
         <Button variant="outline" component={Link} to={`/staff/walk-in/${draft.id}`}>
           {t("staff.walkInNotices.backToFile")}

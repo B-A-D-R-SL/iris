@@ -202,6 +202,8 @@
       "targetRuleSetVersion": "Version de règle",
       "ruleVersion": "version {{version}}",
       "actionDeactivate": "Désactivation",
+      "actionLinkAccount": "Compte lié",
+      "actionInvite": "Invitation envoyée",
       "targetStore": "Commerce",
       "storeFields": "champs : {{fields}}",
       "storeCancelled": "{{listings}} offres et {{reservations}} réservations annulées"

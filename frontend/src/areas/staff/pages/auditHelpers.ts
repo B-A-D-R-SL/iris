@@ -28,6 +28,8 @@ export function useAuditLabels(): Record<string, string> {
     suspend: t("audit.search.actionSuspend"),
     reactivate: t("audit.search.actionReactivate"),
     deactivate: t("audit.search.actionDeactivate"),
+    link_account: t("audit.search.actionLinkAccount"),
+    invite: t("audit.search.actionInvite"),
     approved: t("audit.search.outcomeApproved"),
     rejected: t("audit.search.outcomeRejected"),
     review_required: t("audit.search.outcomeReview"),

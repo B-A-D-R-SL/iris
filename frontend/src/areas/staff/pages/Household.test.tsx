@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { HouseholdAccount } from "../../../features/households/statusApi";
 import i18n from "../../../shared/i18n";
 import { logger } from "../../../shared/logger";
 import { expectNoAxeViolations, renderWithProviders, testUser } from "../../../test/render";
@@ -19,6 +20,12 @@ const page = (
 function household(
   status: "approved" | "suspended" = "approved",
   allowedActions: Array<"suspend" | "reactivate"> = ["suspend"],
+  account: HouseholdAccount = {
+    status: "linked",
+    reason: "",
+    account_first_name: null,
+    account_last_name: null,
+  },
 ) {
   return {
     id,
@@ -31,6 +38,7 @@ function household(
     expires_at: "2027-11-09T12:00:00Z",
     allowed_actions: allowedActions,
     reason_max_length: 500,
+    account,
     members: [
       {
         id: "00000000-0000-4000-8000-000000000033",
@@ -211,4 +219,39 @@ describe("shared household detail status badges", () => {
       expect(badge?.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
     },
   );
+});
+
+describe("staff household account (US-93)", () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("en");
+  });
+
+  it("links the existing account after the ID check, then shows it linked", async () => {
+    let file = household("approved", [], {
+      status: "can_link",
+      reason: "",
+      account_first_name: "Samira",
+      account_last_name: "Example",
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.endsWith("/api/me/")) return Response.json(testUser("intake_worker"));
+      if (url === `/api/staff/households/${id}/` && !init?.method) return Response.json(file);
+      if (url.endsWith("/link-account/") && init?.method === "POST") {
+        file = household("approved", []);
+        return Response.json(file.account);
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(page, { route: `/staff/households/${id}` });
+
+    await userEvent.click(await screen.findByRole("button", { name: "Link this account" }));
+    expect(screen.getByText("Holder on the file: Samira Example")).toBeVisible();
+    await userEvent.click(screen.getByRole("checkbox", { name: /I checked the person's ID/ }));
+    await userEvent.click(screen.getAllByRole("button", { name: "Link this account" }).at(-1)!);
+
+    expect(await screen.findByText(/account is linked to this file/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Link this account" })).not.toBeInTheDocument();
+  });
 });
