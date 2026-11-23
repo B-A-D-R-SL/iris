@@ -343,6 +343,6 @@ Known limits of Release 1:
 - **Staging was never deployed.** The `deploy-staging` workflow is skipped because `STAGING_DEPLOY_ENABLED` is unset: the Azure subscription is not yet activated. What has been exercised instead is the release image booting in CI and the local Docker Compose environment. See the wiki Deployment Plan and [Azure staging notes](docs/guides/azure-staging.md).
 - **Households can't browse or reserve yet.** Household browsing (US-36) and reserving (US-41) are implemented and tested at API level. Walk-in approval emails the household a set-password invitation, but nothing outside the tests links that account to the household, and the seed creates no household accounts. Linking is planned in US-93 (Release 2). There is no "my reservations" view and no cancel yet.
 - Two-factor sign-in for staff and removal of notice-photo metadata are planned for Release 2.
-- Only fictional data is used until the Release 2 pilot.
+- Only fictional data is used until the pilot with real households, tentatively in Release 3. Release 2 is planned as a private Azure deployment with fictional data (see the wiki's Release 2 plan).
 
 **Azurite:** Compose starts Azurite with `--skipApiVersionCheck`, so the current Azure SDK in `backend/uv.lock` can store and read blobs even when it uses a newer storage API version than Azurite 3.35 knows (checked for T-03.18.2: private container, upload, download and delete).

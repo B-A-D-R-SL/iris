@@ -50,8 +50,8 @@ Two promises shape everything: no real personal data goes into Iris before B.A.D
 | Release | Due | Planned delivery |
 | --- | --- | --- |
 | Release 1 | Tue Nov 17, 2026 | Delivered on `main`: partners apply and are approved; staff register, search and approve walk-in households; admins manage stores, categories, suspensions and the audit log; stores post goods and confirm pickups with a code. Browse and reserve are built at API level, but households cannot use them until account linking (US-93, Release 2). Staging is the deployment target but has not been deployed. |
-| Release 2 (tentative) | Fri Feb 5, 2027 | Online registration with AI reading and automatic approval; priority tiers and strikes; review queue; privacy rights; production. Pilot with real households once the privacy assessment is signed. |
-| Release 3 (tentative) | Tue Apr 13, 2027 | Reporting, needs, assistant and furniture if time allows; accessibility and security audit; user acceptance testing; French admin guide and handover. |
+| Release 2 (tentative) | Fri Feb 5, 2027 | Online registration with AI reading and automatic approval; priority tiers and strikes; review queue; the first privacy-rights requests. Deployed privately on Azure staging with fictional data, for the team and B.A.D.R. staff; not released to the public (to confirm with B.A.D.R.; [Release 2 plan](https://github.com/B-A-D-R-SL/iris/wiki/Release-2-%E2%80%93-Plan)). |
+| Release 3 (tentative) | Tue Apr 13, 2027 | Production and the pilot with real households, once B.A.D.R. signs the privacy impact assessment (moved from Release 2); reporting, needs, assistant and furniture if time allows; accessibility and security audit; user acceptance testing; French admin guide and handover. |
 
 **Staging status — November 17, 2026:** the release image and deployment
 workflow are implemented and SET-17 (#408) is closed, but staging has never been
