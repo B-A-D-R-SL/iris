@@ -197,14 +197,14 @@ class Household(models.Model):
             self.address_key = ""
 
     def clean(self) -> None:
-        """Normalize email and keep identity verification fields consistent."""
+        """Normalize email and keep identity verification fields consistent.
+
+        A walk-in file may have a holder account (US-93): the one-to-one field
+        keeps it to one household per account and one account per household.
+        """
         super().clean()
         if self.email:
             self.email = self.email.strip().lower()
-        if self.channel == self.Channel.WALK_IN and self.holder_id is not None:
-            raise ValidationError(
-                {"holder": _("Walk-in files cannot link an online account yet.")}
-            )
         if self.identity_checked_in_person and (
             not self.verified_by_id or not self.verified_at
         ):

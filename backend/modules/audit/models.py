@@ -16,6 +16,9 @@ class AuditEvent(models.Model):
         REACTIVATE = "reactivate"
         # US-14 store deactivation; store edits reuse UPDATE above.
         DEACTIVATE = "deactivate"
+        # US-93: a household's account linked, or a new set-password link sent.
+        LINK_ACCOUNT = "link_account"
+        INVITE = "invite"
 
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True

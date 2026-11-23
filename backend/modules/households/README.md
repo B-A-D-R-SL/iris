@@ -286,7 +286,13 @@ Outcome, eligibility, audit and invitation writes share one transaction.
 Approved files with email call the US-04 invitation service. Its existing-account
 refusal is handled by skipping the invitation while preserving approval, as
 reported by `invitation_not_sent`; other invitation failures roll back the
-transaction. Acceptance creates the account but does not yet link it to the household.
+transaction. The invitation names the household; accepting it creates the account
+and makes it the file's holder (`Household.holder`) in the same transaction (US-93,
+`account_link_services.link_invited_account`, connected in `apps.py`). A file that
+already has a holder refuses the acceptance (`household_already_linked`) and no
+account is created; an anonymized file makes the link invalid. The link is audited
+(`link_account`, `{"method": "invitation"}`, actor the new account) and logged as
+`walk_in_account_linked` with the household ID only.
 
 The French or English set-password email uses US-57's `walk_in_set_password`
 template through `notifications.services.queue_set_password_email`, which calls

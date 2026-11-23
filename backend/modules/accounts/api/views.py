@@ -30,6 +30,11 @@ _INVITATION_MESSAGES = {
     "invitation_unavailable": _(
         "Invitations are temporarily unavailable. Try again later."
     ),
+    # US-93: the walk-in file got another account before this link was used.
+    "household_already_linked": _(
+        "This household file is already linked to another account. "
+        "Ask the food bank staff for help."
+    ),
 }
 _PASSWORD_MESSAGES = {
     "required": _("Enter a password."),

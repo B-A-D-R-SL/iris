@@ -128,6 +128,7 @@ def record_outcome(household: Household, staff: Any) -> bool:
             last_name=holder.last_name,
             role=BENEFICIARY_ROLE,
             invited_by=staff,
+            household_id=household.pk,
         )
     except ValidationError as exc:
         if exc.code != "email_already_registered":

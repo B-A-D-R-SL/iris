@@ -29,7 +29,7 @@ def announced() -> Iterator[list[dict[str, Any]]]:
 
 
 def test_invitation_stores_its_household(issue_invitation: Any) -> None:
-    household = HouseholdFactory()
+    household: Any = HouseholdFactory()
     _, invitation = issue_invitation(household_id=household.pk)
     assert invitation.household_id == household.pk
 
@@ -37,7 +37,7 @@ def test_invitation_stores_its_household(issue_invitation: Any) -> None:
 def test_acceptance_sends_household_and_new_user(
     issue_invitation: Any, announced: list[dict[str, Any]]
 ) -> None:
-    household = HouseholdFactory()
+    household: Any = HouseholdFactory()
     token, invitation = issue_invitation(household_id=household.pk)
     user = services.accept_invitation(token, PASSWORD)
     assert len(announced) == 1
@@ -55,7 +55,7 @@ def test_acceptance_without_household_sends_nothing(
 
 
 def test_receiver_failure_rolls_back_acceptance(issue_invitation: Any) -> None:
-    household = HouseholdFactory()
+    household: Any = HouseholdFactory()
     token, invitation = issue_invitation(household_id=household.pk)
 
     def refuse(sender: Any, **kwargs: Any) -> None:

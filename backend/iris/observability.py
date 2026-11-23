@@ -62,7 +62,15 @@ _REASON_CODES = frozenset(
         "email_already_registered",
     }
 )
-_WALK_IN_EVENTS = frozenset({"walk_in_decision", "walk_in_invitation_skipped"})
+_WALK_IN_EVENTS = frozenset(
+    {
+        "walk_in_decision",
+        "walk_in_invitation_skipped",
+        # US-93: only the household ID, never the account or its email.
+        "walk_in_account_linked",
+        "walk_in_invitation_resent",
+    }
+)
 _WALK_IN_OUTCOMES = frozenset({"approved", "rejected", "review_required"})
 _WALK_IN_REASON_CODES = frozenset(
     {

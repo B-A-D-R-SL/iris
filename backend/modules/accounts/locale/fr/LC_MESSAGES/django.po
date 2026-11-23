@@ -62,6 +62,13 @@ msgstr "Un compte utilise déjà ce courriel."
 msgid "Invitations are temporarily unavailable. Try again later."
 msgstr "Les invitations sont temporairement indisponibles. Réessayez plus tard."
 
+msgid ""
+"This household file is already linked to another account. Ask the food bank "
+"staff for help."
+msgstr ""
+"Ce dossier est déjà lié à un autre compte. Demandez de l'aide au personnel "
+"de la banque alimentaire."
+
 msgid "Enter a password."
 msgstr "Entrez un mot de passe."
 
