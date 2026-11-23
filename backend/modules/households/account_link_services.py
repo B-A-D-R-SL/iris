@@ -143,6 +143,8 @@ def resend_invitation(household_id: UUID, staff: AbstractBaseUser) -> Household:
     Raises Household.DoesNotExist for an unknown, online or anonymized file.
     """
     require_walk_in_staff(staff)
+    # Acceptance locks the invitation, then the file: take the same order.
+    account_services.lock_household_invitations(household_id)
     household = _locked_walk_in(household_id)
     email = _require_unlinked_approved_with_email(household)
     holder = household.members.get(relation=Member.Relation.HOLDER)

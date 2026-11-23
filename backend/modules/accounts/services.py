@@ -141,6 +141,20 @@ def reissue_store_manager_invitation(
     )
 
 
+def lock_household_invitations(household_id: UUID) -> None:
+    """Lock a household's unaccepted invitations for the caller's transaction.
+
+    Acceptance locks the invitation, then the household (US-93). A caller about
+    to lock the household and then expire its links calls this first, so both
+    take the same order and wait for each other instead of deadlocking.
+    """
+    list(
+        Invitation.objects.select_for_update()
+        .filter(household_id=household_id, accepted_at__isnull=True)
+        .values_list("pk", flat=True)
+    )
+
+
 @transaction.atomic
 def reissue_household_invitation(
     *,
@@ -160,7 +174,7 @@ def reissue_household_invitation(
     if not queries.is_intake_staff(invited_by):
         raise PermissionDenied(_("Only active intake workers and admins can invite."))
     now = timezone.now()
-    # The UPDATE locks these rows, so a concurrent acceptance waits for it.
+    # The caller locks the household's links first (lock_household_invitations).
     Invitation.objects.filter(
         Q(household_id=household_id)
         | Q(household__isnull=True, email__iexact=email, role=UserRole.BENEFICIARY),
