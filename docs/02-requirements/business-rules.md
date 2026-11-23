@@ -31,6 +31,7 @@ server allows it; "–" means it refuses it.
 | Read own profile | `GET /api/me/` (default `IsAuthenticated`) | Yes | Yes | Yes | Yes | Yes | – | sign-in and every guard |
 | Search households, open a file | `/api/staff/households/` (`IsIntakeWorkerOrAdmin`, households) | Yes | Yes | – | – | – | – | `/staff/households`, `/staff/households/:id`: `RequireHouseholdSearch` (asks the API) |
 | Register a walk-in, record notices, submit, approve | `/api/staff/households/…` (`IsIntakeWorkerOrAdmin`, households) | Yes | Yes | – | – | – | – | `/staff/walk-in…`: `RequireRole` staff (A, IW) |
+| Link a household's existing account, resend its invitation | `/api/staff/households/{id}/link-account/`, `…/resend-invitation/` (`IsIntakeWorkerOrAdmin`, households) | Yes | Yes | – | – | – | – | card on `/staff/households/:id` and under the walk-in approval, shown from the API's `account` state |
 | Open a notice file | `/api/staff/notices/{id}/file/`, `/api/staff/notice-files/{token}/` (`IsIntakeWorkerOrAdmin`, documents) | Yes | Yes | – | – | – | – | inside the walk-in and household screens |
 | Suspend or reactivate a household | `/api/staff/households/{id}/suspend/`, `…/reactivate/` (`IsAdmin`, households) | Yes | – | – | – | – | – | button on `/staff/households/:id`, shown from the API's advertised actions |
 | Decide partner applications | `/api/staff/partner-applications/` (`IsActiveAdmin`, stores) | Yes | – | – | – | – | – | `/staff/partners`: `RequireRole` admin |
@@ -48,9 +49,10 @@ Notes:
 - Store accounts must also have an assigned store; listings and pickups are
   limited to that store (`listings/permissions.py`, `reservations/permissions.py`).
 - Browse and reserve also need the beneficiary account to be linked to an
-  approved, unexpired household. Nothing outside the tests creates that link yet
-  (US-93 [#704](https://github.com/B-A-D-R-SL/iris/issues/704), Release 2), so in
-  a running Release 1 instance no beneficiary passes.
+  approved, unexpired household (`Household.holder`). A walk-in household gets
+  that link when its set-password invitation is accepted, or when staff link an
+  existing account at the counter (BR-HH-ACCOUNT-001 to 004, US-93
+  [#704](https://github.com/B-A-D-R-SL/iris/issues/704)).
 - Sign-in, sign-out and password reset are allauth routes under `/api/auth/`;
   public sign-up is closed (`AccountAdapter.is_open_for_signup`).
 - Sources: the permission classes in `backend/modules/*/api/` (households
@@ -99,6 +101,20 @@ new-account-only scope decision recorded on the wiki's
 Tokens contain 32 random bytes; store only their SHA-256 hash. The public
 acceptance endpoint sets the password and leaves the browser session unchanged.
 Issuing screens and invitation emails belong to the calling workflows.
+
+## Household accounts (US-93)
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-HH-ACCOUNT-001 | The set-password invitation sent at walk-in approval names its household. Accepting it creates the beneficiary account and makes it the file's holder in the same transaction. A file that already has a holder, or was anonymized, refuses the acceptance and no account is created. |
+| BR-HH-ACCOUNT-002 | When an approved walk-in file's email already has an Iris account, an intake worker or admin may link that account only after comparing the person's ID with the holder on the file and the name on the account, and confirming the check. Only an active beneficiary account that holds no household can be linked; staff and store accounts, deactivated accounts and accounts that already hold a household are refused with a message saying why. The link is audited (`link_account`). |
+| BR-HH-ACCOUNT-003 | A household has at most one linked account and an account holds at most one household (one-to-one `Household.holder`); a concurrent second link is refused. |
+| BR-HH-ACCOUNT-004 | Staff may send a new set-password link to an approved walk-in file that has an email and no linked account, when the email failed or the link expired. Earlier links for the file stop working. An email that now has an account is refused: staff link it instead. The resend is audited (`invite`). |
+| BR-HH-ACCOUNT-005 | A walk-in file without an email is served at the counter; an online account stays optional. Screens and emails never promise online access before the account is linked. |
+
+Sources: [US-93 #704](https://github.com/B-A-D-R-SL/iris/issues/704) and its
+tasks #705 to #709. Logs name the household ID only (`walk_in_account_linked`,
+`walk_in_invitation_resent`).
 
 ## Pickups (US-44)
 
@@ -293,7 +309,9 @@ Otherwise the eligibility service applies LICO: ineligible files are rejected
 with `INCOME_ABOVE_LICO`, and eligible files are approved for
 `file_validity.approved_months` (seed default **12 calendar months**, Montreal).
 Approved files with email receive a beneficiary set-password invitation after
-commit. The new-account-only invitation rule still applies.
+commit. The new-account-only invitation rule still applies: when the email
+already has an account, no invitation is sent and staff link that account at
+the counter (BR-HH-ACCOUNT-002).
 
 ## Listings
 

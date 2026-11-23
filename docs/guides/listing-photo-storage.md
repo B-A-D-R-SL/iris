@@ -126,11 +126,11 @@ explicit developer command is run; storage tests keep image bytes in memory.
    link, open `http://localhost:8000/api/listings/` in the same browser (the
    session cookie is shared on localhost across these ports) and find the card's
    `photo_url`. Without the approved beneficiary session, access is refused.
-   Note: the seed creates no beneficiary account and nothing outside the tests
-   links an account to a household yet (US-93
-   [#704](https://github.com/B-A-D-R-SL/iris/issues/704), Release 2), so this step
-   needs a household linked by hand in a local database; the automated browse
-   photo tests (`modules/reservations/tests/browse/test_photos.py`) cover it.
+   Note: the seed creates no beneficiary account. To get one, approve a walk-in
+   file with an email and accept its set-password link from Mailpit, which links
+   the account to the file (US-93
+   [#704](https://github.com/B-A-D-R-SL/iris/issues/704)); the automated browse
+   photo tests (`modules/reservations/tests/browse/test_photos.py`) also cover it.
 3. Open that URL: the processed image should load. Opening the URL without its
    query string must be refused. Do not publish the signed URL in screenshots.
 4. After its five-minute deadline, make a fresh request to the same URL. It

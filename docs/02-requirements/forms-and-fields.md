@@ -241,6 +241,29 @@ Below the cards, **Résumé pour la décision / Decision summary** lists each ad
 2. **Approuver pour {n} mois / Approve for {n} months** appears for a submitted file (*n* from `file_validity.approved_months`; it reads **Approuver le dossier / Approve the file** when the file would not be approved). Above it, the summary says whether the household is eligible. It opens a confirmation, "Approuver ce dossier ? / Approve this file?", which shows the date the file would be valid until, because approval is final and emails an invitation when the household gave an email address. **Confirmer l'approbation / Confirm approval** asks the server to decide.
 3. The answer shows "Dossier approuvé jusqu'au … / File approved until …", "Dossier refusé / File rejected" or "Dossier envoyé en révision / File sent to review", with each reason in plain words. A file in review has no approve action: approving it again could not change the outcome.
 
+An approved file then shows the **Compte Iris / Iris account** card below the summary (see the next section). When the email already has an account, the approval says no email was sent and asks staff to check the person's ID, then link the account in that card.
+
+### Iris account card (staff, US-93)
+
+Shown on `/staff/households/:id` and under an approved walk-in decision. The state comes from the `account` block of `GET /api/staff/households/{id}/`; the screen shows it and decides nothing.
+
+| State | What the card says | Action |
+| --- | --- | --- |
+| `linked` | The household's Iris account is linked to this file; they can browse and reserve online. | None |
+| `invited` | An invitation to choose a password was sent to the file's email; online access starts once they choose it. | **Envoyer une nouvelle invitation / Send a new invitation** (help: use it if the email didn't arrive or the link expired; the previous link stops working). |
+| `can_link` | An Iris account already uses the file's email and is not linked yet. | **Lier ce compte / Link this account** opens "Lier le compte Iris à ce dossier / Link the Iris account to this file". |
+| `cannot_link` | Why the account can't be linked: a staff or store account, a deactivated account, or an account already linked to another household. | None |
+| `no_email` | No email on file: the household is served at the counter; an online account is optional. | None |
+| `not_applicable` | The card is hidden (not an approved walk-in file and no linked account). | — |
+
+The link confirmation shows "Personne responsable au dossier / Holder on the file: {name}" and "Nom sur le compte / Name on the account: {name}", and asks staff to check the person's ID.
+
+| Field | Français | English | Type | Required | Rules |
+| --- | --- | --- | --- | --- | --- |
+| `identity_confirmed` | J'ai vérifié la pièce d'identité et ce compte appartient à cette personne. | I checked the person's ID and this account belongs to them. | checkbox | Yes | Must be ticked; the **Lier ce compte / Link this account** button stays disabled until it is, and the API refuses `false` or a missing value. |
+
+A refusal from the server (for example, the account was linked to another household in the meantime) is shown in the confirmation in the request's language.
+
 ## Categories
 
 Used by `goods_categories` (partner application) and `category` (listing). Seed file: `backend/modules/categories/data/categories.yaml`. Admins can add, rename or deactivate categories (US-35).

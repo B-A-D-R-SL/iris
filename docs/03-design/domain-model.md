@@ -128,7 +128,8 @@ The invitation's expiry is saved when issued, using the active lifetime rule
 (seven days by default). Later rule versions apply only to new invitations.
 US-04's acceptance page (#431), partner approval (US-13), walk-in setup email
 (US-18) and shared queued delivery (US-57) are implemented. Staff/team issuing
-screens remain US-05/US-06; household account linking is Release 2 US-93 (#704).
+screens remain US-05/US-06. Walk-in household account linking is implemented by
+US-93 (#704).
 
 ## Confirmed business rules
 
@@ -146,8 +147,9 @@ screens remain US-05/US-06; household account linking is Release 2 US-93 (#704).
 - Each adult needs accepted income evidence or a required non-filing explanation.
 - Income evidence is recorded for the individual member.
 - The holder is a Member with relation `holder`; the optional holder User is a
-  separate relationship. Walk-in approval sends an invitation but acceptance
-  does not yet link that account to its file (US-93).
+  separate relationship. Accepting the walk-in invitation, which names its
+  household, links the new account as holder; staff can link an existing
+  beneficiary account after an ID check, or resend the invitation (US-93).
 - Adult notices or non-filing reasons are recorded while draft, followed by
   submission/duplicate checking and then approval. Non-filing or other evidence
   review reasons leave the file in `review_required`; the review queue is deferred.

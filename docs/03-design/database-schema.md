@@ -108,6 +108,7 @@ An invitation to create a new active account with an assigned role. Acceptance d
 | expires_at | datetime | — | Expiration saved when issued, using the active `invitations.expires_after_days` rule. |
 | accepted_at | datetime | — | Acceptance time; unset before acceptance. Nullable. |
 | invited_by | reference | Foreign key | Person who issued the invitation, when applicable. Nullable. |
+| household | reference | Foreign key | Walk-in household whose holder the accepted account becomes (US-93). No reverse accessor on Household. Nullable. |
 | id | uuid | Primary key | Stable UUID identifier. |
 
 **Documented constraints and business rules**
@@ -117,6 +118,8 @@ An invitation to create a new active account with an assigned role. Acceptance d
 | Invitations are refused at or after the saved expiry and can be accepted once. The default lifetime is seven days. | Issuance reads the active `invitations.expires_after_days` RuleSet value; later rule versions affect only new invitations. Acceptance checks the saved expiry and marks acceptance atomically with user creation. |
 | Generate a token from 32 random bytes and store only its unique SHA-256 hash. | Invitation generation service and database uniqueness. The raw token is returned to the caller for its invitation email. |
 | Acceptance creates a new user; an existing active or inactive user with the invited email is refused case-insensitively. | Invitation acceptance service and the User email constraint. |
+| Accepting an invitation that names a household makes the new user its holder in the same transaction; a file that already has a holder or was anonymized refuses the acceptance and no user is created (US-93). | `invitation_accepted` signal received by `households.account_link_services`. |
+| Resending a household's invitation expires its earlier unaccepted links (and older beneficiary links for the same email that name no household) before issuing a new one. | `accounts.services.reissue_household_invitation`, called by `households.account_link_services.resend_invitation` (US-93). |
 
 Sources: [Issue #428](https://github.com/B-A-D-R-SL/iris/issues/428), [Issue #430](https://github.com/B-A-D-R-SL/iris/issues/430).
 
@@ -214,7 +217,7 @@ Migration history: the SET-18 seed (#617) created the first table (`0001_initial
 
 | Field | Logical type | Key | Details |
 | --- | --- | --- | --- |
-| holder | reference | FK, UK | Optional holder User, distinct from the holder Member. Walk-in linking is refused by model validation; accepting its invitation does not populate this field. US-93 (#704, Release 2) owns that path. Nullable. |
+| holder | reference | FK, UK | Optional holder User (the account that browses and reserves), distinct from the holder Member. A walk-in file gets it when its set-password invitation is accepted, or when staff link an existing beneficiary account after an ID check (US-93). Nullable. |
 | member_number | string | Unique key | Optional short file number. Nullable. |
 | channel | string | — | Registration channel: walk-in or online. |
 | status | string | — | Household file status. |
@@ -599,7 +602,7 @@ Sources: [Issue #538](https://github.com/B-A-D-R-SL/iris/issues/538), [Issue #54
 | IDs | UUIDs except bigint IDs for RuleSetVersion, AuditEvent and HouseholdDraftEvent |
 | User / Invitation | Store-role assignment CHECK on both; User email is unique and has an additional `Lower(email)` unique constraint; Invitation token hash is unique |
 | Store / application | At most one `is_badr=true` Store; optional application one-to-one; partial unique submitted contact email; application consent/category/status/rejection checks |
-| Household / Member | Optional unique holder User and member number; partial unique holder Member per household; walk-in account-link refusal is model validation, not a SQL CHECK |
+| Household / Member | Optional unique holder User (one account per household, one household per account) and member number; partial unique holder Member per household |
 | IncomeNotice | Partial unique current notice per member; CHECK enforces confirmed versus non-filer shape; superseded rows/files remain |
 | EligibilityDecision | Positive household size/threshold, nonnegative total, valid decider type and actor-null consistency CHECKs; snapshot consistency validated by model/service; ORM and PostgreSQL append-only protection |
 | RuleSetVersion | Unique `(rule_type, version)`; active lookup index `(rule_type, effective_from, version)`; ORM rejects updates/deletes; unlike AuditEvent and EligibilityDecision it has no append-only database trigger |
@@ -629,6 +632,7 @@ not a claim of identical PostgreSQL cascade clauses.
 | Store | User.store | One-to-many | Yes | PROTECT |
 | Store | Invitation.store | One-to-many | Yes | PROTECT |
 | User | Invitation.invited_by | One-to-many | Yes | SET_NULL |
+| Household | Invitation.household | One-to-many | Yes | PROTECT |
 | PartnerApplication | Store.application | One-to-one | Yes | PROTECT |
 | User | PartnerApplication.decided_by | One-to-many | Yes | PROTECT |
 | User | Household.holder | One-to-one | Yes | PROTECT |
@@ -676,6 +680,7 @@ erDiagram
     Store o|--o{ User : store
     Store o|--o{ Invitation : store
     User o|--o{ Invitation : invited_by
+    Household o|--o{ Invitation : household
     PartnerApplication o|--o| Store : application
     User o|--o{ PartnerApplication : decided_by
     User o|--o| Household : holder
@@ -730,6 +735,7 @@ erDiagram
         datetime expires_at "Expiration saved when issued, using the active invitations.expires_after_days rule."
         datetime accepted_at "Acceptance time; unset before acceptance. Nullable."
         uuid invited_by FK "Person who issued the invitation, when applicable. Nullable."
+        uuid household FK "Walk-in household the accepted account will hold (US-93). Nullable."
     }
 
     Store {
@@ -782,7 +788,7 @@ erDiagram
 
     Household {
         uuid id PK "Stable UUID identifier."
-        uuid holder FK, UK "Optional holder User, distinct from the holder Member. Walk-in linking is refused by model validation; accepting its invitation does not populate this field. US-93 (#704, Releas..."
+        uuid holder FK, UK "Optional holder User, distinct from the holder Member. Set when the walk-in invitation is accepted or staff link an existing account (US-93). Nullable."
         string member_number UK "Optional short file number. Nullable."
         string channel "Registration channel: walk-in or online."
         string status "Household file status."

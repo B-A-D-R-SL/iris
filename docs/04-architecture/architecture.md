@@ -46,15 +46,19 @@ data-protection requirements still apply.
 A `review_required` or `no_show` status does not by itself require a
 `ReviewCase` or `Strike` table.
 
-Walk-in approval can send a set-password invitation, but linking the resulting
-account to its household is Release 2 [US-93 (#704)](https://github.com/B-A-D-R-SL/iris/issues/704).
-The Release 1 browse/reserve path needs a beneficiary account linked to an
-approved household. Walk-in approval creates an account and emails a set-password
-invitation, but nothing outside the tests creates that link, and the seed
-creates no beneficiary accounts (it seeds one admin, two intake workers and store
-accounts only), so in a running Release 1 instance no household can browse or
-reserve. Browse (US-36) and reserve (US-41) are implemented and tested
-at API level. Expiry status jobs, a "my reservations" screen, household
+Browsing and reserving need a beneficiary account linked to an approved
+household (`Household.holder`). Since [US-93 (#704)](https://github.com/B-A-D-R-SL/iris/issues/704)
+a walk-in household gets that link in one of two ways. Walk-in approval emails a
+set-password invitation that names the household, and accepting it creates the
+account and makes it the file's holder in the same transaction. When the email
+already has an Iris account, staff link that account at the counter after
+comparing the person's ID with the name on the account. Staff can also resend
+an invitation whose email failed or whose link expired; the previous link stops
+working. A file without email is served at the counter. The seed still creates
+no beneficiary accounts (one admin, two intake workers and store accounts), so a
+fresh instance has no household that can browse until a walk-in file is
+approved and its invitation accepted. Browse (US-36) and reserve (US-41) are
+implemented and tested at API level, including for a holder linked by invitation. Expiry status jobs, a "my reservations" screen, household
 cancellation, no-show processing and late pickup confirmation are also deferred.
 
 Automatic notice reading belongs to the later online registration flow. The
@@ -672,7 +676,7 @@ initial architecture draft only gained a "superseded" banner (FIX-32).
 | Invitations | Ambiguous activation language and acceptance page described as future | #430 explicitly creates **new active accounts only**, refuses existing active/inactive accounts case-insensitively, and never overwrites them. The public page is built. Hash-only invitation storage, single-use acceptance and no session switch are documented. |
 | Walk-in order | Draft approval and incomplete decision flow | Record adult evidence on draft → submit/duplicate check → decision summary/approve. No notices after submission; approval refuses drafts and review files. US-18 integration #698 resolves the earlier conflicting paths. |
 | Eligibility | Household pushes evidence into Eligibility | Eligibility pulls the confirmed evidence through the public household query, saves the applied LICO snapshot and appends a safe audit in the decision transaction. Household outcome has a separate decision event. |
-| Holder/account relationship | Undefined relationship; implied set-password completion | Stored optional `Household.holder` → User is distinct from holder Member. Walk-ins cannot set that link yet. Account linking is Release 2 US-93 (#704), so an invitation alone does not enable browsing/reserving against the walk-in file. |
+| Holder/account relationship | Undefined relationship; implied set-password completion | Resolved by US-93 (#704). Optional one-to-one `Household.holder` → User, distinct from the holder Member. A walk-in file gets it when its set-password invitation (which names the household) is accepted, or when staff link an existing active beneficiary account after an ID check. Accounts announces acceptance with a signal; households sets the holder, so accounts still never imports households. |
 | Status and validity | Reason storage and twelve-month timing undecided | `status_reason` is implemented; validity uses calendar months from `file_validity`. Expiry is checked on reservations without relying on an unimplemented status job. Admin-only reactivation requires a still-valid file. |
 | Reservation allocation | General conditional stock update and insert | Household row locking serializes the cumulative per-listing quantity and active-claim limits; conditional stock UPDATE and insert share one transaction. Six-character code collisions retry in up to five savepoints; an exhausted insert rolls back stock. |
 | Pickup lookup | Ambiguity refusal only proposed | Assigned-store lookup selects the sole reserved match, refuses multiple live local matches, and returns privacy-limited refusal details otherwise. Confirmation locks/rechecks the reservation and the inclusive pickup window; stock stays allocated. |
