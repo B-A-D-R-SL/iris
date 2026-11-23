@@ -7,6 +7,7 @@ import pytest
 from django.db import transaction
 
 from modules.notifications.models import EmailLog
+from modules.notifications.rendering import render
 from modules.notifications.services import queue_set_password_email
 from modules.notifications.tasks import send_email
 
@@ -77,3 +78,39 @@ def test_rollback_queues_nothing(
     assert callbacks == []
     assert queued == []
     assert not EmailLog.objects.exists()
+
+
+@pytest.mark.parametrize(
+    ("language", "sentences"),
+    [
+        (
+            "en",
+            (
+                "Your household file is approved.",
+                "Use the link below to choose your password.",
+                "Your account will then be linked to your file",
+                "browse and reserve food in Iris",
+            ),
+        ),
+        (
+            "fr",
+            (
+                "Votre dossier est approuvé.",
+                "Utilisez le lien ci-dessous pour choisir votre mot de passe.",
+                "Votre compte sera alors lié à votre dossier",
+                "réserver de la nourriture dans Iris",
+            ),
+        ),
+    ],
+)
+def test_email_says_the_account_is_linked_once_the_password_is_chosen(
+    settings: Any, language: str, sentences: tuple[str, ...]
+) -> None:
+    """US-93: the email promises access only after the password links the account."""
+    settings.PUBLIC_APP_ORIGIN = ORIGIN
+    url = f"{ORIGIN}/invitation/{TOKEN}"
+    message = render("walk_in_set_password", language, {"invitation_url": url})
+    for sentence in sentences:
+        assert sentence in message.text
+    assert "is ready" not in message.text
+    assert "est prêt" not in message.text

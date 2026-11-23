@@ -223,8 +223,21 @@ describe("Walk-in notices: saved files and the decision (US-18, T-03.18.4)", () 
     expect(await screen.findByText(/Dossier approuvé jusqu'au/)).toBeVisible();
     expect(screen.getByText(/Aucun courriel n'a été envoyé/)).toBeVisible();
     // US-93: the account is linked only after the ID check, so the note promises no access.
+    expect(screen.getByText(/Vérifiez la pièce d'identité de la personne, puis liez/)).toBeVisible();
     expect(await screen.findByRole("button", { name: "Lier ce compte" })).toBeVisible();
+    expect(screen.queryByText(/ne peut pas encore être lié/)).not.toBeInTheDocument();
     expect(screen.queryByText(/connecter|réinitialiser/)).not.toBeInTheDocument();
+  });
+
+  it("says the account is linked once the household chooses a password", async () => {
+    mockApi(undefined, undefined, [recorded()], { status: "submitted" });
+    await openPage();
+
+    await approve();
+
+    expect(await screen.findByText(/Dossier approuvé jusqu'au/)).toBeVisible();
+    expect(screen.getByText(/recevra un lien pour choisir un mot de passe/)).toBeVisible();
+    expect(screen.getByText(/Son compte sera alors lié à ce dossier/)).toBeVisible();
   });
 
   it("explains a file sent to review because an adult has no notice", async () => {

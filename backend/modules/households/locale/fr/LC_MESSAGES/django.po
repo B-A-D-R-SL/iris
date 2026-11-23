@@ -151,7 +151,7 @@ msgid "Only an approved file can be linked to an account."
 msgstr "Seul un dossier approuvé peut être lié à un compte."
 
 msgid "This file has no email address. The household is served at the counter."
-msgstr "Ce dossier n'a pas de courriel. Le ménage est servi au comptoir."
+msgstr "Ce dossier n'a pas de courriel. Le foyer est servi au comptoir."
 
 msgid "This file is already linked to an account."
 msgstr "Ce dossier est déjà lié à un compte."
@@ -160,10 +160,10 @@ msgid "No Iris account uses this file's email address."
 msgstr "Aucun compte Iris n'utilise le courriel de ce dossier."
 
 msgid "This account is already linked to another household."
-msgstr "Ce compte est déjà lié à un autre ménage."
+msgstr "Ce compte est déjà lié à un autre foyer."
 
 msgid "Staff and store accounts cannot be linked to a household."
-msgstr "Les comptes du personnel et des commerces ne peuvent pas être liés à un ménage."
+msgstr "Les comptes du personnel et des commerces ne peuvent pas être liés à un foyer."
 
 msgid "This account is deactivated and cannot be linked."
 msgstr "Ce compte est désactivé et ne peut pas être lié."
