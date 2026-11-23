@@ -12,6 +12,7 @@ from modules.households.tests.approval.helpers import (
     DIRECT_CONTEXT,
     submit_and_approve,
 )
+from modules.households.tests.linking.helpers import HOLDER_EMAIL
 from modules.notifications.tasks import send_email
 
 # The approval rules (autouse), staff, a ready walk-in and the email queue (US-18).
@@ -19,9 +20,6 @@ rules = approval.rules
 staff = approval.staff
 household = approval.household
 email_jobs = approval.email_jobs
-
-HOLDER_EMAIL = "holder@example.test"
-PASSWORD = "Uncommon-secret-9146!"
 
 
 def emailed_token(job: dict[str, Any]) -> str:

@@ -20,7 +20,7 @@ from modules.households.tests.approval.helpers import (
     invitations,
     submit_and_approve,
 )
-from modules.households.tests.linking.conftest import HOLDER_EMAIL, PASSWORD
+from modules.households.tests.linking.helpers import HOLDER_EMAIL, PASSWORD
 
 pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("notification_rules")]
 

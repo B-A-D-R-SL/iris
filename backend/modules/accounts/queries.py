@@ -2,7 +2,9 @@
 """Public role groups and account permission checks."""
 
 import re
+from dataclasses import dataclass
 from hashlib import sha256
+from uuid import UUID
 
 from django.utils import timezone
 
@@ -31,6 +33,29 @@ def is_intake_staff(user: object) -> bool:
         and getattr(user, "is_active", False)
         and getattr(user, "role", None) in STAFF_ROLES
     )
+
+
+@dataclass(frozen=True)
+class AccountSummary:
+    """What households may know about the account that uses a file's email."""
+
+    id: UUID
+    first_name: str
+    last_name: str
+    role: str
+    is_active: bool
+
+
+def account_for_email(email: str) -> AccountSummary | None:
+    """The account using this email (case-insensitive), or None (US-93)."""
+    from modules.accounts.models import User
+
+    row = (
+        User.objects.filter(email__iexact=email)
+        .values("id", "first_name", "last_name", "role", "is_active")
+        .first()
+    )
+    return AccountSummary(**row) if row else None
 
 
 def invitation_is_usable(token: str, email: str) -> bool:

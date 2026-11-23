@@ -3,25 +3,38 @@
 
 The holder account is `Household.holder`. It is set when the walk-in set-password
 invitation is accepted (`link_invited_account`, a receiver of
-`accounts.services.invitation_accepted`). Each link is audited and logged with
-the household ID only.
+`accounts.services.invitation_accepted`), or by staff at the counter for an
+account that already exists (`link_existing_account`). Each link is audited and
+logged with the household ID only.
 """
 
 import logging
 from typing import Any, Literal
 from uuid import UUID
 
+from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils.translation import gettext_lazy as _
 
+from modules.accounts import queries as account_queries
 from modules.audit import services as audit_services
+from modules.households import account_link_queries
 from modules.households.models import Household
+from modules.households.policies import require_walk_in_staff
 
 logger = logging.getLogger("iris.households")
 
+NOT_APPROVED = _("Only an approved file can be linked to an account.")
+NO_EMAIL = _("This file has no email address. The household is served at the counter.")
 ALREADY_LINKED = _("This file is already linked to an account.")
+NO_ACCOUNT = _("No Iris account uses this file's email address.")
 HAS_HOUSEHOLD = _("This account is already linked to another household.")
+REFUSALS = {
+    "not_beneficiary": _("Staff and store accounts cannot be linked to a household."),
+    "inactive": _("This account is deactivated and cannot be linked."),
+    "has_household": HAS_HOUSEHOLD,
+}
 
 
 def _locked_walk_in(household_id: UUID) -> Household:
@@ -34,6 +47,17 @@ def _locked_walk_in(household_id: UUID) -> Household:
         channel=Household.Channel.WALK_IN,
         anonymized_at__isnull=True,
     )
+
+
+def _require_unlinked_approved_with_email(household: Household) -> str:
+    """The checks shared by linking and re-inviting; returns the file's email."""
+    if household.status != Household.Status.APPROVED:
+        raise ValidationError(NOT_APPROVED, code="not_approved")
+    if not household.email:
+        raise ValidationError(NO_EMAIL, code="no_email")
+    if household.holder_id is not None:
+        raise ValidationError(ALREADY_LINKED, code="household_already_linked")
+    return household.email
 
 
 def _save_holder(
@@ -65,9 +89,7 @@ def _save_holder(
     )
 
 
-def link_invited_account(
-    sender: Any, *, user: Any, household_id: UUID, **kwargs: Any
-) -> None:
+def link_invited_account(*, user: Any, household_id: UUID, **kwargs: Any) -> None:
     """Make the account created from a walk-in invitation the file's holder.
 
     Runs inside the acceptance transaction: a refusal undoes the new account and
@@ -83,3 +105,25 @@ def link_invited_account(
     if household.holder_id is not None:
         raise ValidationError(ALREADY_LINKED, code="household_already_linked")
     _save_holder(household, user.pk, user, "invitation")
+
+
+@transaction.atomic
+def link_existing_account(household_id: UUID, staff: AbstractBaseUser) -> Household:
+    """Link the account that already uses the file's email (US-93).
+
+    Staff call this only after comparing the person's ID with the name on the
+    account, which the staff screen shows. Only an active beneficiary account
+    without a household can be linked. Raises Household.DoesNotExist for an
+    unknown, online or anonymized file.
+    """
+    require_walk_in_staff(staff)
+    household = _locked_walk_in(household_id)
+    email = _require_unlinked_approved_with_email(household)
+    account = account_queries.account_for_email(email)
+    if account is None:
+        raise ValidationError(NO_ACCOUNT, code="no_account")
+    reason = account_link_queries.link_refusal(account)
+    if reason is not None:
+        raise ValidationError(REFUSALS[reason], code=reason)
+    _save_holder(household, account.id, staff, "counter")
+    return household
