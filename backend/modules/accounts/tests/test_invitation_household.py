@@ -56,6 +56,7 @@ def test_acceptance_without_household_sends_nothing(
     assert announced == []
 
 
+# rule: BR-HH-ACCOUNT-001
 def test_receiver_failure_rolls_back_acceptance(issue_invitation: Any) -> None:
     household: Any = HouseholdFactory()
     token, invitation = issue_invitation(household_id=household.pk)
@@ -85,6 +86,7 @@ def reissue(household: Any, email: str, invited_by: Any) -> str:
     )
 
 
+# rule: BR-HH-ACCOUNT-004
 def test_reissue_expires_previous_household_links(
     issue_invitation: Any, invitation_clock: Any
 ) -> None:
@@ -125,6 +127,7 @@ def test_reissue_refuses_non_staff(issue_invitation: Any) -> None:
     assert not Invitation.objects.exists()
 
 
+# rule: BR-HH-ACCOUNT-004
 def test_resend_when_account_exists_keeps_previous_link(
     issue_invitation: Any, invitation_clock: Any
 ) -> None:

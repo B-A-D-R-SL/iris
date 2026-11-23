@@ -25,6 +25,7 @@ from modules.households.tests.linking.helpers import HOLDER_EMAIL, PASSWORD
 pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("notification_rules")]
 
 
+# rule: BR-HH-ACCOUNT-001
 def test_accepting_walk_in_invitation_links_holder(
     household: Any, invitation_token: str
 ) -> None:
@@ -36,11 +37,13 @@ def test_accepting_walk_in_invitation_links_holder(
     assert event.actor_id == user.pk
 
 
+# rule: BR-HH-ACCOUNT-003
 def test_walk_in_with_holder_passes_model_validation(household: Any) -> None:
     household.holder = UserFactory(role="beneficiary")
     household.full_clean()
 
 
+# rule: BR-HH-ACCOUNT-001, BR-HH-ACCOUNT-003
 def test_accept_for_already_linked_household_rolls_back(
     household: Any, invitation_token: str
 ) -> None:
@@ -55,6 +58,7 @@ def test_accept_for_already_linked_household_rolls_back(
     assert household.holder_id == other.pk
 
 
+# rule: BR-HH-ACCOUNT-001
 def test_accept_for_anonymized_household_is_invalid(
     household: Any, invitation_token: str
 ) -> None:
@@ -65,6 +69,7 @@ def test_accept_for_anonymized_household_is_invalid(
     assert not get_user_model().objects.filter(email=HOLDER_EMAIL).exists()
 
 
+# rule: BR-HH-ACCOUNT-005
 def test_walk_in_without_email_is_approved_without_invitation(
     household: Any, staff: Any, email_jobs: list[dict[str, Any]]
 ) -> None:
@@ -95,6 +100,7 @@ def test_link_logs_only_household_id(
     assert HOLDER_EMAIL not in json.dumps(payload)
 
 
+# rule: BR-HH-ACCOUNT-001
 def test_accept_api_reports_household_already_linked(
     household: Any, invitation_token: str
 ) -> None:

@@ -23,6 +23,7 @@ def test_draft_is_not_applicable(staff: Any) -> None:
     assert account_link(household).status == "not_applicable"
 
 
+# rule: BR-HH-ACCOUNT-005
 def test_file_without_email(staff: Any) -> None:
     household = approved_walk_in(staff, email=None)
     assert account_link(household) == AccountLink("no_email", "", None, None)
@@ -33,6 +34,7 @@ def test_invited_when_no_account_uses_the_email(staff: Any) -> None:
     assert account_link(household) == AccountLink("invited", "", None, None)
 
 
+# rule: BR-HH-ACCOUNT-002
 @pytest.mark.parametrize(
     ("make_account", "reason"),
     [
@@ -53,6 +55,7 @@ def test_cannot_link_says_why(staff: Any, make_account: Any, reason: str) -> Non
     assert account_link(household) == AccountLink("cannot_link", reason, None, None)
 
 
+# rule: BR-HH-ACCOUNT-002
 def test_can_link_shows_the_name_on_the_account(staff: Any) -> None:
     household = approved_walk_in(staff)
     account(first_name="Sam", last_name="Exemple")

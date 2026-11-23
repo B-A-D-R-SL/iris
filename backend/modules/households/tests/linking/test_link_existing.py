@@ -35,6 +35,7 @@ def refusal(household: Any, staff: Any) -> str:
     return str(caught.value.messages[0])
 
 
+# rule: BR-HH-ACCOUNT-002
 def test_staff_links_existing_beneficiary_account(staff: Any) -> None:
     household = approved_walk_in(staff)
     user = account()
@@ -44,6 +45,7 @@ def test_staff_links_existing_beneficiary_account(staff: Any) -> None:
     assert (event.metadata, event.actor_id) == ({"method": "counter"}, staff.pk)
 
 
+# rule: BR-HH-ACCOUNT-002
 def test_refuses_unapproved_file(staff: Any) -> None:
     household = approved_walk_in(staff, status=Household.Status.SUBMITTED)
     account()
@@ -52,6 +54,7 @@ def test_refuses_unapproved_file(staff: Any) -> None:
     )
 
 
+# rule: BR-HH-ACCOUNT-002, BR-HH-ACCOUNT-005
 def test_refuses_file_without_email(staff: Any) -> None:
     household = approved_walk_in(staff, email=None)
     assert refusal(household, staff) == (
@@ -59,6 +62,7 @@ def test_refuses_file_without_email(staff: Any) -> None:
     )
 
 
+# rule: BR-HH-ACCOUNT-003
 def test_refuses_already_linked_file(staff: Any) -> None:
     household = approved_walk_in(staff)
     Household.objects.filter(pk=household.pk).update(
@@ -69,6 +73,7 @@ def test_refuses_already_linked_file(staff: Any) -> None:
         link_existing_account(household.pk, staff)
 
 
+# rule: BR-HH-ACCOUNT-002
 def test_refuses_when_no_account(staff: Any) -> None:
     household = approved_walk_in(staff)
     assert refusal(household, staff) == (
@@ -76,6 +81,7 @@ def test_refuses_when_no_account(staff: Any) -> None:
     )
 
 
+# rule: BR-HH-ACCOUNT-002
 @pytest.mark.parametrize(
     "role", ["intake_worker", "admin", "store_staff", "store_manager"]
 )
@@ -87,6 +93,7 @@ def test_refuses_staff_and_store_accounts(staff: Any, role: str) -> None:
     )
 
 
+# rule: BR-HH-ACCOUNT-002
 def test_refuses_inactive_account(staff: Any) -> None:
     household = approved_walk_in(staff)
     account(is_active=False)
@@ -95,6 +102,7 @@ def test_refuses_inactive_account(staff: Any) -> None:
     )
 
 
+# rule: BR-HH-ACCOUNT-003
 def test_refuses_account_holding_another_household(staff: Any) -> None:
     household = approved_walk_in(staff)
     HouseholdFactory(holder=account(), channel="online", street_number="200")
@@ -125,6 +133,7 @@ def test_refusal_messages_in_french(staff: Any) -> None:
         )
 
 
+# rule: BR-HH-ACCOUNT-003
 def test_concurrent_link_of_same_account_refuses_second(
     staff: Any, monkeypatch: Any
 ) -> None:

@@ -33,6 +33,7 @@ def english(settings: Any) -> Iterator[None]:
         yield
 
 
+# rule: BR-HH-ACCOUNT-004
 def test_previous_link_stops_working_after_resend(
     household: Any,
     staff: Any,
@@ -64,6 +65,7 @@ def test_resend_queues_email_after_commit(
     assert invitations().get().household_id == household.pk
 
 
+# rule: BR-HH-ACCOUNT-004
 @pytest.mark.parametrize(
     ("change", "message"),
     [
@@ -92,6 +94,7 @@ def test_resend_refuses_unapproved_linked_or_emailless_file(
     assert email_jobs == []
 
 
+# rule: BR-HH-ACCOUNT-004
 def test_resend_when_account_exists_says_link_it(staff: Any) -> None:
     household = approved_walk_in(staff)
     account()

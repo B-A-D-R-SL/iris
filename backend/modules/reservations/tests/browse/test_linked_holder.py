@@ -16,6 +16,7 @@ pytestmark = pytest.mark.django_db
 EMAIL = "walk-in-holder@example.test"
 
 
+# rule: BR-HH-ACCOUNT-001
 def test_linked_holder_can_browse_and_unlinked_cannot(client: APIClient) -> None:
     admin: Any = UserFactory(role="admin", password=None)
     publish(

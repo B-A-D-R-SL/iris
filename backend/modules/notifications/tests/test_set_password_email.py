@@ -80,6 +80,7 @@ def test_rollback_queues_nothing(
     assert not EmailLog.objects.exists()
 
 
+# rule: BR-HH-ACCOUNT-005
 @pytest.mark.parametrize(
     ("language", "sentences"),
     [

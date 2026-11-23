@@ -32,6 +32,7 @@ def signed_in(user: Any) -> APIClient:
     return client
 
 
+# rule: BR-HH-ACCOUNT-002
 @pytest.mark.parametrize("body", [{}, {"identity_confirmed": False}])
 def test_link_requires_identity_confirmation(staff: Any, body: dict[str, Any]) -> None:
     household = approved_walk_in(staff)
