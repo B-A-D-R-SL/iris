@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import close_old_connections
+from django.db import close_old_connections, connection
 
 from modules.accounts import services as account_services
 from modules.households import account_link_services
@@ -28,6 +28,17 @@ pytestmark = [
 ]
 
 
+def until_another_request_waits_for_a_lock() -> None:
+    """Return once another transaction is blocked on a lock (pg_locks is live)."""
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT count(*) FROM pg_locks WHERE NOT granted")
+            if cursor.fetchone()[0]:
+                return
+    raise AssertionError("The resend never waited for a lock.")
+
+
 def test_resend_while_the_old_link_is_accepted_does_not_deadlock(
     staff: Any, settings: Any, monkeypatch: Any
 ) -> None:
@@ -40,11 +51,11 @@ def test_resend_while_the_old_link_is_accepted_does_not_deadlock(
     lock_file = account_link_services._locked_walk_in
 
     def pause_acceptance(household_id: Any) -> Any:
-        # The first caller is the acceptance, holding the invitation row: give
-        # the resend time to start before the acceptance locks the file.
+        # The first caller is the acceptance, holding the invitation row: let
+        # the resend start and block on a lock before the acceptance locks the file.
         if not accepting.is_set():
             accepting.set()
-            time.sleep(1.5)
+            until_another_request_waits_for_a_lock()
         return lock_file(household_id)
 
     monkeypatch.setattr(account_link_services, "_locked_walk_in", pause_acceptance)
