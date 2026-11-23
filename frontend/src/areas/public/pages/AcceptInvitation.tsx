@@ -13,7 +13,13 @@ import { logger } from "../../../shared/logger";
 import { Notice } from "../../../shared/ui";
 
 type ErrorKey =
-  "checkPassword" | "expired" | "used" | "invalid" | "emailRegistered" | "unavailable";
+  | "checkPassword"
+  | "expired"
+  | "used"
+  | "invalid"
+  | "emailRegistered"
+  | "alreadyLinked"
+  | "unavailable";
 type Failure = { error: InvitationError; language: string };
 const ERROR_KEYS: Record<InvitationError["code"], ErrorKey> = {
   validation_error: "checkPassword",
@@ -21,6 +27,7 @@ const ERROR_KEYS: Record<InvitationError["code"], ErrorKey> = {
   invitation_used: "used",
   invitation_invalid: "invalid",
   email_already_registered: "emailRegistered",
+  household_already_linked: "alreadyLinked",
   unavailable: "unavailable",
 };
 

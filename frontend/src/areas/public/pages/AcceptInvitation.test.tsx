@@ -170,6 +170,11 @@ describe("US-04 accept an invitation and set a password", () => {
     ["invitation_used", "Ce lien d’invitation a déjà été utilisé."],
     ["invitation_invalid", "Ce lien d’invitation est invalide."],
     ["email_already_registered", "Un compte utilise déjà ce courriel."],
+    // US-93: the walk-in file got another account before this link was used.
+    [
+      "household_already_linked",
+      "Ce dossier est déjà lié à un autre compte. Demandez de l’aide au personnel de la banque alimentaire.",
+    ],
   ])("explains %s without exposing the token", async (code, message) => {
     const fetchMock = mockAcceptance(async () =>
       Response.json({ code, message, fields: {} }, { status: 400 }),
