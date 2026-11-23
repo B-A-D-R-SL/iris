@@ -249,7 +249,7 @@ Shown on `/staff/households/:id` and under an approved walk-in decision. The sta
 
 | State | What the card says | Action |
 | --- | --- | --- |
-| `linked` | The household's Iris account is linked to this file; they can browse and reserve online. | None |
+| `linked` | The household's Iris account is linked to this file; online access follows the file's status (an approved, unexpired file can browse and reserve). | None |
 | `invited` | An invitation to choose a password was sent to the file's email; online access starts once they choose it. | **Envoyer une nouvelle invitation / Send a new invitation** (help: use it if the email didn't arrive or the link expired; the previous link stops working). |
 | `can_link` | An Iris account already uses the file's email and is not linked yet. | **Lier ce compte / Link this account** opens "Lier le compte Iris à ce dossier / Link the Iris account to this file". |
 | `cannot_link` | Why the account can't be linked: a staff or store account, a deactivated account, or an account already linked to another household. | None |

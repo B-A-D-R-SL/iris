@@ -135,7 +135,7 @@
     },
     "account": {
       "title": "Iris account",
-      "linked": "The household's Iris account is linked to this file. They can browse and reserve online.",
+      "linked": "The household's Iris account is linked to this file. Online access follows the file's status.",
       "canLink": "An Iris account already uses {{email}}. It is not linked to this file yet.",
       "invited": "An invitation to choose a password was sent to {{email}}. The household can browse and reserve online once they choose it.",
       "noEmail": "No email on file: the household is served at the counter. An online account is optional.",

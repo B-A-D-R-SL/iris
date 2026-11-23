@@ -57,9 +57,11 @@ describe("household account card", () => {
     await i18n.changeLanguage("en");
   });
 
-  it("says a linked household can browse and reserve online", () => {
+  it("says the account is linked without promising access a suspended file lacks", () => {
     show(state("linked"));
     expect(screen.getByText(/account is linked to this file/)).toBeVisible();
+    // The page also shows suspended and expired files: access depends on the status.
+    expect(screen.queryByText(/browse and reserve/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
