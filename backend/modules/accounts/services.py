@@ -7,10 +7,12 @@ import secrets
 from datetime import datetime, timedelta
 from hashlib import sha256
 from typing import Any
+from uuid import UUID
 
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.dispatch import Signal
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -24,6 +26,12 @@ _TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_-]{43}\Z")
 _EMAIL_UNIQUE_CONSTRAINTS = frozenset(
     ("accounts_user_email_key", "accounts_user_email_ci_unique")
 )
+
+# US-93: sent inside the acceptance transaction with `user` and `household_id`
+# when the invitation names a household. Households links the account; a
+# receiver that raises rolls the whole acceptance back. Accounts never imports
+# households (import-linter), so the link travels through this signal.
+invitation_accepted = Signal()
 
 
 def _identity_text(value: str, field: str) -> str:
@@ -71,8 +79,12 @@ def create_invitation(
     role: str,
     store: Any = None,
     invited_by: User | None = None,
+    household_id: UUID | None = None,
 ) -> str:
-    """Save a recipient assignment and return the raw token only to the caller."""
+    """Save a recipient assignment and return the raw token only to the caller.
+
+    `household_id` names the walk-in file the accepted account will hold (US-93).
+    """
     email = User.objects.normalize_email(_identity_text(email, "email")).lower()
     _require_new_email(email)
     token = secrets.token_urlsafe(32)
@@ -83,6 +95,7 @@ def create_invitation(
         role=role,
         store=store,
         invited_by=invited_by,
+        household_id=household_id,
         token_hash=sha256(token.encode("utf-8")).hexdigest(),
         expires_at=_invitation_expiry(timezone.now()),
     )
@@ -194,6 +207,10 @@ def accept_invitation(token: str, password: str) -> User:
     user = _create_invited_user(invitation, password)
     invitation.accepted_at = now
     invitation.save(update_fields=["accepted_at"])
+    if invitation.household_id is not None:
+        invitation_accepted.send(
+            sender=Invitation, user=user, household_id=invitation.household_id
+        )
     transaction.on_commit(
         lambda: logger.info(
             "invitation_accepted", extra={"event": "invitation_accepted"}

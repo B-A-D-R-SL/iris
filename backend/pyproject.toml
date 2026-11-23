@@ -143,6 +143,8 @@ ignore_imports = [
     "modules.accounts.tests.test_invitations -> modules.stores.tests.factories",
     "modules.accounts.tests.test_api -> modules.stores.tests.factories",
     "modules.accounts.tests.conftest -> modules.rules.models",
+    # US-93: walk-in invitations name a household built with its test factory.
+    "modules.accounts.tests.test_invitation_household -> modules.households.tests.factories",
     "modules.households.tests.** -> modules.documents.tests.factories",
     # US-57 integration tests follow owning workflows into the queued delivery.
     "modules.accounts.tests.test_notification_adapter -> modules.notifications.models",

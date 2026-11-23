@@ -88,6 +88,16 @@ class Invitation(models.Model):
         on_delete=models.PROTECT,
         related_name="account_invitations",
     )
+    # US-93: the walk-in file whose holder the accepted account becomes. No
+    # reverse accessor: households reads invitations only through accounts.
+    household = models.ForeignKey(
+        "households.Household",
+        verbose_name=_("Household"),
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
     token_hash = models.CharField(_("Token hash"), max_length=64, unique=True)
     expires_at = models.DateTimeField(_("Expires at"))
     accepted_at = models.DateTimeField(_("Accepted at"), null=True, blank=True)
