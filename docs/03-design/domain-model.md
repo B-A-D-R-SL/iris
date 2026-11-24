@@ -81,7 +81,8 @@ flowchart LR
     User ---|"Optional store assignment"| Store
     Invitation ---|"Optional store assignment"| Store
     PartnerApplication ---|"Optional stored link on resulting store"| Store
-    Household ---|"Optional holder account; walk-in linking deferred"| User
+    Household ---|"Optional holder account; a walk-in file's is linked by invitation or at the counter"| User
+    Invitation ---|"Walk-in invitation names its household"| Household
     Household ---|"Contains members"| Member
     Household ---|"Retains registration history"| HouseholdDraftEvent
     Member ---|"Has income evidence"| IncomeNotice

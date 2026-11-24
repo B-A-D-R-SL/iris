@@ -393,11 +393,11 @@ Reservation allocation is implemented by US-41 (PR #691), and lookup/confirmatio
 by US-44 (PRs #684 and #686). Central reservation and pickup
 audits below remain planned; their application logs do not provide that guarantee.
 
-The household half of this sequence is implemented and tested at API level, but
-no beneficiary account is linked to a household outside the tests (walk-in
-approval creates an account but doesn't link it), and the seed creates none. Until US-93 ([#704](https://github.com/B-A-D-R-SL/iris/issues/704),
-Release 2) links accounts, no household can browse or reserve in a running
-instance. There is no "my reservations" view and no household cancellation yet.
+The household half of this sequence is implemented and tested at API level. A
+walk-in household can use it once its account is linked to its file, by
+accepting the set-password invitation or by staff at the counter (US-93,
+[#704](https://github.com/B-A-D-R-SL/iris/issues/704), sequence 6b); the seed
+creates no linked account. There is no "my reservations" view and no household cancellation yet.
 
 The Listings module owns the stock UPDATE.
 Reservations owns the reservation INSERT.

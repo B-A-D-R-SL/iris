@@ -176,7 +176,7 @@ reserve quantity picker caps its value using `units_left` and
 | Role / area | Implemented routes and landing |
 | --- | --- |
 | Public | `/`, `/sign-in`, `/invitation/:token`, `/partner/apply`; `/privacy` still renders a placeholder |
-| Beneficiary | Lands on `/listings`; `/listings/:id` displays detail and reservation confirmation. No beneficiary account is linked to a household outside tests until US-93 (#704) |
+| Beneficiary | Lands on `/listings`; `/listings/:id` displays detail and reservation confirmation. A walk-in household's account is linked when the holder accepts the set-password invitation or by staff at the counter (US-93, #704) |
 | Store manager / staff | Lands on `/store/listings/new`; `/store/confirm` supports camera scan or typed code |
 | Intake worker / admin | Lands on `/staff/households`; shared household detail at `/staff/households/:id`; walk-in at `/staff/walk-in`, `/staff/walk-in/:id` and `/staff/walk-in/:id/notices` |
 | Admin only | `/staff/partners`, `/staff/stores`, `/staff/stores/:id`, `/staff/categories`, `/staff/audit` |
@@ -351,8 +351,9 @@ All writes go through the module owning the affected table.
 Households present their Revenu Québec notices to staff at the walk-in counter.
 Authorized intake workers/admins upload those files and enter the notice values
 in Iris. Households do not upload notices themselves in Release 1. The dotted
-household arrow is not usable yet: no household account is linked to a file
-outside tests until US-93 ([#704](https://github.com/B-A-D-R-SL/iris/issues/704), Release 2).
+household arrow is usable once the household's account is linked to its file,
+by accepting the set-password invitation or by staff at the counter (US-93,
+[#704](https://github.com/B-A-D-R-SL/iris/issues/704)).
 
 The notice and threshold arrows represent supplied documents and
 reference data, not live connections to government accounts or APIs.
@@ -695,7 +696,7 @@ initial architecture draft only gained a "superseded" banner (FIX-32).
 
 | Item | Observed state / follow-up |
 | --- | --- |
-| Walk-in account access | [US-93 #704](https://github.com/B-A-D-R-SL/iris/issues/704), including #706–#709, is Release 2. New walk-in invitees can create an account but cannot yet attach that account to their file. Existing-account linking and staff walk-in invitation resend are also deferred. |
+| Walk-in account access | Done: [US-93 #704](https://github.com/B-A-D-R-SL/iris/issues/704) (#705–#709), [PR #798](https://github.com/B-A-D-R-SL/iris/pull/798). Accepting the walk-in set-password invitation links the new account to its file; staff link an existing account after an ID check and resend the invitation (`households/account_link_services.py`). |
 | Notice/summary audit coverage | Done: [FIX-29 #713](https://github.com/B-A-D-R-SL/iris/issues/713), [PR #715](https://github.com/B-A-D-R-SL/iris/pull/715) merged. Notice-list and decision-summary reads record a central `view` event, and notice recording records a central `update` in the notice transaction (`households/notice_services.py:99`). |
 | Consent before notice upload | Done: [FIX-30 #714](https://github.com/B-A-D-R-SL/iris/issues/714), [PR #716](https://github.com/B-A-D-R-SL/iris/pull/716) merged. `households/notice_services.py:32` refuses a notice for a draft without recorded consent before the file is stored, and checks again under the household lock. |
 | Correct another adult after recording evidence | [FIX-27 #666](https://github.com/B-A-D-R-SL/iris/issues/666) is open. Changed non-holder members are replaced, so protected notices prevent that edit; unchanged members keep their rows. Holder edits are in place. |
