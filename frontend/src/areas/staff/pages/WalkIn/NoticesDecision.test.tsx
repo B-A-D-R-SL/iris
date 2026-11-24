@@ -223,7 +223,9 @@ describe("Walk-in notices: saved files and the decision (US-18, T-03.18.4)", () 
     expect(await screen.findByText(/Dossier approuvé jusqu'au/)).toBeVisible();
     expect(screen.getByText(/Aucun courriel n'a été envoyé/)).toBeVisible();
     // US-93: the account is linked only after the ID check, so the note promises no access.
-    expect(screen.getByText(/Vérifiez la pièce d'identité de la personne, puis liez/)).toBeVisible();
+    expect(
+      screen.getByText(/Vérifiez la pièce d'identité de la personne, puis liez/),
+    ).toBeVisible();
     expect(await screen.findByRole("button", { name: "Lier ce compte" })).toBeVisible();
     expect(screen.queryByText(/ne peut pas encore être lié/)).not.toBeInTheDocument();
     expect(screen.queryByText(/connecter|réinitialiser/)).not.toBeInTheDocument();
