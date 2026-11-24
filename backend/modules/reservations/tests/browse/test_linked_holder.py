@@ -10,7 +10,13 @@ from rest_framework.test import APIClient
 from modules.accounts import services as account_services
 from modules.accounts.tests.factories import UserFactory
 from modules.reservations.models import Reservation
-from modules.reservations.tests.browse.helpers import NOW, URL, _household, _listing
+from modules.reservations.tests.browse.helpers import (
+    NOW,
+    URL,
+    _household,
+    _ids_of,
+    _listing,
+)
 from modules.reservations.tests.factories import publish_reservation_rules
 from modules.rules.services import publish
 
@@ -38,9 +44,11 @@ def _linked_walk_in_holder() -> tuple[Any, Any]:
 # rule: BR-HH-ACCOUNT-001
 def test_linked_holder_can_browse_and_unlinked_cannot(client: APIClient) -> None:
     linked, _ = _linked_walk_in_holder()
-    _listing()
+    listing = _listing()
     client.force_login(linked)
-    assert client.get(URL).status_code == 200
+    response = client.get(URL)
+    assert response.status_code == 200
+    assert _ids_of(response.json()) == [str(listing.pk)]
 
     unlinked = UserFactory(role="beneficiary")
     _household(None, channel="walk_in")
