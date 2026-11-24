@@ -65,6 +65,13 @@ describe("household account card", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
+  it("says an invitation leads to access only while the file is approved", () => {
+    show(state("invited"));
+    expect(screen.getByText(/password was sent to holder@example.test/)).toBeVisible();
+    // The file can be suspended or expire before the password is chosen.
+    expect(screen.getByText(/while the file is approved/)).toBeVisible();
+  });
+
   it("says a counter-only file needs no account", () => {
     show(state("no_email"));
     expect(screen.getByText(/served at the counter/)).toBeVisible();

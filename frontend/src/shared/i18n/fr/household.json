@@ -137,7 +137,7 @@
       "title": "Compte Iris",
       "linked": "Le compte Iris du foyer est lié à ce dossier. L’accès en ligne suit le statut du dossier.",
       "canLink": "Un compte Iris utilise déjà {{email}}. Il n'est pas encore lié à ce dossier.",
-      "invited": "Une invitation à choisir un mot de passe a été envoyée à {{email}}. Le foyer pourra consulter les offres et réserver en ligne une fois le mot de passe choisi.",
+      "invited": "Une invitation à choisir un mot de passe a été envoyée à {{email}}. Une fois le mot de passe choisi, le foyer pourra consulter les offres et réserver en ligne tant que le dossier est approuvé.",
       "noEmail": "Aucun courriel au dossier : le foyer est servi au comptoir. Un compte en ligne est facultatif.",
       "cannotLinkNotBeneficiary": "{{email}} appartient à un compte du personnel ou d'un commerce, qui ne peut pas être lié à un foyer. Servez le foyer au comptoir ou demandez un autre courriel.",
       "cannotLinkInactive": "Le compte qui utilise {{email}} est désactivé : il ne peut pas être lié.",
