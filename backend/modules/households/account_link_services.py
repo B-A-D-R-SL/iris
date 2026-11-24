@@ -125,7 +125,8 @@ def link_existing_account(household_id: UUID, staff: AbstractBaseUser) -> Househ
     require_walk_in_staff(staff)
     household = _locked_walk_in(household_id)
     email = _require_unlinked_approved_with_email(household)
-    account = account_queries.account_for_email(email)
+    # Locked until commit: the role and activation checked below cannot change.
+    account = account_queries.account_for_email(email, lock=True)
     if account is None:
         raise ValidationError(NO_ACCOUNT, code="no_account")
     reason = account_link_queries.link_refusal(account)

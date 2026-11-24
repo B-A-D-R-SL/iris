@@ -46,12 +46,17 @@ class AccountSummary:
     is_active: bool
 
 
-def account_for_email(email: str) -> AccountSummary | None:
-    """The account using this email (case-insensitive), or None (US-93)."""
+def account_for_email(email: str, *, lock: bool = False) -> AccountSummary | None:
+    """The account using this email (case-insensitive), or None (US-93).
+
+    With `lock`, the row stays locked until the caller's transaction ends, so
+    the role and activation a caller checks cannot change before it commits.
+    """
     from modules.accounts.models import User
 
+    users = User.objects.select_for_update() if lock else User.objects
     row = (
-        User.objects.filter(email__iexact=email)
+        users.filter(email__iexact=email)
         .values("id", "first_name", "last_name", "role", "is_active")
         .first()
     )
