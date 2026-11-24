@@ -145,7 +145,7 @@
       "confirmTitle": "Approve this file?",
       "confirmValidUntil": "The file will be valid until {{date}}.",
       "confirmBody": "The decision is final. If the household gave an email address, they will receive a link to choose a password; their account is linked to this file once they do.",
-      "invitationNotSent": "No email was sent: this address already has an Iris account. Check the person's ID, then link the account below.",
+      "invitationNotSent": "No email was sent: this address already has an Iris account. The Iris account section below shows what to do next.",
       "reasonNoticeMissing": "An adult has neither a notice nor a reason for not filing (they turned 18 after submission).",
       "confirmApprove": "Confirm approval"
     },

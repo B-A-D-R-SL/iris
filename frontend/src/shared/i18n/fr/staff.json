@@ -145,7 +145,7 @@
       "confirmTitle": "Approuver ce dossier ?",
       "confirmValidUntil": "Le dossier sera valide jusqu'au {{date}}.",
       "confirmBody": "La décision est définitive. Si le foyer a donné un courriel, il recevra un lien pour choisir un mot de passe ; son compte sera lié à ce dossier une fois le mot de passe choisi.",
-      "invitationNotSent": "Aucun courriel n'a été envoyé : cette adresse a déjà un compte Iris. Vérifiez la pièce d'identité de la personne, puis liez le compte ci-dessous.",
+      "invitationNotSent": "Aucun courriel n'a été envoyé : cette adresse a déjà un compte Iris. La section « Compte Iris » ci-dessous indique la suite.",
       "reasonNoticeMissing": "Un adulte n'a ni avis ni motif de non-production (il a eu 18 ans après la soumission).",
       "confirmApprove": "Confirmer l'approbation"
     },
