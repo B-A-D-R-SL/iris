@@ -10,10 +10,10 @@ from threading import Event
 from typing import Any
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
 
-from modules.accounts.models import User
 from modules.households.account_link_services import link_existing_account
 from modules.households.tests.linking.helpers import (
     account,
@@ -23,6 +23,8 @@ from modules.households.tests.linking.helpers import (
 )
 
 pytestmark = pytest.mark.django_db(transaction=True)
+# Through Django: households code never imports the accounts models.
+User = get_user_model()
 
 
 # rule: BR-HH-ACCOUNT-002
