@@ -5,14 +5,13 @@ Acceptance locks the invitation, then the household. A resend must take the
 same order, or the two can deadlock and one request fails with a server error.
 """
 
-import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
 from typing import Any
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import close_old_connections, connection
+from django.db import connection
 
 from modules.accounts import services as account_services
 from modules.households import account_link_services
@@ -20,23 +19,14 @@ from modules.households.tests.linking.helpers import (
     HOLDER_EMAIL,
     PASSWORD,
     approved_walk_in,
+    backend_pid,
+    until_blocked_by_this_connection,
 )
 
 pytestmark = [
     pytest.mark.django_db(transaction=True),
     pytest.mark.usefixtures("notification_rules"),
 ]
-
-
-def until_another_request_waits_for_a_lock() -> None:
-    """Return once another transaction is blocked on a lock (pg_locks is live)."""
-    deadline = time.monotonic() + 10
-    while time.monotonic() < deadline:
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT count(*) FROM pg_locks WHERE NOT granted")
-            if cursor.fetchone()[0]:
-                return
-    raise AssertionError("The resend never waited for a lock.")
 
 
 def test_resend_while_the_old_link_is_accepted_does_not_deadlock(
@@ -48,14 +38,15 @@ def test_resend_while_the_old_link_is_accepted_does_not_deadlock(
         HOLDER_EMAIL, "Samira", "Example", "beneficiary", household_id=household.pk
     )
     accepting = Event()
+    resender: list[int] = []
     lock_file = account_link_services._locked_walk_in
 
     def pause_acceptance(household_id: Any) -> Any:
         # The first caller is the acceptance, holding the invitation row: let
-        # the resend start and block on a lock before the acceptance locks the file.
+        # the resend start and wait on that lock before the acceptance locks the file.
         if not accepting.is_set():
             accepting.set()
-            until_another_request_waits_for_a_lock()
+            until_blocked_by_this_connection(resender)
         return lock_file(household_id)
 
     monkeypatch.setattr(account_link_services, "_locked_walk_in", pause_acceptance)
@@ -64,16 +55,17 @@ def test_resend_while_the_old_link_is_accepted_does_not_deadlock(
         try:
             return account_services.accept_invitation(token, PASSWORD)
         finally:
-            close_old_connections()
+            connection.close()
 
     def resend() -> Any:
         accepting.wait(timeout=10)
         try:
+            resender.append(backend_pid())
             account_link_services.resend_invitation(household.pk, staff)
         except ValidationError as exc:
             return exc
         finally:
-            close_old_connections()
+            connection.close()
         return None
 
     with ThreadPoolExecutor(max_workers=2) as pool:
