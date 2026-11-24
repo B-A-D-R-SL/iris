@@ -90,7 +90,7 @@ def test_rollback_queues_nothing(
                 "Your household file is approved.",
                 "Use the link below to choose your password.",
                 "Your account will then be linked to your file",
-                "browse and reserve food in Iris",
+                "browse and reserve food in Iris while your file is approved.",
             ),
         ),
         (
@@ -99,7 +99,7 @@ def test_rollback_queues_nothing(
                 "Votre dossier est approuvé.",
                 "Utilisez le lien ci-dessous pour choisir votre mot de passe.",
                 "Votre compte sera alors lié à votre dossier",
-                "réserver de la nourriture dans Iris",
+                "réserver de la nourriture dans Iris tant que votre dossier est approuvé.",
             ),
         ),
     ],
