@@ -7,6 +7,11 @@ from uuid import UUID
 from modules.documents.models import IncomeNotice
 
 
+def has_income_notices(member_id: UUID) -> bool:
+    """Include superseded notices when checking a member's history."""
+    return IncomeNotice.objects.filter(member_id=member_id).exists()
+
+
 def current_notices(member_ids: Iterable[UUID]) -> dict[UUID, IncomeNotice]:
     """The current (not superseded) notice of each member; members without one are absent."""
     notices = IncomeNotice.objects.filter(

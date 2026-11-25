@@ -120,6 +120,7 @@ def test_member_update_refuses_invalid_ids(
     assert "members" in response.data["fields"]
 
 
+# rule: BR-DOC-007
 def test_member_with_a_notice_cannot_be_changed_to_a_minor(
     household: Any, holder: Any, worker: Any
 ) -> None:
