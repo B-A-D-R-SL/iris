@@ -20,6 +20,7 @@ from modules.households.tests.approval.helpers import (
     invitations,
     submit_and_approve,
 )
+from modules.households.tests.factories import HouseholdFactory
 from modules.households.tests.linking.helpers import HOLDER_EMAIL, PASSWORD
 
 pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("notification_rules")]
@@ -39,8 +40,26 @@ def test_accepting_walk_in_invitation_links_holder(
 
 # rule: BR-HH-ACCOUNT-003
 def test_walk_in_with_holder_passes_model_validation(household: Any) -> None:
-    household.holder = UserFactory(role="beneficiary")
+    """clean() used to refuse a holder on a walk-in file; a linked one now saves."""
+    user: Any = UserFactory(role="beneficiary")
+    household.holder = user
     household.full_clean()
+    household.save()
+    household.refresh_from_db()
+    assert (household.channel, household.holder_id) == ("walk_in", user.pk)
+
+
+# rule: BR-HH-ACCOUNT-003
+def test_model_validation_refuses_an_account_that_holds_another_household(
+    household: Any,
+) -> None:
+    user: Any = UserFactory(role="beneficiary")
+    Household.objects.filter(pk=household.pk).update(holder=user)
+    other = HouseholdFactory(created_by=household.created_by)
+    other.holder = user
+    with pytest.raises(ValidationError) as caught:
+        other.full_clean()
+    assert set(caught.value.message_dict) == {"holder"}
 
 
 # rule: BR-HH-ACCOUNT-001, BR-HH-ACCOUNT-003
