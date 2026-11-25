@@ -108,9 +108,9 @@ def _log_invitation_skipped(household: Household) -> None:
 def record_outcome(household: Household, staff: Any) -> bool:
     """Save the outcome; return whether a set-password invitation was queued.
 
-    An email that already has an account cannot be invited. The approval still
-    stands (the household is served at the counter), staff are told, and the
-    invitation is skipped.
+    A queued invitation is audited (`invite`). An email that already has an
+    account cannot be invited. The approval still stands (the household is served
+    at the counter), staff are told, and the invitation is skipped.
     """
     household.full_clean()
     household.save()
@@ -128,6 +128,7 @@ def record_outcome(household: Household, staff: Any) -> bool:
             last_name=holder.last_name,
             role=BENEFICIARY_ROLE,
             invited_by=staff,
+            household_id=household.pk,
         )
     except ValidationError as exc:
         if exc.code != "email_already_registered":
@@ -139,4 +140,6 @@ def record_outcome(household: Household, staff: Any) -> bool:
         token=token,
         language=household.preferred_language,
     )
+    # Same action as a resend, so "Invitation sent" in the audit log lists every link.
+    audit_services.record(staff, "invite", "household", household.pk, {})
     return True

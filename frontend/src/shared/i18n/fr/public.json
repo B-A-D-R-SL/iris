@@ -29,6 +29,7 @@
       "used": "Ce lien d’invitation a déjà été utilisé.",
       "invalid": "Ce lien d’invitation est invalide.",
       "emailRegistered": "Un compte utilise déjà ce courriel.",
+      "alreadyLinked": "Ce dossier est déjà lié à un autre compte. Demandez de l’aide au personnel de la banque alimentaire.",
       "unavailable": "L’acceptation des invitations est indisponible. Réessayez.",
       "checkPassword": "Vérifiez le mot de passe et sa confirmation.",
       "success": "Le nouveau compte est prêt.",

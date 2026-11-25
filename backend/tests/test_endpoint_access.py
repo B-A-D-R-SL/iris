@@ -43,8 +43,11 @@ ACCESS: dict[str, frozenset[str]] = {
     "staff-households-create": frozenset({INTAKE_WORKER, ADMIN}),
     "staff-households-decision-summary": frozenset({INTAKE_WORKER, ADMIN}),
     "staff-households-detail": frozenset({INTAKE_WORKER, ADMIN}),
+    # US-93: link a household's existing account, or resend its invitation.
+    "staff-households-link-account": frozenset({INTAKE_WORKER, ADMIN}),
     "staff-households-notices": frozenset({INTAKE_WORKER, ADMIN}),
     "staff-households-reactivate": frozenset({ADMIN}),
+    "staff-households-resend-invitation": frozenset({INTAKE_WORKER, ADMIN}),
     "staff-households-submit": frozenset({INTAKE_WORKER, ADMIN}),
     "staff-households-suspend": frozenset({ADMIN}),
     "staff-notice-file-download": frozenset({INTAKE_WORKER, ADMIN}),

@@ -122,6 +122,20 @@ def _validate_update(target_type: str, metadata: dict[str, str | int]) -> None:
         raise ValidationError({"metadata": "The changed field names are required."})
 
 
+ACCOUNT_LINK_METHODS = frozenset({"invitation", "counter"})
+
+
+def _validate_account_link(target_type: str, metadata: dict[str, str | int]) -> None:
+    """US-93: a household's account was linked by invitation or at the counter."""
+    valid = (
+        target_type == "household"
+        and set(metadata) == {"method"}
+        and metadata["method"] in ACCOUNT_LINK_METHODS
+    )
+    if not valid:
+        raise ValidationError({"metadata": "The link method is required."})
+
+
 def _validate_store_deactivation(
     target_type: str, metadata: dict[str, str | int]
 ) -> None:
@@ -197,6 +211,8 @@ def _validate_metadata(
         _validate_update(target_type, metadata)
     elif action == AuditEvent.Action.DEACTIVATE:
         _validate_store_deactivation(target_type, metadata)
+    elif action == AuditEvent.Action.LINK_ACCOUNT:
+        _validate_account_link(target_type, metadata)
     elif metadata:
         raise ValidationError({"metadata": "This action does not accept metadata."})
 

@@ -127,9 +127,15 @@ transaction commits. The formatter keeps `household_id` (a validated UUID),
 comma-separated list written only when every code is a registered review or
 rejection code (for example `NAME_MISMATCH` or `INCOME_ABOVE_LICO`); an approval
 has no codes. `walk_in_invitation_skipped` keeps `household_id` and the reason
-`email_already_registered`. These fields are allowed only for these two events;
+`email_already_registered`. These fields are allowed only for these events;
 names, incomes, emails and staff identifiers are never written. A rolled-back
 approval emits no event.
+
+US-93 adds two events with `household_id` only, both after commit:
+`walk_in_account_linked` when a walk-in file gets its holder account (by
+accepting the invitation or at the counter; the audit event's `method` says
+which) and `walk_in_invitation_resent` when staff send a new set-password link.
+The account, its email and the token are never logged.
 
 ## Listing posting events (FIX-01)
 

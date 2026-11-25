@@ -101,6 +101,21 @@ creator, verifier or internal keys directly.
   Read-only; income and threshold are `null` until every adult has a notice the
   rules can add up. The screen shows these and works nothing out itself.
 
+- `POST /api/staff/households/{uuid}/link-account/` with
+  `{"identity_confirmed": true}`: `account_link_services.link_existing_account`
+  links the active beneficiary account that uses an approved walk-in's email
+  and holds no household, after staff compared the person's ID with the name on
+  the account. Answers the new `account` block; refusals are 400 with the reason.
+- `POST /api/staff/households/{uuid}/resend-invitation/` (empty body):
+  `account_link_services.resend_invitation` sends a new set-password link to an
+  approved walk-in with an email and no linked account; earlier links stop
+  working (`accounts.services.reissue_household_invitation`).
+- The detail response's `account` block comes from
+  `account_link_queries.account_link`: `status` (`linked`, `can_link`,
+  `cannot_link`, `invited`, `no_email`, `not_applicable`), `reason` for
+  `cannot_link`, and the account's names only for `can_link`. One rule,
+  `link_refusal`, decides which accounts can be linked for both.
+
 Errors use `{ "code", "message", "fields" }`; nested form field paths are
 reported as dotted keys such as `address.postal_code`.
 Messages follow the request language (French by default). `domain/` raises
@@ -286,7 +301,15 @@ Outcome, eligibility, audit and invitation writes share one transaction.
 Approved files with email call the US-04 invitation service. Its existing-account
 refusal is handled by skipping the invitation while preserving approval, as
 reported by `invitation_not_sent`; other invitation failures roll back the
-transaction. Acceptance creates the account but does not yet link it to the household.
+transaction. A queued invitation is audited (`invite`, no metadata, actor the
+approving staff member), the same action a resend records. The invitation names
+the household; accepting it creates the account
+and makes it the file's holder (`Household.holder`) in the same transaction (US-93,
+`account_link_services.link_invited_account`, connected in `apps.py`). A file that
+already has a holder refuses the acceptance (`household_already_linked`) and no
+account is created; an anonymized file makes the link invalid. The link is audited
+(`link_account`, `{"method": "invitation"}`, actor the new account) and logged as
+`walk_in_account_linked` with the household ID only.
 
 The French or English set-password email uses US-57's `walk_in_set_password`
 template through `notifications.services.queue_set_password_email`, which calls
@@ -294,7 +317,8 @@ the shared queued `send` service. The link is `PUBLIC_APP_ORIGIN` plus
 `/invitation/:token`. The job is queued only after commit, so no email is sent on
 rollback, rejection or review. Configuration or delivery failure is recorded in
 `EmailLog` without the token and cannot undo approval; retries follow the
-`notifications` RuleSet. A staff resend workflow remains unimplemented.
+`notifications` RuleSet. Staff can resend the link from the household page
+(US-93, `resend-invitation` above).
 
 ## Staff search (US-63, #553 and #554)
 

@@ -48,6 +48,12 @@ Invitation services:
   from the invitation and records `accepted_at`. Existing active or inactive
   accounts with the same email are refused case-insensitively, without changes
   to them. Acceptance does not sign in or switch the browser session.
+- `create_invitation(..., household_id=...)` (US-93) names the walk-in file the
+  account will hold (`Invitation.household`, no reverse accessor). Accepting such
+  an invitation sends `invitation_accepted(user=..., household_id=...)` inside the
+  acceptance transaction; households links the account, and a refusal there (for
+  example `household_already_linked`) rolls the new account back. Accounts never
+  imports households: the link travels through this signal.
 - `reissue_store_manager_invitation(...)` expires prior unaccepted manager
   invitations under lock and creates a new token. The active-admin caller in
   stores locks the approved application; failed issuance rolls back old-link
@@ -124,7 +130,8 @@ mail types before enabling their workflows.
 
 US-13 partner approval and operator reissue now build and queue manager
 invitations through the shared service. Staff/store-team issuing screens and
-endpoints and household linking remain in US-05, US-06 and US-18. Their callers
+endpoints remain in US-05 and US-06; walk-in household invitations are issued by
+households (US-18) and linked on acceptance (US-93). Their callers
 build `/invitation/<token>` links from the token returned by
 `create_invitation` and `PUBLIC_APP_ORIGIN`, then use
 [the notification service](../notifications/README.md). Acceptance does not issue

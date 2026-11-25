@@ -117,7 +117,7 @@
       "approveHelp": "L'admissibilité décide : le dossier est approuvé, refusé ou envoyé en révision. Vous confirmerez avant l'envoi.",
       "notDecided": "Aucune décision n'a été prise",
       "approved": "Dossier approuvé jusqu'au {{date}}",
-      "approvedHelp": "Si le foyer a donné un courriel, il recevra un lien pour créer son compte.",
+      "approvedHelp": "Si le foyer a donné un courriel, il recevra un lien pour choisir un mot de passe. Son compte sera alors lié à ce dossier et il pourra consulter les offres et réserver en ligne.",
       "rejected": "Dossier refusé",
       "sentToReview": "Dossier envoyé en révision",
       "reasonIncomeAboveLico": "Le revenu total dépasse le seuil de faible revenu pour la taille de ce foyer.",
@@ -144,8 +144,8 @@
       "threshold": "Seuil de faible revenu",
       "confirmTitle": "Approuver ce dossier ?",
       "confirmValidUntil": "Le dossier sera valide jusqu'au {{date}}.",
-      "confirmBody": "La décision est définitive. Si le foyer a donné un courriel, une invitation à créer son compte lui sera envoyée.",
-      "invitationNotSent": "Aucun courriel n'a été envoyé : cette adresse a déjà un compte Iris, qui ne peut pas encore être lié à ce dossier. Servez le foyer au comptoir en attendant.",
+      "confirmBody": "La décision est définitive. Si le foyer a donné un courriel, il recevra un lien pour choisir un mot de passe ; son compte sera lié à ce dossier une fois le mot de passe choisi.",
+      "invitationNotSent": "Aucun courriel n'a été envoyé : cette adresse a déjà un compte Iris. La section « Compte Iris » ci-dessous indique la suite.",
       "reasonNoticeMissing": "Un adulte n'a ni avis ni motif de non-production (il a eu 18 ans après la soumission).",
       "confirmApprove": "Confirmer l'approbation"
     },
@@ -202,6 +202,8 @@
       "targetRuleSetVersion": "Version de règle",
       "ruleVersion": "version {{version}}",
       "actionDeactivate": "Désactivation",
+      "actionLinkAccount": "Compte lié",
+      "actionInvite": "Invitation envoyée",
       "targetStore": "Commerce",
       "storeFields": "champs : {{fields}}",
       "storeCancelled": "{{listings}} offres et {{reservations}} réservations annulées"

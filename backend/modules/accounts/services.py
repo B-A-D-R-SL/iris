@@ -7,13 +7,17 @@ import secrets
 from datetime import datetime, timedelta
 from hashlib import sha256
 from typing import Any
+from uuid import UUID
 
 from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import Q
+from django.dispatch import Signal
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from modules.accounts import queries
 from modules.accounts.models import Invitation, User
 from modules.accounts.roles import UserRole
 from modules.rules import queries as rule_queries
@@ -24,6 +28,12 @@ _TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_-]{43}\Z")
 _EMAIL_UNIQUE_CONSTRAINTS = frozenset(
     ("accounts_user_email_key", "accounts_user_email_ci_unique")
 )
+
+# US-93: sent inside the acceptance transaction with `user` and `household_id`
+# when the invitation names a household. Households links the account; a
+# receiver that raises rolls the whole acceptance back. Accounts never imports
+# households (import-linter), so the link travels through this signal.
+invitation_accepted = Signal()
 
 
 def _identity_text(value: str, field: str) -> str:
@@ -71,8 +81,12 @@ def create_invitation(
     role: str,
     store: Any = None,
     invited_by: User | None = None,
+    household_id: UUID | None = None,
 ) -> str:
-    """Save a recipient assignment and return the raw token only to the caller."""
+    """Save a recipient assignment and return the raw token only to the caller.
+
+    `household_id` names the walk-in file the accepted account will hold (US-93).
+    """
     email = User.objects.normalize_email(_identity_text(email, "email")).lower()
     _require_new_email(email)
     token = secrets.token_urlsafe(32)
@@ -83,6 +97,7 @@ def create_invitation(
         role=role,
         store=store,
         invited_by=invited_by,
+        household_id=household_id,
         token_hash=sha256(token.encode("utf-8")).hexdigest(),
         expires_at=_invitation_expiry(timezone.now()),
     )
@@ -123,6 +138,56 @@ def reissue_store_manager_invitation(
     )
     return create_invitation(
         email, first_name, last_name, UserRole.STORE_MANAGER, store, invited_by
+    )
+
+
+def lock_household_invitations(household_id: UUID) -> None:
+    """Lock a household's unaccepted invitations for the caller's transaction.
+
+    Acceptance locks the invitation, then the household (US-93). A caller about
+    to lock the household and then expire its links calls this first, so both
+    take the same order and wait for each other instead of deadlocking.
+    """
+    list(
+        Invitation.objects.select_for_update()
+        .filter(household_id=household_id, accepted_at__isnull=True)
+        .values_list("pk", flat=True)
+    )
+
+
+@transaction.atomic
+def reissue_household_invitation(
+    *,
+    household_id: UUID,
+    email: str,
+    first_name: str,
+    last_name: str,
+    invited_by: User,
+) -> str:
+    """Expire a walk-in household's earlier links, then issue a fresh one (US-93).
+
+    Also expires unaccepted beneficiary links for the same email that name no
+    household: they were sent before invitations named their household. Raises
+    email_already_registered when the email now has an account; the earlier
+    links then stay usable because the transaction rolls back.
+    """
+    if not queries.is_intake_staff(invited_by):
+        raise PermissionDenied(_("Only active intake workers and admins can invite."))
+    now = timezone.now()
+    # The caller locks the household's links first (lock_household_invitations).
+    Invitation.objects.filter(
+        Q(household_id=household_id)
+        | Q(household__isnull=True, email__iexact=email, role=UserRole.BENEFICIARY),
+        accepted_at__isnull=True,
+        expires_at__gt=now,
+    ).update(expires_at=now)
+    return create_invitation(
+        email,
+        first_name,
+        last_name,
+        UserRole.BENEFICIARY,
+        invited_by=invited_by,
+        household_id=household_id,
     )
 
 
@@ -194,6 +259,10 @@ def accept_invitation(token: str, password: str) -> User:
     user = _create_invited_user(invitation, password)
     invitation.accepted_at = now
     invitation.save(update_fields=["accepted_at"])
+    if invitation.household_id is not None:
+        invitation_accepted.send(
+            sender=Invitation, user=user, household_id=invitation.household_id
+        )
     transaction.on_commit(
         lambda: logger.info(
             "invitation_accepted", extra={"event": "invitation_accepted"}

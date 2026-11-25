@@ -1,5 +1,6 @@
 // AI contribution: 50% or more AI-generated
 import { csrfToken } from "../../shared/api/csrf";
+import type { components } from "../../shared/api/generated";
 import { logger } from "../../shared/logger";
 
 export type HouseholdStatus =
@@ -12,6 +13,9 @@ export type HouseholdStatus =
   | "suspended"
   | "rejected";
 
+/** The account state the backend decided for this file (US-93). */
+export type HouseholdAccount = components["schemas"]["AccountLink"];
+
 export interface StaffHousehold {
   id: string;
   member_number: string | null;
@@ -23,6 +27,7 @@ export interface StaffHousehold {
   expires_at: string | null;
   allowed_actions: Array<"suspend" | "reactivate">;
   reason_max_length: number;
+  account: HouseholdAccount;
   members: Array<{
     id: string;
     first_name: string;
@@ -41,6 +46,19 @@ export class HouseholdStatusFailed extends Error {
     this.status = status;
     this.fields = fields;
   }
+}
+
+/** Accept the account block's shape; the backend decides its values. */
+function isAccount(value: unknown): value is HouseholdAccount {
+  if (typeof value !== "object" || value === null) return false;
+  const account = value as Record<string, unknown>;
+  const nullableString = (item: unknown) => item === null || typeof item === "string";
+  return (
+    typeof account.status === "string" &&
+    typeof account.reason === "string" &&
+    nullableString(account.account_first_name) &&
+    nullableString(account.account_last_name)
+  );
 }
 
 /** Validate the fields required by the staff household page. */
@@ -63,6 +81,7 @@ function isHousehold(value: unknown): value is StaffHousehold {
     nullableString(row.expires_at),
     validActions,
     Number.isSafeInteger(row.reason_max_length) && Number(row.reason_max_length) > 0,
+    isAccount(row.account),
     Array.isArray(row.members),
   ].every(Boolean);
 }
@@ -104,10 +123,14 @@ export async function getStaffHousehold(id: string): Promise<StaffHousehold> {
   return body;
 }
 
-export async function changeHouseholdStatus(
+/** The staff actions on a household file, each a POST to `/api/staff/households/{id}/{action}/`. */
+type HouseholdAction = "suspend" | "reactivate" | "link-account" | "resend-invitation";
+
+/** POST one staff action on a household file; refusals throw HouseholdStatusFailed. */
+export async function postHouseholdAction(
   id: string,
-  action: "suspend" | "reactivate",
-  reason: string,
+  action: HouseholdAction,
+  body: object,
   language: "fr" | "en",
 ): Promise<void> {
   const headers: Record<string, string> = {
@@ -121,12 +144,31 @@ export async function changeHouseholdStatus(
     method: "POST",
     credentials: "same-origin",
     headers,
-    body: JSON.stringify({ reason }),
+    body: JSON.stringify(body),
   });
   if (response.ok) return;
-  const body = await responseBody(response);
-  if (errorBody(body)) {
-    throw new HouseholdStatusFailed(response.status, body.message, body.fields);
+  const errors = await responseBody(response);
+  if (errorBody(errors)) {
+    throw new HouseholdStatusFailed(response.status, errors.message, errors.fields);
   }
   throw new HouseholdStatusFailed(response.status, "");
+}
+
+export function changeHouseholdStatus(
+  id: string,
+  action: "suspend" | "reactivate",
+  reason: string,
+  language: "fr" | "en",
+): Promise<void> {
+  return postHouseholdAction(id, action, { reason }, language);
+}
+
+/** Link the account that uses the file's email, once staff checked the person's ID. */
+export function linkHouseholdAccount(id: string, language: "fr" | "en"): Promise<void> {
+  return postHouseholdAction(id, "link-account", { identity_confirmed: true }, language);
+}
+
+/** Send a new set-password link; the previous one stops working. */
+export function resendHouseholdInvitation(id: string, language: "fr" | "en"): Promise<void> {
+  return postHouseholdAction(id, "resend-invitation", {}, language);
 }

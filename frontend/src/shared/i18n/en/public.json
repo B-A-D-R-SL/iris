@@ -29,6 +29,7 @@
       "used": "This invitation link has already been used.",
       "invalid": "This invitation link is invalid.",
       "emailRegistered": "An account already uses this email address.",
+      "alreadyLinked": "This household file is already linked to another account. Ask the food bank staff for help.",
       "unavailable": "Invitation acceptance is unavailable. Please try again.",
       "checkPassword": "Check the password and its confirmation.",
       "success": "The new account is ready.",

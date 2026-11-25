@@ -341,7 +341,7 @@ There are no end-to-end or load tests yet, apart from the search load test.
 Known limits of Release 1:
 
 - **Staging was never deployed.** The `deploy-staging` workflow is skipped because `STAGING_DEPLOY_ENABLED` is unset: the Azure subscription is not yet activated. What has been exercised instead is the release image booting in CI and the local Docker Compose environment. See the wiki Deployment Plan and [Azure staging notes](docs/guides/azure-staging.md).
-- **Households can't browse or reserve yet.** Household browsing (US-36) and reserving (US-41) are implemented and tested at API level. Walk-in approval emails the household a set-password invitation, but nothing outside the tests links that account to the household, and the seed creates no household accounts. Linking is planned in US-93 (Release 2). There is no "my reservations" view and no cancel yet.
+- **Household accounts come from walk-in approval.** Household browsing (US-36) and reserving (US-41) are implemented and tested at API level. Accepting the set-password email that walk-in approval sends links the new account to the household; staff can also link an existing account after an ID check, or resend the email (US-93). The seed creates no household accounts, so approve a walk-in file with an email and open its link in Mailpit to try browsing. There is no "my reservations" view and no cancel yet.
 - Two-factor sign-in for staff and removal of notice-photo metadata are planned for Release 2.
 - Only fictional data is used until the pilot with real households, tentatively in Release 3. Release 2 is tentatively planned as a private Azure deployment with fictional data (see the [Release 2 plan](https://github.com/B-A-D-R-SL/iris/wiki/Release-2-%E2%80%93-Plan)).
 

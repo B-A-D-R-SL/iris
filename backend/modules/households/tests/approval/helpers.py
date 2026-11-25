@@ -46,10 +46,15 @@ def approval_events(household: Any) -> Any:
 
 
 def assert_approval_audit_chain(household: Any, actor: Any) -> None:
-    """One submission, one eligibility snapshot and one staff outcome survive."""
+    """One submission, one eligibility snapshot and one staff outcome survive,
+    then one `invite` by the same staff member when an invitation was sent."""
     events = list(audit_events(household).order_by("id"))
     decision = decisions(household).get()
-    assert [event.action for event in events] == ["submit", "decision", "decision"]
+    invited = invitations().filter(household_id=household.pk).exists()
+    expected = ["submit", "decision", "decision"] + (["invite"] if invited else [])
+    assert [event.action for event in events] == expected
+    if invited:
+        assert (events[3].actor_id, events[3].metadata) == (actor.pk, {})
     assert events[0].metadata == {}
     assert events[1].metadata == {
         "decision_id": str(decision.pk),

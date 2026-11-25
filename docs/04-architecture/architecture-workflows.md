@@ -12,6 +12,8 @@ transitions are explicitly labelled. Refreshed November 17, 2026 against `main`
 at `c13fc04` (FIX-32, [#739](https://github.com/B-A-D-R-SL/iris/issues/739)): the
 walk-in sequence now shows the FIX-30 consent check and the FIX-29 audit events. Evidence and remaining gaps are in the
 [Release 1 review](architecture.md#release-1-review).
+Updated November 23, 2026 for US-93 ([#704](https://github.com/B-A-D-R-SL/iris/issues/704)):
+sequence 6b shows how a walk-in household's account is linked.
 
 The sequences below were traced through HTTP permissions, service transactions,
 queries, jobs and their existing tests. Arrows in the state diagrams represent
@@ -155,13 +157,14 @@ sequenceDiagram
             H->>A: Record approval
 
             opt Household has email
-                H->>AC: create_invitation(role=beneficiary, holder Member identity)
+                H->>AC: create_invitation(role=beneficiary, holder Member identity, household_id)
                 alt Email already belongs to an active or inactive User
                     AC-->>H: email_already_registered<br/>Skip invitation and set invitation_not_sent=true
                 else New account email
                     AC-->>H: Saved invitation and raw setup token
                     H->>NS: queue_set_password_email(email, token, language)
                     NS->>NS: Save EmailLog and register after-commit enqueue if configuration is valid
+                    H->>A: invite
                 end
             end
         else Requires clarification or review
@@ -199,6 +202,7 @@ invitation issuance while approval committed. It is false for outcomes without
 an invitation (including no email or a non-approved file), and for an email
 configuration failure recorded in `EmailLog`. It is not a delivery receipt.
 Other invitation validation or database errors propagate and roll back approval.
+Staff can then link that existing account at the counter (sequence 6b).
 
 Drafts may lack identity verification or consent. Submission requires both, and
 notice recording requires consent before anything is stored (FIX-30). Notice
@@ -206,10 +210,76 @@ entry and draft editing stop after submission. A newly adult member without
 evidence at approval therefore routes the submitted file to review.
 
 The draft's holder is a `Member(relation="holder")`. `Household.holder` is a
-different, nullable one-to-one User field. It remains null for walk-ins, and
-`Household.clean()` refuses setting it on that channel. Accepting a walk-in
-invitation creates the User but does not link the file. US-93 (#704, Release 2)
-owns that linkage; the ERD does not imply it already works.
+different, nullable one-to-one User field: the account that browses and reserves
+for the file. Sequence 6b shows how a walk-in file gets it (US-93, #704).
+
+### 6b. Sequence — linking a walk-in household's account (US-93)
+
+The invitation created at approval names the household. Accounts sends
+`invitation_accepted` inside the acceptance transaction and households sets the
+holder, so a refusal there undoes the new account. Staff can also link an
+account that already uses the file's email, after comparing the person's ID with
+the name on that account, or send a new link. Both staff endpoints require an
+active intake worker or admin.
+
+```mermaid
+sequenceDiagram
+    actor HC as Household
+    actor IW as Intake worker
+    participant AAPI as Invitation API
+    participant AC as Accounts service
+    participant H as Households service
+    participant SAPI as Staff household API
+    participant A as Audit service
+    participant NS as Notifications service
+
+    rect rgba(127, 127, 127, 0.08)
+        Note over HC,A: Accepting the set-password link
+        HC->>AAPI: POST /api/invitations/accept/ {token, password}
+        AAPI->>AC: accept_invitation(token, password)
+        AC->>AC: Lock invitation, check expiry and one use, create beneficiary User
+        AC->>H: invitation_accepted(user, household_id) in the same transaction
+        H->>H: Lock walk-in file
+        alt File anonymized
+            H-->>AC: invitation_invalid (rolls back the new account)
+        else File already has a holder
+            H-->>AC: household_already_linked (rolls back the new account)
+        else File not linked yet
+            H->>H: Set Household.holder
+            H->>A: link_account {method: invitation}
+        end
+        AAPI-->>HC: 200 {accepted: true} or 400 with the code's message
+    end
+
+    rect rgba(127, 127, 127, 0.08)
+        Note over IW,A: The email already has an account
+        IW->>SAPI: GET /api/staff/households/{id}/
+        SAPI-->>IW: account {status: can_link, account_first_name, account_last_name}
+        IW->>IW: Compare the person's ID with the holder and the name on the account
+        IW->>SAPI: POST .../link-account/ {identity_confirmed: true}
+        SAPI->>H: link_existing_account(id, staff)
+        H->>H: Lock file: approved, email, no holder
+        H->>AC: account_for_email(email)
+        alt No account, staff or store role, deactivated or already a holder
+            H-->>SAPI: Refusal message (400)
+        else Active beneficiary without a household
+            H->>H: Set Household.holder (one-to-one column refuses a concurrent second link)
+            H->>A: link_account {method: counter}
+            SAPI-->>IW: 200 {status: linked}
+        end
+    end
+
+    rect rgba(127, 127, 127, 0.08)
+        Note over IW,NS: The email failed or the link expired
+        IW->>SAPI: POST .../resend-invitation/ {}
+        SAPI->>H: resend_invitation(id, staff)
+        H->>AC: reissue_household_invitation(household_id, email, holder names)
+        AC->>AC: Expire the file's earlier links, issue a new one
+        H->>NS: queue_set_password_email (after commit)
+        H->>A: invite
+        SAPI-->>IW: 200 {status: invited}
+    end
+```
 
 ### 7. Sequence — partner onboarding
 
@@ -324,11 +394,11 @@ Reservation allocation is implemented by US-41 (PR #691), and lookup/confirmatio
 by US-44 (PRs #684 and #686). Central reservation and pickup
 audits below remain planned; their application logs do not provide that guarantee.
 
-The household half of this sequence is implemented and tested at API level, but
-no beneficiary account is linked to a household outside the tests (walk-in
-approval creates an account but doesn't link it), and the seed creates none. Until US-93 ([#704](https://github.com/B-A-D-R-SL/iris/issues/704),
-Release 2) links accounts, no household can browse or reserve in a running
-instance. There is no "my reservations" view and no household cancellation yet.
+The household half of this sequence is implemented and tested at API level. A
+walk-in household can use it once its account is linked to its file, by
+accepting the set-password invitation or by staff at the counter (US-93,
+[#704](https://github.com/B-A-D-R-SL/iris/issues/704), sequence 6b); the seed
+creates no linked account. There is no "my reservations" view and no household cancellation yet.
 
 The Listings module owns the stock UPDATE.
 Reservations owns the reservation INSERT.
@@ -520,7 +590,7 @@ This table distinguishes decisions resolved in code from work still deferred.
 
 | Area | Decision needed |
 | --- | --- |
-| Holder/account linkage | Storage is resolved: optional `Household.holder` → User and a separate holder Member. Walk-in linkage is explicitly refused and invitation acceptance does not set it. US-93 (#704) implements the missing path in Release 2. |
+| Holder/account linkage | Resolved by US-93 (#704): accepting the walk-in invitation sets `Household.holder`; staff link an existing beneficiary account after an ID check or resend the invitation (sequence 6b). |
 | Partner form storage | Resolved by US-12 (#445): flat address columns as on Store, `goods_categories` as a text array of category codes, plus `expected_frequency`, `opening_hours`, `consent_contact` and `language` columns. See [PartnerApplication](../03-design/database-schema.md#partnerapplication). |
 | Pickup lookup | Implemented: per-listing uniqueness, five insert attempts on code collision, assigned-store lookup and ambiguity refusal. Text code confirmation and browser QR scanning exist; household QR generation does not. |
 | Household flags and reasons | `status_reason` is implemented. Duplicate submission and evidence review leave the file in `review_required`; the review queue/resolution is deferred. |

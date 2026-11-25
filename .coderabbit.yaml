@@ -107,6 +107,9 @@ reviews:
         instructions: |
           Look at the functions, methods and React components the PR adds or changes, and the
           files it adds or changes, ignoring generated files, migrations and lock files.
+          Also ignore documentation: every file under docs/ and every Markdown file (.md)
+          anywhere, such as README.md, CONTRIBUTING.md, AGENTS.md and the .github templates.
+          The limits apply to code, not prose, so a long document never fails this check.
           Fail if a function, method or component is longer than 50 lines or has a cyclomatic
           complexity above 15, or if a file is longer than 500 lines. A case passes when a
           comment next to it gives a specific technical reason for exceeding the limit;

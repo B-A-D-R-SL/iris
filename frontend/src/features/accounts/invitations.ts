@@ -12,6 +12,8 @@ const ERROR_CODES = [
   "invitation_used",
   "invitation_invalid",
   "email_already_registered",
+  // US-93: the walk-in file already has an account; staff can help.
+  "household_already_linked",
   "validation_error",
 ] as const;
 

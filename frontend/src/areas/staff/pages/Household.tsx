@@ -12,6 +12,7 @@ import {
 } from "../../../features/households/statusApi";
 import type { StaffHousehold } from "../../../features/households/statusApi";
 import { ErrorState, LoadingState, Notice, StatusBadge } from "../../../shared/ui";
+import { HouseholdAccountCard } from "./HouseholdAccount";
 
 type Action = "suspend" | "reactivate";
 type ActionModalProps = {
@@ -50,16 +51,19 @@ function ContactCard({ file }: { file: StaffHousehold }) {
   );
 }
 
+/** The holder member's full name, or an empty string for a file without one. */
+function holderName(file: StaffHousehold): string {
+  const holder = file.members.find((member) => member.relation === "holder");
+  return holder ? `${holder.first_name} ${holder.last_name}` : "";
+}
+
 /** Show the holder identity and lifecycle status. */
 function HouseholdHeader({ file }: { file: StaffHousehold }) {
   const { t } = useTranslation();
-  const holder = file.members.find((member) => member.relation === "holder");
   return (
     <Group justify="space-between" align="flex-start">
       <div>
-        <Title>
-          {holder ? `${holder.first_name} ${holder.last_name}` : t("household.manage.title")}
-        </Title>
+        <Title>{holderName(file) || t("household.manage.title")}</Title>
         <Text c="dimmed">{file.member_number || t("household.search.noMemberNumber")}</Text>
       </div>
       <StatusBadge record="household" status={file.status} />
@@ -213,6 +217,13 @@ export function Household() {
       <StatusAlerts file={file} outcome={outcome} />
 
       <ContactCard file={file} />
+      <HouseholdAccountCard
+        householdId={id}
+        email={file.email}
+        holderName={holderName(file)}
+        account={file.account}
+        reloadKey={["staff-household", id]}
+      />
       <ActionCard action={allowedAction} open={open} />
 
       <Button component={Link} to="/staff/households" variant="subtle">

@@ -46,15 +46,19 @@ data-protection requirements still apply.
 A `review_required` or `no_show` status does not by itself require a
 `ReviewCase` or `Strike` table.
 
-Walk-in approval can send a set-password invitation, but linking the resulting
-account to its household is Release 2 [US-93 (#704)](https://github.com/B-A-D-R-SL/iris/issues/704).
-The Release 1 browse/reserve path needs a beneficiary account linked to an
-approved household. Walk-in approval creates an account and emails a set-password
-invitation, but nothing outside the tests creates that link, and the seed
-creates no beneficiary accounts (it seeds one admin, two intake workers and store
-accounts only), so in a running Release 1 instance no household can browse or
-reserve. Browse (US-36) and reserve (US-41) are implemented and tested
-at API level. Expiry status jobs, a "my reservations" screen, household
+Browsing and reserving need a beneficiary account linked to an approved
+household (`Household.holder`). Since [US-93 (#704)](https://github.com/B-A-D-R-SL/iris/issues/704)
+a walk-in household gets that link in one of two ways. Walk-in approval emails a
+set-password invitation that names the household, and accepting it creates the
+account and makes it the file's holder in the same transaction. When the email
+already has an Iris account, staff link that account at the counter after
+comparing the person's ID with the name on the account. Staff can also resend
+an invitation whose email failed or whose link expired; the previous link stops
+working. A file without email is served at the counter. The seed still creates
+no beneficiary accounts (one admin, two intake workers and store accounts), so a
+fresh instance has no household that can browse until a walk-in file is
+approved and its invitation accepted. Browse (US-36) and reserve (US-41) are
+implemented and tested at API level, including for a holder linked by invitation. Expiry status jobs, a "my reservations" screen, household
 cancellation, no-show processing and late pickup confirmation are also deferred.
 
 Automatic notice reading belongs to the later online registration flow. The
@@ -172,7 +176,7 @@ reserve quantity picker caps its value using `units_left` and
 | Role / area | Implemented routes and landing |
 | --- | --- |
 | Public | `/`, `/sign-in`, `/invitation/:token`, `/partner/apply`; `/privacy` still renders a placeholder |
-| Beneficiary | Lands on `/listings`; `/listings/:id` displays detail and reservation confirmation. No beneficiary account is linked to a household outside tests until US-93 (#704) |
+| Beneficiary | Lands on `/listings`; `/listings/:id` displays detail and reservation confirmation. A walk-in household's account is linked when the holder accepts the set-password invitation or by staff at the counter (US-93, #704) |
 | Store manager / staff | Lands on `/store/listings/new`; `/store/confirm` supports camera scan or typed code |
 | Intake worker / admin | Lands on `/staff/households`; shared household detail at `/staff/households/:id`; walk-in at `/staff/walk-in`, `/staff/walk-in/:id` and `/staff/walk-in/:id/notices` |
 | Admin only | `/staff/partners`, `/staff/stores`, `/staff/stores/:id`, `/staff/categories`, `/staff/audit` |
@@ -347,8 +351,9 @@ All writes go through the module owning the affected table.
 Households present their Revenu Québec notices to staff at the walk-in counter.
 Authorized intake workers/admins upload those files and enter the notice values
 in Iris. Households do not upload notices themselves in Release 1. The dotted
-household arrow is not usable yet: no household account is linked to a file
-outside tests until US-93 ([#704](https://github.com/B-A-D-R-SL/iris/issues/704), Release 2).
+household arrow is usable once the household's account is linked to its file,
+by accepting the set-password invitation or by staff at the counter (US-93,
+[#704](https://github.com/B-A-D-R-SL/iris/issues/704)).
 
 The notice and threshold arrows represent supplied documents and
 reference data, not live connections to government accounts or APIs.
@@ -672,7 +677,7 @@ initial architecture draft only gained a "superseded" banner (FIX-32).
 | Invitations | Ambiguous activation language and acceptance page described as future | #430 explicitly creates **new active accounts only**, refuses existing active/inactive accounts case-insensitively, and never overwrites them. The public page is built. Hash-only invitation storage, single-use acceptance and no session switch are documented. |
 | Walk-in order | Draft approval and incomplete decision flow | Record adult evidence on draft → submit/duplicate check → decision summary/approve. No notices after submission; approval refuses drafts and review files. US-18 integration #698 resolves the earlier conflicting paths. |
 | Eligibility | Household pushes evidence into Eligibility | Eligibility pulls the confirmed evidence through the public household query, saves the applied LICO snapshot and appends a safe audit in the decision transaction. Household outcome has a separate decision event. |
-| Holder/account relationship | Undefined relationship; implied set-password completion | Stored optional `Household.holder` → User is distinct from holder Member. Walk-ins cannot set that link yet. Account linking is Release 2 US-93 (#704), so an invitation alone does not enable browsing/reserving against the walk-in file. |
+| Holder/account relationship | Undefined relationship; implied set-password completion | Resolved by US-93 (#704). Optional one-to-one `Household.holder` → User, distinct from the holder Member. A walk-in file gets it when its set-password invitation (which names the household) is accepted, or when staff link an existing active beneficiary account after an ID check. Accounts announces acceptance with a signal; households sets the holder, so accounts still never imports households. |
 | Status and validity | Reason storage and twelve-month timing undecided | `status_reason` is implemented; validity uses calendar months from `file_validity`. Expiry is checked on reservations without relying on an unimplemented status job. Admin-only reactivation requires a still-valid file. |
 | Reservation allocation | General conditional stock update and insert | Household row locking serializes the cumulative per-listing quantity and active-claim limits; conditional stock UPDATE and insert share one transaction. Six-character code collisions retry in up to five savepoints; an exhausted insert rolls back stock. |
 | Pickup lookup | Ambiguity refusal only proposed | Assigned-store lookup selects the sole reserved match, refuses multiple live local matches, and returns privacy-limited refusal details otherwise. Confirmation locks/rechecks the reservation and the inclusive pickup window; stock stays allocated. |
@@ -691,7 +696,7 @@ initial architecture draft only gained a "superseded" banner (FIX-32).
 
 | Item | Observed state / follow-up |
 | --- | --- |
-| Walk-in account access | [US-93 #704](https://github.com/B-A-D-R-SL/iris/issues/704), including #706–#709, is Release 2. New walk-in invitees can create an account but cannot yet attach that account to their file. Existing-account linking and staff walk-in invitation resend are also deferred. |
+| Walk-in account access | Done: [US-93 #704](https://github.com/B-A-D-R-SL/iris/issues/704) (#705–#709), [PR #798](https://github.com/B-A-D-R-SL/iris/pull/798). Accepting the walk-in set-password invitation links the new account to its file; staff link an existing account after an ID check and resend the invitation (`households/account_link_services.py`). |
 | Notice/summary audit coverage | Done: [FIX-29 #713](https://github.com/B-A-D-R-SL/iris/issues/713), [PR #715](https://github.com/B-A-D-R-SL/iris/pull/715) merged. Notice-list and decision-summary reads record a central `view` event, and notice recording records a central `update` in the notice transaction (`households/notice_services.py:99`). |
 | Consent before notice upload | Done: [FIX-30 #714](https://github.com/B-A-D-R-SL/iris/issues/714), [PR #716](https://github.com/B-A-D-R-SL/iris/pull/716) merged. `households/notice_services.py:32` refuses a notice for a draft without recorded consent before the file is stored, and checks again under the household lock. |
 | Correct another adult after recording evidence | [FIX-27 #666](https://github.com/B-A-D-R-SL/iris/issues/666) is open. Changed non-holder members are replaced, so protected notices prevent that edit; unchanged members keep their rows. Holder edits are in place. |

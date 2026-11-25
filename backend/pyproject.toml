@@ -143,6 +143,8 @@ ignore_imports = [
     "modules.accounts.tests.test_invitations -> modules.stores.tests.factories",
     "modules.accounts.tests.test_api -> modules.stores.tests.factories",
     "modules.accounts.tests.conftest -> modules.rules.models",
+    # US-93: walk-in invitations name a household built with its test factory.
+    "modules.accounts.tests.test_invitation_household -> modules.households.tests.factories",
     "modules.households.tests.** -> modules.documents.tests.factories",
     # US-57 integration tests follow owning workflows into the queued delivery.
     "modules.accounts.tests.test_notification_adapter -> modules.notifications.models",
@@ -164,6 +166,9 @@ ignore_imports = [
     # US-18 walk-in approval follows the set-password email into the queue.
     "modules.households.tests.approval.** -> modules.notifications.models",
     "modules.households.tests.approval.** -> modules.notifications.tasks",
+    # US-93 account-link tests deliver the same email to read its link.
+    "modules.households.tests.linking.** -> modules.notifications.models",
+    "modules.households.tests.linking.** -> modules.notifications.tasks",
     "modules.notifications.tests.test_services -> modules.accounts.tests.factories",
     "modules.audit.tests.** -> modules.stores.tests.factories",
     "modules.audit.tests.** -> modules.households.tests.factories",
@@ -299,6 +304,8 @@ ignore_imports = [
     "modules.reservations.tests.** -> modules.listings.tests.factories",
     "modules.reservations.tests.** -> modules.stores.tests.factories",
     "modules.reservations.tests.** -> modules.categories.tests.factories",
+    # US-93: a walk-in holder linked by accepting a real invitation can browse.
+    "modules.reservations.tests.browse.test_linked_holder -> modules.accounts.services",
 
     # priority -> households, eligibility, review
     "modules.priority.** -> modules.households.services",
