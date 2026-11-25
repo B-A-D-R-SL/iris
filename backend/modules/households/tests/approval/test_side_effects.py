@@ -88,6 +88,56 @@ def test_an_email_with_an_account_is_approved_without_an_invitation(
     assert not invitations().exists()
     assert email_jobs == []
     assert approval_events(household).get().metadata == {"outcome": "approved"}
+    assert not audit_events(household).filter(action="invite").exists()
+
+
+# rule: BR-HH-ACCOUNT-001
+def test_the_invitation_sent_at_approval_is_audited(
+    household: Any,
+    staff: Any,
+    email_jobs: list[dict[str, Any]],
+    django_capture_on_commit_callbacks: Any,
+) -> None:
+    """The first link is listed under "Invitation sent", not only resends."""
+    Household.objects.filter(pk=household.pk).update(email="holder@example.test")
+    with django_capture_on_commit_callbacks(execute=True):
+        submit_and_approve(household, staff)
+    [event] = audit_events(household).filter(action="invite")
+    assert (event.actor_id, event.metadata) == (staff.pk, {})
+    household.refresh_from_db()
+    assert_approval_audit_chain(household, staff)
+    assert len(email_jobs) == 1
+
+
+# rule: BR-HH-ACCOUNT-001
+def test_an_invite_audit_failure_rolls_back_the_approval(
+    household: Any,
+    staff: Any,
+    monkeypatch: Any,
+    email_jobs: list[dict[str, Any]],
+    django_capture_on_commit_callbacks: Any,
+) -> None:
+    """No approval, invitation or email is kept without its audit event."""
+    Household.objects.filter(pk=household.pk).update(email="holder@example.test")
+    submit(household)
+    before = list(audit_events(household).values())
+    record = audit_services.record
+
+    def fail(*args: Any, **kwargs: Any) -> Any:
+        action = args[1] if len(args) > 1 else kwargs.get("action")
+        if action != "invite":
+            return record(*args, **kwargs)
+        raise ValidationError("Audit unavailable")
+
+    monkeypatch.setattr(audit_services, "record", fail)
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        refused = pytest.raises(ValidationError, approve_walk_in, household, staff)
+    refused.match("Audit unavailable")
+    assert callbacks == []
+    assert email_jobs == []
+    assert_unapproved(household, "submitted")
+    assert not decisions(household).exists()
+    assert list(audit_events(household).values()) == before
 
 
 def test_a_member_who_turns_18_after_submission_sends_the_file_to_review(

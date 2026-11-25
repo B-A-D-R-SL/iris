@@ -106,7 +106,7 @@ Issuing screens and invitation emails belong to the calling workflows.
 
 | Rule ID | Business rule |
 | --- | --- |
-| BR-HH-ACCOUNT-001 | The set-password invitation sent at walk-in approval names its household. Accepting it creates the beneficiary account and makes it the file's holder in the same transaction. A file that already has a holder, or was anonymized, refuses the acceptance and no account is created. |
+| BR-HH-ACCOUNT-001 | The set-password invitation sent at walk-in approval names its household and is audited (`invite`), like a resend. Accepting it creates the beneficiary account and makes it the file's holder in the same transaction. A file that already has a holder, or was anonymized, refuses the acceptance and no account is created. |
 | BR-HH-ACCOUNT-002 | When an approved walk-in file's email already has an Iris account, an intake worker or admin may link that account only after comparing the person's ID with the holder on the file and the name on the account, and confirming the check. Only an active beneficiary account that holds no household can be linked; staff and store accounts, deactivated accounts and accounts that already hold a household are refused with a message saying why. The link is audited (`link_account`). |
 | BR-HH-ACCOUNT-003 | A household has at most one linked account and an account holds at most one household (one-to-one `Household.holder`); a concurrent second link is refused. |
 | BR-HH-ACCOUNT-004 | Staff may send a new set-password link to an approved walk-in file that has an email and no linked account, when the email failed or the link expired. Earlier links for the file stop working. An email that now has an account is refused: staff link it instead. The resend is audited (`invite`). |

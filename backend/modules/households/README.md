@@ -301,7 +301,9 @@ Outcome, eligibility, audit and invitation writes share one transaction.
 Approved files with email call the US-04 invitation service. Its existing-account
 refusal is handled by skipping the invitation while preserving approval, as
 reported by `invitation_not_sent`; other invitation failures roll back the
-transaction. The invitation names the household; accepting it creates the account
+transaction. A queued invitation is audited (`invite`, no metadata, actor the
+approving staff member), the same action a resend records. The invitation names
+the household; accepting it creates the account
 and makes it the file's holder (`Household.holder`) in the same transaction (US-93,
 `account_link_services.link_invited_account`, connected in `apps.py`). A file that
 already has a holder refuses the acceptance (`household_already_linked`) and no

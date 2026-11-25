@@ -164,6 +164,7 @@ sequenceDiagram
                     AC-->>H: Saved invitation and raw setup token
                     H->>NS: queue_set_password_email(email, token, language)
                     NS->>NS: Save EmailLog and register after-commit enqueue if configuration is valid
+                    H->>A: invite
                 end
             end
         else Requires clarification or review
