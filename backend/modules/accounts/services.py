@@ -9,6 +9,7 @@ from hashlib import sha256
 from typing import Any
 from uuid import UUID
 
+from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
@@ -34,6 +35,13 @@ _EMAIL_UNIQUE_CONSTRAINTS = frozenset(
 # receiver that raises rolls the whole acceptance back. Accounts never imports
 # households (import-linter), so the link travels through this signal.
 invitation_accepted = Signal()
+
+# US-08: sent inside the caller's transaction with `user` and `language` after a
+# user's language is saved. Households keeps the holder's file in the same
+# language, so the household's emails follow the account too.
+language_changed = Signal()
+
+LANGUAGES = frozenset(code for code, _label in settings.LANGUAGES)
 
 
 def _identity_text(value: str, field: str) -> str:
@@ -267,5 +275,25 @@ def accept_invitation(token: str, password: str) -> User:
         lambda: logger.info(
             "invitation_accepted", extra={"event": "invitation_accepted"}
         )
+    )
+    return user
+
+
+@transaction.atomic
+def change_language(user: User, language: str) -> User:
+    """Save the user's interface and email language (US-08).
+
+    Every later email to the user, and to the household file they hold, uses it.
+    `language_changed` is sent even when the value is unchanged, so a household
+    file that drifted (for example linked at the counter) is brought back in step.
+    """
+    if language not in LANGUAGES:
+        raise ValidationError(_("Choose French or English."), code="invalid_language")
+    if user.preferred_language != language:
+        user.preferred_language = language
+        user.save(update_fields=["preferred_language", "updated_at"])
+    language_changed.send(sender=User, user=user, language=language)
+    transaction.on_commit(
+        lambda: logger.info("language_changed", extra={"event": "language_changed"})
     )
     return user

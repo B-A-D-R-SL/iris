@@ -24,16 +24,12 @@ class CurrentUserSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class AcceptInvitationSerializer(serializers.Serializer):
-    """Accept only the secret token and a password, never account assignments."""
+class _RefuseUnknownFields:
+    """Refuse fields the endpoint does not accept instead of silently ignoring them."""
 
-    token = serializers.CharField(write_only=True, trim_whitespace=False)
-    password = serializers.CharField(
-        write_only=True, trim_whitespace=False, style={"input_type": "password"}
-    )
+    fields: Any
 
     def to_internal_value(self, data: Any) -> dict[str, Any]:
-        """Refuse identity and privilege fields instead of silently ignoring them."""
         if isinstance(data, Mapping):
             unknown = set(data) - set(self.fields)
             if unknown:
@@ -43,7 +39,25 @@ class AcceptInvitationSerializer(serializers.Serializer):
                         for key in sorted(unknown)
                     }
                 )
-        return super().to_internal_value(data)
+        return super().to_internal_value(data)  # type: ignore[misc]
+
+
+class LanguageChoiceSerializer(_RefuseUnknownFields, serializers.Serializer):
+    """US-08: the only account field a user changes here is their language."""
+
+    language = serializers.ChoiceField(
+        choices=User._meta.get_field("preferred_language").choices,
+        error_messages={"invalid_choice": _("Choose French or English.")},
+    )
+
+
+class AcceptInvitationSerializer(_RefuseUnknownFields, serializers.Serializer):
+    """Accept only the secret token and a password, never account assignments."""
+
+    token = serializers.CharField(write_only=True, trim_whitespace=False)
+    password = serializers.CharField(
+        write_only=True, trim_whitespace=False, style={"input_type": "password"}
+    )
 
 
 class InvitationAcceptedSerializer(serializers.Serializer):
