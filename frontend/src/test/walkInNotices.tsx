@@ -136,56 +136,81 @@ export function summaryFor(stored: RecordedNotice[]) {
   };
 }
 
+/** How the fake server's file starts, and what a submission moves it to. */
+interface FakeFile {
+  status?: string;
+  statusReason?: string;
+  submitTo?: string;
+  expiresAt?: string;
+  account?: WalkInDraft["account"];
+}
+
+/** What the fake server remembers between requests. */
+interface FakeServer {
+  file: FakeFile;
+  status: string;
+  reason: string;
+  stored: RecordedNotice[];
+}
+
+/** The file read, with the status as it stands after any submission. */
+function readFile(server: FakeServer): Response {
+  return Response.json({
+    ...draft(server.status, server.reason),
+    expires_at: server.file.expiresAt ?? null,
+    ...(server.file.account ? { account: server.file.account } : {}),
+  });
+}
+
+/** Submission runs the duplicate check: the file is submitted or goes to review. */
+function submitDraft(server: FakeServer): Response {
+  server.status = server.file.submitTo ?? "submitted";
+  server.reason = server.status === "review_required" ? "POSSIBLE_DUPLICATE" : "";
+  return Response.json({
+    id: ID,
+    status: server.status,
+    status_reason: server.reason,
+    submitted_at: "2026-11-10T14:00:00Z",
+  });
+}
+
+/** Like the server, keep what was recorded for the next read. */
+async function recordNotice(server: FakeServer, record: () => Response): Promise<Response> {
+  const response = record();
+  if (response.ok) {
+    const notice = (await response.clone().json()) as RecordedNotice;
+    server.stored = [...server.stored.filter((entry) => entry.member !== notice.member), notice];
+  }
+  return response;
+}
+
 /** Fakes /api/me/, the file read, the notice list and record, and the submit and approve endpoints. */
 export function mockApi(
   record: () => Response = () => Response.json(recorded(), { status: 201 }),
   approve: () => Response = () => Response.json(decision()),
   saved: RecordedNotice[] = [],
-  file: {
-    status?: string;
-    statusReason?: string;
-    submitTo?: string;
-    expiresAt?: string;
-    account?: WalkInDraft["account"];
-  } = {},
+  file: FakeFile = {},
 ) {
-  // The file's status, as the server would report it after a submission.
-  const state = { status: file.status ?? "draft", reason: file.statusReason ?? "" };
-  let stored = [...saved];
+  const server: FakeServer = {
+    file,
+    status: file.status ?? "draft",
+    reason: file.statusReason ?? "",
+    stored: [...saved],
+  };
+  // Keyed by "METHOD path"; anything else is a 404.
+  const routes = new Map<string, () => Response | Promise<Response>>([
+    ["GET /api/me/", () => Response.json(testUser("intake_worker"))],
+    [`GET /api/staff/households/${ID}/`, () => readFile(server)],
+    [`POST ${SUBMIT_URL}`, () => submitDraft(server)],
+    [`GET ${NOTICES_URL}`, () => Response.json(server.stored)],
+    [`POST ${NOTICES_URL}`, () => recordNotice(server, record)],
+    [`POST ${APPROVE_URL}`, approve],
+    [`GET ${SUMMARY_URL}`, () => Response.json(summaryFor(server.stored))],
+  ]);
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = input instanceof Request ? input.url : String(input);
-    const method = init?.method ?? "GET";
-    if (url.endsWith("/api/me/")) return Response.json(testUser("intake_worker"));
-    if (url.endsWith(`/api/staff/households/${ID}/`) && method === "GET") {
-      return Response.json({
-        ...draft(state.status, state.reason),
-        expires_at: file.expiresAt ?? null,
-        ...(file.account ? { account: file.account } : {}),
-      });
-    }
-    if (url.endsWith(SUBMIT_URL) && method === "POST") {
-      state.status = file.submitTo ?? "submitted";
-      state.reason = state.status === "review_required" ? "POSSIBLE_DUPLICATE" : "";
-      return Response.json({
-        id: ID,
-        status: state.status,
-        status_reason: state.reason,
-        submitted_at: "2026-11-10T14:00:00Z",
-      });
-    }
-    if (url.endsWith(NOTICES_URL) && method === "GET") return Response.json(stored);
-    if (url.endsWith(NOTICES_URL) && method === "POST") {
-      const response = record();
-      // Like the server, keep what was recorded for the next read.
-      if (response.ok) {
-        const notice = (await response.clone().json()) as RecordedNotice;
-        stored = [...stored.filter((entry) => entry.member !== notice.member), notice];
-      }
-      return response;
-    }
-    if (url.endsWith(APPROVE_URL) && method === "POST") return approve();
-    if (url.endsWith(SUMMARY_URL) && method === "GET") return Response.json(summaryFor(stored));
-    return new Response(null, { status: 404 });
+    const url = new URL(input instanceof Request ? input.url : input, "http://iris.test");
+    const route = routes.get(`${init?.method ?? "GET"} ${url.pathname}`);
+    return route ? route() : new Response(null, { status: 404 });
   });
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
