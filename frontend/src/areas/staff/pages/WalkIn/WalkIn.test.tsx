@@ -278,7 +278,7 @@ it("Walk-in registration (US-17) resumes a saved draft at the first step still m
   expect(screen.getByLabelText("Nom de famille")).toHaveValue("Démo");
 });
 
-it("Walk-in registration (US-17) saves the address, then adds a child as person 2", async () => {
+it("Walk-in registration saves the address before moving to members", async () => {
   const fetchMock = mockApi();
   renderWithProviders(<App />, { route: `/staff/walk-in/${ID}` });
   await screen.findByRole("heading", { name: "2. Adresse" });
@@ -298,12 +298,32 @@ it("Walk-in registration (US-17) saves the address, then adds a child as person 
     postal_code: "H2X 1Y4",
   });
   expect(screen.getByText("Nadia Démo est la personne 1 (personne responsable).")).toBeVisible();
+});
 
+it("Walk-in registration saves a new member and sends their ID on the next edit", async () => {
+  const child = {
+    first_name: "Léo",
+    last_name: "Démo",
+    date_of_birth: "2017-01-03",
+    relation: "child" as const,
+  };
+  const savedChild = { ...child, id: "m2" };
+  const ready = draft({
+    street_number: "1234A",
+    street_name: "rue Saint-Denis",
+    postal_code: "H2X 1Y4",
+  });
+  const fetchMock = mockApi({
+    read: () => Response.json(ready),
+    update: () => Response.json({ ...ready, members: [savedChild, ...ready.members] }),
+  });
+  renderWithProviders(<App />, { route: `/staff/walk-in/${ID}` });
+  await screen.findByRole("heading", { name: "3. Membres du foyer" });
   await userEvent.click(button("Ajouter une personne"));
   const person = screen.getByRole("region", { name: "Personne 2" });
-  await userEvent.type(within(person).getByLabelText("Prénom"), "Léo");
-  await userEvent.type(within(person).getByLabelText("Nom de famille"), "Démo");
-  await userEvent.type(within(person).getByLabelText("Date de naissance"), "2017-01-03");
+  await userEvent.type(within(person).getByLabelText("Prénom"), child.first_name);
+  await userEvent.type(within(person).getByLabelText("Nom de famille"), child.last_name);
+  await userEvent.type(within(person).getByLabelText("Date de naissance"), child.date_of_birth);
   await userEvent.click(
     within(person).getByRole("combobox", { name: "Lien avec la personne responsable" }),
   );
@@ -311,10 +331,19 @@ it("Walk-in registration (US-17) saves the address, then adds a child as person 
   await userEvent.click(button("Continuer"));
 
   await screen.findByRole("heading", { name: "4. Vérification" });
-  expect(sentBody(fetchMock, "PATCH").members).toEqual([
-    { first_name: "Léo", last_name: "Démo", date_of_birth: "2017-01-03", relation: "child" },
-  ]);
+  expect(sentBody(fetchMock, "PATCH").members).toEqual([child]);
   expect(screen.getByText("Personnes dans le foyer : 2")).toBeVisible();
+
+  await userEvent.click(button("Retour"));
+  const firstName = within(screen.getByRole("region", { name: "Personne 2" })).getByLabelText(
+    "Prénom",
+  );
+  await userEvent.clear(firstName);
+  await userEvent.type(firstName, "Léon");
+  await userEvent.click(button("Continuer"));
+
+  await screen.findByRole("heading", { name: "4. Vérification" });
+  expect(sentBody(fetchMock, "PATCH").members).toEqual([{ ...savedChild, first_name: "Léon" }]);
 });
 
 it("Walk-in registration (US-17) shows the server's message on the field it refused, on that field's step", async () => {
@@ -340,6 +369,32 @@ it("Walk-in registration (US-17) shows the server's message on the field it refu
 
   expect(await screen.findByText("Code postal refusé par le serveur.")).toBeVisible();
   expect(screen.getByRole("heading", { name: "2. Adresse" })).toBeVisible();
+});
+
+it("returns from review to Members when the server refuses a member edit", async () => {
+  const ready = draft({
+    street_number: "1234A",
+    street_name: "rue Saint-Denis",
+    postal_code: "H2X 1Y4",
+  });
+  const message = "Une personne ayant un avis doit avoir au moins 18 ans.";
+  const update = vi.fn(() => Response.json(ready));
+  mockApi({ read: () => Response.json(ready), update });
+  renderWithProviders(<App />, { route: `/staff/walk-in/${ID}` });
+  await screen.findByRole("heading", { name: "3. Membres du foyer" });
+  await userEvent.click(button("Continuer"));
+  await screen.findByRole("heading", { name: "4. Vérification" });
+
+  update.mockReturnValueOnce(
+    Response.json(
+      { code: "validation_error", message, fields: { members: [message] } },
+      { status: 400 },
+    ),
+  );
+  await userEvent.click(button("Enregistrer le brouillon"));
+
+  const members = await screen.findByRole("region", { name: "3. Membres du foyer" });
+  expect(within(members).getByText(message)).toBeVisible();
 });
 
 it("Walk-in registration (US-17) explains when the server cannot be reached", async () => {

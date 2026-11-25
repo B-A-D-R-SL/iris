@@ -74,6 +74,72 @@ def test_removing_a_member_with_a_notice_is_refused(
     assert household.members.filter(pk=spouse.pk).exists()
 
 
+@pytest.mark.parametrize(
+    ("field", "value"), [("first_name", "Corrected"), ("date_of_birth", "1986-02-03")]
+)
+def test_editing_a_member_by_id_keeps_their_notice(
+    household: Any, holder: Any, worker: Any, field: str, value: str
+) -> None:
+    spouse: Any = MemberFactory(household=household, **SPOUSE)
+    notice = post_notice(
+        api_client(worker),
+        household,
+        filed_notice(spouse, name_on_notice="Example Spouse"),
+    )
+    assert notice.status_code == 201, notice.data
+
+    response = _save_members(
+        worker, household, [SPOUSE | {"id": str(spouse.pk), field: value}]
+    )
+
+    assert response.status_code == 200, response.data
+    member = next(m for m in response.data["members"] if m["id"] == str(spouse.pk))
+    assert member[field] == value
+    assert household.members.count() == 2
+    current = current_notices([spouse.pk])[spouse.pk]
+    assert str(current.pk) == notice.data["id"]
+    assert current.name_on_notice == "Example Spouse"
+
+
+@pytest.mark.parametrize("case", ["holder", "another_household", "duplicate"])
+def test_member_update_refuses_invalid_ids(
+    household: Any, holder: Any, worker: Any, case: str
+) -> None:
+    if case == "holder":
+        members = [SPOUSE | {"id": str(holder.pk)}]
+    elif case == "another_household":
+        other: Any = MemberFactory()
+        members = [SPOUSE | {"id": str(other.pk)}]
+    else:
+        spouse: Any = MemberFactory(household=household, **SPOUSE)
+        members = [SPOUSE | {"id": str(spouse.pk)}] * 2
+
+    response = _save_members(worker, household, members)
+
+    assert response.status_code == 400
+    assert "members" in response.data["fields"]
+
+
+# rule: BR-DOC-007
+def test_member_with_a_notice_cannot_be_changed_to_a_minor(
+    household: Any, holder: Any, worker: Any
+) -> None:
+    spouse = _spouse_with_notice(household, worker)
+    notice = current_notices([spouse.pk])[spouse.pk]
+
+    response = _save_members(
+        worker,
+        household,
+        [SPOUSE | {"id": str(spouse.pk), "date_of_birth": "2016-03-01"}],
+    )
+
+    assert response.status_code == 400
+    assert "members" in response.data["fields"]
+    spouse.refresh_from_db()
+    assert spouse.date_of_birth.isoformat() == SPOUSE["date_of_birth"]
+    assert current_notices([spouse.pk])[spouse.pk].pk == notice.pk
+
+
 def test_missing_notice_settings_answer_503_even_without_a_file(
     household: Any, holder: Any, worker: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:

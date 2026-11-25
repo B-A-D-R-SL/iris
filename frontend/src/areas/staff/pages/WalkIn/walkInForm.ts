@@ -10,7 +10,7 @@ import type { ReactNode } from "react";
 import type {
   MemberRelation,
   WalkInDraft,
-  WalkInInput,
+  WalkInEditInput,
 } from "../../../../features/households/walkInApi";
 import {
   allOf,
@@ -48,6 +48,7 @@ export const relationKey = (relation: MemberRelation) =>
 export interface MemberValues {
   /** Only for React lists; never sent. */
   key: string;
+  id?: string;
   firstName: string;
   lastName: string;
   dateOfBirth: string | null;
@@ -117,12 +118,43 @@ export function fromDraft(draft: WalkInDraft): WalkInFormValues {
       .filter((member) => member.relation !== "holder")
       .map((member) => ({
         key: member.id,
+        id: member.id,
         firstName: member.first_name,
         lastName: member.last_name,
         dateOfBirth: member.date_of_birth,
         relation: member.relation as MemberRelation,
       })),
   };
+}
+
+/** Keep the IDs assigned to new members, even if the server returns them in a different order. */
+export function withSavedMemberIds(
+  members: MemberValues[],
+  submitted: MemberValues[],
+  draft: WalkInDraft,
+): MemberValues[] {
+  const existingIds = new Set(submitted.map((member) => member.id));
+  const created = draft.members.filter(
+    (member) => member.relation !== "holder" && !existingIds.has(member.id),
+  );
+  const ids = new Map<string, string>();
+  for (const member of submitted) {
+    if (member.id) continue;
+    const index = created.findIndex(
+      (saved) =>
+        saved.first_name === member.firstName.trim() &&
+        saved.last_name === member.lastName.trim() &&
+        saved.date_of_birth === member.dateOfBirth &&
+        saved.relation === member.relation,
+    );
+    if (index < 0) continue;
+    const [saved] = created.splice(index, 1);
+    ids.set(member.key, saved.id);
+  }
+  return members.map((member) => {
+    const id = ids.get(member.key);
+    return id ? { ...member, id } : member;
+  });
 }
 
 /** True once any part of the address was typed (the city has a default). */
@@ -133,8 +165,11 @@ export function hasAddress(values: WalkInFormValues): boolean {
 }
 
 /** The request body for POST or PATCH, from values that passed stepErrors. */
-export function toPayload(values: WalkInFormValues): WalkInInput {
-  const body: WalkInInput = {
+export function toPayload(
+  values: WalkInFormValues,
+  { includeMemberIds = false } = {},
+): WalkInEditInput {
+  const body: WalkInEditInput = {
     holder: {
       first_name: values.firstName.trim(),
       last_name: values.lastName.trim(),
@@ -146,6 +181,7 @@ export function toPayload(values: WalkInFormValues): WalkInInput {
     identity_checked_in_person: values.identityChecked,
     consent_data_processing: values.consentGiven,
     members: values.members.map((member) => ({
+      ...(includeMemberIds && member.id ? { id: member.id } : {}),
       first_name: member.firstName.trim(),
       last_name: member.lastName.trim(),
       date_of_birth: member.dateOfBirth ?? "",
@@ -329,6 +365,7 @@ const MEMBER_FIELDS: Record<string, keyof MemberValues> = {
 
 /** "holder.first_name" -> "firstName"; "members[1].relation" -> "members.1.relation". */
 function formField(apiField: string): string | null {
+  if (apiField === "members") return "members";
   const [group, rest] = apiField.split(/\.(.*)/s);
   if (group === "holder" && rest && HOLDER_FIELDS[rest]) return HOLDER_FIELDS[rest];
   if (group === "address" && rest && ADDRESS_FIELDS[rest]) return ADDRESS_FIELDS[rest];

@@ -150,6 +150,7 @@ SPECTACULAR_SETTINGS = {
         "LanguageEnum": [("fr", "Français"), ("en", "English")],
         # Keep the existing status type name.
         "WalkInDraftReadStatusEnum": "modules.households.models.Household.Status",
+        "MemberInputRelationEnum": "modules.households.api.serializers.EDITABLE_MEMBER_RELATIONS",
         # US-93: the account state of a household file on the staff screens.
         "AccountLinkStatusEnum": "modules.households.account_link_queries.STATUSES",
         "AccountLinkReasonEnum": "modules.households.account_link_queries.REASONS",
