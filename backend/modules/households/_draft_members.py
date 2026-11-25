@@ -56,7 +56,11 @@ def _plan_member_edits(
         raise ValidationError({"members": _("Send each household member only once.")})
     if kept - existing.keys():
         raise ValidationError(
-            {"members": _("Choose a household member other than the holder.")}
+            {
+                "members": _(
+                    "This member cannot be edited here. Reload the file and try again."
+                )
+            }
         )
 
     pending: list[tuple[Member | None, dict[str, Any]]] = []

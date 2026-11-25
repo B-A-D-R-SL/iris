@@ -217,8 +217,8 @@ msgstr "Impossible de remplacer des membres déjà liés à des avis ou à d'aut
 msgid "Send each household member only once."
 msgstr "Indiquez chaque membre du foyer une seule fois."
 
-msgid "Choose a household member other than the holder."
-msgstr "Choisissez un membre du foyer autre que la personne responsable."
+msgid "This member cannot be edited here. Reload the file and try again."
+msgstr "Ce membre ne peut pas être modifié ici. Rechargez le dossier et réessayez."
 
 msgid "A member with a notice must be at least 18."
 msgstr "Un membre ayant un avis doit avoir au moins 18 ans."
