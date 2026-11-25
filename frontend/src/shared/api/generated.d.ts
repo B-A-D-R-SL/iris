@@ -494,6 +494,8 @@ export interface components {
       /** Format: date */
       date_of_birth: string;
       first_name: string;
+      /** Format: uuid */
+      id?: string;
       last_name: string;
       relation: components["schemas"]["MemberInputRelationEnum"];
     };

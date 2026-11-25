@@ -82,6 +82,7 @@ class AddressInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
 
 
 class MemberInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
+    id = serializers.UUIDField(required=False)
     first_name = NameField()
     last_name = NameField()
     date_of_birth = serializers.DateField()

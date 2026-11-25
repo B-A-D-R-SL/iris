@@ -22,6 +22,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from modules.audit import services as audit_services
+from modules.households.domain.person import is_adult
 from modules.households.exceptions import DuplicateLockTimeout
 from modules.households.limits import max_household_people
 from modules.households.models import Household, HouseholdDraftEvent, Member
@@ -175,7 +176,8 @@ def _save_member(
     member: Member | None = None,
 ) -> Member:
     if member is None:
-        member = Member(household=household, relation=relation)
+        member = Member(household=household)
+    member.relation = relation
     for field in MEMBER_FIELDS & values.keys():
         setattr(member, field, values[field])
     member.full_clean()
@@ -192,23 +194,54 @@ def _same_person(member: Member, values: Mapping[str, Any]) -> bool:
     )
 
 
-def _unchanged_members(
+def _plan_member_edits(
     household: Household, members: list[dict[str, Any]]
-) -> tuple[set[UUID], list[dict[str, Any]]]:
-    """Ids of existing members sent back unchanged, and the entries that are new."""
-    existing = list(household.members.exclude(relation=Member.Relation.HOLDER))
-    kept: set[UUID] = set()
-    new_members: list[dict[str, Any]] = []
+) -> tuple[set[UUID], list[tuple[Member | None, dict[str, Any]]]]:
+    existing = {
+        member.pk: member
+        for member in household.members.exclude(relation=Member.Relation.HOLDER)
+    }
+    ids = [values["id"] for values in members if "id" in values]
+    kept = set(ids)
+    if len(kept) != len(ids):
+        raise ValidationError({"members": _("Send each household member only once.")})
+    if kept - existing.keys():
+        raise ValidationError(
+            {"members": _("Choose a household member other than the holder.")}
+        )
+
+    pending: list[tuple[Member | None, dict[str, Any]]] = []
+    today = timezone.localdate()
     for values in members:
+        if "id" in values:
+            member = existing[values["id"]]
+            birth = values["date_of_birth"]
+            if (
+                birth != member.date_of_birth
+                and not is_adult(birth, today)
+                and member.income_notices.exists()
+            ):
+                raise ValidationError(
+                    {"members": _("A member with a notice must be at least 18.")}
+                )
+            if not _same_person(member, values):
+                pending.append((member, values))
+            continue
+
+        # Older clients can still keep an unchanged member without sending an ID.
         match = next(
-            (m for m in existing if m.pk not in kept and _same_person(m, values)),
+            (
+                member
+                for member in existing.values()
+                if member.pk not in kept and _same_person(member, values)
+            ),
             None,
         )
         if match is None:
-            new_members.append(values)
+            pending.append((None, values))
         else:
             kept.add(match.pk)
-    return kept, new_members
+    return kept, pending
 
 
 def _replace_other_members(household: Household, members: list[dict[str, Any]]) -> None:
@@ -224,9 +257,7 @@ def _replace_other_members(household: Household, members: list[dict[str, Any]]) 
         )
     if any(values.get("relation") == Member.Relation.HOLDER for values in members):
         raise ValidationError({"members": _("The holder is added automatically.")})
-    # Members sent back unchanged keep their row, so their notices stay linked;
-    # only removed or changed members are deleted (refused if they have notices).
-    kept, new_members = _unchanged_members(household, members)
+    kept, pending = _plan_member_edits(household, members)
     try:
         household.members.exclude(relation=Member.Relation.HOLDER).exclude(
             pk__in=kept
@@ -239,10 +270,8 @@ def _replace_other_members(household: Household, members: list[dict[str, Any]]) 
                 )
             }
         ) from exc
-    for values in new_members:
-        member = Member(household=household, **values)
-        member.full_clean()
-        member.save()
+    for member, values in pending:
+        _save_member(household, values, values["relation"], member)
 
 
 @transaction.atomic
