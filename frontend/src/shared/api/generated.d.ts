@@ -496,6 +496,15 @@ export interface components {
       street_number: string;
       unit: string | null;
     };
+    MemberEditInput: {
+      /** Format: date */
+      date_of_birth: string;
+      first_name: string;
+      /** Format: uuid */
+      id?: string;
+      last_name: string;
+      relation: components["schemas"]["MemberInputRelationEnum"];
+    };
     MemberInput: {
       /** Format: date */
       date_of_birth: string;
@@ -719,12 +728,12 @@ export interface components {
       street_number?: string;
       unit?: string | null;
     };
-    PatchedWalkInDraftInput: {
+    PatchedWalkInDraftEditInput: {
       address?: components["schemas"]["AddressInput"];
       consent_data_processing?: boolean;
       holder?: components["schemas"]["HolderInput"];
       identity_checked_in_person?: boolean;
-      members?: components["schemas"]["MemberInput"][];
+      members?: components["schemas"]["MemberEditInput"][];
     };
     /** @description First name and last initial only; no phone, email or address. */
     Pickup: {
@@ -1706,9 +1715,9 @@ export interface operations {
     };
     requestBody?: {
       content: {
-        "application/json": components["schemas"]["PatchedWalkInDraftInput"];
-        "application/x-www-form-urlencoded": components["schemas"]["PatchedWalkInDraftInput"];
-        "multipart/form-data": components["schemas"]["PatchedWalkInDraftInput"];
+        "application/json": components["schemas"]["PatchedWalkInDraftEditInput"];
+        "application/x-www-form-urlencoded": components["schemas"]["PatchedWalkInDraftEditInput"];
+        "multipart/form-data": components["schemas"]["PatchedWalkInDraftEditInput"];
       };
     };
     responses: {

@@ -214,6 +214,15 @@ msgstr "Seuls les dossiers en brouillon peuvent être modifiés."
 msgid "Cannot replace members already linked to notices or other records."
 msgstr "Impossible de remplacer des membres déjà liés à des avis ou à d'autres dossiers."
 
+msgid "Send each household member only once."
+msgstr "Indiquez chaque membre du foyer une seule fois."
+
+msgid "This member cannot be edited here. Reload the file and try again."
+msgstr "Ce membre ne peut pas être modifié ici. Rechargez le dossier et réessayez."
+
+msgid "A member with a notice must be at least 18."
+msgstr "Un membre ayant un avis doit avoir au moins 18 ans."
+
 msgid "Notices can only be added to a draft file."
 msgstr "Les avis ne peuvent être ajoutés qu'à un dossier en brouillon."
 

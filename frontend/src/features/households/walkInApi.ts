@@ -9,6 +9,7 @@ import type { components } from "../../shared/api/generated";
 
 export type WalkInDraft = components["schemas"]["WalkInDraftRead"];
 export type WalkInInput = components["schemas"]["WalkInDraftInput"];
+export type WalkInEditInput = components["schemas"]["PatchedWalkInDraftEditInput"];
 export type MemberRelation = components["schemas"]["MemberInputRelationEnum"];
 
 /** A refused request: 400 has messages per field ("holder.first_name"); others only a message. */
@@ -36,7 +37,7 @@ function isErrorBody(
 
 async function request(
   path: string,
-  init: { method: "GET" | "POST" | "PATCH"; body?: WalkInInput },
+  init: { method: "GET" | "POST" | "PATCH"; body?: WalkInInput | WalkInEditInput },
   language: "fr" | "en",
 ): Promise<WalkInDraft> {
   const headers: Record<string, string> = {
@@ -72,7 +73,7 @@ export function createWalkIn(body: WalkInInput, language: "fr" | "en"): Promise<
 
 export function updateWalkIn(
   id: string,
-  body: WalkInInput,
+  body: WalkInEditInput,
   language: "fr" | "en",
 ): Promise<WalkInDraft> {
   return request(`/api/staff/households/${id}/`, { method: "PATCH", body }, language);

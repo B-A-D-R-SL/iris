@@ -58,14 +58,16 @@ account. The record also preserves staff verification and creation timestamps.
 - `domain/names.py`: `short_name`, `short_full_name` ("Fatou D.")
 
 Services are transactional, enforce active staff roles, and call `full_clean()`
-before persistence. Editing is restricted to drafts; member replacement cannot
-remove a record referenced by another module. Members sent back
-unchanged (same names, date of birth and relation) keep their record, so a
-member with a notice can stay while others are added; removing or changing that
-member is refused. The holder keeps one record and is edited in place, so their
-notice stays linked when staff correct their name or date of birth; the notice
-keeps the name it was recorded with. No form can set the status,
-creator, verifier or internal keys directly.
+before persistence. Editing is restricted to drafts. To edit an existing
+non-holder member, send their `id` in `members`. The member's row and linked
+notices are preserved, including the name originally recorded on each notice.
+Entries without an ID can add new members. An unchanged entry without an ID
+still keeps its existing row.
+
+Member edits reject IDs from another household, the holder's ID and repeated IDs.
+A member with a notice cannot be removed or given a date of birth that makes them
+under 18. The holder is edited separately under `holder`. Status, creator,
+verifier and internal keys are controlled by the server.
 
 ## API routes
 
@@ -74,7 +76,8 @@ creator, verifier or internal keys directly.
   names, household email/phone, member number and address. Pages are capped at
   100 results. Names describe the holder even when another member matched.
 - `GET /api/staff/households/{uuid}/`: read draft and who created it
-- `PATCH /api/staff/households/{uuid}/`: patch draft steps, including members
+- `PATCH /api/staff/households/{uuid}/`: patch draft steps. Existing non-holder
+  members can include their `id` to update them in place.
 - `POST /api/staff/households/{uuid}/submit/`: submit saved registration data,
   returning `{id, status, status_reason, submitted_at}`; request body is `{}`.
 - `GET /api/staff/households/{uuid}/notices/`: the current notice of each

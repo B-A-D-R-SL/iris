@@ -53,7 +53,6 @@ const OVER_THE_LIMIT = {
   "src/areas/staff/pages/WalkIn/HolderStep.tsx": { lines: 71 },
   "src/areas/staff/pages/WalkIn/MembersStep.tsx": { lines: 87 },
   "src/areas/staff/pages/WalkIn/ReviewStep.tsx": { lines: 57 },
-  "src/areas/staff/pages/WalkIn/WalkIn.tsx": { lines: 177, complexity: 18 },
   "src/features/categories/CategoryDialog.tsx": { lines: 111 },
 };
 
