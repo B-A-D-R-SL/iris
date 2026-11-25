@@ -144,7 +144,8 @@ it("takes the holder from the member with relation holder and lists only the oth
 it("sends a saved member's ID after editing their name", () => {
   const values = fromDraft(savedDraft);
   values.members[0].firstName = "Léon";
-  expect(toPayload(values).members).toEqual([
+  expect(toPayload(values).members?.[0]).not.toHaveProperty("id");
+  expect(toPayload(values, { includeMemberIds: true }).members).toEqual([
     {
       id: "m2",
       first_name: "Léon",

@@ -3,6 +3,7 @@
 
 from copy import deepcopy
 from datetime import date
+from uuid import uuid4
 
 import pytest
 from django.core.exceptions import PermissionDenied
@@ -96,6 +97,18 @@ def test_allowed_staff_create_read_and_patch(role, data):
         household.draft_events.order_by("id").values_list("action", flat=True)
     ) == ["created", "updated"]
     assert set(household.draft_events.values_list("actor_role", flat=True)) == {role}
+
+
+def test_create_rejects_existing_member_ids(worker, data):
+    data["members"][0]["id"] = str(uuid4())
+
+    response = _client(worker).post(
+        reverse("staff-households-create"), data, format="json"
+    )
+
+    assert response.status_code == 400
+    assert "members[0].id" in response.data["fields"]
+    assert not Household.objects.exists()
 
 
 def test_direct_service_forbids_nonstaff(worker):

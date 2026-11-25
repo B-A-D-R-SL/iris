@@ -29,6 +29,7 @@ from modules.households.api.serializers import (
     HouseholdErrorSerializer,
     HouseholdStatusInputSerializer,
     HouseholdStatusReadSerializer,
+    WalkInDraftEditInputSerializer,
     WalkInDraftInputSerializer,
     WalkInDraftReadSerializer,
     WalkInSubmissionInputSerializer,
@@ -124,9 +125,8 @@ class IsAdmin(BasePermission):
         return can_suspend_households(request.user)
 
 
-def _validated(data: Any, *, partial: bool = False) -> dict[str, Any]:
+def _validated(serializer: WalkInDraftInputSerializer) -> dict[str, Any]:
     """Validate submitted draft fields before passing them to a service."""
-    serializer = WalkInDraftInputSerializer(data=data, partial=partial)
     serializer.is_valid(raise_exception=True)
     return dict(serializer.validated_data)
 
@@ -185,7 +185,7 @@ class WalkInCollectionView(WalkInErrorHandlingMixin, GenericAPIView):
     )
     def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """Create a resumable draft and return validated field errors on refusal."""
-        data = _validated(request.data)
+        data = _validated(self.get_serializer(data=request.data))
         try:
             household = services.create_walk_in(data, request.user)
         except DjangoValidationError as exc:
@@ -196,7 +196,7 @@ class WalkInCollectionView(WalkInErrorHandlingMixin, GenericAPIView):
 
 
 class WalkInDetailView(WalkInErrorHandlingMixin, GenericAPIView):
-    serializer_class = WalkInDraftInputSerializer
+    serializer_class = WalkInDraftEditInputSerializer
     permission_classes = (IsIntakeWorkerOrAdmin,)
 
     @staticmethod
@@ -225,14 +225,14 @@ class WalkInDetailView(WalkInErrorHandlingMixin, GenericAPIView):
         )
 
     @extend_schema(
-        request=WalkInDraftInputSerializer,
+        request=WalkInDraftEditInputSerializer,
         responses={200: WalkInDraftReadSerializer, 503: HouseholdErrorSerializer},
         tags=["staff households"],
         summary="Edit an existing walk-in household draft",
     )
     def patch(self, request: Request, id: UUID, *args: Any, **kwargs: Any) -> Response:
         self._get_household(id, request.user)
-        data = _validated(request.data, partial=True)
+        data = _validated(self.get_serializer(data=request.data, partial=True))
         try:
             household = services.update_draft(id, data, request.user)
         except Household.DoesNotExist as exc:

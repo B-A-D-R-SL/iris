@@ -81,18 +81,18 @@ class AddressInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
     postal_code = PostalCodeField()
 
 
+EDITABLE_MEMBER_RELATIONS = [
+    relation
+    for relation, _ in Member.Relation.choices
+    if relation != Member.Relation.HOLDER
+]
+
+
 class MemberInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
-    id = serializers.UUIDField(required=False)
     first_name = NameField()
     last_name = NameField()
     date_of_birth = serializers.DateField()
-    relation = serializers.ChoiceField(
-        choices=[
-            relation
-            for relation, _ in Member.Relation.choices
-            if relation != Member.Relation.HOLDER
-        ]
-    )
+    relation = serializers.ChoiceField(choices=EDITABLE_MEMBER_RELATIONS)
 
     def validate_date_of_birth(self, value):
         try:
@@ -102,16 +102,22 @@ class MemberInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
         return value
 
 
+class MemberEditInputSerializer(MemberInputSerializer):
+    id = serializers.UUIDField(required=False)
+
+
 @extend_schema_field(MemberInputSerializer(many=True))
 class CompleteMembersField(serializers.Field):
-    """Require complete replacements; nested serializers inherit PATCH partial mode."""
+    """Validate complete member rows even on a partial draft update."""
+
+    member_serializer = MemberInputSerializer
 
     def to_internal_value(self, data: Any) -> list[dict[str, Any]]:
         if not isinstance(data, list):
             raise serializers.ValidationError(
                 _("Send the household members as a list.")
             )
-        members = MemberInputSerializer(data=data, many=True)
+        members = self.member_serializer(data=data, many=True)
         if not members.is_valid():
             errors = members.errors
             # One entry per member, so errors read "members[1].relation" like other lists.
@@ -119,6 +125,11 @@ class CompleteMembersField(serializers.Field):
                 errors = [errors.get(index, {}) for index in range(len(data))]
             raise serializers.ValidationError(errors)
         return list(members.validated_data)
+
+
+@extend_schema_field(MemberEditInputSerializer(many=True))
+class CompleteMemberEditsField(CompleteMembersField):
+    member_serializer = MemberEditInputSerializer
 
 
 class WalkInDraftInputSerializer(RejectUnknownFieldsMixin, serializers.Serializer):
@@ -141,6 +152,10 @@ class WalkInDraftInputSerializer(RejectUnknownFieldsMixin, serializers.Serialize
     def validate_address(self, address):
         address.pop("province", None)  # fixed QC; never stored as a free-form province.
         return address
+
+
+class WalkInDraftEditInputSerializer(WalkInDraftInputSerializer):
+    members = CompleteMemberEditsField(required=False)
 
 
 class HouseholdErrorSerializer(serializers.Serializer):

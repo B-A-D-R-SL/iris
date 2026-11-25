@@ -10,7 +10,7 @@ import type { ReactNode } from "react";
 import type {
   MemberRelation,
   WalkInDraft,
-  WalkInInput,
+  WalkInEditInput,
 } from "../../../../features/households/walkInApi";
 import {
   allOf,
@@ -165,8 +165,11 @@ export function hasAddress(values: WalkInFormValues): boolean {
 }
 
 /** The request body for POST or PATCH, from values that passed stepErrors. */
-export function toPayload(values: WalkInFormValues): WalkInInput {
-  const body: WalkInInput = {
+export function toPayload(
+  values: WalkInFormValues,
+  { includeMemberIds = false } = {},
+): WalkInEditInput {
+  const body: WalkInEditInput = {
     holder: {
       first_name: values.firstName.trim(),
       last_name: values.lastName.trim(),
@@ -178,7 +181,7 @@ export function toPayload(values: WalkInFormValues): WalkInInput {
     identity_checked_in_person: values.identityChecked,
     consent_data_processing: values.consentGiven,
     members: values.members.map((member) => ({
-      ...(member.id ? { id: member.id } : {}),
+      ...(includeMemberIds && member.id ? { id: member.id } : {}),
       first_name: member.firstName.trim(),
       last_name: member.lastName.trim(),
       date_of_birth: member.dateOfBirth ?? "",

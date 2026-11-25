@@ -114,7 +114,7 @@ function WalkInForm({ draft }: { draft: WalkInDraft | null }) {
   const mutation = useMutation({
     mutationFn: ({ values }: { values: WalkInFormValues; after: After }) =>
       current
-        ? updateWalkIn(current.id, toPayload(values), language)
+        ? updateWalkIn(current.id, toPayload(values, { includeMemberIds: true }), language)
         : createWalkIn(toPayload(values), language),
     onSuccess: (result, { values, after }) => {
       queryClient.setQueryData(walkInQueryKey(result.id), result);
