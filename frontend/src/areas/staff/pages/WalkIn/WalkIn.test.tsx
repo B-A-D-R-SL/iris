@@ -371,6 +371,32 @@ it("Walk-in registration (US-17) shows the server's message on the field it refu
   expect(screen.getByRole("heading", { name: "2. Adresse" })).toBeVisible();
 });
 
+it("returns from review to Members when the server refuses a member edit", async () => {
+  const ready = draft({
+    street_number: "1234A",
+    street_name: "rue Saint-Denis",
+    postal_code: "H2X 1Y4",
+  });
+  const message = "Une personne ayant un avis doit avoir au moins 18 ans.";
+  const update = vi.fn(() => Response.json(ready));
+  mockApi({ read: () => Response.json(ready), update });
+  renderWithProviders(<App />, { route: `/staff/walk-in/${ID}` });
+  await screen.findByRole("heading", { name: "3. Membres du foyer" });
+  await userEvent.click(button("Continuer"));
+  await screen.findByRole("heading", { name: "4. Vérification" });
+
+  update.mockReturnValueOnce(
+    Response.json(
+      { code: "validation_error", message, fields: { members: [message] } },
+      { status: 400 },
+    ),
+  );
+  await userEvent.click(button("Enregistrer le brouillon"));
+
+  const members = await screen.findByRole("region", { name: "3. Membres du foyer" });
+  expect(within(members).getByText(message)).toBeVisible();
+});
+
 it("Walk-in registration (US-17) explains when the server cannot be reached", async () => {
   const fetchMock = mockApi();
   renderWithProviders(<App />, { route: "/staff/walk-in" });

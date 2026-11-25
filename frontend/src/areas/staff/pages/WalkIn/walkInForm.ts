@@ -365,6 +365,7 @@ const MEMBER_FIELDS: Record<string, keyof MemberValues> = {
 
 /** "holder.first_name" -> "firstName"; "members[1].relation" -> "members.1.relation". */
 function formField(apiField: string): string | null {
+  if (apiField === "members") return "members";
   const [group, rest] = apiField.split(/\.(.*)/s);
   if (group === "holder" && rest && HOLDER_FIELDS[rest]) return HOLDER_FIELDS[rest];
   if (group === "address" && rest && ADDRESS_FIELDS[rest]) return ADDRESS_FIELDS[rest];
