@@ -164,6 +164,20 @@ def test_the_signal_is_sent_even_when_the_language_is_unchanged() -> None:
     assert received == ["en"]
 
 
+# rule: BR-LANG-002
+def test_a_stale_account_instance_still_saves_the_requested_language() -> None:
+    # Another request saved "en" after this one loaded the account as "fr".
+    stale = make_user(preferred_language="fr")
+    type(stale).objects.filter(pk=stale.pk).update(preferred_language="en")
+
+    saved = services.change_language(stale, "fr")
+
+    assert saved is stale
+    assert saved.preferred_language == "fr"
+    stale.refresh_from_db()
+    assert stale.preferred_language == "fr"
+
+
 # rule: BR-LANG-003, BR-NOTIF-003
 @pytest.mark.usefixtures("notification_rules")
 def test_emails_after_the_change_use_the_saved_language() -> None:

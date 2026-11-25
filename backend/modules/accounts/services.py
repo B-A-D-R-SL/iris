@@ -286,9 +286,17 @@ def change_language(user: User, language: str) -> User:
     Every later email to the user, and to the household file they hold, uses it.
     `language_changed` is sent even when the value is unchanged, so a household
     file that drifted (for example linked at the counter) is brought back in step.
+    The row is locked and its language read again first: the caller's instance
+    may be stale if another request changed the language since it was loaded.
+    The caller's instance is updated in place, so it matches the saved account.
     """
     if language not in LANGUAGES:
         raise ValidationError(_("Choose French or English."), code="invalid_language")
+    user.preferred_language = (
+        User.objects.select_for_update()
+        .values_list("preferred_language", flat=True)
+        .get(pk=user.pk)
+    )
     if user.preferred_language != language:
         user.preferred_language = language
         user.save(update_fields=["preferred_language", "updated_at"])
