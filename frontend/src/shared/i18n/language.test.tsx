@@ -269,4 +269,30 @@ describe("a signed-in user's choice", () => {
 
     await waitFor(() => expect(queryClient.getQueryData(CURRENT_USER_QUERY_KEY)).toBeNull());
   });
+
+  // rule: BR-LANG-002
+  it("drops a queued save when another account signs in before it is sent", async () => {
+    const first = testUser("admin");
+    const second = testUser("admin", { id: "00000000-0000-4000-8000-000000000002" });
+    const held = heldAnswer();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const fetchMock = mockAccount(first, () => held.answer);
+    renderWithProviders(<App />, { route: "/staff/partners", queryClient });
+    await userEvent.click(await screen.findByRole("button", { name: "English" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Français" }));
+    expect(patches(fetchMock)).toHaveLength(1);
+
+    act(() => queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null));
+    act(() => queryClient.setQueryData(CURRENT_USER_QUERY_KEY, second));
+    await act(async () => {
+      held.release(Response.json({ ...first, language: "en" }));
+      await held.answer;
+      // Let the first save finish and the queued one run.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    // The queued "fr" save for the first account is never sent with the second's session.
+    await waitFor(() => expect(queryClient.getQueryData(CURRENT_USER_QUERY_KEY)).toEqual(second));
+    expect(patches(fetchMock)).toHaveLength(1);
+  });
 });

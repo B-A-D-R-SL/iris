@@ -29,12 +29,18 @@ export function useLanguageSwitch() {
   const { data: user } = useCurrentUser();
   const next: Language = i18n.resolvedLanguage === "en" ? "fr" : "en";
 
+  /** False once the account that chose the language signed out or another signed in. */
+  function stillSignedIn(accountId: string) {
+    return queryClient.getQueryData<CurrentUser | null>(CURRENT_USER_QUERY_KEY)?.id === accountId;
+  }
+
   async function save(accountId: string, language: Language) {
+    // A save still queued when the account changed is dropped: sent now, it
+    // would change the language of whoever is signed in instead.
+    if (!stillSignedIn(accountId)) return;
     try {
       const saved = await saveLanguage(language);
-      // Signed out, or another account signed in, while this save was running.
-      const current = queryClient.getQueryData<CurrentUser | null>(CURRENT_USER_QUERY_KEY);
-      if (current?.id === accountId) {
+      if (stillSignedIn(accountId)) {
         queryClient.setQueryData(CURRENT_USER_QUERY_KEY, saved);
       }
     } catch {
