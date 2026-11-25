@@ -111,13 +111,13 @@ def test_the_invitation_sent_at_approval_is_audited(
 
 # rule: BR-HH-ACCOUNT-001
 def test_an_invite_audit_failure_rolls_back_the_approval(
-    household: Any,
-    staff: Any,
-    monkeypatch: Any,
-    email_jobs: list[dict[str, Any]],
-    django_capture_on_commit_callbacks: Any,
+    household: Any, staff: Any, monkeypatch: Any
 ) -> None:
-    """No approval, invitation or email is kept without its audit event."""
+    """No approval, invitation or email is kept without its audit event.
+
+    The email's EmailLog row is written before the invite audit, in the same
+    transaction, so it must be gone after the rollback.
+    """
     Household.objects.filter(pk=household.pk).update(email="holder@example.test")
     submit(household)
     before = list(audit_events(household).values())
@@ -130,11 +130,9 @@ def test_an_invite_audit_failure_rolls_back_the_approval(
         raise ValidationError("Audit unavailable")
 
     monkeypatch.setattr(audit_services, "record", fail)
-    with django_capture_on_commit_callbacks(execute=True) as callbacks:
-        refused = pytest.raises(ValidationError, approve_walk_in, household, staff)
-    refused.match("Audit unavailable")
-    assert callbacks == []
-    assert email_jobs == []
+    with pytest.raises(ValidationError, match="Audit unavailable"):
+        approve_walk_in(household, staff)
+    assert not EmailLog.objects.exists()
     assert_unapproved(household, "submitted")
     assert not decisions(household).exists()
     assert list(audit_events(household).values()) == before
