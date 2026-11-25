@@ -55,7 +55,7 @@ def test_model_validation_refuses_an_account_that_holds_another_household(
 ) -> None:
     user: Any = UserFactory(role="beneficiary")
     Household.objects.filter(pk=household.pk).update(holder=user)
-    other = HouseholdFactory(created_by=household.created_by)
+    other: Any = HouseholdFactory(created_by=household.created_by)
     other.holder = user
     with pytest.raises(ValidationError) as caught:
         other.full_clean()
