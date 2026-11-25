@@ -36,6 +36,7 @@ import {
   stepErrors,
   stepOf,
   toPayload,
+  withSavedMemberIds,
   type Step,
   type WalkInFormValues,
 } from "./walkInForm";
@@ -115,12 +116,15 @@ function WalkInForm({ draft }: { draft: WalkInDraft | null }) {
       current
         ? updateWalkIn(current.id, toPayload(values), language)
         : createWalkIn(toPayload(values), language),
-    onSuccess: (result, { after }) => {
+    onSuccess: (result, { values, after }) => {
       queryClient.setQueryData(walkInQueryKey(result.id), result);
       if (!current) {
         navigate(`/staff/walk-in/${result.id}`, { replace: true, state: after });
         return;
       }
+      form.setFieldValue("members", (members) =>
+        withSavedMemberIds(members, values.members, result),
+      );
       setCurrent(result);
       show(after);
     },
@@ -170,19 +174,7 @@ function WalkInForm({ draft }: { draft: WalkInDraft | null }) {
     <form noValidate onSubmit={(event) => event.preventDefault()}>
       <div ref={top} />
       <Stack gap="lg">
-        <div>
-          <Text className={classes.eyebrow}>{t("staff.walkIn.eyebrow")}</Text>
-          <Title order={1}>{t("app.staffNav.walkIn")}</Title>
-          <Text c="dimmed">{t("staff.walkIn.description")}</Text>
-          {current && (
-            <Text size="sm" c="dimmed" mt={4}>
-              {t("staff.walkIn.createdBy", {
-                email: current.created_by_email,
-                date: formatDateTime(current.created_at, language),
-              })}
-            </Text>
-          )}
-        </div>
+        <WalkInHeading draft={current} />
 
         {problem && (
           <Notice type="error" title={t("staff.walkIn.notSaved")}>
@@ -254,6 +246,26 @@ function WalkInForm({ draft }: { draft: WalkInDraft | null }) {
         </div>
       </Stack>
     </form>
+  );
+}
+
+function WalkInHeading({ draft }: { draft: WalkInDraft | null }) {
+  const { t } = useTranslation();
+  const language = useLanguage();
+  return (
+    <div>
+      <Text className={classes.eyebrow}>{t("staff.walkIn.eyebrow")}</Text>
+      <Title order={1}>{t("app.staffNav.walkIn")}</Title>
+      <Text c="dimmed">{t("staff.walkIn.description")}</Text>
+      {draft && (
+        <Text size="sm" c="dimmed" mt={4}>
+          {t("staff.walkIn.createdBy", {
+            email: draft.created_by_email,
+            date: formatDateTime(draft.created_at, language),
+          })}
+        </Text>
+      )}
+    </div>
   );
 }
 

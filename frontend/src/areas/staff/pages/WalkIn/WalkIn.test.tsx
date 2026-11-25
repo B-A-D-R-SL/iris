@@ -278,8 +278,18 @@ it("Walk-in registration (US-17) resumes a saved draft at the first step still m
   expect(screen.getByLabelText("Nom de famille")).toHaveValue("Démo");
 });
 
-it("Walk-in registration (US-17) saves the address, then adds a child as person 2", async () => {
-  const fetchMock = mockApi();
+it("Walk-in registration saves a new member and sends their ID on the next edit", async () => {
+  const child = {
+    id: "m2",
+    first_name: "Léo",
+    last_name: "Démo",
+    date_of_birth: "2017-01-03",
+    relation: "child" as const,
+  };
+  const update = vi
+    .fn(() => Response.json(draft({ members: [child, ...draft().members] })))
+    .mockImplementationOnce(() => Response.json(draft()));
+  const fetchMock = mockApi({ update });
   renderWithProviders(<App />, { route: `/staff/walk-in/${ID}` });
   await screen.findByRole("heading", { name: "2. Adresse" });
 
@@ -315,6 +325,17 @@ it("Walk-in registration (US-17) saves the address, then adds a child as person 
     { first_name: "Léo", last_name: "Démo", date_of_birth: "2017-01-03", relation: "child" },
   ]);
   expect(screen.getByText("Personnes dans le foyer : 2")).toBeVisible();
+
+  await userEvent.click(button("Retour"));
+  const firstName = within(screen.getByRole("region", { name: "Personne 2" })).getByLabelText(
+    "Prénom",
+  );
+  await userEvent.clear(firstName);
+  await userEvent.type(firstName, "Léon");
+  await userEvent.click(button("Continuer"));
+
+  await screen.findByRole("heading", { name: "4. Vérification" });
+  expect(sentBody(fetchMock, "PATCH").members).toEqual([{ ...child, first_name: "Léon" }]);
 });
 
 it("Walk-in registration (US-17) shows the server's message on the field it refused, on that field's step", async () => {

@@ -127,6 +127,36 @@ export function fromDraft(draft: WalkInDraft): WalkInFormValues {
   };
 }
 
+/** Keep the IDs assigned to new members, even if the server returns them in a different order. */
+export function withSavedMemberIds(
+  members: MemberValues[],
+  submitted: MemberValues[],
+  draft: WalkInDraft,
+): MemberValues[] {
+  const existingIds = new Set(submitted.map((member) => member.id));
+  const created = draft.members.filter(
+    (member) => member.relation !== "holder" && !existingIds.has(member.id),
+  );
+  const ids = new Map<string, string>();
+  for (const member of submitted) {
+    if (member.id) continue;
+    const index = created.findIndex(
+      (saved) =>
+        saved.first_name === member.firstName.trim() &&
+        saved.last_name === member.lastName.trim() &&
+        saved.date_of_birth === member.dateOfBirth &&
+        saved.relation === member.relation,
+    );
+    if (index < 0) continue;
+    const [saved] = created.splice(index, 1);
+    ids.set(member.key, saved.id);
+  }
+  return members.map((member) => {
+    const id = ids.get(member.key);
+    return id ? { ...member, id } : member;
+  });
+}
+
 /** True once any part of the address was typed (the city has a default). */
 export function hasAddress(values: WalkInFormValues): boolean {
   return [values.streetNumber, values.streetName, values.unit, values.postalCode].some(
