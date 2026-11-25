@@ -113,6 +113,8 @@ function useAccountAction(householdId: string, onChanged: () => void) {
       action === "link"
         ? linkHouseholdAccount(householdId, language)
         : resendHouseholdInvitation(householdId, language),
+    // A new attempt replaces the last outcome, so success and failure never show together.
+    onMutate: () => setOutcome(null),
     onSuccess: (_, action) => {
       setOutcome(
         t(action === "link" ? "household.account.linkedSuccess" : "household.account.resent"),

@@ -158,6 +158,26 @@ describe("household account card", () => {
     expect(await screen.findByText("The request failed. Try again.")).toBeVisible();
   });
 
+  it("clears the earlier success when the next action fails", async () => {
+    // The first resend works and the second fails; other requests (the current user) get 404.
+    const resends = [Response.json(state("invited")), new Response(null, { status: 500 })];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url =
+          typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        const resend = url.endsWith("/resend-invitation/") ? resends.shift() : undefined;
+        return resend ?? new Response(null, { status: 404 });
+      }),
+    );
+    show(state("invited"));
+    await userEvent.click(screen.getByRole("button", { name: "Send a new invitation" }));
+    expect(await screen.findByText(/A new invitation was sent/)).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Send a new invitation" }));
+    expect(await screen.findByText("The request failed. Try again.")).toBeVisible();
+    expect(screen.queryByText(/A new invitation was sent/)).not.toBeInTheDocument();
+  });
+
   it("speaks French", async () => {
     await i18n.changeLanguage("fr");
     show(state("invited"));
