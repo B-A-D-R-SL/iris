@@ -7,7 +7,9 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
+import { csrfToken } from "../api/csrf";
 import type { paths } from "../api/generated";
+import { isLanguage, type Language } from "../i18n/languagePreference";
 import { isRole } from "./roles";
 
 type CurrentUserResponse =
@@ -27,7 +29,7 @@ function parseCurrentUser(data: unknown): CurrentUser {
     typeof name !== "string" ||
     !isRole(role) ||
     (store !== null && typeof store !== "string") ||
-    (language !== "fr" && language !== "en")
+    !isLanguage(language)
   ) {
     throw new Error("Invalid current user response");
   }
@@ -43,6 +45,25 @@ export async function fetchCurrentUser(): Promise<CurrentUser | null> {
   }
   if (!response.ok) {
     throw new Error(`Current user unavailable: ${response.status}`);
+  }
+  return parseCurrentUser(await response.json());
+}
+
+/** Saves the signed-in user's language on their account (US-08) and returns the account. */
+export async function saveLanguage(language: Language): Promise<CurrentUser> {
+  const response = await fetch("/api/me/", {
+    method: "PATCH",
+    credentials: "same-origin",
+    headers: {
+      Accept: "application/json",
+      "Accept-Language": language,
+      "Content-Type": "application/json",
+      "X-CSRFToken": csrfToken() ?? "",
+    },
+    body: JSON.stringify({ language }),
+  });
+  if (!response.ok) {
+    throw new Error(`Language not saved: ${response.status}`);
   }
   return parseCurrentUser(await response.json());
 }

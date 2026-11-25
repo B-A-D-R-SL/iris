@@ -7,7 +7,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { HouseholdAccount } from "../../../features/households/statusApi";
 import i18n from "../../../shared/i18n";
 import { logger } from "../../../shared/logger";
-import { expectNoAxeViolations, renderWithProviders, testUser } from "../../../test/render";
+import {
+  expectNoAxeViolations,
+  inCurrentLanguage,
+  renderWithProviders,
+  testUser,
+} from "../../../test/render";
 import { Household } from "./Household";
 
 const id = "00000000-0000-4000-8000-000000000032";
@@ -54,7 +59,7 @@ function mockApi(role: "admin" | "intake_worker") {
   let file = household("approved", role === "admin" ? ["suspend"] : []);
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    if (url.endsWith("/api/me/")) return Response.json(testUser(role));
+    if (url.endsWith("/api/me/")) return Response.json(testUser(role, inCurrentLanguage()));
     if (url === `/api/staff/households/${id}/` && !init?.method) return Response.json(file);
     if (url === `/api/staff/households/${id}/suspend/`) {
       file = household("suspended", ["reactivate"]);
@@ -71,7 +76,7 @@ function mockStatusResponse(initial: ReturnType<typeof household>, response: Res
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-      if (url.endsWith("/api/me/")) return Response.json(testUser("admin"));
+      if (url.endsWith("/api/me/")) return Response.json(testUser("admin", inCurrentLanguage()));
       if (url === `/api/staff/households/${id}/` && !init?.method) {
         return Response.json(initial);
       }
@@ -161,7 +166,7 @@ describe("staff household suspension", () => {
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url =
           typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-        if (url.endsWith("/api/me/")) return Response.json(testUser("admin"));
+        if (url.endsWith("/api/me/")) return Response.json(testUser("admin", inCurrentLanguage()));
         if (url === `/api/staff/households/${id}/` && !init?.method) return Response.json(file);
         if (url.endsWith("/reactivate/") && init?.method === "POST") {
           file = household("approved", ["suspend"]);
@@ -235,7 +240,8 @@ describe("staff household account (US-93)", () => {
     });
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-      if (url.endsWith("/api/me/")) return Response.json(testUser("intake_worker"));
+      if (url.endsWith("/api/me/"))
+        return Response.json(testUser("intake_worker", inCurrentLanguage()));
       if (url === `/api/staff/households/${id}/` && !init?.method) return Response.json(file);
       if (url.endsWith("/link-account/") && init?.method === "POST") {
         file = household("approved", []);

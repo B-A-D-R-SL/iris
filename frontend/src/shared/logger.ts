@@ -4,6 +4,7 @@
 type FrontendEvent =
   | "unknown_status"
   | "language_changed"
+  | "language_save_failed"
   | "app_render_failed"
   | "auth_tab_sync_unavailable"
   | "sign_in_failed_unexpectedly"

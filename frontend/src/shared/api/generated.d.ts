@@ -30,7 +30,13 @@ export interface paths {
     get: operations["listings_list"];
   };
   "/api/me/": {
+    /** @description The signed-in user's account; every role may read it and change its language. */
     get: operations["me_retrieve"];
+    /**
+     * Change the signed-in user's language
+     * @description US-08. Saves `fr` or `en` on the account. The screens use it after sign-in, and every later email to the user or their household uses it.
+     */
+    patch: operations["me_language_update"];
   };
   "/api/partner-applications/": {
     /**
@@ -679,6 +685,10 @@ export interface components {
         [key: string]: string[];
       };
       message: string;
+    };
+    /** @description US-08: the only account field a user changes here is their language. */
+    PatchedLanguageChoice: {
+      language?: components["schemas"]["LanguageEnum"];
     };
     /**
      * @description Admin view of a category (US-35): all fields, including inactive ones.
@@ -1343,6 +1353,7 @@ export interface operations {
       };
     };
   };
+  /** @description The signed-in user's account; every role may read it and change its language. */
   me_retrieve: {
     responses: {
       200: {
@@ -1353,6 +1364,41 @@ export interface operations {
       /** @description Authentication required. */
       401: {
         content: never;
+      };
+    };
+  };
+  /**
+   * Change the signed-in user's language
+   * @description US-08. Saves `fr` or `en` on the account. The screens use it after sign-in, and every later email to the user or their household uses it.
+   */
+  me_language_update: {
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["PatchedLanguageChoice"];
+        "application/x-www-form-urlencoded": components["schemas"]["PatchedLanguageChoice"];
+        "multipart/form-data": components["schemas"]["PatchedLanguageChoice"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["CurrentUser"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["InvitationError"];
+        };
+      };
+      401: {
+        content: {
+          "application/json": components["schemas"]["InvitationError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["InvitationError"];
+        };
       };
     };
   };
