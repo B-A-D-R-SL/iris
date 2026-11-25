@@ -118,11 +118,22 @@ queue progress or provider email delivery; those require live verification.
 | --------------- | ----------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------- | ------- |
 | *               | `/api/auth/...`                     | Anyone              | django-allauth headless: browser sign-in and sign-out work; public sign-up is closed until US-02; other flows remain planned | Partial: R1 sign-in/out; other flows future/non-R1 |
 | GET             | `/api/me/`                          | Signed in           | Current user's id, name, role, store, and language                                                 | Implemented |
-| PATCH           | `/api/me/`                          | Signed in           | Change language and phone                                                                          | Planned — future/non-R1 |
+| PATCH           | `/api/me/`                          | Signed in           | Change the account's language (`fr` or `en`); changing the phone is not built                      | Implemented (US-08) |
 | GET/POST        | `/api/staff/invitations/`           | Admin               | Invite intake workers and admins                                                                    | Planned — future/non-R1 |
 | POST            | `/api/invitations/accept/`          | Anyone with a token | Accept an invitation and create a new active account with a password                               | Implemented (US-04 backend) |
 | GET/POST/DELETE | `/api/store/team/`                  | Store manager       | Store staff of own store                                                                            | Planned — future/non-R1 |
 | POST            | `/api/staff/users/{id}/deactivate/` | Admin               | Deactivate an account                                                                               | Planned — future/non-R1 |
+
+#### `PATCH /api/me/` (US-08)
+
+Every signed-in role may change its own language. The body is exactly
+`{"language": "fr"}` or `{"language": "en"}`; the response is the same account as
+`GET /api/me/`. Browser sessions send the CSRF token. Errors use the
+`code`/`message`/`fields` envelope: an unsupported value gives `400` with
+`fields.language` ("Choose French or English."), any other field gives `400`
+naming it ("This field cannot be submitted."), and nothing is saved. Emails to the
+account, and to the household file it holds, use the saved language
+(BR-LANG-003).
 
 #### `POST /api/invitations/accept/` (US-04)
 

@@ -2,7 +2,7 @@
 # Accounts module
 
 **Owner pair:** Platform & setup
-**Status:** US-01 browser sign-in, sign-out, and current-user endpoint implemented; US-04 invitation acceptance backend and public page implemented; issuing workflows pending
+**Status:** US-01 browser sign-in, sign-out, and current-user endpoint implemented; US-08 language choice implemented; US-04 invitation acceptance backend and public page implemented; issuing workflows pending
 
 ## Responsibility
 
@@ -19,7 +19,15 @@ Own the accounts feature boundary within the Iris modular monolith.
 ## Public functions
 
 The module owns `User` and `Invitation`, serves the authenticated `GET /api/me/`
-endpoint, and enforces browser sign-in limits through its allauth adapter.
+and `PATCH /api/me/` (language only, US-08) endpoints, and enforces browser sign-in
+limits through its allauth adapter.
+
+`change_language(user, language)` saves `fr` or `en` as `preferred_language`,
+refuses anything else (`invalid_language`), logs `language_changed` after commit
+with no user details, and sends `language_changed(user=..., language=...)` inside
+the transaction so households keeps the holder's file in the same language
+(BR-LANG-002, BR-LANG-003). `queries.account_for_email` includes the account's
+`preferred_language` for that purpose.
 Public signup remains closed until US-02 adds email verification.
 Only the browser headless client is enabled; `/api/auth/app/v1/` routes return 404.
 The `AuthCache` stores failed-attempt counters in PostgreSQL so workers share
