@@ -4,6 +4,8 @@
  * in this browser so it survives a reload, and a signed-in user's choice is also
  * saved on their account (PATCH /api/me/), which wins after sign-in.
  */
+import { logger } from "../logger";
+
 export type Language = "fr" | "en";
 
 export const DEFAULT_LANGUAGE: Language = "fr";
@@ -19,6 +21,7 @@ export function storedLanguage(): Language {
     const value = localStorage.getItem(STORAGE_KEY);
     return isLanguage(value) ? value : DEFAULT_LANGUAGE;
   } catch {
+    logger.warning("language_storage_unavailable");
     return DEFAULT_LANGUAGE;
   }
 }
@@ -30,5 +33,6 @@ export function rememberLanguage(language: string): void {
     localStorage.setItem(STORAGE_KEY, language);
   } catch {
     // Blocked storage only means the next visit starts in French.
+    logger.warning("language_storage_unavailable");
   }
 }

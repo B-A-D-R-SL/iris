@@ -19,14 +19,17 @@ beforeEach(() => localStorage.clear());
 afterEach(() => vi.restoreAllMocks());
 
 /** Answers /api/me/ for this user; PATCH answers with `patched` (the saved account). */
-function mockAccount(user: CurrentUser, patched: () => Response = () => Response.json(user)) {
+function mockAccount(
+  user: CurrentUser,
+  patched: (init: RequestInit) => Response | Promise<Response> = () => Response.json(user),
+) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (url === "/api/staff/households/" && init?.method === "HEAD") {
       return new Response(null, { status: 200 });
     }
     if (!url.endsWith("/api/me/")) return new Response(null, { status: 404 });
-    return init?.method === "PATCH" ? patched() : Response.json(user);
+    return init?.method === "PATCH" ? patched(init) : Response.json(user);
   });
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
@@ -35,6 +38,19 @@ function mockAccount(user: CurrentUser, patched: () => Response = () => Response
 const patches = (fetchMock: ReturnType<typeof vi.fn>) =>
   fetchMock.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "PATCH");
 
+/** A PATCH answer the test releases itself, to hold a save in flight. */
+function heldAnswer() {
+  let release: (response: Response) => void = () => undefined;
+  const answer = new Promise<Response>((resolve) => {
+    release = resolve;
+  });
+  return { answer, release };
+}
+
+const sentLanguage = (init: RequestInit) =>
+  (JSON.parse(init.body as string) as { language: string }).language;
+
+// rule: BR-LANG-001
 describe("the language a browser remembers", () => {
   it("is French by default", () => {
     expect(storedLanguage()).toBe("fr");
@@ -50,7 +66,8 @@ describe("the language a browser remembers", () => {
     expect(storedLanguage()).toBe("fr");
   });
 
-  it("falls back to French when the browser blocks storage", () => {
+  it("falls back to French when the browser blocks storage, and logs it", () => {
+    const warning = vi.spyOn(logger, "warning").mockImplementation(() => undefined);
     vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new DOMException("blocked", "SecurityError");
     });
@@ -59,6 +76,10 @@ describe("the language a browser remembers", () => {
     });
     expect(storedLanguage()).toBe("fr");
     expect(() => rememberLanguage("en")).not.toThrow();
+    expect(warning.mock.calls).toEqual([
+      ["language_storage_unavailable"],
+      ["language_storage_unavailable"],
+    ]);
   });
 
   it("stores only fr or en", () => {
@@ -76,6 +97,7 @@ describe("the language a browser remembers", () => {
   });
 });
 
+// rule: BR-LANG-001
 describe("the language switch is on every page", () => {
   it.each([
     ["/", "signed-out"],
@@ -107,6 +129,7 @@ describe("the language switch is on every page", () => {
   });
 });
 
+// rule: BR-LANG-001, BR-LANG-002
 describe("a signed-out visitor's choice", () => {
   it("opens in French on a first visit", async () => {
     mockCurrentUser("signed-out");
@@ -126,6 +149,7 @@ describe("a signed-out visitor's choice", () => {
 });
 
 describe("a signed-in user's choice", () => {
+  // rule: BR-LANG-002
   it.each([
     ["beneficiary", "/listings", "menu"],
     ["store_staff", "/store/listings/new", "menu"],
@@ -152,6 +176,7 @@ describe("a signed-in user's choice", () => {
     expect(i18n.resolvedLanguage).toBe("en");
   });
 
+  // rule: BR-LANG-001
   it("is used as soon as the account loads, whatever this browser chose before", async () => {
     localStorage.setItem(STORAGE_KEY, "fr");
     mockAccount(testUser("intake_worker", { language: "en" }));
@@ -160,6 +185,7 @@ describe("a signed-in user's choice", () => {
     expect(localStorage.getItem(STORAGE_KEY)).toBe("en");
   });
 
+  // rule: BR-LANG-001
   it("is applied again when another account signs in", async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     mockAccount(testUser("admin"));
@@ -176,6 +202,7 @@ describe("a signed-in user's choice", () => {
     expect(await screen.findByRole("button", { name: "Français" })).toBeInTheDocument();
   });
 
+  // rule: BR-LANG-002
   it("stays on screen when saving fails, and the failure is logged", async () => {
     const warning = vi.spyOn(logger, "warning").mockImplementation(() => undefined);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -189,11 +216,57 @@ describe("a signed-in user's choice", () => {
     expect(queryClient.getQueryData<CurrentUser>(CURRENT_USER_QUERY_KEY)?.language).toBe("fr");
   });
 
+  // rule: BR-LANG-002
   it("refuses an account response that is not a valid user", async () => {
     const warning = vi.spyOn(logger, "warning").mockImplementation(() => undefined);
     mockAccount(testUser("admin"), () => Response.json({ language: "de" }));
     renderWithProviders(<App />, { route: "/staff/partners" });
     await userEvent.click(await screen.findByRole("button", { name: "English" }));
     await waitFor(() => expect(warning).toHaveBeenCalledWith("language_save_failed"));
+  });
+
+  // rule: BR-LANG-002
+  it("saves quick switches one after another, so the account keeps the last choice", async () => {
+    const user = testUser("intake_worker");
+    const first = heldAnswer();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const fetchMock = mockAccount(user, (init) =>
+      sentLanguage(init) === "en" ? first.answer : Response.json({ ...user, language: "fr" }),
+    );
+    renderWithProviders(<App />, { route: "/staff/households", queryClient });
+    await userEvent.click(await screen.findByRole("button", { name: "English" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Français" }));
+
+    // The second save waits for the first, even though the user already chose again.
+    expect(patches(fetchMock)).toHaveLength(1);
+    first.release(Response.json({ ...user, language: "en" }));
+
+    await waitFor(() => expect(patches(fetchMock)).toHaveLength(2));
+    expect(patches(fetchMock).map(([, init]) => sentLanguage(init as RequestInit))).toEqual([
+      "en",
+      "fr",
+    ]);
+    await waitFor(() =>
+      expect(queryClient.getQueryData<CurrentUser>(CURRENT_USER_QUERY_KEY)?.language).toBe("fr"),
+    );
+  });
+
+  // rule: BR-LANG-002
+  it("does not bring back an account that signed out while its save was running", async () => {
+    const user = testUser("admin");
+    const held = heldAnswer();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const fetchMock = mockAccount(user, () => held.answer);
+    renderWithProviders(<App />, { route: "/staff/partners", queryClient });
+    await userEvent.click(await screen.findByRole("button", { name: "English" }));
+    await waitFor(() => expect(patches(fetchMock)).toHaveLength(1));
+
+    act(() => queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null));
+    await act(async () => {
+      held.release(Response.json({ ...user, language: "en" }));
+      await held.answer;
+    });
+
+    await waitFor(() => expect(queryClient.getQueryData(CURRENT_USER_QUERY_KEY)).toBeNull());
   });
 });
