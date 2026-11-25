@@ -6,17 +6,15 @@
  * "Continue" checks the step and saves the draft, so staff can always resume.
  */
 import { Button, Stack, Stepper, Text, Title } from "@mantine/core";
-import { useForm } from "@mantine/form";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import type { UseFormReturnType } from "@mantine/form";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation, useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
 
 import {
   WalkInFailed,
-  createWalkIn,
   getWalkIn,
-  updateWalkIn,
   walkInQueryKey,
   type WalkInDraft,
 } from "../../../../features/households/walkInApi";
@@ -27,27 +25,9 @@ import { HolderStep } from "./HolderStep";
 import { MembersStep } from "./MembersStep";
 import { ReviewStep } from "./ReviewStep";
 import classes from "./WalkIn.module.css";
-import {
-  DEFAULT_VALUES,
-  STEPS,
-  fromDraft,
-  resumeStep,
-  serverErrors,
-  stepErrors,
-  stepOf,
-  toPayload,
-  withSavedMemberIds,
-  type Step,
-  type WalkInFormValues,
-} from "./walkInForm";
-
-/** What to show after a save: the next step, or the "Draft saved" screen. */
-type After = { step: Step; saved: boolean };
-
-const useLanguage = () => {
-  const { i18n } = useTranslation();
-  return i18n.resolvedLanguage === "en" ? "en" : "fr";
-};
+import { useLanguage } from "./useLanguage";
+import { useWalkInDraft } from "./useWalkInDraft";
+import { STEPS, resumeStep, type Step, type WalkInFormValues } from "./walkInForm";
 
 /** /staff/walk-in starts a new file; /staff/walk-in/:id resumes a draft. */
 export function WalkIn() {
@@ -79,87 +59,15 @@ function WalkInLoader({ id }: { id: string | undefined }) {
   return <WalkInForm draft={query.data} />;
 }
 
-/** Drive the saved/new draft through the registration steps and server submission outcome. */
 function WalkInForm({ draft }: { draft: WalkInDraft | null }) {
-  const { t } = useTranslation();
-  const language = useLanguage();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  // After the first save the page moves to /staff/walk-in/:id and says where to continue.
-  const arrived = useLocation().state as After | null;
-
-  const [initialValues] = useState<WalkInFormValues>(() =>
-    draft ? fromDraft(draft) : DEFAULT_VALUES,
-  );
-  const form = useForm<WalkInFormValues>({ initialValues });
-  const [step, setStep] = useState<Step>(
-    arrived?.step ?? (draft ? resumeStep(initialValues) : "holder"),
-  );
-  const [saved, setSaved] = useState(arrived?.saved ?? false);
-  const [current, setCurrent] = useState(draft);
-  const [tried, setTried] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
-
+  const { form, current, view, problem, tried, setStep, show, save, saving } =
+    useWalkInDraft(draft);
+  const { step, saved } = view;
+  const index = STEPS.indexOf(step);
   const top = useRef<HTMLDivElement>(null);
   useEffect(() => {
     top.current?.scrollIntoView?.({ block: "start" });
   }, [step, saved, problem]);
-
-  const show = ({ step: next, saved: isSaved }: After) => {
-    setStep(next);
-    setSaved(isSaved);
-    setTried(false);
-  };
-
-  const mutation = useMutation({
-    mutationFn: ({ values }: { values: WalkInFormValues; after: After }) =>
-      current
-        ? updateWalkIn(current.id, toPayload(values, { includeMemberIds: true }), language)
-        : createWalkIn(toPayload(values), language),
-    onSuccess: (result, { values, after }) => {
-      queryClient.setQueryData(walkInQueryKey(result.id), result);
-      if (!current) {
-        navigate(`/staff/walk-in/${result.id}`, { replace: true, state: after });
-        return;
-      }
-      form.setFieldValue("members", (members) =>
-        withSavedMemberIds(members, values.members, result),
-      );
-      setCurrent(result);
-      show(after);
-    },
-    onError: (error) => {
-      if (error instanceof WalkInFailed && error.status === 400) {
-        const { errors, other } = serverErrors(error.fields);
-        form.setErrors(errors);
-        setTried(true);
-        setProblem(other.length > 0 ? other.join(" ") : null);
-        const first = Object.keys(errors)[0];
-        if (first) setStep(stepOf(first));
-      } else if (error instanceof WalkInFailed) {
-        setProblem(error.message || t("staff.walkIn.saveError"));
-      } else {
-        setProblem(t("staff.walkIn.networkError"));
-      }
-    },
-  });
-
-  /** Checks the step, then saves; a draft save accepts what may wait (ID check, address). */
-  const save = (after: After, forDraft: boolean) => {
-    setProblem(null);
-    const errors = stepErrors(step, form.values, { forDraft });
-    if (Object.keys(errors).length > 0) {
-      form.setErrors(errors);
-      setTried(true);
-      setStep(stepOf(Object.keys(errors)[0]));
-      return;
-    }
-    form.clearErrors();
-    mutation.mutate({ values: form.values, after });
-  };
-
-  const index = STEPS.indexOf(step);
-  const errorCount = Object.values(form.errors).filter(Boolean).length;
 
   if (saved) {
     return (
@@ -175,77 +83,112 @@ function WalkInForm({ draft }: { draft: WalkInDraft | null }) {
       <div ref={top} />
       <Stack gap="lg">
         <WalkInHeading draft={current} />
-
-        {problem && (
-          <Notice type="error" title={t("staff.walkIn.notSaved")}>
-            {problem}
-          </Notice>
-        )}
-        {tried && errorCount > 0 && (
-          <Notice
-            type="error"
-            title={t(
-              errorCount === 1 ? "shared.form.errorCountOne" : "shared.form.errorCountOther",
-              {
-                count: errorCount,
-              },
-            )}
-          >
-            {t("staff.walkIn.checkFieldsHelp")}
-          </Notice>
-        )}
-
-        <Stepper
-          active={index}
-          onStepClick={(next) => setStep(STEPS[next])}
-          allowNextStepsSelect={false}
-          size="sm"
-        >
-          {STEPS.map((key) => (
-            <Stepper.Step key={key} label={t(`staff.walkIn.${stepLabel[key]}`)} />
-          ))}
-        </Stepper>
-
-        <section className={classes.card} aria-labelledby="walk-in-step-title">
-          <Title order={2} id="walk-in-step-title" className={classes.memberTitle} mb="md">
-            {`${index + 1}. ${t(`staff.walkIn.${stepLabel[step]}`)}`}
-          </Title>
-          {step === "holder" && <HolderStep form={form} />}
-          {step === "address" && <AddressStep form={form} />}
-          {step === "members" && <MembersStep form={form} />}
-          {step === "review" && <ReviewStep values={form.values} onEdit={setStep} />}
-        </section>
-
-        <div className={classes.actions}>
-          {step === "review" ? (
-            <Button loading={mutation.isPending} onClick={() => save({ step, saved: true }, true)}>
-              {t("staff.walkIn.saveDraft")}
-            </Button>
-          ) : (
-            <>
-              <Button
-                loading={mutation.isPending}
-                onClick={() => save({ step: STEPS[index + 1], saved: false }, false)}
-              >
-                {t("staff.walkIn.continue")}
-              </Button>
-              <Button
-                variant="outline"
-                disabled={mutation.isPending}
-                onClick={() => save({ step, saved: true }, true)}
-              >
-                {t("staff.walkIn.saveDraft")}
-              </Button>
-            </>
-          )}
-          {index > 0 && (
-            <Button variant="subtle" onClick={() => setStep(STEPS[index - 1])}>
-              {t("staff.walkIn.back")}
-            </Button>
-          )}
-        </div>
+        <WalkInFeedback
+          problem={problem}
+          errorCount={tried ? Object.values(form.errors).filter(Boolean).length : 0}
+        />
+        <WalkInSteps form={form} step={step} index={index} onStepChange={setStep} />
+        <WalkInActions
+          reviewing={step === "review"}
+          saving={saving}
+          onSaveDraft={() => save({ step, saved: true }, true)}
+          onContinue={() => save({ step: STEPS[index + 1], saved: false }, false)}
+          onBack={index > 0 ? () => setStep(STEPS[index - 1]) : undefined}
+        />
       </Stack>
     </form>
+  );
+}
+
+function WalkInFeedback({ problem, errorCount }: { problem: string | null; errorCount: number }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {problem && (
+        <Notice type="error" title={t("staff.walkIn.notSaved")}>
+          {problem}
+        </Notice>
+      )}
+      {errorCount > 0 && (
+        <Notice
+          type="error"
+          title={t(errorCount === 1 ? "shared.form.errorCountOne" : "shared.form.errorCountOther", {
+            count: errorCount,
+          })}
+        >
+          {t("staff.walkIn.checkFieldsHelp")}
+        </Notice>
+      )}
+    </>
+  );
+}
+
+interface StepProps {
+  form: UseFormReturnType<WalkInFormValues>;
+  step: Step;
+  index: number;
+  onStepChange: (step: Step) => void;
+}
+
+function WalkInSteps({ form, step, index, onStepChange }: StepProps) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Stepper
+        active={index}
+        onStepClick={(next) => onStepChange(STEPS[next])}
+        allowNextStepsSelect={false}
+        size="sm"
+      >
+        {STEPS.map((key) => (
+          <Stepper.Step key={key} label={t(`staff.walkIn.${stepLabel[key]}`)} />
+        ))}
+      </Stepper>
+      <section className={classes.card} aria-labelledby="walk-in-step-title">
+        <Title order={2} id="walk-in-step-title" className={classes.memberTitle} mb="md">
+          {`${index + 1}. ${t(`staff.walkIn.${stepLabel[step]}`)}`}
+        </Title>
+        {step === "holder" && <HolderStep form={form} />}
+        {step === "address" && <AddressStep form={form} />}
+        {step === "members" && <MembersStep form={form} />}
+        {step === "review" && <ReviewStep values={form.values} onEdit={onStepChange} />}
+      </section>
+    </>
+  );
+}
+
+interface ActionProps {
+  reviewing: boolean;
+  saving: boolean;
+  onSaveDraft: () => void;
+  onContinue: () => void;
+  onBack?: () => void;
+}
+
+function WalkInActions({ reviewing, saving, onSaveDraft, onContinue, onBack }: ActionProps) {
+  const { t } = useTranslation();
+  return (
+    <div className={classes.actions}>
+      {reviewing ? (
+        <Button loading={saving} onClick={onSaveDraft}>
+          {t("staff.walkIn.saveDraft")}
+        </Button>
+      ) : (
+        <>
+          <Button loading={saving} onClick={onContinue}>
+            {t("staff.walkIn.continue")}
+          </Button>
+          <Button variant="outline" disabled={saving} onClick={onSaveDraft}>
+            {t("staff.walkIn.saveDraft")}
+          </Button>
+        </>
+      )}
+      {onBack && (
+        <Button variant="subtle" onClick={onBack}>
+          {t("staff.walkIn.back")}
+        </Button>
+      )}
+    </div>
   );
 }
 
