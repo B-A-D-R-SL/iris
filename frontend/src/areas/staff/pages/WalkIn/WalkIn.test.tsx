@@ -278,18 +278,8 @@ it("Walk-in registration (US-17) resumes a saved draft at the first step still m
   expect(screen.getByLabelText("Nom de famille")).toHaveValue("Démo");
 });
 
-it("Walk-in registration saves a new member and sends their ID on the next edit", async () => {
-  const child = {
-    id: "m2",
-    first_name: "Léo",
-    last_name: "Démo",
-    date_of_birth: "2017-01-03",
-    relation: "child" as const,
-  };
-  const update = vi
-    .fn(() => Response.json(draft({ members: [child, ...draft().members] })))
-    .mockImplementationOnce(() => Response.json(draft()));
-  const fetchMock = mockApi({ update });
+it("Walk-in registration saves the address before moving to members", async () => {
+  const fetchMock = mockApi();
   renderWithProviders(<App />, { route: `/staff/walk-in/${ID}` });
   await screen.findByRole("heading", { name: "2. Adresse" });
 
@@ -308,12 +298,32 @@ it("Walk-in registration saves a new member and sends their ID on the next edit"
     postal_code: "H2X 1Y4",
   });
   expect(screen.getByText("Nadia Démo est la personne 1 (personne responsable).")).toBeVisible();
+});
 
+it("Walk-in registration saves a new member and sends their ID on the next edit", async () => {
+  const child = {
+    first_name: "Léo",
+    last_name: "Démo",
+    date_of_birth: "2017-01-03",
+    relation: "child" as const,
+  };
+  const savedChild = { ...child, id: "m2" };
+  const ready = draft({
+    street_number: "1234A",
+    street_name: "rue Saint-Denis",
+    postal_code: "H2X 1Y4",
+  });
+  const fetchMock = mockApi({
+    read: () => Response.json(ready),
+    update: () => Response.json({ ...ready, members: [savedChild, ...ready.members] }),
+  });
+  renderWithProviders(<App />, { route: `/staff/walk-in/${ID}` });
+  await screen.findByRole("heading", { name: "3. Membres du foyer" });
   await userEvent.click(button("Ajouter une personne"));
   const person = screen.getByRole("region", { name: "Personne 2" });
-  await userEvent.type(within(person).getByLabelText("Prénom"), "Léo");
-  await userEvent.type(within(person).getByLabelText("Nom de famille"), "Démo");
-  await userEvent.type(within(person).getByLabelText("Date de naissance"), "2017-01-03");
+  await userEvent.type(within(person).getByLabelText("Prénom"), child.first_name);
+  await userEvent.type(within(person).getByLabelText("Nom de famille"), child.last_name);
+  await userEvent.type(within(person).getByLabelText("Date de naissance"), child.date_of_birth);
   await userEvent.click(
     within(person).getByRole("combobox", { name: "Lien avec la personne responsable" }),
   );
@@ -321,9 +331,7 @@ it("Walk-in registration saves a new member and sends their ID on the next edit"
   await userEvent.click(button("Continuer"));
 
   await screen.findByRole("heading", { name: "4. Vérification" });
-  expect(sentBody(fetchMock, "PATCH").members).toEqual([
-    { first_name: "Léo", last_name: "Démo", date_of_birth: "2017-01-03", relation: "child" },
-  ]);
+  expect(sentBody(fetchMock, "PATCH").members).toEqual([child]);
   expect(screen.getByText("Personnes dans le foyer : 2")).toBeVisible();
 
   await userEvent.click(button("Retour"));
@@ -335,7 +343,7 @@ it("Walk-in registration saves a new member and sends their ID on the next edit"
   await userEvent.click(button("Continuer"));
 
   await screen.findByRole("heading", { name: "4. Vérification" });
-  expect(sentBody(fetchMock, "PATCH").members).toEqual([{ ...child, first_name: "Léon" }]);
+  expect(sentBody(fetchMock, "PATCH").members).toEqual([{ ...savedChild, first_name: "Léon" }]);
 });
 
 it("Walk-in registration (US-17) shows the server's message on the field it refused, on that field's step", async () => {

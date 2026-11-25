@@ -88,73 +88,71 @@ describe("toPayload", () => {
   });
 });
 
-describe("fromDraft", () => {
-  const draft = {
-    id: "d1",
-    email: null,
-    phone: "+15145550156",
-    preferred_language: "en",
-    identity_checked_in_person: false,
-    consent_data_processing_at: "2026-11-02T14:05:00Z",
-    street_number: "",
-    street_name: "",
-    unit: "",
-    city: "",
-    postal_code: "",
-    members: [
-      {
-        id: "m1",
-        first_name: "Nadia",
-        last_name: "Démo",
-        date_of_birth: "1990-04-12",
-        relation: "holder",
-      },
-      {
-        id: "m2",
-        first_name: "Léo",
-        last_name: "Démo",
-        date_of_birth: "2017-01-03",
-        relation: "child",
-      },
-    ],
-  } as unknown as WalkInDraft;
+const savedDraft = {
+  id: "d1",
+  email: null,
+  phone: "+15145550156",
+  preferred_language: "en",
+  identity_checked_in_person: false,
+  consent_data_processing_at: "2026-11-02T14:05:00Z",
+  street_number: "",
+  street_name: "",
+  unit: "",
+  city: "",
+  postal_code: "",
+  members: [
+    {
+      id: "m1",
+      first_name: "Nadia",
+      last_name: "Démo",
+      date_of_birth: "1990-04-12",
+      relation: "holder",
+    },
+    {
+      id: "m2",
+      first_name: "Léo",
+      last_name: "Démo",
+      date_of_birth: "2017-01-03",
+      relation: "child",
+    },
+  ],
+} as unknown as WalkInDraft;
 
-  it("takes the holder from the member with relation holder and lists only the others", () => {
-    const values = fromDraft(draft);
-    expect(values).toMatchObject({
-      firstName: "Nadia",
-      dateOfBirth: "1990-04-12",
-      email: "",
-      preferredLanguage: "en",
-      city: "Montréal",
-      consentGiven: true,
-    });
-    expect(fromDraft({ ...draft, consent_data_processing_at: null }).consentGiven).toBe(false);
-    expect(values.members).toEqual([
-      {
-        key: "m2",
-        id: "m2",
-        firstName: "Léo",
-        lastName: "Démo",
-        dateOfBirth: "2017-01-03",
-        relation: "child",
-      },
-    ]);
+it("takes the holder from the member with relation holder and lists only the others", () => {
+  const values = fromDraft(savedDraft);
+  expect(values).toMatchObject({
+    firstName: "Nadia",
+    dateOfBirth: "1990-04-12",
+    email: "",
+    preferredLanguage: "en",
+    city: "Montréal",
+    consentGiven: true,
   });
+  expect(fromDraft({ ...savedDraft, consent_data_processing_at: null }).consentGiven).toBe(false);
+  expect(values.members).toEqual([
+    {
+      key: "m2",
+      id: "m2",
+      firstName: "Léo",
+      lastName: "Démo",
+      dateOfBirth: "2017-01-03",
+      relation: "child",
+    },
+  ]);
+});
 
-  it("sends a saved member's ID after editing their name", () => {
-    const values = fromDraft(draft);
-    values.members[0].firstName = "Léon";
-    expect(toPayload(values).members).toEqual([
-      {
-        id: "m2",
-        first_name: "Léon",
-        last_name: "Démo",
-        date_of_birth: "2017-01-03",
-        relation: "child",
-      },
-    ]);
-  });
+it("sends a saved member's ID after editing their name", () => {
+  const values = fromDraft(savedDraft);
+  values.members[0].firstName = "Léon";
+  expect(toPayload(values).members).toEqual([
+    {
+      id: "m2",
+      first_name: "Léon",
+      last_name: "Démo",
+      date_of_birth: "2017-01-03",
+      relation: "child",
+    },
+  ]);
 });
 
 describe("stepErrors: holder", () => {
