@@ -123,10 +123,13 @@ export async function getStaffHousehold(id: string): Promise<StaffHousehold> {
   return body;
 }
 
+/** The staff actions on a household file, each a POST to `/api/staff/households/{id}/{action}/`. */
+type HouseholdAction = "suspend" | "reactivate" | "link-account" | "resend-invitation";
+
 /** POST one staff action on a household file; refusals throw HouseholdStatusFailed. */
 export async function postHouseholdAction(
   id: string,
-  action: string,
+  action: HouseholdAction,
   body: object,
   language: "fr" | "en",
 ): Promise<void> {
