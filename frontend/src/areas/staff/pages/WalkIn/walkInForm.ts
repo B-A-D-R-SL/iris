@@ -48,6 +48,7 @@ export const relationKey = (relation: MemberRelation) =>
 export interface MemberValues {
   /** Only for React lists; never sent. */
   key: string;
+  id?: string;
   firstName: string;
   lastName: string;
   dateOfBirth: string | null;
@@ -117,6 +118,7 @@ export function fromDraft(draft: WalkInDraft): WalkInFormValues {
       .filter((member) => member.relation !== "holder")
       .map((member) => ({
         key: member.id,
+        id: member.id,
         firstName: member.first_name,
         lastName: member.last_name,
         dateOfBirth: member.date_of_birth,
@@ -146,6 +148,7 @@ export function toPayload(values: WalkInFormValues): WalkInInput {
     identity_checked_in_person: values.identityChecked,
     consent_data_processing: values.consentGiven,
     members: values.members.map((member) => ({
+      ...(member.id ? { id: member.id } : {}),
       first_name: member.firstName.trim(),
       last_name: member.lastName.trim(),
       date_of_birth: member.dateOfBirth ?? "",

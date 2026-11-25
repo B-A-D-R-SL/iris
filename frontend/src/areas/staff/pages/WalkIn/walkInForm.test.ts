@@ -133,9 +133,24 @@ describe("fromDraft", () => {
     expect(values.members).toEqual([
       {
         key: "m2",
+        id: "m2",
         firstName: "Léo",
         lastName: "Démo",
         dateOfBirth: "2017-01-03",
+        relation: "child",
+      },
+    ]);
+  });
+
+  it("sends a saved member's ID after editing their name", () => {
+    const values = fromDraft(draft);
+    values.members[0].firstName = "Léon";
+    expect(toPayload(values).members).toEqual([
+      {
+        id: "m2",
+        first_name: "Léon",
+        last_name: "Démo",
+        date_of_birth: "2017-01-03",
         relation: "child",
       },
     ]);
