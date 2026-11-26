@@ -3,6 +3,7 @@
 
 import json
 import logging
+from unittest.mock import patch
 
 import pytest
 from django.test import Client
@@ -36,6 +37,28 @@ def request_reset(client, email, **headers):
     return client.post(
         REQUEST, {"email": email}, content_type="application/json", **headers
     )
+
+
+def test_configured_hourly_limit_applies_per_address_across_ips(
+    queued_reset, django_capture_on_commit_callbacks
+):
+    user = UserFactory()
+    with django_capture_on_commit_callbacks(execute=True):
+        statuses = [
+            request_reset(
+                Client(REMOTE_ADDR=f"192.0.2.{i}"), user.email.upper()
+            ).status_code
+            for i in range(1, 6)
+        ]
+        import time
+
+        later = time.time() + 61
+        with patch("allauth.core.internal.ratelimit.time.time", return_value=later):
+            statuses.append(
+                request_reset(Client(REMOTE_ADDR="192.0.2.6"), user.email).status_code
+            )
+    assert statuses == [200, 200, 200, 200, 200, 429]
+    assert len(queued_reset) == 5
 
 
 def test_each_role_can_request_a_reset_without_disclosing_account_existence(

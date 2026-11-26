@@ -22,6 +22,9 @@ replacing the password. It remains public to all roles with that capability;
 a signed-in session alone grants no authority over another account.
 The key is single-use and valid for 3600 seconds. Links use the configured
 application origin and the existing queued `password_reset` email template.
+On opening a link, the browser keeps its key in memory and replaces the address
+with `/reset-password`. After reloading, reopen the email link or request a new one. Reset
+requests are limited to 20 per minute per IP and five per hour per email address.
 
 Successful anonymous reset returns allauth's resulting unauthenticated session
 (HTTP 401, `meta.is_authenticated: false` and the login flow), not an error.

@@ -1,8 +1,9 @@
 // AI contribution: 50% or more AI-generated
 import { Anchor, Button, PasswordInput, Stack, Text, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 
 import { resetPassword } from "../../../features/accounts/passwordReset";
 import { useAuth } from "../../../shared/auth/authContext";
@@ -120,5 +121,22 @@ function ResetPasswordForm({ resetKey }: { resetKey: string }) {
 
 export function ResetPassword() {
   const { key } = useParams();
-  return <ResetPasswordForm key={key} resetKey={key ?? ""} />;
+  const [resetKey] = useState(key ?? "");
+  const navigate = useNavigate();
+  const { t } = useTranslation();
+  useEffect(() => {
+    if (key) navigate("/reset-password", { replace: true });
+  }, [key, navigate]);
+  if (!resetKey) {
+    return (
+      <Stack gap="lg">
+        <Title order={1}>{t("auth.passwordReset.resetTitle")}</Title>
+        <Notice type="error">{t("auth.passwordReset.invalidLink")}</Notice>
+        <Anchor component={Link} to="/forgot-password" replace>
+          {t("auth.passwordReset.newLink")}
+        </Anchor>
+      </Stack>
+    );
+  }
+  return <ResetPasswordForm resetKey={resetKey} />;
 }

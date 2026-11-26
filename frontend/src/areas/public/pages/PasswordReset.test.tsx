@@ -1,7 +1,8 @@
 // AI contribution: 50% or more AI-generated
 import { QueryClient } from "@tanstack/react-query";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useLocation } from "react-router";
 import { beforeEach, expect, it, vi } from "vitest";
 
 import App from "../../../app/App";
@@ -14,6 +15,43 @@ const RESET_PATH = "/reset-password/test-user-test-key";
 const PASSWORD = "  new-example-password  ";
 const AUTH_EVENT = "iris:auth-change";
 const PRIVATE_QUERY_KEY = ["private-example-data"];
+
+function LocationProbe() {
+  return <div data-testid="location">{useLocation().pathname}</div>;
+}
+
+it("offers a new link when the clean reset address is opened without an in-memory key", async () => {
+  mockServer(RESET, []);
+  renderWithProviders(<App />, { route: "/reset-password" });
+  expect(
+    await screen.findByText("Ce lien de réinitialisation est invalide ou a expiré."),
+  ).toBeVisible();
+  expect(screen.getByRole("link", { name: "Demander un nouveau lien" })).toHaveAttribute(
+    "href",
+    "/forgot-password",
+  );
+});
+
+it("removes the reset key from the address while submitting the original key", async () => {
+  const fetchMock = mockServer(RESET, [resetSuccess()]);
+  renderWithProviders(
+    <>
+      <App />
+      <LocationProbe />
+    </>,
+    { route: RESET_PATH },
+  );
+  await waitFor(() =>
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/reset-password$/),
+  );
+  const { user } = await fillPasswords();
+  await user.click(screen.getByRole("button", { name: "Réinitialiser mon mot de passe" }));
+  expect(await screen.findByRole("status")).toHaveTextContent(
+    "Votre mot de passe a été réinitialisé.",
+  );
+  const call = fetchMock.mock.calls.find(([url, init]) => url === RESET && init?.method === "POST");
+  expect(JSON.parse(String(call?.[1]?.body)).key).toBe("test-user-test-key");
+});
 
 function seedPrivateCache() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });

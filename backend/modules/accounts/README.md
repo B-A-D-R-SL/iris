@@ -158,6 +158,11 @@ Allauth's browser `POST /api/auth/browser/v1/auth/password/request` accepts
 `{email}`. Its reset endpoint accepts `{key, password}`; a valid emailed key
 authorizes only that account, independently of the visitor's role or session.
 Both operations require CSRF and retain allauth's native IP/email limits.
+Reset requests are limited to 20 per minute per IP and five per hour per
+case-insensitive email address, including unknown addresses.
+The browser removes the key from the address with history replacement and keeps
+it in memory only; after reloading the clean URL, reopen the email link or request
+a new one.
 App-client authentication remains disabled. Recovery never signs the visitor in
 or switches accounts. A reset of the current account invalidates its existing
 session on its next request; the page refreshes the current-user state.

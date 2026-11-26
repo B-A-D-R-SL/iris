@@ -17,7 +17,7 @@ export const publicRoutes = (
     <Route index element={<WelcomePage />} />
     <Route path="sign-in" element={<SignIn />} />
     <Route path="forgot-password" element={<ForgotPassword />} />
-    <Route path="reset-password/:key" element={<ResetPassword />} />
+    <Route path="reset-password/:key?" element={<ResetPassword />} />
     <Route path="invitation/:token" element={<AcceptInvitation />} />
     <Route path="partner/apply" element={<PartnerApply />} />
     {/* Linked from the partner form's consent text; see PlaceholderScreen. */}

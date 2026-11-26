@@ -107,7 +107,11 @@ ACCOUNT_LOGIN_ON_PASSWORD_RESET = False
 # US-03 fixes the security lifetime at 60 minutes (Django uses seconds).
 PASSWORD_RESET_TIMEOUT = 60 * 60
 ACCOUNT_ADAPTER = "modules.accounts.adapter.AccountAdapter"
-ACCOUNT_RATE_LIMITS = {"login_failed": "10/m/ip,5/15m/key"}
+ACCOUNT_RATE_LIMITS = {
+    "login_failed": "10/m/ip,5/15m/key",
+    # Allauth shares a cache key among same-address rates, so use one key window.
+    "reset_password": "20/m/ip,5/h/key",
+}
 
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
