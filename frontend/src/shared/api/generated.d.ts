@@ -455,6 +455,10 @@ export interface components {
       };
       message: string;
     };
+    /** @description US-08: the only account field a user changes here is their language. */
+    LanguageChoice: {
+      language: components["schemas"]["LanguageEnum"];
+    };
     /**
      * @description * `fr` - Français
      * * `en` - English
@@ -694,10 +698,6 @@ export interface components {
         [key: string]: string[];
       };
       message: string;
-    };
-    /** @description US-08: the only account field a user changes here is their language. */
-    PatchedLanguageChoice: {
-      language?: components["schemas"]["LanguageEnum"];
     };
     /**
      * @description Admin view of a category (US-35): all fields, including inactive ones.
@@ -1387,11 +1387,11 @@ export interface operations {
         "X-Account-Id": string;
       };
     };
-    requestBody?: {
+    requestBody: {
       content: {
-        "application/json": components["schemas"]["PatchedLanguageChoice"];
-        "application/x-www-form-urlencoded": components["schemas"]["PatchedLanguageChoice"];
-        "multipart/form-data": components["schemas"]["PatchedLanguageChoice"];
+        "application/json": components["schemas"]["LanguageChoice"];
+        "application/x-www-form-urlencoded": components["schemas"]["LanguageChoice"];
+        "multipart/form-data": components["schemas"]["LanguageChoice"];
       };
     };
     responses: {

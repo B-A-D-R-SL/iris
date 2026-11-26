@@ -49,6 +49,18 @@ class LanguageChoiceSerializer(StrictSerializer):
         error_messages={"invalid_choice": services.INVALID_LANGUAGE},
     )
 
+    # PATCH /api/me/ always validates the whole body, so this serializer is never
+    # partial. drf-spectacular marks PATCH bodies partial by setting this flag,
+    # which would publish `language` as optional; ignoring it keeps the schema
+    # in step with the validation.
+    @property
+    def partial(self) -> bool:
+        return False
+
+    @partial.setter
+    def partial(self, value: bool) -> None:
+        pass
+
 
 class AcceptInvitationSerializer(StrictSerializer):
     """Accept only the secret token and a password, never account assignments."""

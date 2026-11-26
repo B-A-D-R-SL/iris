@@ -251,3 +251,16 @@ def test_emails_after_the_change_use_the_saved_language() -> None:
     assert patch(user, {"language": "en"}).status_code == 200
     user.refresh_from_db()
     assert notification_services.send(user, "file_approved", {}).language == "en"
+
+
+# rule: BR-LANG-002
+def test_the_published_schema_requires_the_language() -> None:
+    from drf_spectacular.generators import SchemaGenerator
+
+    schema = SchemaGenerator().get_schema(request=None, public=True)
+    body = schema["paths"]["/api/me/"]["patch"]["requestBody"]
+    assert body["required"] is True
+    assert body["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/LanguageChoice"
+    }
+    assert schema["components"]["schemas"]["LanguageChoice"]["required"] == ["language"]
