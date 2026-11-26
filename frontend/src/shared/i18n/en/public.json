@@ -19,6 +19,24 @@
       "locked": "Too many attempts. Try again in 15 minutes.",
       "unavailable": "Sign in is unavailable. Please try again."
     },
+    "passwordReset": {
+      "requestHelp": "Enter the email address you use to sign in.",
+      "requestSubmit": "Send reset link",
+      "requestSuccess": "If an account uses that email address, we’ll send a password reset link.",
+      "resetTitle": "Reset your password",
+      "resetSubmit": "Reset my password",
+      "resetSuccess": "Your password has been reset.",
+      "newPassword": "New password",
+      "togglePasswordVisibility": "Show or hide password",
+      "newLink": "Request a new link",
+      "signedInGuidance": "You’re still signed in to your current account. To sign in with a different account, use Sign out in the header first.",
+      "checkForm": "Check the fields and try again.",
+      "invalidEmail": "Enter a valid email address.",
+      "invalidLink": "This password reset link is invalid or has expired.",
+      "weakPassword": "Choose a less common password that is hard to guess.",
+      "rateLimited": "Too many attempts. Please try again later.",
+      "unavailable": "Password reset is unavailable. Please try again."
+    },
     "invitation": {
       "title": "Set your password",
       "submit": "Set my password",

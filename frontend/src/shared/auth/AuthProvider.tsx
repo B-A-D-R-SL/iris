@@ -89,6 +89,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return loadUser();
     },
     retryProfile: loadUser,
+    async refreshAfterPasswordReset() {
+      const wasSignedIn = Boolean(queryClient.getQueryData(CURRENT_USER_QUERY_KEY));
+      await queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+      if (wasSignedIn && queryClient.getQueryData(CURRENT_USER_QUERY_KEY) === null) {
+        await clearSessionData(queryClient);
+        notifyTabs("signed-out");
+      }
+    },
     async signOut() {
       await logout(language);
       await clearSessionData(queryClient);
