@@ -289,7 +289,8 @@
       "emptyTitle": "Aucune réservation en cours",
       "emptyDescription": "Quand vous réservez une offre, votre code de cueillette apparaît ici.",
       "seeListings": "Voir les offres",
-      "loadMore": "Afficher plus de réservations"
+      "loadMore": "Afficher plus de réservations",
+      "loadMoreFailed": "Impossible d'afficher plus de réservations. Vérifiez votre connexion Internet, puis réessayez."
     }
   },
   "privacy": {

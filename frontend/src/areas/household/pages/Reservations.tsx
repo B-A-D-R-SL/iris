@@ -13,7 +13,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 
 import { type HistoryEntry, useReservationHistory } from "../../../features/reservations/history";
-import { AppBar, EmptyState, ErrorState, LoadingState } from "../../../shared/ui";
+import { AppBar, EmptyState, ErrorState, LoadingState, Notice } from "../../../shared/ui";
 import { ReservationCard } from "../components/ReservationCard";
 import household from "../household.module.css";
 import classes from "./Reservations.module.css";
@@ -29,13 +29,16 @@ export function Reservations() {
   );
 }
 
+type History = ReturnType<typeof useReservationHistory>;
+
 /** Loading, failure, or the two sections with "show more". */
-function HistoryContent({ history }: { history: ReturnType<typeof useReservationHistory> }) {
+function HistoryContent({ history }: { history: History }) {
   const { t } = useTranslation();
   const [now] = useState(() => new Date());
 
   if (history.isPending) return <LoadingState />;
-  if (history.isError) return <ErrorState onRetry={() => void history.refetch()} />;
+  // Only a failed first load replaces the page; later failures keep what is shown.
+  if (history.isLoadingError) return <ErrorState onRetry={() => void history.refetch()} />;
   const { pages } = history.data;
   const entries = pages.flatMap((page) => page.results);
   const upcoming = entries.filter((entry) => entry.upcoming);
@@ -49,16 +52,28 @@ function HistoryContent({ history }: { history: ReturnType<typeof useReservation
       {past.length > 0 && (
         <EntrySection title={t("reservation.common.pickupHistory")} entries={past} now={now} />
       )}
-      {history.hasNextPage && (
-        <Button
-          variant="outline"
-          loading={history.isFetchingNextPage}
-          onClick={() => void history.fetchNextPage()}
-        >
-          {t("reservation.history.loadMore")}
-        </Button>
-      )}
+      <LoadMore history={history} />
     </div>
+  );
+}
+
+/** "Show more", which also asks again for a page that failed to load. */
+function LoadMore({ history }: { history: History }) {
+  const { t } = useTranslation();
+  if (!history.hasNextPage) return null;
+  return (
+    <>
+      {history.isFetchNextPageError && (
+        <Notice type="error">{t("reservation.history.loadMoreFailed")}</Notice>
+      )}
+      <Button
+        variant="outline"
+        loading={history.isFetchingNextPage}
+        onClick={() => void history.fetchNextPage()}
+      >
+        {t("reservation.history.loadMore")}
+      </Button>
+    </>
   );
 }
 

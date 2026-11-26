@@ -289,7 +289,8 @@
       "emptyTitle": "No current reservations",
       "emptyDescription": "When you reserve a listing, your pickup code appears here.",
       "seeListings": "See listings",
-      "loadMore": "Show more reservations"
+      "loadMore": "Show more reservations",
+      "loadMoreFailed": "More reservations could not be shown. Check your Internet connection, then try again."
     }
   },
   "privacy": {

@@ -171,6 +171,38 @@ describe("Pickup history (US-48)", () => {
     expect(await screen.findByRole("article", { name: "Légumes racines × 2" })).toBeVisible();
   });
 
+  it("keeps the loaded reservations when the next page fails, and asks for that page again", async () => {
+    let fail = true;
+    const fetchMock = mockHistoryApi((url) => {
+      if (url.searchParams.get("page") !== "2") {
+        return historyPage([pickedUp()], {
+          count: 2,
+          next: "http://testserver/api/reservations/me/?as_of=2026-11-12T14%3A00%3A00Z&page=2",
+        });
+      }
+      if (fail) return new Response(null, { status: 500 });
+      const soap = pickedUp({ id: "00000000-0000-4000-8000-000000000399", title: "Savons" });
+      return historyPage([soap], { count: 2 });
+    });
+    await renderReservations();
+    const user = userEvent.setup();
+    const loadMore = "Afficher plus de réservations";
+
+    await user.click(await screen.findByRole("button", { name: loadMore }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Impossible d'afficher plus de réservations.",
+    );
+    expect(card("Légumes racines × 2")).toBeVisible();
+    fail = false;
+    await user.click(screen.getByRole("button", { name: loadMore }));
+
+    expect(await screen.findByRole("article", { name: "Savons × 2" })).toBeVisible();
+    expect(screen.queryByRole("alert")).toBeNull();
+    const nextPage = "/api/reservations/me/?page=2&as_of=2026-11-12T14%3A00%3A00Z";
+    expect(historyRequests(fetchMock)).toEqual(["/api/reservations/me/", nextPage, nextPage]);
+  });
+
   it("marks the Réservations tab", async () => {
     mockHistoryApi(() => historyPage([]));
     await renderReservations();
