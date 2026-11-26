@@ -49,26 +49,46 @@ export async function fetchCurrentUser(): Promise<CurrentUser | null> {
   return parseCurrentUser(await response.json());
 }
 
+/** A language save the server did not take: its HTTP status, or null when no answer came. */
+export class LanguageSaveError extends Error {
+  readonly statusCode: number | null;
+
+  constructor(statusCode: number | null) {
+    super(`Language not saved: ${statusCode ?? "no response"}`);
+    this.statusCode = statusCode;
+  }
+}
+
+/** A save that never answers would hold every later save back (they run in order). */
+const SAVE_TIMEOUT_MS = 15_000;
+
 /**
  * Saves the signed-in user's language on their account (US-08) and returns the
  * account. `accountId` names the account that chose it: if another tab has
  * since signed in another account, the server refuses (409) and saves nothing.
+ * Throws `LanguageSaveError` when the save is refused or gets no answer.
  */
 export async function saveLanguage(language: Language, accountId: string): Promise<CurrentUser> {
-  const response = await fetch("/api/me/", {
-    method: "PATCH",
-    credentials: "same-origin",
-    headers: {
-      Accept: "application/json",
-      "Accept-Language": language,
-      "Content-Type": "application/json",
-      "X-CSRFToken": csrfToken() ?? "",
-      "X-Account-Id": accountId,
-    },
-    body: JSON.stringify({ language }),
-  });
+  let response: Response;
+  try {
+    response = await fetch("/api/me/", {
+      method: "PATCH",
+      credentials: "same-origin",
+      signal: AbortSignal.timeout(SAVE_TIMEOUT_MS),
+      headers: {
+        Accept: "application/json",
+        "Accept-Language": language,
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrfToken() ?? "",
+        "X-Account-Id": accountId,
+      },
+      body: JSON.stringify({ language }),
+    });
+  } catch {
+    throw new LanguageSaveError(null);
+  }
   if (!response.ok) {
-    throw new Error(`Language not saved: ${response.status}`);
+    throw new LanguageSaveError(response.status);
   }
   return parseCurrentUser(await response.json());
 }

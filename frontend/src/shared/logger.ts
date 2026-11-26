@@ -5,6 +5,7 @@ type FrontendEvent =
   | "unknown_status"
   | "language_changed"
   | "language_save_failed"
+  | "language_save_response_invalid"
   | "language_storage_unavailable"
   | "app_render_failed"
   | "auth_tab_sync_unavailable"
@@ -28,7 +29,7 @@ interface StatusContext {
 }
 
 /** Events about a failed request: they carry its HTTP status code and nothing else. */
-type HttpEvent = "listing_post_failed";
+type HttpEvent = "listing_post_failed" | "language_save_failed";
 interface HttpContext {
   /** The response's status code, or null when no response arrived (connection lost). */
   statusCode: number | null;

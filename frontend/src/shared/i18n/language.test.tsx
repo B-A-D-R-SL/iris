@@ -207,25 +207,81 @@ describe("the account's language after sign-in", () => {
 
 // rule: BR-LANG-002
 describe("a language save that fails", () => {
-  it("stays on screen when saving fails, and the failure is logged", async () => {
+  it.each([
+    ["is refused", () => new Response(null, { status: 500 }), { statusCode: 500 }],
+    ["gets no answer", () => Promise.reject(new TypeError("offline")), { statusCode: null }],
+  ])("stays on screen when the save %s, and logs why", async (_case, answer, context) => {
     const warning = vi.spyOn(logger, "warning").mockImplementation(() => undefined);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    mockAccount(testUser("intake_worker"), () => new Response(null, { status: 500 }));
+    mockAccount(testUser("intake_worker"), answer);
     renderWithProviders(<App />, { route: "/staff/households", queryClient });
     await userEvent.click(await screen.findByRole("button", { name: "English" }));
 
-    await waitFor(() => expect(warning).toHaveBeenCalledWith("language_save_failed"));
+    await waitFor(() => expect(warning).toHaveBeenCalledWith("language_save_failed", context));
     await act(() => queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY }));
     expect(screen.getByRole("button", { name: "Français" })).toBeInTheDocument();
     expect(queryClient.getQueryData<CurrentUser>(CURRENT_USER_QUERY_KEY)?.language).toBe("fr");
   });
 
-  it("refuses an account response that is not a valid user", async () => {
+  it("logs an account response that is not a valid user as its own event", async () => {
     const warning = vi.spyOn(logger, "warning").mockImplementation(() => undefined);
     mockAccount(testUser("admin"), () => Response.json({ language: "de" }));
     renderWithProviders(<App />, { route: "/staff/partners" });
     await userEvent.click(await screen.findByRole("button", { name: "English" }));
-    await waitFor(() => expect(warning).toHaveBeenCalledWith("language_save_failed"));
+    await waitFor(() => expect(warning).toHaveBeenCalledWith("language_save_response_invalid"));
+    expect(warning).not.toHaveBeenCalledWith("language_save_failed", expect.anything());
+  });
+
+  it("gives up after 15 seconds without an answer", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const fetchMock = mockAccount(testUser("admin"));
+    renderWithProviders(<App />, { route: "/staff/partners" });
+    await userEvent.click(await screen.findByRole("button", { name: "English" }));
+    await waitFor(() => expect(patches(fetchMock)).toHaveLength(1));
+    expect(timeout).toHaveBeenCalledWith(15_000);
+    expect((patches(fetchMock)[0]?.[1] as RequestInit).signal).toBeInstanceOf(AbortSignal);
+  });
+});
+
+// rule: BR-LANG-002
+describe("a choice made while the account is still loading", () => {
+  /** /api/me/ answers only when the test releases it; PATCH answers with the saved account. */
+  function mockLoadingAccount() {
+    const me = heldAnswer();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (!url.endsWith("/api/me/")) return new Response(null, { status: 404 });
+      if (init?.method !== "PATCH") return (await me.answer).clone();
+      return Response.json(testUser("beneficiary", { language: sentLanguage(init) as "en" }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return { fetchMock, release: me.release };
+  }
+
+  it("is saved once the account loads, and the screen stays in it", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { fetchMock, release } = mockLoadingAccount();
+    renderWithProviders(<App />, { route: "/privacy", queryClient });
+    await userEvent.click(await screen.findByRole("button", { name: "English" }));
+
+    release(Response.json(testUser("beneficiary", { language: "fr" })));
+    await waitFor(() => expect(patches(fetchMock)).toHaveLength(1));
+    expect(sentLanguage(patches(fetchMock)[0]?.[1] as RequestInit)).toBe("en");
+    await waitFor(() =>
+      expect(queryClient.getQueryData<CurrentUser>(CURRENT_USER_QUERY_KEY)?.language).toBe("en"),
+    );
+    expect(screen.getByRole("button", { name: "Français" })).toBeInTheDocument();
+  });
+
+  it("stays in the browser when the account turns out to be signed out", async () => {
+    const { fetchMock, release } = mockLoadingAccount();
+    renderWithProviders(<App />, { route: "/privacy" });
+    await userEvent.click(await screen.findByRole("button", { name: "English" }));
+
+    release(new Response(null, { status: 401 }));
+    expect(await screen.findByRole("button", { name: "Français" })).toBeInTheDocument();
+    expect(localStorage.getItem(STORAGE_KEY)).toBe("en");
+    expect(patches(fetchMock)).toEqual([]);
   });
 });
 
@@ -323,9 +379,28 @@ describe("a language save another tab overtook", () => {
     sessionAccount = "00000000-0000-4000-8000-000000000002";
     await userEvent.click(screen.getByRole("button", { name: "English" }));
 
-    await waitFor(() => expect(warning).toHaveBeenCalledWith("language_save_failed"));
+    await waitFor(() =>
+      expect(warning).toHaveBeenCalledWith("language_save_failed", { statusCode: 409 }),
+    );
     const [, init] = patches(fetchMock)[0] as [string, RequestInit];
     expect(new Headers(init.headers).get("X-Account-Id")).toBe(first.id);
     expect(queryClient.getQueryData<CurrentUser>(CURRENT_USER_QUERY_KEY)).toEqual(first);
+  });
+});
+
+// rule: BR-LANG-002
+describe("the save queue", () => {
+  it("belongs to one app, so a save never answered there holds no other app back", async () => {
+    const stuck = mockAccount(testUser("admin"), () => new Promise<Response>(() => undefined));
+    const first = renderWithProviders(<App />, { route: "/staff/partners" });
+    await userEvent.click(await screen.findByRole("button", { name: "English" }));
+    await waitFor(() => expect(patches(stuck)).toHaveLength(1));
+    first.unmount();
+
+    await i18n.changeLanguage("fr");
+    const fetchMock = mockAccount(testUser("admin"));
+    renderWithProviders(<App />, { route: "/staff/partners" });
+    await userEvent.click(await screen.findByRole("button", { name: "English" }));
+    await waitFor(() => expect(patches(fetchMock)).toHaveLength(1));
   });
 });
