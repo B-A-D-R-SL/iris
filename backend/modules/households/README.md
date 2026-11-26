@@ -318,6 +318,12 @@ account is created; an anonymized file makes the link invalid. The link is audit
 (`link_account`, `{"method": "invitation"}`, actor the new account) and logged as
 `walk_in_account_linked` with the household ID only.
 
+A linked file follows its holder's language (US-08, BR-LANG-003): the invited
+account starts in the file's `preferred_language`, a file linked at the counter
+takes the account's, and `account_link_services.follow_holder_language` (a receiver
+of `accounts.services.language_changed`, connected in `apps.py`) copies every later
+change, so the household's emails use the holder's choice.
+
 The French or English set-password email uses US-57's `walk_in_set_password`
 template through `notifications.services.queue_set_password_email`, which calls
 the shared queued `send` service. The link is `PUBLIC_APP_ORIGIN` plus

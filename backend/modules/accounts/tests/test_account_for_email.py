@@ -22,6 +22,7 @@ def test_account_for_email_is_case_insensitive() -> None:
         last_name="Example",
         role="beneficiary",
         is_active=True,
+        preferred_language="fr",
     )
 
 

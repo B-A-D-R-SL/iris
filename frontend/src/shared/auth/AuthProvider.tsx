@@ -1,6 +1,6 @@
 // AI contribution: 50% or more AI-generated
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CURRENT_USER_QUERY_KEY, fetchCurrentUser, useCurrentUser } from "./currentUser";
@@ -73,12 +73,35 @@ async function loadSignedInUser(
   return current;
 }
 
+/**
+ * Show the account's saved language once per signed-in account (US-08): after
+ * sign-in, on a reload, or when another tab signs in. Later reads of /api/me/
+ * do not switch it back, so a save that failed never undoes the visible choice.
+ */
+function useAccountLanguage(user: AuthContextValue["user"]) {
+  const { i18n } = useTranslation();
+  const applied = useRef<string | null>(null);
+  const id = user?.id ?? null;
+  const language = user?.language;
+
+  useEffect(() => {
+    if (id === null || language === undefined) {
+      applied.current = null;
+      return;
+    }
+    if (applied.current === id) return;
+    applied.current = id;
+    if (i18n.resolvedLanguage !== language) void i18n.changeLanguage(language);
+  }, [id, language, i18n]);
+}
+
 /** Reuse the existing /api/me/ query for every screen and react to other tabs. */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const { i18n } = useTranslation();
   const { data: user } = useCurrentUser();
   const notifyTabs = useAuthTabSync(queryClient);
+  useAccountLanguage(user);
   const loadUser = () => loadSignedInUser(queryClient, notifyTabs);
 
   const language = i18n.resolvedLanguage ?? "fr";
