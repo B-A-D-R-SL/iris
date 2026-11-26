@@ -274,6 +274,7 @@ describe("a choice made while the account is still loading", () => {
   });
 
   it("stays in the browser when the account turns out to be signed out", async () => {
+    const warning = vi.spyOn(logger, "warning");
     const { fetchMock, release } = mockLoadingAccount();
     renderWithProviders(<App />, { route: "/privacy" });
     await userEvent.click(await screen.findByRole("button", { name: "English" }));
@@ -282,6 +283,9 @@ describe("a choice made while the account is still loading", () => {
     expect(await screen.findByRole("button", { name: "Français" })).toBeInTheDocument();
     expect(localStorage.getItem(STORAGE_KEY)).toBe("en");
     expect(patches(fetchMock)).toEqual([]);
+    // A sign-out is not a failure: nothing is logged for it.
+    await waitFor(() => expect(i18n.resolvedLanguage).toBe("en"));
+    expect(warning).not.toHaveBeenCalledWith("language_account_unavailable");
   });
 });
 
