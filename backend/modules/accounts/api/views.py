@@ -1,13 +1,13 @@
 # AI contribution: 50% or more AI-generated
 """HTTP endpoints for accounts."""
 
-from typing import Any
+from typing import Any, cast
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.translation import gettext_lazy as _
-from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework.decorators import api_view
-from rest_framework.exceptions import ValidationError
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
@@ -20,7 +20,23 @@ from modules.accounts.api.serializers import (
     CurrentUserSerializer,
     InvitationAcceptedSerializer,
     InvitationErrorSerializer,
+    LanguageChoiceSerializer,
 )
+from modules.accounts.models import User
+
+# US-08: a language save names the account it was chosen for.
+ACCOUNT_HEADER = "X-Account-Id"
+
+
+class AccountChanged(APIException):
+    """The session now belongs to another account than the one that chose (US-08)."""
+
+    status_code = 409
+    default_code = "account_changed"
+    default_detail = _(
+        "You are now signed in to another account. Choose the language again."
+    )
+
 
 _INVITATION_MESSAGES = {
     "invitation_invalid": _("This invitation link is invalid."),
@@ -47,15 +63,66 @@ _PASSWORD_MESSAGES = {
 }
 
 
-@extend_schema(
-    responses={
-        200: CurrentUserSerializer,
-        401: OpenApiResponse(description="Authentication required."),
-    }
-)
-@api_view(["GET"])
-def current_user(request: Request) -> Response:
-    return Response(CurrentUserSerializer(request.user).data)
+class CurrentUserView(GenericAPIView):
+    """The signed-in user's account; every role may read it and change its language."""
+
+    serializer_class = CurrentUserSerializer
+    http_method_names = ("get", "patch", "options")
+
+    def get_exception_handler(self) -> Any:
+        """Errors use the same code/message/fields envelope as invitations."""
+        return invitation_exception_handler
+
+    @extend_schema(
+        operation_id="me_retrieve",
+        tags=["accounts"],
+        responses={
+            200: CurrentUserSerializer,
+            401: OpenApiResponse(description="Authentication required."),
+        },
+    )
+    def get(self, request: Request) -> Response:
+        return Response(CurrentUserSerializer(request.user).data)
+
+    @extend_schema(
+        operation_id="me_language_update",
+        summary="Change the signed-in user's language",
+        description=(
+            "US-08. Saves `fr` or `en` on the account. The screens use it after "
+            "sign-in, and every later email to the user or their household uses it. "
+            f"`{ACCOUNT_HEADER}` names the account the language was chosen for; "
+            "if the session now belongs to another account, nothing is saved (409)."
+        ),
+        tags=["accounts"],
+        parameters=[
+            OpenApiParameter(
+                ACCOUNT_HEADER,
+                OpenApiTypes.UUID,
+                OpenApiParameter.HEADER,
+                required=True,
+                description="The id of the account that chose the language.",
+            )
+        ],
+        request=LanguageChoiceSerializer,
+        responses={
+            200: CurrentUserSerializer,
+            400: InvitationErrorSerializer,
+            401: InvitationErrorSerializer,
+            403: InvitationErrorSerializer,
+            409: InvitationErrorSerializer,
+        },
+    )
+    def patch(self, request: Request) -> Response:
+        # Another tab may have signed in another account since this choice was
+        # made; the session's account is then not the one that chose (US-08).
+        if request.headers.get(ACCOUNT_HEADER) != str(request.user.pk):
+            raise AccountChanged
+        serializer = LanguageChoiceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = services.change_language(
+            cast(User, request.user), serializer.validated_data["language"]
+        )
+        return Response(CurrentUserSerializer(user).data)
 
 
 def _messages(value: Any) -> list[str]:

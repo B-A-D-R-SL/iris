@@ -7,7 +7,7 @@ import { Link } from "react-router";
 
 import { useCurrentUser } from "../auth/currentUser";
 import { SignOutButton } from "../auth/SignOutButton";
-import { logger } from "../logger";
+import { useLanguageSwitch } from "../i18n/useLanguageSwitch";
 import classes from "./AppBar.module.css";
 
 export interface AppBarProps {
@@ -44,9 +44,9 @@ export function AppBar({ title, backTo, action }: AppBarProps) {
 }
 
 function AccountMenu() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { data: user } = useCurrentUser();
-  const next = i18n.resolvedLanguage === "en" ? "fr" : "en";
+  const { next, switchLanguage } = useLanguageSwitch();
 
   return (
     <Menu position="bottom-end" width={220}>
@@ -60,7 +60,7 @@ function AccountMenu() {
         <Menu.Item
           leftSection={<IconWorld size={18} stroke={2} aria-hidden />}
           lang={next}
-          onClick={() => void i18n.changeLanguage(next).then(() => logger.info("language_changed"))}
+          onClick={() => void switchLanguage()}
         >
           {t("app.language.switchTo")}
         </Menu.Item>

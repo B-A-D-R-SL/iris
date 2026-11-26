@@ -7,6 +7,7 @@ import { MemoryRouter } from "react-router";
 import { expect, vi } from "vitest";
 
 import { AppProviders } from "../app/providers";
+import i18n from "../shared/i18n";
 import { rootOptions } from "../app/rootOptions";
 import type { CurrentUser } from "../shared/auth/currentUser";
 import type { Role } from "../shared/auth/roles";
@@ -39,6 +40,11 @@ export function testUser(role: Role, overrides: Partial<CurrentUser> = {}): Curr
     language: "fr",
     ...overrides,
   };
+}
+
+/** An account saved in the language the test switched to: after loading, the account's wins (US-08). */
+export function inCurrentLanguage(): Partial<CurrentUser> {
+  return { language: i18n.resolvedLanguage === "en" ? "en" : "fr" };
 }
 
 /** Fake account reads and the server's household-search authorization response. */

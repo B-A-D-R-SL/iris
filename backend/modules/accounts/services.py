@@ -35,6 +35,17 @@ _EMAIL_UNIQUE_CONSTRAINTS = frozenset(
 # households (import-linter), so the link travels through this signal.
 invitation_accepted = Signal()
 
+# US-08: sent inside the caller's transaction with `user` and `language` after a
+# user's language is saved. Households keeps the holder's file in the same
+# language, so the household's emails follow the account too.
+language_changed = Signal()
+
+# US-08: the account's language field is the one list of languages. The API and
+# this service both read it, and both refuse any other value with this message.
+LANGUAGE_CHOICES = User._meta.get_field("preferred_language").choices or ()
+LANGUAGES = frozenset(str(code) for code, _label in LANGUAGE_CHOICES)
+INVALID_LANGUAGE = _("Choose French or English.")
+
 
 def _identity_text(value: str, field: str) -> str:
     """Keep service inputs predictable before Django validates model fields."""
@@ -268,4 +279,34 @@ def accept_invitation(token: str, password: str) -> User:
             "invitation_accepted", extra={"event": "invitation_accepted"}
         )
     )
+    return user
+
+
+@transaction.atomic
+def change_language(user: User, language: str) -> User:
+    """Save the user's interface and email language (US-08).
+
+    Every later email to the user, and to the household file they hold, uses it.
+    `language_changed` is sent even when the value is unchanged, so a household
+    file that drifted (for example linked at the counter) is brought back in step.
+    The row is locked and its language read again first: the caller's instance
+    may be stale if another request changed the language since it was loaded.
+    The caller's instance is updated in place, so it matches the saved account.
+    """
+    if language not in LANGUAGES:
+        raise ValidationError(INVALID_LANGUAGE, code="invalid_language")
+    user.preferred_language = (
+        User.objects.select_for_update()
+        .values_list("preferred_language", flat=True)
+        .get(pk=user.pk)
+    )
+    if user.preferred_language != language:
+        user.preferred_language = language
+        user.save(update_fields=["preferred_language", "updated_at"])
+        # Only a real change is logged; an unchanged choice (or a new walk-in
+        # account already in its file's language) writes no log line.
+        transaction.on_commit(
+            lambda: logger.info("language_changed", extra={"event": "language_changed"})
+        )
+    language_changed.send(sender=User, user=user, language=language)
     return user
