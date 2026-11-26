@@ -347,7 +347,9 @@ included). Every other reservation follows, latest pickup window first
 `{id, status, upcoming, title, unit, quantity, store, pickup_start, pickup_end,
 picked_up_at, pickup_code}`, where `store` has the same fields as a browse
 card's store, `picked_up_at` is null until the store confirms the pickup, and
-`pickup_code` is null unless the reservation is upcoming. A beneficiary with no
+`pickup_code` is null unless the reservation is upcoming. Next to `count`, each
+page has `upcoming_count`: the upcoming reservations across every page, so the
+screen never counts only the pages it has loaded. A beneficiary with no
 household, or an anonymized one, gets an empty list. Signed out gets 401 and
 every other role 403 (`permission_denied`); an unknown `status` gets 400
 `validation_error` and a page past the end 404. Responses use

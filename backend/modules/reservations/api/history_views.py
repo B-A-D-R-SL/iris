@@ -80,11 +80,30 @@ class HistoryPagination(PageNumberPagination):
     """Always 20 reservations a page; clients choose only ?page=, not the size.
 
     The next link carries ``as_of``, the time page 1 was read, so every later
-    page is ordered as at that time.
+    page is ordered as at that time. Each page also says how many reservations
+    are upcoming in the whole history, not only on the pages loaded so far.
     """
 
     page_size = 20
     as_of: datetime | None = None
+    upcoming_count = 0
+
+    def get_paginated_response(self, data: Any) -> Response:
+        """DRF's page, with ``upcoming_count`` added."""
+        response = super().get_paginated_response(data)
+        response.data["upcoming_count"] = self.upcoming_count
+        return response
+
+    def get_paginated_response_schema(self, schema: dict[str, Any]) -> dict[str, Any]:
+        """Document ``upcoming_count`` next to DRF's page fields."""
+        paginated = super().get_paginated_response_schema(schema)
+        paginated["properties"]["upcoming_count"] = {
+            "type": "integer",
+            "example": 2,
+            "description": "Upcoming reservations across every page.",
+        }
+        paginated["required"] = [*paginated["required"], "upcoming_count"]
+        return paginated
 
     def get_next_link(self) -> str | None:
         """The next page's link, with ``as_of`` added."""
@@ -130,7 +149,8 @@ class HouseholdHistoryView(ListAPIView):
         # Later pages are ordered as at page 1's time, so a pickup window that
         # ends in between cannot repeat or skip a row. Codes follow ``now``.
         as_of = min(filters.validated_data.get("as_of", now), now)
-        cast(HistoryPagination, self.paginator).as_of = as_of
+        paginator = cast(HistoryPagination, self.paginator)
+        paginator.as_of = as_of
         # Any file status: a suspended or expired household still sees what it
         # received. No household, or an anonymized one, gives an empty list.
         household_id = household_queries.held_household_id(request.user.pk)
@@ -140,6 +160,7 @@ class HouseholdHistoryView(ListAPIView):
             as_of=as_of,
             status=filters.validated_data.get("status"),
         )
+        paginator.upcoming_count = queries.upcoming_count(rows)
         page = self.paginate_queryset(rows)
         response = self.get_paginated_response(
             self.get_serializer(queries.history_entries(page), many=True).data

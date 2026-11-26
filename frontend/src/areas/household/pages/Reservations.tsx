@@ -36,13 +36,16 @@ function HistoryContent({ history }: { history: ReturnType<typeof useReservation
 
   if (history.isPending) return <LoadingState />;
   if (history.isError) return <ErrorState onRetry={() => void history.refetch()} />;
-  const entries = history.data.pages.flatMap((page) => page.results);
+  const { pages } = history.data;
+  const entries = pages.flatMap((page) => page.results);
   const upcoming = entries.filter((entry) => entry.upcoming);
   const past = entries.filter((entry) => !entry.upcoming);
+  // The API counts every upcoming reservation, not only the pages loaded here.
+  const upcomingCount = pages[pages.length - 1].upcoming_count;
 
   return (
     <div className={classes.content}>
-      <UpcomingSection entries={upcoming} now={now} />
+      <UpcomingSection entries={upcoming} count={upcomingCount} now={now} />
       {past.length > 0 && (
         <EntrySection title={t("reservation.common.pickupHistory")} entries={past} now={now} />
       )}
@@ -60,7 +63,8 @@ function HistoryContent({ history }: { history: ReturnType<typeof useReservation
 }
 
 /** The reservations still to pick up, or one clear way to make one (H2.2a). */
-function UpcomingSection({ entries, now }: { entries: HistoryEntry[]; now: Date }) {
+function UpcomingSection(props: { entries: HistoryEntry[]; count: number; now: Date }) {
+  const { entries, count, now } = props;
   const { t } = useTranslation();
   if (entries.length === 0) {
     return (
@@ -77,9 +81,9 @@ function UpcomingSection({ entries, now }: { entries: HistoryEntry[]; now: Date 
     );
   }
   const title =
-    entries.length === 1
+    count === 1
       ? t("reservation.history.upcomingOne")
-      : t("reservation.history.upcomingMany", { count: entries.length });
+      : t("reservation.history.upcomingMany", { count });
   return <EntrySection title={title} entries={entries} now={now} />;
 }
 

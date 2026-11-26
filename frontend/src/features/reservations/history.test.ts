@@ -34,7 +34,7 @@ function without<T extends object>(record: T, key: keyof T): Partial<T> {
 }
 
 const page = (results: unknown[], next: string | null = null) =>
-  Response.json({ count: results.length, next, previous: null, results });
+  Response.json({ count: results.length, upcoming_count: 1, next, previous: null, results });
 
 describe("historyUrl", () => {
   it("asks for page 1 bare, and later pages with their number and page 1's time", () => {
@@ -77,6 +77,13 @@ describe("fetchHistoryPage", () => {
       headers: { Accept: "application/json" },
       credentials: "same-origin",
     });
+  });
+
+  it("refuses a page without the upcoming count", async () => {
+    const body = { count: 1, next: null, previous: null, results: [ENTRY] };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(body)));
+
+    await expect(fetchHistoryPage()).rejects.toThrow("Invalid reservations API response");
   });
 
   it.each([401, 403, 500])("reports a %i answer with its status", async (status) => {

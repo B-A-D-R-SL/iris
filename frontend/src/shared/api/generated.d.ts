@@ -660,6 +660,11 @@ export interface components {
        */
       previous?: string | null;
       results: components["schemas"]["HistoryEntry"][];
+      /**
+       * @description Upcoming reservations across every page.
+       * @example 2
+       */
+      upcoming_count: number;
     };
     PaginatedHouseholdSearchResultList: {
       /** @example 123 */

@@ -58,6 +58,20 @@ describe("Pickup history (US-48)", () => {
     await expectNoAxeViolations(container);
   });
 
+  it("counts every upcoming reservation, not only the ones loaded so far", async () => {
+    mockHistoryApi(() =>
+      historyPage([entry()], {
+        count: 25,
+        upcomingCount: 21,
+        next: "/api/reservations/me/?page=2",
+      }),
+    );
+    await renderReservations();
+
+    expect(await screen.findByRole("heading", { name: "21 réservations à venir" })).toBeVisible();
+    expect(screen.getAllByRole("article")).toHaveLength(1);
+  });
+
   it("shows the window of a reservation that was not picked up, and why it was cancelled", async () => {
     mockHistoryApi(() =>
       historyPage([

@@ -52,7 +52,8 @@ indexes `(household, status)` and `(status, listing)`.
   first), then the rest (latest pickup window first), ordered down to the ID.
   The order uses `as_of` (page 1's time, carried in the `next` link), so a
   window ending between pages never repeats or skips a row; `upcoming` uses
-  `now`. `queries.history_entries(rows)` adds the listing and store of
+  `now`. `queries.upcoming_count(rows)` counts the upcoming rows across every
+  page, for the page's `upcoming_count`. `queries.history_entries(rows)` adds the listing and store of
   one page and keeps the pickup code only while upcoming. Rules BR-RES-011 and
   BR-RES-012.
 

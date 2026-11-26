@@ -178,6 +178,18 @@ def test_no_household_has_no_history(household: Any) -> None:
     assert _history(None) == []
 
 
+# rule: BR-RES-012
+def test_upcoming_count_counts_only_upcoming_rows(household: Any) -> None:
+    """Reserved with the window not ended counts; ended or finished ones do not."""
+    _reserve(household, "Tomorrow", starts_in=timedelta(days=1))
+    _reserve(household, "Open now", starts_in=-timedelta(hours=1))
+    _reserve(household, "Ended", starts_in=-timedelta(hours=3))
+    _reserve(household, "Picked up", starts_in=-timedelta(days=1), status="picked_up")
+
+    assert queries.upcoming_count(queries.household_history(household.pk, now=NOW)) == 2
+    assert queries.upcoming_count(queries.household_history(None, now=NOW)) == 0
+
+
 def test_empty_page_gives_no_entries() -> None:
     """An empty page stays empty."""
     assert queries.history_entries([]) == []

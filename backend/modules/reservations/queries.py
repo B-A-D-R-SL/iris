@@ -235,6 +235,13 @@ def household_history(
     ).values(*HISTORY_FIELDS)
 
 
+def upcoming_count(rows: QuerySet[Reservation, dict[str, Any]]) -> int:
+    """How many ``household_history`` rows are upcoming now, across every page."""
+    # ``upcoming`` is an annotation of household_history; django-stubs cannot see
+    # annotations through the declared QuerySet type, so it rejects the keyword.
+    return rows.filter(upcoming=True).count()  # type: ignore[misc]
+
+
 def history_entries(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     """Each history row with its listing's title and unit and its store (US-48).
 

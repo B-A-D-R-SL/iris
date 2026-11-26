@@ -223,6 +223,7 @@ def test_beneficiary_without_a_household_gets_an_empty_list() -> None:
     assert response.status_code == 200
     assert response.json() == {
         "count": 0,
+        "upcoming_count": 0,
         "next": None,
         "previous": None,
         "results": [],
@@ -353,6 +354,39 @@ def test_twenty_a_page_without_repeats(household: Any) -> None:
     assert len(second["results"]) == 1
     seen = [entry["id"] for entry in first["results"] + second["results"]]
     assert len(set(seen)) == 21
+
+
+# rule: BR-RES-012
+def test_upcoming_count_covers_every_page(household: Any) -> None:
+    """Each page counts all upcoming reservations, not only the ones it holds."""
+    for hour in range(21):
+        _reserve(household, starts_in=timedelta(hours=hour + 1))
+    for day in range(2):
+        _reserve(
+            household,
+            starts_in=-timedelta(days=day + 1),
+            status=ReservationStatus.PICKED_UP,
+        )
+    client = _client(household.holder)
+
+    first = client.get(URL).json()
+    second = client.get(first["next"]).json()
+
+    assert (first["count"], first["upcoming_count"]) == (23, 21)
+    assert sum(entry["upcoming"] for entry in first["results"]) == 20
+    assert second["upcoming_count"] == 21
+
+
+def test_upcoming_count_follows_the_status_filter(household: Any) -> None:
+    """Filtered to picked-up reservations, nothing is upcoming."""
+    _reserve(household, starts_in=timedelta(hours=1))
+    _reserve(
+        household, starts_in=-timedelta(days=1), status=ReservationStatus.PICKED_UP
+    )
+
+    response = _client(household.holder).get(URL, {"status": "picked_up"})
+
+    assert (response.json()["count"], response.json()["upcoming_count"]) == (1, 0)
 
 
 def test_page_past_the_end_is_not_found(household: Any) -> None:

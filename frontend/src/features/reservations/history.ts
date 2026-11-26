@@ -82,6 +82,7 @@ function isHistoryPage(value: unknown): value is HistoryPage {
   return (
     isRecord(value) &&
     typeof value.count === "number" &&
+    typeof value.upcoming_count === "number" &&
     Array.isArray(value.results) &&
     value.results.every(isHistoryEntry)
   );

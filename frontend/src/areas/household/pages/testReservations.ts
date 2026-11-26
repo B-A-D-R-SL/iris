@@ -41,11 +41,22 @@ export function pickedUp(overrides: Partial<HistoryEntry> = {}): HistoryEntry {
   });
 }
 
+/** One page; `upcomingCount` defaults to the upcoming entries it holds. */
 export function historyPage(
   entries: HistoryEntry[],
-  { next = null as string | null, count = entries.length } = {},
+  {
+    next = null as string | null,
+    count = entries.length,
+    upcomingCount = entries.filter((entry) => entry.upcoming).length,
+  } = {},
 ) {
-  return Response.json({ count, next, previous: null, results: entries });
+  return Response.json({
+    count,
+    upcoming_count: upcomingCount,
+    next,
+    previous: null,
+    results: entries,
+  });
 }
 
 /** Fakes /api/me/ (a household's user) and GET /api/reservations/me/. */
