@@ -100,6 +100,12 @@ ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_EMAIL_VERIFICATION = "none"
+# Public recovery must not disclose whether an account exists or send signup mail.
+ACCOUNT_PREVENT_ENUMERATION = True
+ACCOUNT_EMAIL_UNKNOWN_ACCOUNTS = False
+ACCOUNT_LOGIN_ON_PASSWORD_RESET = False
+# US-03 fixes the security lifetime at 60 minutes (Django uses seconds).
+PASSWORD_RESET_TIMEOUT = 60 * 60
 ACCOUNT_ADAPTER = "modules.accounts.adapter.AccountAdapter"
 ACCOUNT_RATE_LIMITS = {"login_failed": "10/m/ip,5/15m/key"}
 
@@ -334,6 +340,10 @@ except ValueError:
         "PUBLIC_APP_ORIGIN must be an HTTP(S) origin without credentials, path or query."
     ) from None
 PUBLIC_APP_ORIGIN = PUBLIC_APP_ORIGIN.rstrip("/")
+HEADLESS_FRONTEND_URLS = {
+    "account_reset_password": f"{PUBLIC_APP_ORIGIN}/forgot-password",
+    "account_reset_password_from_key": f"{PUBLIC_APP_ORIGIN}/reset-password/{{key}}",
+}
 
 MAILER_BACKEND = env(
     "EMAIL_BACKEND",

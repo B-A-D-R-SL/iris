@@ -149,6 +149,14 @@ ignore_imports = [
     # US-57 integration tests follow owning workflows into the queued delivery.
     "modules.accounts.tests.test_notification_adapter -> modules.notifications.models",
     "modules.accounts.tests.test_notification_adapter -> modules.notifications.tasks",
+    # US-03 integration fixtures inspect queued delivery and create each caller role;
+    # production accounts code still uses only the notifications public service.
+    "modules.accounts.tests.password_reset.conftest -> modules.notifications.tasks",
+    "modules.accounts.tests.password_reset.test_flow -> modules.notifications.tasks",
+    "modules.accounts.tests.password_reset.test_flow -> modules.notifications.models",
+    "modules.accounts.tests.password_reset.test_api -> modules.notifications.tasks",
+    "modules.accounts.tests.password_reset.test_api -> modules.notifications.models",
+    "modules.accounts.tests.password_reset.test_api -> modules.stores.tests.factories",
     "modules.stores.tests.test_partner_application_service -> modules.notifications.models",
     "modules.stores.tests.test_partner_application_service -> modules.notifications.tasks",
     "modules.stores.tests.test_partner_application_api -> modules.notifications.models",
