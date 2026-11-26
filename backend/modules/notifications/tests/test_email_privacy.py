@@ -1,10 +1,12 @@
 # AI contribution: 50% or more AI-generated
 """US-59: guard the bilingual notification catalog against sensitive fields."""
 
+import re
 from pathlib import Path
 
 import pytest
 from django.template import Context, Engine
+from django.template.base import Lexer, TokenType
 from django.test import override_settings
 
 from modules.notifications.rendering import TEMPLATE_KEYS, render, validate_context
@@ -31,6 +33,33 @@ ACTION_CONTEXT = {
     },
 }
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "templates" / "notifications"
+EXPRESSION_PARTS = re.compile(
+    r""""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|(?P<name>[A-Za-z_][A-Za-z_0-9]*)"""
+)
+
+
+def sensitive_references(source: str) -> set[str]:
+    """Find sensitive identifiers in template expressions, including tag conditions."""
+    return {
+        match.group("name")
+        for token in Lexer(source).tokenize()
+        if token.token_type in {TokenType.VAR, TokenType.BLOCK}
+        for match in EXPRESSION_PARTS.finditer(token.contents)
+        if match.group("name") in SENSITIVE_FIELDS
+    }
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("{{ income|floatformat:2 }}", {"income"}),
+        ("{{ household.tier|lower }}", {"tier"}),
+        ("{% if score %}details{% endif %}", {"score"}),
+        ("{{ label|default:'income' }}", set()),
+    ],
+)
+def test_sensitive_reference_guard(source: str, expected: set[str]) -> None:
+    assert sensitive_references(source) == expected
 
 
 def test_all_notification_templates_are_in_the_reviewed_catalog() -> None:
@@ -61,9 +90,9 @@ def test_templates_do_not_render_sensitive_fields(path: Path) -> None:
         "subject": "Subject",
         "action_url": ORIGIN,
     }
-    output = (
-        Engine().from_string(path.read_text(encoding="utf-8")).render(Context(context))
-    )
+    source = path.read_text(encoding="utf-8")
+    assert not sensitive_references(source)
+    output = Engine().from_string(source).render(Context(context))
     for marker in MARKERS.values():
         assert marker not in output
 
