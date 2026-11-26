@@ -56,7 +56,12 @@ def test_the_holders_choice_is_used_for_the_households_emails(staff: Any) -> Non
 
     client = APIClient()
     client.force_authenticate(holder)
-    response = client.patch("/api/me/", {"language": "en"}, format="json")
+    response = client.patch(
+        "/api/me/",
+        {"language": "en"},
+        format="json",
+        HTTP_X_ACCOUNT_ID=str(holder.pk),
+    )
     assert response.status_code == 200
 
     assert language_of(household) == "en"

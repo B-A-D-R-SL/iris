@@ -39,7 +39,7 @@ export function useLanguageSwitch() {
     // would change the language of whoever is signed in instead.
     if (!stillSignedIn(accountId)) return;
     try {
-      const saved = await saveLanguage(language);
+      const saved = await saveLanguage(language, accountId);
       if (stillSignedIn(accountId)) {
         queryClient.setQueryData(CURRENT_USER_QUERY_KEY, saved);
       }

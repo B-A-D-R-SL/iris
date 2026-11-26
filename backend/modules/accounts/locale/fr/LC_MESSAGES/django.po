@@ -108,3 +108,6 @@ msgstr "Seuls les intervenants à l'accueil et les administrateurs actifs peuven
 
 msgid "Choose French or English."
 msgstr "Choisissez le français ou l'anglais."
+
+msgid "You are now signed in to another account. Choose the language again."
+msgstr "Vous êtes maintenant connecté à un autre compte. Choisissez de nouveau la langue."

@@ -173,6 +173,7 @@ describe("a signed-in user's choice", () => {
     expect(url).toBe("/api/me/");
     expect(JSON.parse(init.body as string)).toEqual({ language: "en" });
     expect(new Headers(init.headers).get("X-CSRFToken")).toBe("test-csrf-token");
+    expect(new Headers(init.headers).get("X-Account-Id")).toBe(user.id);
     expect(i18n.resolvedLanguage).toBe("en");
   });
 
@@ -268,6 +269,31 @@ describe("a signed-in user's choice", () => {
     });
 
     await waitFor(() => expect(queryClient.getQueryData(CURRENT_USER_QUERY_KEY)).toBeNull());
+  });
+
+  // rule: BR-LANG-002
+  it("names its account, so a session another tab switched to account B is refused", async () => {
+    const warning = vi.spyOn(logger, "warning").mockImplementation(() => undefined);
+    const first = testUser("intake_worker");
+    let sessionAccount = first.id;
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    // The server refuses a save named for an account the session no longer holds.
+    const fetchMock = mockAccount(first, (init) =>
+      new Headers(init.headers).get("X-Account-Id") === sessionAccount
+        ? Response.json({ ...first, language: "en" })
+        : Response.json({ code: "account_changed", message: "", fields: {} }, { status: 409 }),
+    );
+    renderWithProviders(<App />, { route: "/staff/households", queryClient });
+    await screen.findByRole("button", { name: "English" });
+
+    // Another tab signs in account B; this tab still shows account A.
+    sessionAccount = "00000000-0000-4000-8000-000000000002";
+    await userEvent.click(screen.getByRole("button", { name: "English" }));
+
+    await waitFor(() => expect(warning).toHaveBeenCalledWith("language_save_failed"));
+    const [, init] = patches(fetchMock)[0] as [string, RequestInit];
+    expect(new Headers(init.headers).get("X-Account-Id")).toBe(first.id);
+    expect(queryClient.getQueryData<CurrentUser>(CURRENT_USER_QUERY_KEY)).toEqual(first);
   });
 
   // rule: BR-LANG-002

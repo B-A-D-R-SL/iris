@@ -34,7 +34,7 @@ export interface paths {
     get: operations["me_retrieve"];
     /**
      * Change the signed-in user's language
-     * @description US-08. Saves `fr` or `en` on the account. The screens use it after sign-in, and every later email to the user or their household uses it.
+     * @description US-08. Saves `fr` or `en` on the account. The screens use it after sign-in, and every later email to the user or their household uses it. `X-Account-Id` names the account the language was chosen for; if the session now belongs to another account, nothing is saved (409).
      */
     patch: operations["me_language_update"];
   };
@@ -1378,9 +1378,15 @@ export interface operations {
   };
   /**
    * Change the signed-in user's language
-   * @description US-08. Saves `fr` or `en` on the account. The screens use it after sign-in, and every later email to the user or their household uses it.
+   * @description US-08. Saves `fr` or `en` on the account. The screens use it after sign-in, and every later email to the user or their household uses it. `X-Account-Id` names the account the language was chosen for; if the session now belongs to another account, nothing is saved (409).
    */
   me_language_update: {
+    parameters: {
+      header: {
+        /** @description The id of the account that chose the language. */
+        "X-Account-Id": string;
+      };
+    };
     requestBody?: {
       content: {
         "application/json": components["schemas"]["PatchedLanguageChoice"];
@@ -1405,6 +1411,11 @@ export interface operations {
         };
       };
       403: {
+        content: {
+          "application/json": components["schemas"]["InvitationError"];
+        };
+      };
+      409: {
         content: {
           "application/json": components["schemas"]["InvitationError"];
         };

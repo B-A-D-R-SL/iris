@@ -128,7 +128,11 @@ queue progress or provider email delivery; those require live verification.
 
 Every signed-in role may change its own language. The body is exactly
 `{"language": "fr"}` or `{"language": "en"}`; the response is the same account as
-`GET /api/me/`. Browser sessions send the CSRF token. Errors use the
+`GET /api/me/`. Browser sessions send the CSRF token and `X-Account-Id`, the id
+of the account the language was chosen for: if the session now belongs to another
+account (another tab signed in), the server answers `409` `account_changed` ("You
+are now signed in to another account. Choose the language again.") and saves
+nothing. Errors use the
 `code`/`message`/`fields` envelope: an unsupported value gives `400` with
 `fields.language` ("Choose French or English."), any other field gives `400`
 naming it ("This field cannot be submitted."), and nothing is saved. Emails to the

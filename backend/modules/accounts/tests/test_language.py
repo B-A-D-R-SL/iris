@@ -29,11 +29,15 @@ def make_user(role: str = UserRole.BENEFICIARY, **kwargs: Any) -> Any:
     return UserFactory(role=role, **kwargs)
 
 
-def patch(user: Any, body: Any, language: str = "en") -> Any:
+def patch(user: Any, body: Any, language: str = "en", **headers: str | None) -> Any:
+    """PATCH as `user`, naming that account in X-Account-Id unless `headers` say
+    otherwise; a header given as None is left out."""
     client = APIClient()
     if user is not None:
         client.force_authenticate(user)
-    return client.patch(ME, body, format="json", HTTP_ACCEPT_LANGUAGE=language)
+        headers.setdefault("HTTP_X_ACCOUNT_ID", str(user.pk))
+    sent = {name: value for name, value in headers.items() if value is not None}
+    return client.patch(ME, body, format="json", HTTP_ACCEPT_LANGUAGE=language, **sent)
 
 
 def saved_language(user: Any) -> str:
@@ -72,7 +76,10 @@ def test_a_browser_session_must_send_the_csrf_token() -> None:
     client = Client(enforce_csrf_checks=True)
     client.force_login(user)
     response = client.patch(
-        ME, json.dumps({"language": "en"}), content_type="application/json"
+        ME,
+        json.dumps({"language": "en"}),
+        content_type="application/json",
+        HTTP_X_ACCOUNT_ID=str(user.pk),
     )
     assert response.status_code == 403
     assert saved_language(user) == "fr"
@@ -99,6 +106,40 @@ def test_only_french_or_english_is_accepted(
     if value not in ("", None):
         assert body["fields"]["language"] == [message]
     assert saved_language(user) == "en"
+
+
+# rule: BR-LANG-002
+@pytest.mark.parametrize(
+    ("language", "message"),
+    [
+        (
+            "en",
+            "You are now signed in to another account. Choose the language again.",
+        ),
+        (
+            "fr",
+            (
+                "Vous êtes maintenant connecté à un autre compte. "
+                "Choisissez de nouveau la langue."
+            ),
+        ),
+    ],
+)
+@pytest.mark.parametrize("named", ["other", "missing", "not-a-uuid"])
+def test_a_choice_made_for_another_account_is_refused(
+    named: str, language: str, message: str
+) -> None:
+    # Another tab signed this session in to `user` after the choice was made.
+    user = make_user(preferred_language="fr")
+    sent: str | None = {"other": str(make_user().pk), "missing": None}.get(named, "me")
+    response = patch(user, {"language": "en"}, language, HTTP_X_ACCOUNT_ID=sent)
+    assert response.status_code == 409
+    assert response.json() == {
+        "code": "account_changed",
+        "message": message,
+        "fields": {},
+    }
+    assert saved_language(user) == "fr"
 
 
 # rule: BR-LANG-002

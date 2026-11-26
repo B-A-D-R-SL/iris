@@ -49,8 +49,12 @@ export async function fetchCurrentUser(): Promise<CurrentUser | null> {
   return parseCurrentUser(await response.json());
 }
 
-/** Saves the signed-in user's language on their account (US-08) and returns the account. */
-export async function saveLanguage(language: Language): Promise<CurrentUser> {
+/**
+ * Saves the signed-in user's language on their account (US-08) and returns the
+ * account. `accountId` names the account that chose it: if another tab has
+ * since signed in another account, the server refuses (409) and saves nothing.
+ */
+export async function saveLanguage(language: Language, accountId: string): Promise<CurrentUser> {
   const response = await fetch("/api/me/", {
     method: "PATCH",
     credentials: "same-origin",
@@ -59,6 +63,7 @@ export async function saveLanguage(language: Language): Promise<CurrentUser> {
       "Accept-Language": language,
       "Content-Type": "application/json",
       "X-CSRFToken": csrfToken() ?? "",
+      "X-Account-Id": accountId,
     },
     body: JSON.stringify({ language }),
   });

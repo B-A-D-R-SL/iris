@@ -5,7 +5,8 @@ from typing import Any, cast
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.translation import gettext_lazy as _
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import AllowAny
@@ -22,6 +23,9 @@ from modules.accounts.api.serializers import (
     LanguageChoiceSerializer,
 )
 from modules.accounts.models import User
+
+# US-08: a language save names the account it was chosen for.
+ACCOUNT_HEADER = "X-Account-Id"
 
 _INVITATION_MESSAGES = {
     "invitation_invalid": _("This invitation link is invalid."),
@@ -74,18 +78,46 @@ class CurrentUserView(GenericAPIView):
         summary="Change the signed-in user's language",
         description=(
             "US-08. Saves `fr` or `en` on the account. The screens use it after "
-            "sign-in, and every later email to the user or their household uses it."
+            "sign-in, and every later email to the user or their household uses it. "
+            f"`{ACCOUNT_HEADER}` names the account the language was chosen for; "
+            "if the session now belongs to another account, nothing is saved (409)."
         ),
         tags=["accounts"],
+        parameters=[
+            OpenApiParameter(
+                ACCOUNT_HEADER,
+                OpenApiTypes.UUID,
+                OpenApiParameter.HEADER,
+                required=True,
+                description="The id of the account that chose the language.",
+            )
+        ],
         request=LanguageChoiceSerializer,
         responses={
             200: CurrentUserSerializer,
             400: InvitationErrorSerializer,
             401: InvitationErrorSerializer,
             403: InvitationErrorSerializer,
+            409: InvitationErrorSerializer,
         },
     )
     def patch(self, request: Request) -> Response:
+        # Another tab may have signed in another account since this choice was
+        # made; the session's account is then not the one that chose (US-08).
+        if request.headers.get(ACCOUNT_HEADER) != str(request.user.pk):
+            return Response(
+                {
+                    "code": "account_changed",
+                    "message": str(
+                        _(
+                            "You are now signed in to another account. "
+                            "Choose the language again."
+                        )
+                    ),
+                    "fields": {},
+                },
+                status=409,
+            )
         serializer = LanguageChoiceSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = services.change_language(
