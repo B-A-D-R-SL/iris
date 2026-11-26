@@ -69,6 +69,8 @@ ACCESS: dict[str, frozenset[str]] = {
     "store-pickup-confirm": STORE_ROLES,
     "listings-browse": frozenset({BENEFICIARY}),
     "reservations-create": frozenset({BENEFICIARY}),
+    # US-48: the pickup history of the household the beneficiary holds.
+    "reservations-mine": frozenset({BENEFICIARY}),
     "partner-application-create": EVERY_ROLE,
     "schema": EVERY_ROLE,
     "swagger-ui": EVERY_ROLE,

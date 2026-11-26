@@ -35,6 +35,16 @@ describe("Montreal time", () => {
       /^Sat, Nov\.? 14$/,
     );
   });
+
+  it("names yesterday only when a yesterday label is given (US-48)", () => {
+    const yesterday = new Date("2026-11-11T21:00:00Z");
+    expect(formatDay(yesterday, NOW, "fr", { ...LABELS, yesterday: "Hier" })).toBe("Hier");
+    expect(formatDay(yesterday, NOW, "fr", LABELS)).toBe("mer. 11 nov.");
+    // Two days ago is a date either way.
+    expect(
+      formatDay(new Date("2026-11-10T21:00:00Z"), NOW, "fr", { ...LABELS, yesterday: "Hier" }),
+    ).toBe("mar. 10 nov.");
+  });
 });
 
 describe("formatPickupWindow", () => {

@@ -1,12 +1,25 @@
 # AI contribution: 50% or more AI-generated
-"""Public read-only interfaces for reservations: the pickup lookup (US-44)."""
+"""Public read-only interfaces for reservations.
 
+The pickup lookup (US-44) and a household's pickup history (US-48).
+"""
+
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from django.db.models import QuerySet
+from django.db.models import (
+    BooleanField,
+    Case,
+    DateTimeField,
+    F,
+    OuterRef,
+    QuerySet,
+    Value,
+    When,
+)
 
 from modules.households import queries as household_queries
 from modules.listings import queries as listing_queries
@@ -146,3 +159,82 @@ def household_count_for_listings(listing_ids: list[UUID]) -> int:
     )
     contacts = household_queries.email_contacts(household_ids)
     return sum(1 for email, _language in contacts.values() if email)
+
+
+# One row of a household's history before the listing and store are added.
+HISTORY_FIELDS = (
+    "id",
+    "listing_id",
+    "quantity",
+    "status",
+    "pickup_code",
+    "picked_up_at",
+    "pickup_start",
+    "pickup_end",
+    "upcoming",
+)
+
+
+def household_history(
+    household_id: UUID | None, *, now: datetime, status: str | None = None
+) -> QuerySet[Reservation, dict[str, Any]]:
+    """A household's reservations for its pickup history (US-48, BR-RES-012).
+
+    Upcoming reservations come first, soonest pickup first: still ``reserved``
+    and the pickup window not ended at ``now`` (the end is included, as for
+    confirming, BR-RES-002). Every other reservation follows, latest pickup
+    window first. The order ends with the ID, so pages never repeat or skip a
+    row. ``status`` keeps one status only. No household (None) gives no rows.
+
+    Rows only, so the caller can page them; ``history_entries`` then adds the
+    listing and store of one page.
+    """
+    if household_id is None:
+        rows = Reservation.objects.none()
+    else:
+        rows = Reservation.objects.filter(household_id=household_id)
+    if status is not None:
+        rows = rows.filter(status=status)
+    # rule: BR-RES-012 upcoming: reserved, and the pickup window not ended.
+    rows = rows.annotate(
+        **listing_queries.pickup_window_of(OuterRef("listing_id"))
+    ).annotate(
+        upcoming=Case(
+            When(
+                status=ReservationStatus.RESERVED,
+                pickup_end__gte=now,
+                then=Value(True),
+            ),
+            default=Value(False),
+            output_field=BooleanField(),
+        )
+    )
+    soonest_upcoming = Case(
+        When(upcoming=True, then=F("pickup_start")), output_field=DateTimeField()
+    )
+    return rows.order_by(
+        F("upcoming").desc(),
+        soonest_upcoming.asc(nulls_last=True),
+        F("pickup_start").desc(),
+        "id",
+    ).values(*HISTORY_FIELDS)
+
+
+def history_entries(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Each history row with its listing's title and unit and its store (US-48).
+
+    The pickup code is sent only while the reservation is upcoming: a past code
+    cannot be used any more (BR-RES-012).
+    """
+    rows = list(rows)
+    listings = listing_queries.reserved_listing_details(
+        {row["listing_id"] for row in rows}
+    )
+    return [
+        {
+            **listings[row["listing_id"]],
+            **row,
+            "pickup_code": row["pickup_code"] if row["upcoming"] else None,
+        }
+        for row in rows
+    ]

@@ -1,11 +1,12 @@
 # AI contribution: 50% or more AI-generated
 """Public read-only interfaces for listings."""
 
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from django.db.models import Count, F, QuerySet, Value
+from django.db.models import Count, F, QuerySet, Subquery, Value
 from django.utils import timezone
 
 from modules.categories import queries as category_queries
@@ -45,6 +46,13 @@ LISTING_CARD_EXPRESSIONS = {
     "store_unit": F("store__unit"),
     "store_city": F("store__city"),
     "store_postal_code": F("store__postal_code"),
+}
+# The offering store under the same names as on a card, for the pickup history
+# (US-48), so both screens read the store the same way.
+STORE_EXPRESSIONS = {
+    name: expression
+    for name, expression in LISTING_CARD_EXPRESSIONS.items()
+    if name.startswith("store_")
 }
 
 
@@ -195,3 +203,34 @@ def cancellation_details(listing_ids: list[UUID]) -> dict[UUID, str]:
     """Listing titles for the store cancellation emails (US-14)."""
     rows = Listing.objects.filter(pk__in=listing_ids).values_list("pk", "title")
     return dict(rows)
+
+
+def pickup_window_of(listing_ref: Any) -> dict[str, Subquery]:
+    """The pickup start and end of the listing ``listing_ref`` names, as subqueries.
+
+    ``listing_ref`` is usually ``OuterRef("listing_id")``. Reservations annotates
+    its own rows with them to sort a household's history by pickup window
+    (US-48) without reading the listings table itself.
+    """
+    listing = Listing.objects.filter(pk=listing_ref)
+    return {
+        "pickup_start": Subquery(listing.values("pickup_start")[:1]),
+        "pickup_end": Subquery(listing.values("pickup_end")[:1]),
+    }
+
+
+def reserved_listing_details(
+    listing_ids: Iterable[UUID],
+) -> dict[UUID, dict[str, Any]]:
+    """Title, unit and store of each listing, by listing ID (US-48).
+
+    Every status counts: a reservation keeps showing its listing after the
+    listing closes or is cancelled. One query covers a whole page of history.
+    """
+    rows: QuerySet[Listing, Any] = Listing.objects.filter(
+        pk__in=list(listing_ids)
+    ).values("id", "title", "unit", "store_id", **STORE_EXPRESSIONS)
+    return {
+        row["id"]: {name: value for name, value in row.items() if name != "id"}
+        for row in rows
+    }

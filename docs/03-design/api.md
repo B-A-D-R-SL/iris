@@ -337,6 +337,22 @@ ended, unknown, or not visible to the household); 409 `sold_out`,
 `max_per_household` to each `GET /api/listings/` card, so the listing screen can
 show the household limit and the quantity picker.
 
+US-48 adds the pickup history. `GET /api/reservations/me/` lists the
+reservations of the household the signed-in beneficiary holds, whatever its
+file status (BR-RES-011), 20 a page (`?page=`). Upcoming reservations come
+first, soonest first: still `reserved` and the pickup window not ended (the end
+included). Every other reservation follows, latest pickup window first
+(BR-RES-012). `?status=` keeps one status (`reserved`, `picked_up`,
+`cancelled`, `cancelled_by_store` or `no_show`). Each entry is
+`{id, status, upcoming, title, unit, quantity, store, pickup_start, pickup_end,
+picked_up_at, pickup_code}`, where `store` has the same fields as a browse
+card's store, `picked_up_at` is null until the store confirms the pickup, and
+`pickup_code` is null unless the reservation is upcoming. A beneficiary with no
+household, or an anonymized one, gets an empty list. Signed out gets 401 and
+every other role 403 (`permission_denied`); an unknown `status` gets 400
+`validation_error` and a page past the end 404. Responses use
+`Cache-Control: private, no-store`, because they hold pickup codes.
+
 | Method   | Path                                       | Who                  | Purpose                                          | Status  |
 | -------- | ------------------------------------------ | -------------------- | ------------------------------------------------ | ------- |
 | GET      | `/api/listings/?category=&store=&today=`   | Approved beneficiary | Visible listings; no Release 1 tier timing        | Implemented (US-36); tier timing future/non-R1 (US-51) |
@@ -346,7 +362,7 @@ show the household limit and the quantity picker.
 | PATCH    | `/api/store/listings/{id}/`                | Store staff          | Edit (quantity ≥ reserved)                       | Planned — future/non-R1 |
 | POST     | `/api/store/listings/{id}/cancel/`         | Store staff          | Cancel; reservations cancelled without strikes   | Planned — future/non-R1 |
 | POST     | `/api/reservations/`                       | Approved beneficiary | `{listing_id, quantity}` → reservation with code | Implemented (US-41) |
-| GET      | `/api/reservations/me/?status=`            | Beneficiary          | My reservations and history                      | Planned — future/non-R1 |
+| GET      | `/api/reservations/me/?status=`            | Beneficiary          | My reservations and history                      | Implemented (US-48) |
 | POST     | `/api/reservations/{id}/cancel/`           | Beneficiary          | Cancel                                           | Planned — future/non-R1 |
 | GET      | `/api/store/pickups/?date=`                | Store staff          | Today's expected pickups                         | Planned — future/non-R1 |
 | POST     | `/api/store/pickups/lookup/`               | Store staff          | `{code}` → who and what                          | Implemented (US-44); `{qr}` future/non-R1 (US-42) |

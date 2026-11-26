@@ -294,6 +294,21 @@ def approved_household_id(user_id: UUID, *, at: datetime) -> UUID | None:
     )
 
 
+def held_household_id(user_id: UUID) -> UUID | None:
+    """The ID of the household this user holds, whatever its status (US-48).
+
+    A household keeps seeing its own pickup history while suspended, expired or
+    waiting for renewal. An anonymized file, or a user who holds no household,
+    gives None. Only the ID leaves this module.
+    """
+    # rule: BR-RES-011 any status; anonymized files are no longer shown.
+    return (
+        Household.objects.filter(holder_id=user_id, anonymized_at__isnull=True)
+        .values_list("id", flat=True)
+        .first()
+    )
+
+
 def search_for_staff(q: str, actor: StaffActor) -> QuerySet[Household]:
     """Authorize shared staff scope before searching and paginating.
 

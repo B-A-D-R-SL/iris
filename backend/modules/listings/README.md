@@ -49,6 +49,12 @@ Own the listings feature boundary within the Iris modular monolith.
 - `queries.open_listing_counts(store_ids, now)`, `queries.open_listing_ids(store_id, now)`
   and `queries.cancellation_details(listing_ids)` (US-14): what a deactivation
   would cancel, and the titles for its emails.
+- `queries.pickup_window_of(listing_ref)` (US-48): the listing's
+  `pickup_start` and `pickup_end` as subqueries, so reservations can sort a
+  household's history by pickup window without reading this module's tables.
+- `queries.reserved_listing_details(listing_ids)` (US-48): title, unit and
+  store (the same `store_*` names as a browse card) of each listing, any
+  status, by listing ID: one query for a page of history.
 
 ## Endpoints
 

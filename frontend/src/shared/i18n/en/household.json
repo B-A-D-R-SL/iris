@@ -276,6 +276,20 @@
       "validationErrorBody": "Enter the 6-character pickup code.",
       "unavailableTitle": "Could not reach the server",
       "unavailableBody": "Check your Internet connection, then try again."
+    },
+    "history": {
+      "title": "My reservations",
+      "upcomingOne": "1 upcoming reservation",
+      "upcomingMany": "{{count}} upcoming reservations",
+      "yesterday": "Yesterday",
+      "pickedUpToday": "Picked up today at {{time}}",
+      "pickedUpYesterday": "Picked up yesterday at {{time}}",
+      "pickedUpOn": "Picked up on {{date}} at {{time}}",
+      "cancelledByStore": "The store cancelled this listing. No warning is added to your file.",
+      "emptyTitle": "No current reservations",
+      "emptyDescription": "When you reserve a listing, your pickup code appears here.",
+      "seeListings": "See listings",
+      "loadMore": "Show more reservations"
     }
   },
   "privacy": {
