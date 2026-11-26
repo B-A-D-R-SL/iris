@@ -107,6 +107,27 @@ def test_window_end_is_included_then_the_reservation_is_past(household: Any) -> 
     assert entries[ended.pk]["pickup_code"] is None
 
 
+# rule: BR-RES-012
+def test_as_of_keeps_the_order_while_upcoming_follows_now(household: Any) -> None:
+    """Rows are listed as at ``as_of``; ``upcoming`` and the code are at ``now``."""
+    _reserve(household, "Ended an hour ago", starts_in=-timedelta(hours=3))
+    _reserve(
+        household,
+        "Picked up today",
+        starts_in=-timedelta(minutes=30),
+        status="picked_up",
+    )
+
+    entries = queries.history_entries(
+        queries.household_history(household.pk, now=NOW, as_of=NOW - timedelta(hours=2))
+    )
+
+    # Upcoming two hours ago, so still listed first, but no longer upcoming.
+    assert [
+        (entry["title"], entry["upcoming"], entry["pickup_code"]) for entry in entries
+    ] == [("Ended an hour ago", False, None), ("Picked up today", False, None)]
+
+
 def test_same_window_is_ordered_by_id(household: Any) -> None:
     """Two reservations on one listing keep a stable order, so pages never repeat."""
     first = _reserve(household, "A", starts_in=-timedelta(days=2), status="picked_up")

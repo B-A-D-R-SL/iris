@@ -1505,6 +1505,8 @@ export interface operations {
   reservations_me_list: {
     parameters: {
       query?: {
+        /** @description The time page 1 was read, from its next link: later pages keep that order. Leave it out for page 1; a future time counts as now. */
+        as_of?: string;
         /** @description Un numéro de page de l'ensemble des résultats. */
         page?: number;
         /**

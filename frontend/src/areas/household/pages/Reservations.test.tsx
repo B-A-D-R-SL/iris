@@ -117,13 +117,16 @@ describe("Pickup history (US-48)", () => {
     expect(screen.getByRole("article", { name: "Légumes racines × 2" })).toBeVisible();
   });
 
-  it("loads 20 more when asked", async () => {
+  it("loads 20 more when asked, ordered as at page 1's time", async () => {
     const fetchMock = mockHistoryApi((url) =>
       url.searchParams.get("page") === "2"
         ? historyPage([pickedUp({ id: "00000000-0000-4000-8000-000000000399", title: "Savons" })], {
             count: 2,
           })
-        : historyPage([pickedUp()], { count: 2, next: "/api/reservations/me/?page=2" }),
+        : historyPage([pickedUp()], {
+            count: 2,
+            next: "http://testserver/api/reservations/me/?as_of=2026-11-12T14%3A00%3A00Z&page=2",
+          }),
     );
     await renderReservations();
     const user = userEvent.setup();
@@ -133,7 +136,7 @@ describe("Pickup history (US-48)", () => {
     expect(await screen.findByRole("article", { name: "Savons × 2" })).toBeVisible();
     expect(historyRequests(fetchMock)).toEqual([
       "/api/reservations/me/",
-      "/api/reservations/me/?page=2",
+      "/api/reservations/me/?page=2&as_of=2026-11-12T14%3A00%3A00Z",
     ]);
     expect(screen.queryByRole("button", { name: "Afficher plus de réservations" })).toBeNull();
   });

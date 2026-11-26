@@ -175,16 +175,37 @@ HISTORY_FIELDS = (
 )
 
 
+def _upcoming_at(moment: datetime) -> Case:
+    """BR-RES-012: still ``reserved``, and the pickup window not ended at ``moment``.
+
+    The end is included, as for confirming (BR-RES-002).
+    """
+    return Case(
+        When(
+            status=ReservationStatus.RESERVED,
+            pickup_end__gte=moment,
+            then=Value(True),
+        ),
+        default=Value(False),
+        output_field=BooleanField(),
+    )
+
+
 def household_history(
-    household_id: UUID | None, *, now: datetime, status: str | None = None
+    household_id: UUID | None,
+    *,
+    now: datetime,
+    as_of: datetime | None = None,
+    status: str | None = None,
 ) -> QuerySet[Reservation, dict[str, Any]]:
     """A household's reservations for its pickup history (US-48, BR-RES-012).
 
-    Upcoming reservations come first, soonest pickup first: still ``reserved``
-    and the pickup window not ended at ``now`` (the end is included, as for
-    confirming, BR-RES-002). Every other reservation follows, latest pickup
-    window first. The order ends with the ID, so pages never repeat or skip a
-    row. ``status`` keeps one status only. No household (None) gives no rows.
+    Reservations upcoming at ``as_of`` come first, soonest pickup first; every
+    other reservation follows, latest pickup window first. The order ends with
+    the ID. Pass the time page 1 was read as ``as_of`` (default ``now``) for
+    every page: a window that ends between two pages then cannot move a row
+    across them. ``upcoming`` itself, which decides the pickup code, is at
+    ``now``. ``status`` keeps one status only. No household (None) gives no rows.
 
     Rows only, so the caller can page them; ``history_entries`` then adds the
     listing and store of one page.
@@ -199,21 +220,15 @@ def household_history(
     rows = rows.annotate(
         **listing_queries.pickup_window_of(OuterRef("listing_id"))
     ).annotate(
-        upcoming=Case(
-            When(
-                status=ReservationStatus.RESERVED,
-                pickup_end__gte=now,
-                then=Value(True),
-            ),
-            default=Value(False),
-            output_field=BooleanField(),
-        )
+        upcoming=_upcoming_at(now),
+        listed_upcoming=_upcoming_at(now if as_of is None else as_of),
     )
     soonest_upcoming = Case(
-        When(upcoming=True, then=F("pickup_start")), output_field=DateTimeField()
+        When(listed_upcoming=True, then=F("pickup_start")),
+        output_field=DateTimeField(),
     )
     return rows.order_by(
-        F("upcoming").desc(),
+        F("listed_upcoming").desc(),
         soonest_upcoming.asc(nulls_last=True),
         F("pickup_start").desc(),
         "id",

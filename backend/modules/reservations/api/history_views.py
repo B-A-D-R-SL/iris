@@ -7,7 +7,8 @@ from the signed-in user, never from the request, so no one can read another
 household's reservations. Its status does not matter (BR-RES-011).
 """
 
-from typing import Any
+from datetime import UTC, datetime
+from typing import Any, cast
 
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -18,6 +19,7 @@ from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.utils.urls import replace_query_param
 from rest_framework.views import exception_handler
 
 from modules.households import queries as household_queries
@@ -42,6 +44,7 @@ FILTER_MESSAGES = {
     "status": _(
         "Enter one of reserved, picked_up, cancelled, cancelled_by_store or no_show."
     ),
+    "as_of": _("Enter a date and time, as in the next page link."),
 }
 
 
@@ -74,9 +77,22 @@ def history_exception_handler(
 
 
 class HistoryPagination(PageNumberPagination):
-    """Always 20 reservations a page; clients choose only ?page=, not the size."""
+    """Always 20 reservations a page; clients choose only ?page=, not the size.
+
+    The next link carries ``as_of``, the time page 1 was read, so every later
+    page is ordered as at that time.
+    """
 
     page_size = 20
+    as_of: datetime | None = None
+
+    def get_next_link(self) -> str | None:
+        """The next page's link, with ``as_of`` added."""
+        link = super().get_next_link()
+        if link is None or self.as_of is None:
+            return link
+        moment = self.as_of.astimezone(UTC).isoformat().replace("+00:00", "Z")
+        return replace_query_param(link, "as_of", moment)
 
 
 @extend_schema_view(
@@ -108,14 +124,20 @@ class HouseholdHistoryView(ListAPIView):
 
     def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """One page of the signed-in household's reservations."""
+        now = timezone.now()
         filters = HistoryFiltersSerializer(data=request.query_params)
         filters.is_valid(raise_exception=True)
+        # Later pages are ordered as at page 1's time, so a pickup window that
+        # ends in between cannot repeat or skip a row. Codes follow ``now``.
+        as_of = min(filters.validated_data.get("as_of", now), now)
+        cast(HistoryPagination, self.paginator).as_of = as_of
         # Any file status: a suspended or expired household still sees what it
         # received. No household, or an anonymized one, gives an empty list.
         household_id = household_queries.held_household_id(request.user.pk)
         rows = queries.household_history(
             household_id,
-            now=timezone.now(),
+            now=now,
+            as_of=as_of,
             status=filters.validated_data.get("status"),
         )
         page = self.paginate_queryset(rows)

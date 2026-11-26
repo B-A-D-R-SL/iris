@@ -17,6 +17,11 @@ class HistoryFiltersSerializer(serializers.Serializer):
         required=False,
         help_text="Only reservations with this status.",
     )
+    as_of = serializers.DateTimeField(
+        required=False,
+        help_text="The time page 1 was read, from its next link: later pages "
+        "keep that order. Leave it out for page 1; a future time counts as now.",
+    )
 
 
 class HistoryEntrySerializer(serializers.Serializer):

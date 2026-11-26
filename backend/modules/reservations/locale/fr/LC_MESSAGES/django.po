@@ -124,3 +124,6 @@ msgid "Enter one of reserved, picked_up, cancelled, cancelled_by_store or no_sho
 msgstr ""
 "Entrez l'une des valeurs reserved, picked_up, cancelled, cancelled_by_store "
 "ou no_show."
+
+msgid "Enter a date and time, as in the next page link."
+msgstr "Entrez une date et une heure, comme dans le lien de la page suivante."

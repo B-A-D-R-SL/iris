@@ -351,7 +351,12 @@ card's store, `picked_up_at` is null until the store confirms the pickup, and
 household, or an anonymized one, gets an empty list. Signed out gets 401 and
 every other role 403 (`permission_denied`); an unknown `status` gets 400
 `validation_error` and a page past the end 404. Responses use
-`Cache-Control: private, no-store`, because they hold pickup codes.
+`Cache-Control: private, no-store`, because they hold pickup codes. The
+`next` link carries `as_of`, the time page 1 was read: later pages are ordered
+as at that time, so a pickup window ending between two pages never repeats or
+skips a row, while `upcoming` and `pickup_code` still follow the current time.
+A later `as_of` than now counts as now; one that is not a date and time gets
+400 `validation_error`.
 
 | Method   | Path                                       | Who                  | Purpose                                          | Status  |
 | -------- | ------------------------------------------ | -------------------- | ------------------------------------------------ | ------- |

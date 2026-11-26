@@ -56,10 +56,13 @@ def _client(user: Any = None, language: str = "en") -> APIClient:
 def _reserve(household: Any, *, starts_in: timedelta, **kwargs: Any) -> Any:
     """A reservation of ``household``; its two-hour pickup starts at NOW + ``starts_in``.
 
-    ``store`` and ``title`` go to the listing; every other keyword to the reservation.
+    ``store``, ``title`` and ``pickup_end`` go to the listing; every other keyword
+    to the reservation.
     """
     listing_values = {
-        key: kwargs.pop(key) for key in ("store", "title") if key in kwargs
+        key: kwargs.pop(key)
+        for key in ("store", "title", "pickup_end")
+        if key in kwargs
     }
     listing = open_listing(NOW, pickup_start=NOW + starts_in, **listing_values)
     return ReservationFactory(
@@ -381,3 +384,78 @@ def test_queries_do_not_grow_with_the_page(household: Any) -> None:
 
     assert response.json()["count"] == 7
     assert len(seven_rows) == len(one_row)
+
+
+# --- Pages stay consistent while time passes ----------------------------------
+
+
+# rule: BR-RES-012
+def test_a_window_ending_between_pages_never_repeats_or_skips_a_row(
+    household: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Page 2 keeps page 1's order, although a long window ended in between."""
+    _reserve(
+        household,
+        starts_in=-timedelta(days=30),
+        pickup_end=NOW + timedelta(minutes=1),
+        title="Long window",
+    )
+    for day in range(21):
+        _reserve(
+            household,
+            starts_in=-timedelta(days=day + 1),
+            status=ReservationStatus.PICKED_UP,
+        )
+    client = _client(household.holder)
+
+    first = client.get(URL).json()
+    monkeypatch.setattr(timezone, "now", lambda: NOW + timedelta(minutes=2))
+    second = client.get(first["next"]).json()
+
+    assert first["results"][0]["title"] == "Long window"
+    assert "as_of=2026-11-25T20%3A00%3A00Z" in first["next"]
+    seen = [entry["id"] for entry in first["results"] + second["results"]]
+    assert len(seen) == 22
+    assert len(set(seen)) == 22
+
+
+# rule: BR-RES-012
+def test_pickup_codes_follow_the_current_time_on_later_pages(
+    household: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A row still upcoming at page 1's time has no code once its window ended."""
+    _reserve(household, starts_in=-timedelta(hours=2), title="Ended")
+    monkeypatch.setattr(timezone, "now", lambda: NOW + timedelta(minutes=5))
+
+    response = _client(household.holder).get(URL, {"as_of": "2026-11-25T20:00:00Z"})
+
+    (entry,) = response.json()["results"]
+    assert (entry["title"], entry["upcoming"], entry["pickup_code"]) == (
+        "Ended",
+        False,
+        None,
+    )
+
+
+def test_a_future_as_of_counts_as_now(household: Any) -> None:
+    """A time after now cannot reorder the list: the next link carries now."""
+    for day in range(21):
+        _reserve(
+            household,
+            starts_in=-timedelta(days=day + 1),
+            status=ReservationStatus.PICKED_UP,
+        )
+
+    response = _client(household.holder).get(URL, {"as_of": "2030-01-01T00:00:00Z"})
+
+    assert "as_of=2026-11-25T20%3A00%3A00Z" in response.json()["next"]
+
+
+def test_invalid_as_of_is_refused(household: Any) -> None:
+    """A value that is not a date and time gets 400 with the field named."""
+    response = _client(household.holder).get(URL, {"as_of": "yesterday"})
+
+    assert response.status_code == 400
+    assert response.json()["fields"] == {
+        "as_of": ["Enter a date and time, as in the next page link."]
+    }
