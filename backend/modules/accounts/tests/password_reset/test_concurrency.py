@@ -31,7 +31,7 @@ def test_concurrent_reset_requests_cannot_both_consume_one_link(monkeypatch):
     def attempt(index):
         close_old_connections()
         try:
-            return post_reset(
+            return index, post_reset(
                 Client(), key, f"synthetic-race-password-{index}!"
             ).status_code
         finally:
@@ -39,5 +39,10 @@ def test_concurrent_reset_requests_cannot_both_consume_one_link(monkeypatch):
 
     monkeypatch.setattr(UserTokenForm, "_get_user", read_before_password_change)
     with ThreadPoolExecutor(max_workers=2) as pool:
-        statuses = list(pool.map(attempt, (1, 2)))
-    assert sorted(statuses) == [400, 401]
+        results = list(pool.map(attempt, (1, 2)))
+    assert sorted(status for _, status in results) == [400, 401]
+    user.refresh_from_db()
+    for index, status in results:
+        assert user.check_password(f"synthetic-race-password-{index}!") is (
+            status == 401
+        )

@@ -1,6 +1,6 @@
 // AI contribution: 50% or more AI-generated
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CURRENT_USER_QUERY_KEY, fetchCurrentUser, useCurrentUser } from "./currentUser";
@@ -78,6 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const { i18n } = useTranslation();
   const { data: user } = useCurrentUser();
+  const hasSeenUser = useRef(false);
+  useEffect(() => {
+    if (user) hasSeenUser.current = true;
+  }, [user]);
   const notifyTabs = useAuthTabSync(queryClient);
   const loadUser = () => loadSignedInUser(queryClient, notifyTabs);
 
@@ -90,11 +94,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     retryProfile: loadUser,
     async refreshAfterPasswordReset() {
-      const wasSignedIn = Boolean(queryClient.getQueryData(CURRENT_USER_QUERY_KEY));
-      await queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY });
-      if (wasSignedIn && queryClient.getQueryData(CURRENT_USER_QUERY_KEY) === null) {
+      let current = null;
+      try {
+        await queryClient.invalidateQueries({
+          queryKey: CURRENT_USER_QUERY_KEY,
+          refetchType: "none",
+        });
+        current = await queryClient.fetchQuery({
+          queryKey: CURRENT_USER_QUERY_KEY,
+          queryFn: fetchCurrentUser,
+          staleTime: 0,
+        });
+      } catch {
+        logger.warning("auth_tab_sync_unavailable");
+      }
+      if (!current && hasSeenUser.current) {
         await clearSessionData(queryClient);
         notifyTabs("signed-out");
+        hasSeenUser.current = false;
       }
     },
     async signOut() {

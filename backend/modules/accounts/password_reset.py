@@ -12,6 +12,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse
+from django.utils.translation import gettext_lazy as _
 
 from modules.accounts.models import User
 
@@ -20,7 +21,7 @@ class StringPasswordField(forms.CharField):
     def to_python(self, value: Any) -> str | None:
         """JSON containers must never become a password through string coercion."""
         if not isinstance(value, str):
-            raise ValidationError("Invalid password type", code="invalid")
+            raise ValidationError(_("Enter a valid value."), code="invalid")
         return super().to_python(value)
 
 

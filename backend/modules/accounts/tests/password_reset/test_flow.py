@@ -140,3 +140,22 @@ def test_non_string_password_is_rejected_without_consuming_link(client, password
     user.refresh_from_db()
     assert user.password == original
     assert post_reset(client, key).status_code == 401
+
+
+@pytest.mark.parametrize(
+    "language,message",
+    [("en", "Enter a valid value."), ("fr", "Entrez une valeur valide.")],
+)
+def test_invalid_password_type_is_localized(client, language, message):
+    user = UserFactory()
+    response = client.post(
+        RESET,
+        {"key": key_for(user), "password": {}},
+        content_type="application/json",
+        HTTP_ACCEPT_LANGUAGE=language,
+    )
+    assert response.status_code == 400
+    assert any(
+        error.get("code") == "invalid" and error.get("message") == message
+        for error in response.json()["errors"]
+    )

@@ -172,6 +172,7 @@ it("offers sign-in after signed-out reset success without submitting a login", a
   );
   expect(screen.getByRole("link", { name: "Connexion" })).toHaveAttribute("href", "/sign-in");
   expect(fetchMock.mock.calls.some(([url]) => url === `${AUTH}/login`)).toBe(false);
+  expect(localStorage.getItem(AUTH_EVENT)).toBeNull();
 });
 
 it("preserves an existing session without submitting sign-out or account switching", async () => {
@@ -202,6 +203,39 @@ it("offers sign-in when resetting the current account invalidates its browser se
     "/sign-in",
   );
   expect(screen.queryByRole("button", { name: "Déconnexion" })).not.toBeInTheDocument();
+  expect(queryClient.getQueryData(PRIVATE_QUERY_KEY)).toBeUndefined();
+  expect(localStorage.getItem(AUTH_EVENT)).toMatch(/^signed-out:/);
+});
+
+it("clears private data and notifies other tabs when the post-reset profile refresh fails", async () => {
+  const responses = [authenticatedResetSuccess()];
+  mockServer(RESET, responses, () => true);
+  const original = vi.mocked(fetch);
+  original.mockImplementation(async (url, init) => {
+    if (url === "/api/me/" && responses.length === 0) throw new Error("offline");
+    if (url === RESET && init?.method === "POST") return responses.shift()!;
+    return Response.json(testUser("beneficiary"));
+  });
+  const queryClient = seedPrivateCache();
+  renderWithProviders(<App />, { route: RESET_PATH, queryClient });
+  expect(await screen.findByRole("button", { name: "Déconnexion" })).toBeVisible();
+  const { user } = await fillPasswords();
+  await user.click(screen.getByRole("button", { name: "Réinitialiser mon mot de passe" }));
+  expect(await screen.findByRole("link", { name: "Connexion" })).toBeVisible();
+  expect(queryClient.getQueryData(PRIVATE_QUERY_KEY)).toBeUndefined();
+  expect(localStorage.getItem(AUTH_EVENT)).toMatch(/^signed-out:/);
+});
+
+it("clears private data if a background refresh signed the user out before reset completion", async () => {
+  const responses = [authenticatedResetSuccess()];
+  mockServer(RESET, responses, () => responses.length > 0);
+  const queryClient = seedPrivateCache();
+  renderWithProviders(<App />, { route: RESET_PATH, queryClient });
+  expect(await screen.findByRole("button", { name: "Déconnexion" })).toBeVisible();
+  const { user } = await fillPasswords();
+  queryClient.setQueryData(["current-user"], null);
+  await user.click(screen.getByRole("button", { name: "Réinitialiser mon mot de passe" }));
+  expect(await screen.findByRole("link", { name: "Connexion" })).toBeVisible();
   expect(queryClient.getQueryData(PRIVATE_QUERY_KEY)).toBeUndefined();
   expect(localStorage.getItem(AUTH_EVENT)).toMatch(/^signed-out:/);
 });
