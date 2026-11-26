@@ -9,7 +9,6 @@ from hashlib import sha256
 from typing import Any
 from uuid import UUID
 
-from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
@@ -41,7 +40,11 @@ invitation_accepted = Signal()
 # language, so the household's emails follow the account too.
 language_changed = Signal()
 
-LANGUAGES = frozenset(code for code, _label in settings.LANGUAGES)
+# US-08: the account's language field is the one list of languages. The API and
+# this service both read it, and both refuse any other value with this message.
+LANGUAGE_CHOICES = User._meta.get_field("preferred_language").choices or ()
+LANGUAGES = frozenset(str(code) for code, _label in LANGUAGE_CHOICES)
+INVALID_LANGUAGE = _("Choose French or English.")
 
 
 def _identity_text(value: str, field: str) -> str:
@@ -291,7 +294,7 @@ def change_language(user: User, language: str) -> User:
     The caller's instance is updated in place, so it matches the saved account.
     """
     if language not in LANGUAGES:
-        raise ValidationError(_("Choose French or English."), code="invalid_language")
+        raise ValidationError(INVALID_LANGUAGE, code="invalid_language")
     user.preferred_language = (
         User.objects.select_for_update()
         .values_list("preferred_language", flat=True)
@@ -300,8 +303,10 @@ def change_language(user: User, language: str) -> User:
     if user.preferred_language != language:
         user.preferred_language = language
         user.save(update_fields=["preferred_language", "updated_at"])
+        # Only a real change is logged; an unchanged choice (or a new walk-in
+        # account already in its file's language) writes no log line.
+        transaction.on_commit(
+            lambda: logger.info("language_changed", extra={"event": "language_changed"})
+        )
     language_changed.send(sender=User, user=user, language=language)
-    transaction.on_commit(
-        lambda: logger.info("language_changed", extra={"event": "language_changed"})
-    )
     return user

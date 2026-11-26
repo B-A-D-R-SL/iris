@@ -24,7 +24,7 @@ limits through its allauth adapter.
 
 `change_language(user, language)` saves `fr` or `en` as `preferred_language`,
 refuses anything else (`invalid_language`), logs `language_changed` after commit
-with no user details, and sends `language_changed(user=..., language=...)` inside
+with no user details when the language actually changes, and always sends `language_changed(user=..., language=...)` inside
 the transaction so households keeps the holder's file in the same language
 (BR-LANG-002, BR-LANG-003). `queries.account_for_email` includes the account's
 `preferred_language` for that purpose.

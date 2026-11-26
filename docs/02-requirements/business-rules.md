@@ -113,7 +113,8 @@ Issuing screens and invitation emails belong to the calling workflows.
 
 Sources: [US-08 #435](https://github.com/B-A-D-R-SL/iris/issues/435) and its
 unit-tests task [#751](https://github.com/B-A-D-R-SL/iris/issues/751). The change
-is logged as `language_changed` with no user details.
+is logged as `language_changed` with no user details, only when the language
+actually changes.
 
 ## Household accounts (US-93)
 

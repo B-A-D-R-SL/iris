@@ -7,13 +7,14 @@ from typing import Any
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
+from modules.accounts import services
 from modules.accounts.models import User
 
 
 class CurrentUserSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source="get_full_name", read_only=True)
     language = serializers.ChoiceField(
-        choices=User._meta.get_field("preferred_language").choices,
+        choices=services.LANGUAGE_CHOICES,
         source="preferred_language",
         read_only=True,
     )
@@ -24,10 +25,8 @@ class CurrentUserSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class _RefuseUnknownFields:
+class StrictSerializer(serializers.Serializer):
     """Refuse fields the endpoint does not accept instead of silently ignoring them."""
-
-    fields: Any
 
     def to_internal_value(self, data: Any) -> dict[str, Any]:
         if isinstance(data, Mapping):
@@ -39,19 +38,19 @@ class _RefuseUnknownFields:
                         for key in sorted(unknown)
                     }
                 )
-        return super().to_internal_value(data)  # type: ignore[misc]
+        return super().to_internal_value(data)
 
 
-class LanguageChoiceSerializer(_RefuseUnknownFields, serializers.Serializer):
+class LanguageChoiceSerializer(StrictSerializer):
     """US-08: the only account field a user changes here is their language."""
 
     language = serializers.ChoiceField(
-        choices=User._meta.get_field("preferred_language").choices,
-        error_messages={"invalid_choice": _("Choose French or English.")},
+        choices=services.LANGUAGE_CHOICES,
+        error_messages={"invalid_choice": services.INVALID_LANGUAGE},
     )
 
 
-class AcceptInvitationSerializer(_RefuseUnknownFields, serializers.Serializer):
+class AcceptInvitationSerializer(StrictSerializer):
     """Accept only the secret token and a password, never account assignments."""
 
     token = serializers.CharField(write_only=True, trim_whitespace=False)

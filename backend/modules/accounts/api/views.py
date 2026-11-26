@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
@@ -26,6 +26,17 @@ from modules.accounts.models import User
 
 # US-08: a language save names the account it was chosen for.
 ACCOUNT_HEADER = "X-Account-Id"
+
+
+class AccountChanged(APIException):
+    """The session now belongs to another account than the one that chose (US-08)."""
+
+    status_code = 409
+    default_code = "account_changed"
+    default_detail = _(
+        "You are now signed in to another account. Choose the language again."
+    )
+
 
 _INVITATION_MESSAGES = {
     "invitation_invalid": _("This invitation link is invalid."),
@@ -105,19 +116,7 @@ class CurrentUserView(GenericAPIView):
         # Another tab may have signed in another account since this choice was
         # made; the session's account is then not the one that chose (US-08).
         if request.headers.get(ACCOUNT_HEADER) != str(request.user.pk):
-            return Response(
-                {
-                    "code": "account_changed",
-                    "message": str(
-                        _(
-                            "You are now signed in to another account. "
-                            "Choose the language again."
-                        )
-                    ),
-                    "fields": {},
-                },
-                status=409,
-            )
+            raise AccountChanged
         serializer = LanguageChoiceSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = services.change_language(

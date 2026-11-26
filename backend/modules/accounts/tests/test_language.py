@@ -190,6 +190,30 @@ def test_each_change_is_logged_without_personal_data(
 
 
 # rule: BR-LANG-002
+def test_an_unchanged_language_writes_no_log_line(
+    caplog: pytest.LogCaptureFixture, django_capture_on_commit_callbacks: Any
+) -> None:
+    # As for a new walk-in account whose file is in the default language.
+    user = make_user(preferred_language="fr")
+    with (
+        caplog.at_level(logging.INFO, logger="iris.accounts"),
+        django_capture_on_commit_callbacks(execute=True) as callbacks,
+    ):
+        services.change_language(user, "fr")
+    assert callbacks == []
+    assert not [r for r in caplog.records if r.getMessage() == "language_changed"]
+
+
+# rule: BR-LANG-002
+def test_the_api_and_the_service_accept_the_same_languages() -> None:
+    from modules.accounts.api.serializers import LanguageChoiceSerializer
+
+    field = LanguageChoiceSerializer().fields["language"]
+    assert set(field.choices) == services.LANGUAGES == {"fr", "en"}
+    assert field.error_messages["invalid_choice"] == services.INVALID_LANGUAGE
+
+
+# rule: BR-LANG-002
 def test_the_signal_is_sent_even_when_the_language_is_unchanged() -> None:
     user = make_user(preferred_language="en")
     received: list[str] = []
