@@ -30,7 +30,13 @@ export interface paths {
     get: operations["listings_list"];
   };
   "/api/me/": {
+    /** @description The signed-in user's account; every role may read it and change its language. */
     get: operations["me_retrieve"];
+    /**
+     * Change the signed-in user's language
+     * @description US-08. Saves `fr` or `en` on the account. The screens use it after sign-in, and every later email to the user or their household uses it. `X-Account-Id` names the account the language was chosen for; if the session now belongs to another account, nothing is saved (409).
+     */
+    patch: operations["me_language_update"];
   };
   "/api/partner-applications/": {
     /**
@@ -448,6 +454,10 @@ export interface components {
         [key: string]: string[];
       };
       message: string;
+    };
+    /** @description US-08: the only account field a user changes here is their language. */
+    LanguageChoice: {
+      language: components["schemas"]["LanguageEnum"];
     };
     /**
      * @description * `fr` - Français
@@ -1352,6 +1362,7 @@ export interface operations {
       };
     };
   };
+  /** @description The signed-in user's account; every role may read it and change its language. */
   me_retrieve: {
     responses: {
       200: {
@@ -1362,6 +1373,52 @@ export interface operations {
       /** @description Authentication required. */
       401: {
         content: never;
+      };
+    };
+  };
+  /**
+   * Change the signed-in user's language
+   * @description US-08. Saves `fr` or `en` on the account. The screens use it after sign-in, and every later email to the user or their household uses it. `X-Account-Id` names the account the language was chosen for; if the session now belongs to another account, nothing is saved (409).
+   */
+  me_language_update: {
+    parameters: {
+      header: {
+        /** @description The id of the account that chose the language. */
+        "X-Account-Id": string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["LanguageChoice"];
+        "application/x-www-form-urlencoded": components["schemas"]["LanguageChoice"];
+        "multipart/form-data": components["schemas"]["LanguageChoice"];
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["CurrentUser"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["InvitationError"];
+        };
+      };
+      401: {
+        content: {
+          "application/json": components["schemas"]["InvitationError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["InvitationError"];
+        };
+      };
+      409: {
+        content: {
+          "application/json": components["schemas"]["InvitationError"];
+        };
       };
     };
   };

@@ -387,7 +387,9 @@ def test_current_user_has_exact_response(client, user, role, assigned_store):
         "store": str(user.store_id) if user.store_id else None,
         "language": "en",
     }
-    assert client.patch("/api/me/", {}).status_code == 405
+    assert client.put("/api/me/", {}).status_code == 405
+    assert client.post("/api/me/", {}).status_code == 405
+    assert client.delete("/api/me/").status_code == 405
 
 
 def test_anonymous_current_user_is_unauthorized(client):

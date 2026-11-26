@@ -9,7 +9,12 @@ import type { Role } from "../../../../shared/auth/roles";
 import { walkInQueryKey } from "../../../../features/households/walkInApi";
 import type { WalkInDraft } from "../../../../features/households/walkInApi";
 import i18n from "../../../../shared/i18n";
-import { expectNoAxeViolations, renderWithProviders, testUser } from "../../../../test/render";
+import {
+  expectNoAxeViolations,
+  inCurrentLanguage,
+  renderWithProviders,
+  testUser,
+} from "../../../../test/render";
 
 const ID = "6f1c2c1e-0000-4000-8000-000000000017";
 
@@ -60,7 +65,7 @@ function mockApi({
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input instanceof Request ? input.url : String(input);
     const method = init?.method ?? "GET";
-    if (url.endsWith("/api/me/")) return Response.json(testUser(role));
+    if (url.endsWith("/api/me/")) return Response.json(testUser(role, inCurrentLanguage()));
     if (url.endsWith("/api/staff/households/") && method === "POST") return create();
     if (url.endsWith(`/api/staff/households/${ID}/`) && method === "PATCH") return update();
     if (url.endsWith(`/api/staff/households/${ID}/`) && method === "GET") return read();

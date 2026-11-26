@@ -119,6 +119,7 @@ An invitation to create a new active account with an assigned role. Acceptance d
 | Generate a token from 32 random bytes and store only its unique SHA-256 hash. | Invitation generation service and database uniqueness. The raw token is returned to the caller for its invitation email. |
 | Acceptance creates a new user; an existing active or inactive user with the invited email is refused case-insensitively. | Invitation acceptance service and the User email constraint. |
 | Accepting an invitation that names a household makes the new user its holder in the same transaction; a file that already has a holder or was anonymized refuses the acceptance and no user is created (US-93). | `invitation_accepted` signal received by `households.account_link_services`. |
+| A household file linked to an account keeps its holder's `preferred_language` (US-08, BR-LANG-003). | `language_changed` signal received by `households.account_link_services.follow_holder_language`; set again when the account is linked. |
 | Resending a household's invitation expires its earlier unaccepted links (and older beneficiary links for the same email that name no household) before issuing a new one. | `accounts.services.reissue_household_invitation`, called by `households.account_link_services.resend_invitation` (US-93). |
 
 Sources: [Issue #428](https://github.com/B-A-D-R-SL/iris/issues/428), [Issue #430](https://github.com/B-A-D-R-SL/iris/issues/430).

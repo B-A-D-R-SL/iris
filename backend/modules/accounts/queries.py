@@ -44,6 +44,7 @@ class AccountSummary:
     last_name: str
     role: str
     is_active: bool
+    preferred_language: str
 
 
 def account_for_email(email: str, *, lock: bool = False) -> AccountSummary | None:
@@ -57,7 +58,9 @@ def account_for_email(email: str, *, lock: bool = False) -> AccountSummary | Non
     users = User.objects.select_for_update() if lock else User.objects
     row = (
         users.filter(email__iexact=email)
-        .values("id", "first_name", "last_name", "role", "is_active")
+        .values(
+            "id", "first_name", "last_name", "role", "is_active", "preferred_language"
+        )
         .first()
     )
     return AccountSummary(**row) if row else None

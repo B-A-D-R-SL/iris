@@ -239,5 +239,7 @@ Browsers only offer installation over HTTPS (or `localhost`), so test it on stag
 
 ## Follow-up work
 
-- Persisting the chosen language in the profile belongs to US-08.
+- The chosen language is kept in the browser and, for a signed-in user, saved on
+  the account through `PATCH /api/me/` (US-08, `shared/i18n/useLanguageSwitch.ts`).
+  `AuthProvider` shows the account's language once it loads (BR-LANG-001).
 - US-01 implements sign-out and `/api/me/`; `CurrentUser` uses the generated API type.

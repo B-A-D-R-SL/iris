@@ -29,6 +29,7 @@ server allows it; "–" means it refuses it.
 | Accept an invitation | `POST /api/invitations/accept/` (`AllowAny`) | Yes | Yes | Yes | Yes | Yes | Yes | `/invitation/:token`, public |
 | Read active categories | `GET /api/categories/` (`AllowAny`) | Yes | Yes | Yes | Yes | Yes | Yes | used by public and store forms |
 | Read own profile | `GET /api/me/` (default `IsAuthenticated`) | Yes | Yes | Yes | Yes | Yes | – | sign-in and every guard |
+| Change own language | `PATCH /api/me/` (default `IsAuthenticated`, own account only) | Yes | Yes | Yes | Yes | Yes | – | language switch in every top bar or account menu (US-08) |
 | Search households, open a file | `/api/staff/households/` (`IsIntakeWorkerOrAdmin`, households) | Yes | Yes | – | – | – | – | `/staff/households`, `/staff/households/:id`: `RequireHouseholdSearch` (asks the API) |
 | Register a walk-in, record notices, submit, approve | `/api/staff/households/…` (`IsIntakeWorkerOrAdmin`, households) | Yes | Yes | – | – | – | – | `/staff/walk-in…`: `RequireRole` staff (A, IW) |
 | Link a household's existing account, resend its invitation | `/api/staff/households/{id}/link-account/`, `…/resend-invitation/` (`IsIntakeWorkerOrAdmin`, households) | Yes | Yes | – | – | – | – | card on `/staff/households/:id` and under the walk-in approval, shown from the API's `account` state |
@@ -101,6 +102,19 @@ new-account-only scope decision recorded on the wiki's
 Tokens contain 32 random bytes; store only their SHA-256 hash. The public
 acceptance endpoint sets the password and leaves the browser session unchanged.
 Issuing screens and invitation emails belong to the calling workflows.
+
+## Language (US-08)
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-LANG-001 | Iris is in French or English, French by default. Every page has the language switch: in the top bar of public and staff pages, in the account menu of household and store pages. A visitor's choice is kept in the browser (`iris:language`), so a reload keeps it. Once a signed-in account loads, its saved language is shown. |
+| BR-LANG-002 | Every signed-in role may change its own language with `PATCH /api/me/` (`{"language": "fr" \| "en"}`), and only that field; any other value or field is refused and nothing changes. Anonymous visitors cannot save one. The switch changes the screen at once and saves the choice on the account; quick switches are saved in the order chosen, so the account keeps the last one, and a save names the account that chose it (`X-Account-Id`), so it never changes another account signed in since; if saving fails, the screen keeps the new language and the account the old one. |
+| BR-LANG-003 | Emails to an account use its saved language (BR-NOTIF-003). A household file linked to an account follows its holder's language, so the household's emails (status changes, cancelled reservations) use it too: an account created from a walk-in invitation starts in the language staff recorded on the file; a file linked at the counter takes the account's language; a later change on the account changes the file. An anonymized file is not changed. |
+
+Sources: [US-08 #435](https://github.com/B-A-D-R-SL/iris/issues/435) and its
+unit-tests task [#751](https://github.com/B-A-D-R-SL/iris/issues/751). The change
+is logged as `language_changed` with no user details, only when the language
+actually changes.
 
 ## Household accounts (US-93)
 
