@@ -43,6 +43,7 @@ server allows it; "–" means it refuses it.
 | Look up and confirm a pickup (own store only) | `/api/store/pickups/` (`IsPickupStaff`) | – | – | Yes | Yes | – | – | `/store/confirm`: `RequireRole` store |
 | Browse listings | `GET /api/listings/` (`IsBeneficiary` + linked approved, unexpired household) | – | – | – | – | Yes | – | `/listings`, `/listings/:id`: `RequireRole` household (B) |
 | Reserve | `POST /api/reservations/` (`IsBeneficiary` + linked approved, unexpired household) | – | – | – | – | Yes | – | from `/listings/:id` |
+| See my reservations and pickup history | `GET /api/reservations/me/` (`IsBeneficiary`; the household the account holds, any file status) | – | – | – | – | Yes | – | `/reservations`: `RequireRole` household (B) |
 | Read the API schema and docs | `/api/schema/`, `/api/docs/` (`IsActiveAdmin` in `backend/iris/api.py`, deployed settings only) | Yes | – | – | – | – | – | none |
 
 Notes:
@@ -439,3 +440,16 @@ lock in `households.services.lock_approved_household`, and the stock update in
 `listings.services.take_units`. A listing that cannot be seen
 (`visible_listings`, BR-LIST-004) cannot be reserved either, so tier delays
 (US-51) will apply to reserving as well.
+
+## Pickup history (US-48)
+
+The following rule IDs are introduced for review with US-48 (#527).
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-RES-011 | Only an active beneficiary sees a pickup history, and only the reservations of the household that account holds (`Household.holder`). The household comes from the signed-in account, never from the request. The file's status does not matter: a suspended, expired or renewal-needed household still sees what it received. An account that holds no household, or whose household was anonymized, sees an empty history. Other roles are refused. |
+| BR-RES-012 | Each reservation shows its item, quantity, store, status and date: the pickup time once picked up, otherwise the pickup window. Upcoming reservations (`reserved`, and the pickup window not ended, the end included as for confirming in BR-RES-002) come first, soonest first, with their pickup code. Every other reservation follows, latest pickup window first, without its code, because it can no longer be used. A `reserved` reservation whose window ended stays `reserved` until no-shows are closed (US-46), but is listed as past. |
+
+BR-RES-011 is checked in `backend/modules/households/queries.py`
+(`held_household_id`) and `backend/modules/reservations/api/history_views.py`,
+BR-RES-012 in `backend/modules/reservations/queries.py` (`household_history`).

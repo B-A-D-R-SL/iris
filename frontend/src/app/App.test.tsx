@@ -84,7 +84,6 @@ describe("screens not built yet have no route (FIX-13)", () => {
     ["/forgot-password", "signed-out"],
     ["/sign-up", "signed-out"],
     ["/home", "beneficiary"],
-    ["/reservations", "beneficiary"],
     ["/profile", "beneficiary"],
     ["/store", "store_staff"],
     ["/store/listings", "store_manager"],
@@ -136,7 +135,7 @@ describe("household area", () => {
     const { container } = renderApp("/listings/42", "beneficiary");
 
     expect(await screen.findByRole("heading", { name: "Offre" })).toBeInTheDocument();
-    expect(linkNames(mainNav())).toEqual(["Offres"]);
+    expect(linkNames(mainNav())).toEqual(["Offres", "Réservations"]);
     expect(within(mainNav()).getByRole("link", { name: "Offres" })).toHaveAttribute(
       "aria-current",
       "page",
@@ -150,7 +149,7 @@ describe("household area", () => {
     await screen.findByRole("heading", { name: "Offres" });
     await act(() => i18n.changeLanguage("en"));
     const nav = screen.getByRole("navigation", { name: "Main navigation" });
-    expect(linkNames(nav)).toEqual(["Listings"]);
+    expect(linkNames(nav)).toEqual(["Listings", "Reservations"]);
   });
 });
 

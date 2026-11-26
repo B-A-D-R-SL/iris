@@ -52,6 +52,13 @@ export interface paths {
      */
     post: operations["reservations_create"];
   };
+  "/api/reservations/me/": {
+    /**
+     * The signed-in household's reservations and pickup history
+     * @description Upcoming reservations first, then the past ones, 20 a page.
+     */
+    get: operations["reservations_me_list"];
+  };
   "/api/schema/": {
     /**
      * @description OpenApi3 schema for this API. Format can be selected via content negotiation.
@@ -391,6 +398,31 @@ export interface components {
      * @enum {string}
      */
     ExpectedFrequencyEnum: "daily" | "weekly" | "monthly" | "occasional";
+    /** @description One reservation of the household, from ``queries.history_entries``. */
+    HistoryEntry: {
+      /** Format: uuid */
+      id: string;
+      /**
+       * Format: date-time
+       * @description When the store confirmed the pickup; null until then.
+       */
+      picked_up_at: string | null;
+      /** @description The code to show at the store; null once it is not upcoming. */
+      pickup_code: string | null;
+      /** Format: date-time */
+      pickup_end: string;
+      /** Format: date-time */
+      pickup_start: string;
+      quantity: number;
+      status: components["schemas"]["ReservationStatusEnum"];
+      store: components["schemas"]["ListingStore"];
+      /** @description The listing's title. */
+      title: string;
+      /** @description item or bundle. */
+      unit: string;
+      /** @description True while it can still be picked up: reserved, and the pickup window not ended. */
+      upcoming: boolean;
+    };
     HolderInput: {
       /** Format: date */
       date_of_birth: string;
@@ -624,6 +656,26 @@ export interface components {
       previous?: string | null;
       results: components["schemas"]["AuditEvent"][];
     };
+    PaginatedHistoryEntryList: {
+      /** @example 123 */
+      count: number;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=4
+       */
+      next?: string | null;
+      /**
+       * Format: uri
+       * @example http://api.example.org/accounts/?page=2
+       */
+      previous?: string | null;
+      results: components["schemas"]["HistoryEntry"][];
+      /**
+       * @description Upcoming reservations across every page.
+       * @example 2
+       */
+      upcoming_count: number;
+    };
     PaginatedHouseholdSearchResultList: {
       /** @example 123 */
       count: number;
@@ -749,7 +801,7 @@ export interface components {
       /** Format: date-time */
       pickup_start: string;
       quantity: number;
-      status: components["schemas"]["PickupStatusEnum"];
+      status: components["schemas"]["ReservationStatusEnum"];
       title: string;
       unit: string;
     };
@@ -767,15 +819,6 @@ export interface components {
     PickupLookup: {
       code: string;
     };
-    /**
-     * @description * `reserved` - Reserved
-     * * `picked_up` - Picked up
-     * * `cancelled` - Cancelled
-     * * `cancelled_by_store` - Cancelled by store
-     * * `no_show` - No-show
-     * @enum {string}
-     */
-    PickupStatusEnum: "reserved" | "picked_up" | "cancelled" | "cancelled_by_store" | "no_show";
     PostedListing: {
       /** Format: date */
       best_before: string | null;
@@ -845,6 +888,16 @@ export interface components {
       quantity: number;
       status: string;
     };
+    /**
+     * @description * `reserved` - Reserved
+     * * `picked_up` - Picked up
+     * * `cancelled` - Cancelled
+     * * `cancelled_by_store` - Cancelled by store
+     * * `no_show` - No-show
+     * @enum {string}
+     */
+    ReservationStatusEnum:
+      "reserved" | "picked_up" | "cancelled" | "cancelled_by_store" | "no_show";
     /** @description What the household sends: which listing, and how many units. */
     ReserveInput: {
       /** Format: uuid */
@@ -1501,6 +1554,57 @@ export interface operations {
         };
       };
       503: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
+        };
+      };
+    };
+  };
+  /**
+   * The signed-in household's reservations and pickup history
+   * @description Upcoming reservations first, then the past ones, 20 a page.
+   */
+  reservations_me_list: {
+    parameters: {
+      query?: {
+        /** @description The time page 1 was read, from its next link: later pages keep that order. Leave it out for page 1; a future time counts as now. */
+        as_of?: string;
+        /** @description Un numéro de page de l'ensemble des résultats. */
+        page?: number;
+        /**
+         * @description Only reservations with this status.
+         *
+         * * `reserved` - Reserved
+         * * `picked_up` - Picked up
+         * * `cancelled` - Cancelled
+         * * `cancelled_by_store` - Cancelled by store
+         * * `no_show` - No-show
+         */
+        status?: "reserved" | "picked_up" | "cancelled" | "cancelled_by_store" | "no_show";
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["PaginatedHistoryEntryList"];
+        };
+      };
+      400: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
+        };
+      };
+      401: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
+        };
+      };
+      403: {
+        content: {
+          "application/json": components["schemas"]["BrowseError"];
+        };
+      };
+      404: {
         content: {
           "application/json": components["schemas"]["BrowseError"];
         };

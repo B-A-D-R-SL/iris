@@ -1,0 +1,86 @@
+/* AI contribution: 50% or more AI-generated */
+/* H2.2 "Mes réservations" (Figma Household > Pick up with the code): upcoming
+   reservations with their code, then the pickup history. 360 px first. */
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 16px 16px 24px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* WF/Subtitle. */
+.sectionTitle {
+  font-size: var(--mantine-font-size-md);
+  font-weight: 700;
+  line-height: 22px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Past cards have a sand border; upcoming ones the text colour, as in H2.2. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px 16px;
+  border: 1px solid var(--h1-sand);
+  border-radius: var(--mantine-radius-md);
+}
+
+.card[data-upcoming] {
+  border-color: var(--h1-text);
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cardTitle {
+  font-size: var(--mantine-font-size-md);
+  font-weight: 600;
+  line-height: 22px;
+  overflow-wrap: anywhere;
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--mantine-font-size-sm);
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.fact svg {
+  flex-shrink: 0;
+}
+
+.fact[data-muted] {
+  color: var(--h1-muted);
+}
