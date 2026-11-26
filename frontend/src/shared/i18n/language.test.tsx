@@ -404,3 +404,54 @@ describe("the save queue", () => {
     await waitFor(() => expect(patches(fetchMock)).toHaveLength(1));
   });
 });
+
+// rule: BR-LANG-002
+describe("after a choice made while the account loads", () => {
+  /** A server keeping the account's language; /api/me/ answers once released. */
+  function mockServer(failLanguage: string | null) {
+    const me = heldAnswer();
+    let saved = "fr";
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (!url.endsWith("/api/me/")) return new Response(null, { status: 404 });
+      if (init?.method === "PATCH") {
+        if (sentLanguage(init) === failLanguage) return new Response(null, { status: 500 });
+        saved = sentLanguage(init);
+      }
+      const answer = await me.answer;
+      return answer.ok
+        ? Response.json(testUser("beneficiary", { language: saved as "fr" }))
+        : answer;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return { fetchMock, release: me.release };
+  }
+
+  it("caches what the server last confirmed when a later save fails", async () => {
+    vi.spyOn(logger, "warning").mockImplementation(() => undefined);
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { fetchMock, release } = mockServer("fr");
+    renderWithProviders(<App />, { route: "/privacy", queryClient });
+    await userEvent.click(await screen.findByRole("button", { name: "English" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Français" }));
+
+    release(Response.json({}));
+    await waitFor(() => expect(patches(fetchMock)).toHaveLength(2));
+    // "en" was saved, then "fr" failed: the account is read again and is "en".
+    await waitFor(() =>
+      expect(queryClient.getQueryData<CurrentUser>(CURRENT_USER_QUERY_KEY)?.language).toBe("en"),
+    );
+  });
+
+  it("logs an account that could not be read, and keeps the choice in the browser", async () => {
+    const warning = vi.spyOn(logger, "warning").mockImplementation(() => undefined);
+    const { fetchMock, release } = mockServer(null);
+    renderWithProviders(<App />, { route: "/privacy" });
+    await userEvent.click(await screen.findByRole("button", { name: "English" }));
+
+    release(new Response(null, { status: 500 }));
+    await waitFor(() => expect(warning).toHaveBeenCalledWith("language_account_unavailable"));
+    expect(localStorage.getItem(STORAGE_KEY)).toBe("en");
+    expect(patches(fetchMock)).toEqual([]);
+  });
+});

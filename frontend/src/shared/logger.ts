@@ -6,6 +6,7 @@ type FrontendEvent =
   | "language_changed"
   | "language_save_failed"
   | "language_save_response_invalid"
+  | "language_account_unavailable"
   | "language_storage_unavailable"
   | "app_render_failed"
   | "auth_tab_sync_unavailable"

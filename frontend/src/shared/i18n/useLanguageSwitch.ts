@@ -45,31 +45,30 @@ async function signedInAccount(
       queryFn: fetchCurrentUser,
     });
   } catch {
-    return null; // The account could not be read: the choice stays in this browser.
+    // Not a sign-out: the account could not be read, so the choice stays in
+    // this browser only, and the failure is logged.
+    logger.warning("language_account_unavailable");
+    return null;
   }
 }
 
 /**
- * Saves `language` on `saved`, the account as the server has it. A save still
- * queued when the account changed is dropped: sent now, it would change the
- * language of whoever is signed in instead. With `restoreOnFailure`, a failed
- * save puts `saved` back in the cache.
+ * Saves `language` on the account `accountId`. A save still queued when the
+ * account changed is dropped: sent now, it would change the language of
+ * whoever is signed in instead. After a failed save the account is read again,
+ * so the cache holds what the server last confirmed (an earlier save in the
+ * queue may have succeeded); the screen keeps the chosen language.
  */
-async function save(
-  queryClient: QueryClient,
-  saved: CurrentUser,
-  language: Language,
-  restoreOnFailure: boolean,
-): Promise<void> {
-  if (!stillSignedIn(queryClient, saved.id)) return;
+async function save(queryClient: QueryClient, accountId: string, language: Language) {
+  if (!stillSignedIn(queryClient, accountId)) return;
   try {
-    const account = await saveLanguage(language, saved.id);
-    if (stillSignedIn(queryClient, saved.id)) {
+    const account = await saveLanguage(language, accountId);
+    if (stillSignedIn(queryClient, accountId)) {
       queryClient.setQueryData(CURRENT_USER_QUERY_KEY, account);
     }
   } catch (error) {
-    if (restoreOnFailure && stillSignedIn(queryClient, saved.id)) {
-      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, saved);
+    if (stillSignedIn(queryClient, accountId)) {
+      void queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY });
     }
     if (error instanceof LanguageSaveError) {
       logger.warning("language_save_failed", { statusCode: error.statusCode });
@@ -104,7 +103,7 @@ export function useLanguageSwitch() {
       queryClient.setQueryData(CURRENT_USER_QUERY_KEY, { ...account, language: next });
       if (i18n.resolvedLanguage !== next) await i18n.changeLanguage(next);
     }
-    await enqueue(queryClient, () => save(queryClient, account, next, loading));
+    await enqueue(queryClient, () => save(queryClient, account.id, next));
   }
 
   return { next, switchLanguage };
