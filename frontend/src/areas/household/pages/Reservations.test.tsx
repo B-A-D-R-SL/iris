@@ -203,6 +203,21 @@ describe("Pickup history (US-48)", () => {
     expect(historyRequests(fetchMock)).toEqual(["/api/reservations/me/", nextPage, nextPage]);
   });
 
+  it("dates the reservations again when the page comes back into view on a later day", async () => {
+    // Wednesday 11 November 2026, 18:00 in Montreal: picked up today at 17 h 20.
+    vi.setSystemTime(new Date("2026-11-11T23:00:00Z"));
+    mockHistoryApi(() => historyPage([pickedUp()]));
+    await renderReservations();
+    expect(await screen.findByText("Récupérée aujourd'hui à 17 h 20")).toBeVisible();
+
+    vi.setSystemTime(new Date("2026-11-12T14:00:00Z"));
+    act(() => {
+      window.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(await screen.findByText("Récupérée hier à 17 h 20")).toBeVisible();
+  });
+
   it("marks the Réservations tab", async () => {
     mockHistoryApi(() => historyPage([]));
     await renderReservations();

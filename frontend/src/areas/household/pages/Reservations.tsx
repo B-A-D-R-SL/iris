@@ -8,7 +8,7 @@
  */
 import { Button, Title } from "@mantine/core";
 import { IconShoppingBag, IconTicket } from "@tabler/icons-react";
-import { useId, useState } from "react";
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 
@@ -34,11 +34,13 @@ type History = ReturnType<typeof useReservationHistory>;
 /** Loading, failure, or the two sections with "show more". */
 function HistoryContent({ history }: { history: History }) {
   const { t } = useTranslation();
-  const [now] = useState(() => new Date());
 
   if (history.isPending) return <LoadingState />;
   // Only a failed first load replaces the page; later failures keep what is shown.
   if (history.isLoadingError) return <ErrorState onRetry={() => void history.refetch()} />;
+  // Dates read from when the shown reservations were fetched. The query fetches
+  // again when the page comes back into view, so "today" moves with the data.
+  const now = new Date(history.dataUpdatedAt);
   const { pages } = history.data;
   const entries = pages.flatMap((page) => page.results);
   const upcoming = entries.filter((entry) => entry.upcoming);
