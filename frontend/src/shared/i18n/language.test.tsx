@@ -148,8 +148,8 @@ describe("a signed-out visitor's choice", () => {
   });
 });
 
-describe("a signed-in user's choice", () => {
-  // rule: BR-LANG-002
+// rule: BR-LANG-002
+describe("a signed-in user's choice is saved on the account", () => {
   it.each([
     ["beneficiary", "/listings", "menu"],
     ["store_staff", "/store/listings/new", "menu"],
@@ -176,8 +176,10 @@ describe("a signed-in user's choice", () => {
     expect(new Headers(init.headers).get("X-Account-Id")).toBe(user.id);
     expect(i18n.resolvedLanguage).toBe("en");
   });
+});
 
-  // rule: BR-LANG-001
+// rule: BR-LANG-001
+describe("the account's language after sign-in", () => {
   it("is used as soon as the account loads, whatever this browser chose before", async () => {
     localStorage.setItem(STORAGE_KEY, "fr");
     mockAccount(testUser("intake_worker", { language: "en" }));
@@ -186,7 +188,6 @@ describe("a signed-in user's choice", () => {
     expect(localStorage.getItem(STORAGE_KEY)).toBe("en");
   });
 
-  // rule: BR-LANG-001
   it("is applied again when another account signs in", async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     mockAccount(testUser("admin"));
@@ -202,8 +203,10 @@ describe("a signed-in user's choice", () => {
     );
     expect(await screen.findByRole("button", { name: "Français" })).toBeInTheDocument();
   });
+});
 
-  // rule: BR-LANG-002
+// rule: BR-LANG-002
+describe("a language save that fails", () => {
   it("stays on screen when saving fails, and the failure is logged", async () => {
     const warning = vi.spyOn(logger, "warning").mockImplementation(() => undefined);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -217,7 +220,6 @@ describe("a signed-in user's choice", () => {
     expect(queryClient.getQueryData<CurrentUser>(CURRENT_USER_QUERY_KEY)?.language).toBe("fr");
   });
 
-  // rule: BR-LANG-002
   it("refuses an account response that is not a valid user", async () => {
     const warning = vi.spyOn(logger, "warning").mockImplementation(() => undefined);
     mockAccount(testUser("admin"), () => Response.json({ language: "de" }));
@@ -225,8 +227,10 @@ describe("a signed-in user's choice", () => {
     await userEvent.click(await screen.findByRole("button", { name: "English" }));
     await waitFor(() => expect(warning).toHaveBeenCalledWith("language_save_failed"));
   });
+});
 
-  // rule: BR-LANG-002
+// rule: BR-LANG-002
+describe("quick language switches", () => {
   it("saves quick switches one after another, so the account keeps the last choice", async () => {
     const user = testUser("intake_worker");
     const first = heldAnswer();
@@ -251,8 +255,10 @@ describe("a signed-in user's choice", () => {
       expect(queryClient.getQueryData<CurrentUser>(CURRENT_USER_QUERY_KEY)?.language).toBe("fr"),
     );
   });
+});
 
-  // rule: BR-LANG-002
+// rule: BR-LANG-002
+describe("a language save while the account changes", () => {
   it("does not bring back an account that signed out while its save was running", async () => {
     const user = testUser("admin");
     const held = heldAnswer();
@@ -271,32 +277,6 @@ describe("a signed-in user's choice", () => {
     await waitFor(() => expect(queryClient.getQueryData(CURRENT_USER_QUERY_KEY)).toBeNull());
   });
 
-  // rule: BR-LANG-002
-  it("names its account, so a session another tab switched to account B is refused", async () => {
-    const warning = vi.spyOn(logger, "warning").mockImplementation(() => undefined);
-    const first = testUser("intake_worker");
-    let sessionAccount = first.id;
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    // The server refuses a save named for an account the session no longer holds.
-    const fetchMock = mockAccount(first, (init) =>
-      new Headers(init.headers).get("X-Account-Id") === sessionAccount
-        ? Response.json({ ...first, language: "en" })
-        : Response.json({ code: "account_changed", message: "", fields: {} }, { status: 409 }),
-    );
-    renderWithProviders(<App />, { route: "/staff/households", queryClient });
-    await screen.findByRole("button", { name: "English" });
-
-    // Another tab signs in account B; this tab still shows account A.
-    sessionAccount = "00000000-0000-4000-8000-000000000002";
-    await userEvent.click(screen.getByRole("button", { name: "English" }));
-
-    await waitFor(() => expect(warning).toHaveBeenCalledWith("language_save_failed"));
-    const [, init] = patches(fetchMock)[0] as [string, RequestInit];
-    expect(new Headers(init.headers).get("X-Account-Id")).toBe(first.id);
-    expect(queryClient.getQueryData<CurrentUser>(CURRENT_USER_QUERY_KEY)).toEqual(first);
-  });
-
-  // rule: BR-LANG-002
   it("drops a queued save when another account signs in before it is sent", async () => {
     const first = testUser("admin");
     const second = testUser("admin", { id: "00000000-0000-4000-8000-000000000002" });
@@ -320,5 +300,32 @@ describe("a signed-in user's choice", () => {
     // The queued "fr" save for the first account is never sent with the second's session.
     await waitFor(() => expect(queryClient.getQueryData(CURRENT_USER_QUERY_KEY)).toEqual(second));
     expect(patches(fetchMock)).toHaveLength(1);
+  });
+});
+
+// rule: BR-LANG-002
+describe("a language save another tab overtook", () => {
+  it("names its account, so a session another tab switched to account B is refused", async () => {
+    const warning = vi.spyOn(logger, "warning").mockImplementation(() => undefined);
+    const first = testUser("intake_worker");
+    let sessionAccount = first.id;
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    // The server refuses a save named for an account the session no longer holds.
+    const fetchMock = mockAccount(first, (init) =>
+      new Headers(init.headers).get("X-Account-Id") === sessionAccount
+        ? Response.json({ ...first, language: "en" })
+        : Response.json({ code: "account_changed", message: "", fields: {} }, { status: 409 }),
+    );
+    renderWithProviders(<App />, { route: "/staff/households", queryClient });
+    await screen.findByRole("button", { name: "English" });
+
+    // Another tab signs in account B; this tab still shows account A.
+    sessionAccount = "00000000-0000-4000-8000-000000000002";
+    await userEvent.click(screen.getByRole("button", { name: "English" }));
+
+    await waitFor(() => expect(warning).toHaveBeenCalledWith("language_save_failed"));
+    const [, init] = patches(fetchMock)[0] as [string, RequestInit];
+    expect(new Headers(init.headers).get("X-Account-Id")).toBe(first.id);
+    expect(queryClient.getQueryData<CurrentUser>(CURRENT_USER_QUERY_KEY)).toEqual(first);
   });
 });

@@ -86,10 +86,15 @@ function mockStatusResponse(initial: ReturnType<typeof household>, response: Res
   );
 }
 
-describe("staff household suspension", () => {
+/** The suspension screens are checked in English. */
+function inEnglish() {
   beforeEach(async () => {
     await i18n.changeLanguage("en");
   });
+}
+
+describe("staff household suspension", () => {
+  inEnglish();
 
   it("requires a reason and suspends an approved file", async () => {
     const fetchMock = mockApi("admin");
@@ -114,13 +119,6 @@ describe("staff household suspension", () => {
     await expectNoAxeViolations(container);
   });
 
-  it("renders only the status actions supplied by the backend", async () => {
-    mockApi("intake_worker");
-    renderWithProviders(page, { route: `/staff/households/${id}` });
-    expect(await screen.findByRole("heading", { name: "Samira Example" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Suspend file" })).not.toBeInTheDocument();
-  });
-
   it("shows a reason error, then clears it and the text when reopened", async () => {
     mockStatusResponse(
       household(),
@@ -142,6 +140,10 @@ describe("staff household suspension", () => {
     expect(screen.getByRole("textbox", { name: /Reason/ })).toHaveValue("");
     expect(screen.queryByText("Remove personal data.")).not.toBeInTheDocument();
   });
+});
+
+describe("staff household status action failures", () => {
+  inEnglish();
 
   it.each([403, 500])(
     "shows the generic failure for a refused status action (%s)",
@@ -157,30 +159,6 @@ describe("staff household suspension", () => {
       expect(screen.queryByText("The household file was suspended.")).not.toBeInTheDocument();
     },
   );
-
-  it("reactivates a suspended file", async () => {
-    const suspended = household("suspended", ["reactivate"]);
-    let file = suspended;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url =
-          typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-        if (url.endsWith("/api/me/")) return Response.json(testUser("admin", inCurrentLanguage()));
-        if (url === `/api/staff/households/${id}/` && !init?.method) return Response.json(file);
-        if (url.endsWith("/reactivate/") && init?.method === "POST") {
-          file = household("approved", ["suspend"]);
-          return Response.json(file);
-        }
-        return new Response(null, { status: 404 });
-      }),
-    );
-    renderWithProviders(page, { route: `/staff/households/${id}` });
-    await userEvent.click(await screen.findByRole("button", { name: "Reactivate file" }));
-    await userEvent.type(screen.getByRole("textbox", { name: /Reason/ }), "Review complete");
-    await userEvent.click(screen.getAllByRole("button", { name: "Reactivate file" }).at(-1)!);
-    expect(await screen.findByText("The household file was reactivated.")).toBeInTheDocument();
-  });
 
   it.each([null, []])("rejects malformed error fields without crashing", async (fields) => {
     mockStatusResponse(household(), Response.json({ message: "failed", fields }, { status: 400 }));
@@ -204,6 +182,41 @@ describe("staff household suspension", () => {
       await screen.findByRole("heading", { name: "This page could not be shown" }),
     ).toBeInTheDocument();
     expect(warning).toHaveBeenCalledWith("household_status_response_invalid");
+  });
+});
+
+describe("staff household status actions offered", () => {
+  inEnglish();
+
+  it("renders only the status actions supplied by the backend", async () => {
+    mockApi("intake_worker");
+    renderWithProviders(page, { route: `/staff/households/${id}` });
+    expect(await screen.findByRole("heading", { name: "Samira Example" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Suspend file" })).not.toBeInTheDocument();
+  });
+
+  it("reactivates a suspended file", async () => {
+    const suspended = household("suspended", ["reactivate"]);
+    let file = suspended;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url =
+          typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        if (url.endsWith("/api/me/")) return Response.json(testUser("admin", inCurrentLanguage()));
+        if (url === `/api/staff/households/${id}/` && !init?.method) return Response.json(file);
+        if (url.endsWith("/reactivate/") && init?.method === "POST") {
+          file = household("approved", ["suspend"]);
+          return Response.json(file);
+        }
+        return new Response(null, { status: 404 });
+      }),
+    );
+    renderWithProviders(page, { route: `/staff/households/${id}` });
+    await userEvent.click(await screen.findByRole("button", { name: "Reactivate file" }));
+    await userEvent.type(screen.getByRole("textbox", { name: /Reason/ }), "Review complete");
+    await userEvent.click(screen.getAllByRole("button", { name: "Reactivate file" }).at(-1)!);
+    expect(await screen.findByText("The household file was reactivated.")).toBeInTheDocument();
   });
 });
 
