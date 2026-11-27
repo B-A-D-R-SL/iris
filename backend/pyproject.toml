@@ -142,6 +142,8 @@ ignore_imports = [
     "modules.accounts.tests.test_accounts -> modules.stores.tests.factories",
     "modules.accounts.tests.test_invitations -> modules.stores.tests.factories",
     "modules.accounts.tests.test_api -> modules.stores.tests.factories",
+    # US-08: store roles need a store to save their language.
+    "modules.accounts.tests.test_language -> modules.stores.tests.factories",
     "modules.accounts.tests.conftest -> modules.rules.models",
     # US-93: walk-in invitations name a household built with its test factory.
     "modules.accounts.tests.test_invitation_household -> modules.households.tests.factories",

@@ -25,14 +25,14 @@ export const statusTones = {
     closed: "neutral",
     cancelled: "neutral",
   } satisfies Record<Schemas["PostedListingStatusEnum"] | "sold_out", StatusTone>,
-  // These records have no generated status enum yet. Keep the backend values verbatim.
   reservation: {
     reserved: "info",
     picked_up: "success",
     cancelled: "neutral",
     cancelled_by_store: "warning",
     no_show: "danger",
-  },
+  } satisfies Record<Schemas["ReservationStatusEnum"], StatusTone>,
+  // These records have no generated status enum yet. Keep the backend values verbatim.
   partnerApplication: { submitted: "info", approved: "success", rejected: "danger" },
   store: { active: "success", deactivated: "neutral" },
   category: { active: "success", inactive: "neutral" },

@@ -7,7 +7,12 @@ import App from "../../../app/App";
 import type { Role } from "../../../shared/auth/roles";
 import i18n from "../../../shared/i18n";
 import { searchFile, searchPage } from "../../../test/householdSearch";
-import { expectNoAxeViolations, renderWithProviders, testUser } from "../../../test/render";
+import {
+  expectNoAxeViolations,
+  inCurrentLanguage,
+  renderWithProviders,
+  testUser,
+} from "../../../test/render";
 import { Search } from "./Search";
 
 function mockApi(
@@ -21,7 +26,7 @@ function mockApi(
     if (url.pathname === "/api/me/") {
       return role === "signed-out"
         ? new Response(null, { status: 401 })
-        : Response.json(testUser(role));
+        : Response.json(testUser(role, inCurrentLanguage()));
     }
     if (url.pathname === "/api/staff/households/" && init?.method === "HEAD") {
       const allowed = role === "intake_worker" || role === "admin";

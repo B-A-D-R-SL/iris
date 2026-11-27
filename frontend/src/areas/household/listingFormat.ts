@@ -13,6 +13,8 @@ export type Language = "fr" | "en";
 export interface DayLabels {
   today: string;
   tomorrow: string;
+  /** Only the pickup history looks back (US-48); without it, yesterday reads as a date. */
+  yesterday?: string;
 }
 
 const locale = (language: Language) => (language === "fr" ? "fr-CA" : "en-CA");
@@ -40,9 +42,10 @@ export function montrealDate(moment: Date): string {
   }).format(moment);
 }
 
-function nextDay(isoDate: string): string {
+/** The calendar day `days` after (or before, when negative) a YYYY-MM-DD date. */
+export function addDays(isoDate: string, days: number): string {
   const [year, month, day] = isoDate.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }
 
 /** "16 h" or "16 h 30" in French; "4 p.m." or "4:30 p.m." in English. */
@@ -65,12 +68,18 @@ export function formatTime(moment: Date, language: Language): string {
   }).format(moment);
 }
 
-/** "Aujourd'hui", "Demain", or a short date such as "jeu. 13 nov.", seen from `now`. */
+/** "Aujourd'hui", "Demain", "Hier" (when labelled), or a short date such as "jeu. 13 nov.". */
 export function formatDay(moment: Date, now: Date, language: Language, labels: DayLabels) {
   const day = montrealDate(moment);
   const today = montrealDate(now);
   if (day === today) return labels.today;
-  if (day === nextDay(today)) return labels.tomorrow;
+  if (day === addDays(today, 1)) return labels.tomorrow;
+  if (labels.yesterday && day === addDays(today, -1)) return labels.yesterday;
+  return formatShortDay(moment, language);
+}
+
+/** A moment's Montreal day as a short date, such as "jeu. 13 nov." or "Thu, Nov 13". */
+export function formatShortDay(moment: Date, language: Language): string {
   return formatter(locale(language), {
     timeZone: MONTREAL_TIME_ZONE,
     weekday: "short",

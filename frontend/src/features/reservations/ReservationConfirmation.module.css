@@ -26,34 +26,3 @@
   line-height: 20px;
   color: var(--h1-muted, var(--mantine-color-dimmed));
 }
-
-/* "Pickup code": peach box, 8 px corners, 16 px above and below, 2 px between lines. */
-.codeBox {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 16px;
-  border-radius: var(--mantine-radius-lg);
-  background-color: var(--h1-peach, var(--mantine-color-gray-0));
-  text-align: center;
-}
-
-/* WF/Caption in the secondary colour. */
-.codeLabel {
-  font-size: var(--mantine-font-size-xs);
-  line-height: 16px;
-  color: var(--h1-muted, var(--mantine-color-dimmed));
-}
-
-/* WF/Code: JetBrains Mono Bold 30/38, 6 px between letters, read out one by one. */
-.code {
-  font-family: "JetBrains Mono", var(--mantine-font-family-monospace);
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 38px;
-  letter-spacing: 6px;
-  /* letter-spacing also follows the last letter; balance it so the code stays centred. */
-  padding-left: 6px;
-  color: var(--h1-text, inherit);
-}

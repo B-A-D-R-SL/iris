@@ -4,6 +4,7 @@ import { Route } from "react-router";
 
 import { ListingDetail } from "../../areas/household/pages/ListingDetail";
 import { Listings } from "../../areas/household/pages/Listings";
+import { Reservations } from "../../areas/household/pages/Reservations";
 import { AREA_ROLES } from "../../shared/auth/roles";
 import { MobileAreaLayout } from "../layouts/MobileAreaLayout";
 import { RequireRole } from "../RequireRole";
@@ -13,6 +14,7 @@ export const householdRoutes = (
     <Route element={<MobileAreaLayout area="household" />}>
       <Route path="listings" element={<Listings />} />
       <Route path="listings/:id" element={<ListingDetail />} />
+      <Route path="reservations" element={<Reservations />} />
     </Route>
   </Route>
 );

@@ -5,7 +5,8 @@ The holder account is `Household.holder`. It is set when the walk-in set-passwor
 invitation is accepted (`link_invited_account`, a receiver of
 `accounts.services.invitation_accepted`), or by staff at the counter for an
 account that already exists (`link_existing_account`). Each link is audited and
-logged with the household ID only.
+logged with the household ID only. A linked file keeps its holder's language
+(US-08, `follow_holder_language`).
 """
 
 import logging
@@ -15,6 +16,7 @@ from uuid import UUID
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from modules.accounts import queries as account_queries
@@ -111,6 +113,8 @@ def link_invited_account(*, user: Any, household_id: UUID, **kwargs: Any) -> Non
     if household.holder_id is not None:
         raise ValidationError(ALREADY_LINKED, code="household_already_linked")
     _save_holder(household, user.pk, user, "invitation")
+    # US-08: the new account starts in the language staff recorded on the file.
+    account_services.change_language(user, household.preferred_language)
 
 
 @transaction.atomic
@@ -133,7 +137,26 @@ def link_existing_account(household_id: UUID, staff: AbstractBaseUser) -> Househ
     if reason is not None:
         raise ValidationError(REFUSALS[reason], code=reason)
     _save_holder(household, account.id, staff, "counter")
+    # US-08: the account already has its holder's chosen language; the file follows.
+    _set_holder_file_language(account.id, account.preferred_language)
+    household.refresh_from_db(fields=["preferred_language", "updated_at"])
     return household
+
+
+def _set_holder_file_language(holder_id: UUID, language: str) -> None:
+    Household.objects.filter(holder_id=holder_id, anonymized_at__isnull=True).exclude(
+        preferred_language=language
+    ).update(preferred_language=language, updated_at=timezone.now())
+
+
+def follow_holder_language(*, user: Any, language: str, **kwargs: Any) -> None:
+    """Keep the holder's file in the account's language (US-08).
+
+    Receiver of `accounts.services.language_changed`, so the household's emails
+    (status changes, cancelled reservations) use the language the holder chose.
+    Runs in the caller's transaction.
+    """
+    _set_holder_file_language(user.pk, language)
 
 
 @transaction.atomic

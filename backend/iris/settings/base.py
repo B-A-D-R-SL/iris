@@ -166,6 +166,8 @@ SPECTACULAR_SETTINGS = {
         # US-93: the account state of a household file on the staff screens.
         "AccountLinkStatusEnum": "modules.households.account_link_queries.STATUSES",
         "AccountLinkReasonEnum": "modules.households.account_link_queries.REASONS",
+        # US-48: one reservation status type for the pickup and history screens.
+        "ReservationStatusEnum": "modules.reservations.models.ReservationStatus",
     },
     # Document the Django health view without changing its authentication or behavior.
     "APPEND_PATHS": {

@@ -15,6 +15,7 @@ import {
   IconHome,
   IconMapPin,
   IconShoppingBag,
+  IconTicket,
   IconUser,
   type TablerIcon,
 } from "@tabler/icons-react";
@@ -36,6 +37,12 @@ export const NAVIGATION: Record<Area, readonly NavItem[]> = {
       path: "/listings",
       labelKey: "app.householdNav.listings",
       icon: IconShoppingBag,
+      roles: AREA_ROLES.household,
+    },
+    {
+      path: "/reservations",
+      labelKey: "app.householdNav.reservations",
+      icon: IconTicket,
       roles: AREA_ROLES.household,
     },
   ],

@@ -276,6 +276,21 @@
       "validationErrorBody": "Entrez le code de cueillette de 6 caractères.",
       "unavailableTitle": "Serveur injoignable",
       "unavailableBody": "Vérifiez votre connexion Internet, puis réessayez."
+    },
+    "history": {
+      "title": "Mes réservations",
+      "upcomingOne": "1 réservation à venir",
+      "upcomingMany": "{{count}} réservations à venir",
+      "yesterday": "Hier",
+      "pickedUpToday": "Récupérée aujourd'hui à {{time}}",
+      "pickedUpYesterday": "Récupérée hier à {{time}}",
+      "pickedUpOn": "Récupérée le {{date}} à {{time}}",
+      "cancelledByStore": "Le commerce a annulé cette offre. Aucun avertissement n'est ajouté à votre dossier.",
+      "emptyTitle": "Aucune réservation en cours",
+      "emptyDescription": "Quand vous réservez une offre, votre code de cueillette apparaît ici.",
+      "seeListings": "Voir les offres",
+      "loadMore": "Afficher plus de réservations",
+      "loadMoreFailed": "Impossible d'afficher plus de réservations. Vérifiez votre connexion Internet, puis réessayez."
     }
   },
   "privacy": {

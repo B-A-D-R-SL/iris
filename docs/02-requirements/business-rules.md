@@ -29,6 +29,7 @@ server allows it; "–" means it refuses it.
 | Accept an invitation | `POST /api/invitations/accept/` (`AllowAny`) | Yes | Yes | Yes | Yes | Yes | Yes | `/invitation/:token`, public |
 | Read active categories | `GET /api/categories/` (`AllowAny`) | Yes | Yes | Yes | Yes | Yes | Yes | used by public and store forms |
 | Read own profile | `GET /api/me/` (default `IsAuthenticated`) | Yes | Yes | Yes | Yes | Yes | – | sign-in and every guard |
+| Change own language | `PATCH /api/me/` (default `IsAuthenticated`, own account only) | Yes | Yes | Yes | Yes | Yes | – | language switch in every top bar or account menu (US-08) |
 | Search households, open a file | `/api/staff/households/` (`IsIntakeWorkerOrAdmin`, households) | Yes | Yes | – | – | – | – | `/staff/households`, `/staff/households/:id`: `RequireHouseholdSearch` (asks the API) |
 | Register a walk-in, record notices, submit, approve | `/api/staff/households/…` (`IsIntakeWorkerOrAdmin`, households) | Yes | Yes | – | – | – | – | `/staff/walk-in…`: `RequireRole` staff (A, IW) |
 | Link a household's existing account, resend its invitation | `/api/staff/households/{id}/link-account/`, `…/resend-invitation/` (`IsIntakeWorkerOrAdmin`, households) | Yes | Yes | – | – | – | – | card on `/staff/households/:id` and under the walk-in approval, shown from the API's `account` state |
@@ -42,6 +43,7 @@ server allows it; "–" means it refuses it.
 | Look up and confirm a pickup (own store only) | `/api/store/pickups/` (`IsPickupStaff`) | – | – | Yes | Yes | – | – | `/store/confirm`: `RequireRole` store |
 | Browse listings | `GET /api/listings/` (`IsBeneficiary` + linked approved, unexpired household) | – | – | – | – | Yes | – | `/listings`, `/listings/:id`: `RequireRole` household (B) |
 | Reserve | `POST /api/reservations/` (`IsBeneficiary` + linked approved, unexpired household) | – | – | – | – | Yes | – | from `/listings/:id` |
+| See my reservations and pickup history | `GET /api/reservations/me/` (`IsBeneficiary`; the household the account holds, any file status) | – | – | – | – | Yes | – | `/reservations`: `RequireRole` household (B) |
 | Read the API schema and docs | `/api/schema/`, `/api/docs/` (`IsActiveAdmin` in `backend/iris/api.py`, deployed settings only) | Yes | – | – | – | – | – | none |
 
 Notes:
@@ -101,6 +103,19 @@ new-account-only scope decision recorded on the wiki's
 Tokens contain 32 random bytes; store only their SHA-256 hash. The public
 acceptance endpoint sets the password and leaves the browser session unchanged.
 Issuing screens and invitation emails belong to the calling workflows.
+
+## Language (US-08)
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-LANG-001 | Iris is in French or English, French by default. Every page has the language switch: in the top bar of public and staff pages, in the account menu of household and store pages. A visitor's choice is kept in the browser (`iris:language`), so a reload keeps it. Once a signed-in account loads, its saved language is shown. |
+| BR-LANG-002 | Every signed-in role may change its own language with `PATCH /api/me/` (`{"language": "fr" \| "en"}`), and only that field; any other value or field is refused and nothing changes. Anonymous visitors cannot save one. The switch changes the screen at once and saves the choice on the account; quick switches are saved in the order chosen, so the account keeps the last one, and a save names the account that chose it (`X-Account-Id`), so it never changes another account signed in since; if saving fails, the screen keeps the new language and the account the old one. |
+| BR-LANG-003 | Emails to an account use its saved language (BR-NOTIF-003). A household file linked to an account follows its holder's language, so the household's emails (status changes, cancelled reservations) use it too: an account created from a walk-in invitation starts in the language staff recorded on the file; a file linked at the counter takes the account's language; a later change on the account changes the file. An anonymized file is not changed. |
+
+Sources: [US-08 #435](https://github.com/B-A-D-R-SL/iris/issues/435) and its
+unit-tests task [#751](https://github.com/B-A-D-R-SL/iris/issues/751). The change
+is logged as `language_changed` with no user details, only when the language
+actually changes.
 
 ## Household accounts (US-93)
 
@@ -425,3 +440,16 @@ lock in `households.services.lock_approved_household`, and the stock update in
 `listings.services.take_units`. A listing that cannot be seen
 (`visible_listings`, BR-LIST-004) cannot be reserved either, so tier delays
 (US-51) will apply to reserving as well.
+
+## Pickup history (US-48)
+
+The following rule IDs are introduced for review with US-48 (#527).
+
+| Rule ID | Business rule |
+| --- | --- |
+| BR-RES-011 | Only an active beneficiary sees a pickup history, and only the reservations of the household that account holds (`Household.holder`). The household comes from the signed-in account, never from the request. The file's status does not matter: a suspended, expired or renewal-needed household still sees what it received. An account that holds no household, or whose household was anonymized, sees an empty history. Other roles are refused. |
+| BR-RES-012 | Each reservation shows its item, quantity, store, status and date: the pickup time once picked up, otherwise the pickup window. Upcoming reservations (`reserved`, and the pickup window not ended, the end included as for confirming in BR-RES-002) come first, soonest first, with their pickup code. Every other reservation follows, latest pickup window first, without its code, because it can no longer be used. A `reserved` reservation whose window ended stays `reserved` until no-shows are closed (US-46), but is listed as past. |
+
+BR-RES-011 is checked in `backend/modules/households/queries.py`
+(`held_household_id`) and `backend/modules/reservations/api/history_views.py`,
+BR-RES-012 in `backend/modules/reservations/queries.py` (`household_history`).

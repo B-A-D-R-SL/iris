@@ -1,7 +1,7 @@
 # Reservations module
 
 **Owner pair:** Goods
-**Status:** Reservation table added for the SET-18 seed. The browse endpoint (US-36), reserving (US-41) and pickup lookup/confirmation (US-44) are implemented.
+**Status:** Reservation table added for the SET-18 seed. The browse endpoint (US-36), reserving (US-41), pickup lookup/confirmation (US-44) and the pickup history (US-48) are implemented.
 
 ## Responsibility
 
@@ -47,6 +47,15 @@ indexes `(household, status)` and `(status, listing)`.
   deactivation would email, for its preview (US-14).
 - `permissions.pickup_store_id(user)`: the store whose pickups the user may
   confirm; raises `PermissionDenied` for everyone else.
+- `queries.household_history(household_id, now=, as_of=None, status=None)`
+  (US-48): the household's reservations as rows, upcoming ones first (soonest
+  first), then the rest (latest pickup window first), ordered down to the ID.
+  The order uses `as_of` (page 1's time, carried in the `next` link), so a
+  window ending between pages never repeats or skips a row; `upcoming` uses
+  `now`. `queries.upcoming_count(rows)` counts the upcoming rows across every
+  page, for the page's `upcoming_count`. `queries.history_entries(rows)` adds the listing and store of
+  one page and keeps the pickup code only while upcoming. Rules BR-RES-011 and
+  BR-RES-012.
 
 Pickup endpoints (store staff and managers): `POST /api/store/pickups/lookup/`
 and `POST /api/store/pickups/{id}/confirm/`, in `api/store_urls.py`. Rules
@@ -64,6 +73,11 @@ Confirming does not change listing stock.
 - `POST /api/reservations/` (US-41, `api/reserve_views.py`): reserve for the
   signed-in household; 201 with the pickup code. Refusals and their statuses
   are listed in `docs/03-design/api.md`.
+- `GET /api/reservations/me/?status=` (US-48, `api/history_views.py`): the
+  pickup history of the household the signed-in beneficiary holds, whatever
+  its status, 20 a page; the `next` link carries `as_of`. Signed out gets 401,
+  other roles 403, an unknown status or a bad `as_of` 400. No household, or an
+  anonymized one, gets an empty list.
 
 The view is here, not in `listings/api/`, because reservations is the module
 allowed to read both `households.queries` (is the household approved?) and
@@ -80,9 +94,9 @@ Do not import another module's models or internal domain code.
 
 ## Future implementation
 
-Browse (US-36), reserving (US-41) and pickup lookup and confirmation (US-44)
-are implemented above. Cancelling a reservation (US-43) and no-shows are still
-open.
+Browse (US-36), reserving (US-41), pickup lookup and confirmation (US-44)
+and the pickup history (US-48) are implemented above. Cancelling a reservation
+(US-43) and no-shows are still open.
 
 ## Audit events
 

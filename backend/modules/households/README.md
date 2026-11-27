@@ -44,6 +44,10 @@ account. The record also preserves staff verification and creation timestamps.
   household the user holds, if it is `approved` and not expired at `at`
   (expiry is checked even before the nightly job runs). Browsing (US-36) uses
   it and reserving (US-41) can too; only the ID leaves the module.
+- `queries.held_household_id(user_id) -> UUID | None` (US-48): the household
+  the user holds, whatever its status, for the pickup history (BR-RES-011).
+  None for an anonymized file or a user who holds none; only the ID leaves the
+  module.
 - `services.lock_approved_household(household_id, at=...) -> bool` (US-41):
   lock the household's row for the rest of the caller's transaction and say
   whether it is approved and not expired. Reserving calls it first, so one
@@ -313,6 +317,12 @@ already has a holder refuses the acceptance (`household_already_linked`) and no
 account is created; an anonymized file makes the link invalid. The link is audited
 (`link_account`, `{"method": "invitation"}`, actor the new account) and logged as
 `walk_in_account_linked` with the household ID only.
+
+A linked file follows its holder's language (US-08, BR-LANG-003): the invited
+account starts in the file's `preferred_language`, a file linked at the counter
+takes the account's, and `account_link_services.follow_holder_language` (a receiver
+of `accounts.services.language_changed`, connected in `apps.py`) copies every later
+change, so the household's emails use the holder's choice.
 
 The French or English set-password email uses US-57's `walk_in_set_password`
 template through `notifications.services.queue_set_password_email`, which calls

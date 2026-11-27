@@ -8,8 +8,8 @@ import { activeNavPath, NAVIGATION, navFor, type NavItem } from "./navigation";
 const paths = (items: { path: string }[]) => items.map((item) => item.path);
 
 describe("navFor follows the permission matrix (business-rules.md)", () => {
-  it("gives households the listings tab", () => {
-    expect(paths(navFor("household", "beneficiary"))).toEqual(["/listings"]);
+  it("gives households the listings and reservations tabs", () => {
+    expect(paths(navFor("household", "beneficiary"))).toEqual(["/listings", "/reservations"]);
   });
 
   it.each(["store_staff", "store_manager"] as const)(
@@ -46,7 +46,7 @@ describe("navFor follows the permission matrix (business-rules.md)", () => {
 
   it("has no tab for a screen that is not built (FIX-13)", () => {
     const all = paths(Object.values(NAVIGATION).flat());
-    for (const placeholder of ["/home", "/reservations", "/profile", "/store"]) {
+    for (const placeholder of ["/home", "/profile", "/store"]) {
       expect(all).not.toContain(placeholder);
     }
     expect(all).not.toContain("/staff/review");
