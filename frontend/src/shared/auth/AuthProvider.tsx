@@ -96,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async refreshAfterPasswordReset() {
       let current = null;
       try {
+        await queryClient.cancelQueries({ queryKey: CURRENT_USER_QUERY_KEY });
         await queryClient.invalidateQueries({
           queryKey: CURRENT_USER_QUERY_KEY,
           refetchType: "none",

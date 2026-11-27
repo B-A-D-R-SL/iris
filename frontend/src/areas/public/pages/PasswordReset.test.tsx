@@ -1,11 +1,12 @@
 // AI contribution: 50% or more AI-generated
 import { QueryClient } from "@tanstack/react-query";
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLocation } from "react-router";
 import { beforeEach, expect, it, vi } from "vitest";
 
 import App from "../../../app/App";
+import { CURRENT_USER_QUERY_KEY } from "../../../shared/auth/currentUser";
 import { expectNoAxeViolations, renderWithProviders, testUser } from "../../../test/render";
 
 const AUTH = "/api/auth/browser/v1/auth";
@@ -102,6 +103,41 @@ async function fillPasswords(confirm = PASSWORD) {
 beforeEach(() => {
   document.cookie = "csrftoken=reset-page-test; Path=/";
   localStorage.removeItem(AUTH_EVENT);
+});
+
+it("checks a fresh session after reset and ignores an earlier profile response arriving late", async () => {
+  let resolveEarlier!: (response: Response) => void;
+  const earlier = new Promise<Response>((resolve) => {
+    resolveEarlier = resolve;
+  });
+  let profileReads = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url === RESET) return authenticatedResetSuccess();
+      if (url !== "/api/me/") return new Response(null, { status: 404 });
+      profileReads += 1;
+      if (profileReads === 1) return Response.json(testUser("beneficiary"));
+      if (profileReads === 2) return earlier;
+      return new Response(null, { status: 401 });
+    }),
+  );
+  const queryClient = seedPrivateCache();
+  renderWithProviders(<App />, { route: RESET_PATH, queryClient });
+  expect(await screen.findByRole("button", { name: "Déconnexion" })).toBeVisible();
+  const { user } = await fillPasswords();
+  const pendingLookup = queryClient.refetchQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+  await waitFor(() => expect(profileReads).toBe(2));
+  await user.click(screen.getByRole("button", { name: "Réinitialiser mon mot de passe" }));
+  await act(async () => {
+    resolveEarlier(Response.json(testUser("beneficiary")));
+    await pendingLookup;
+  });
+  expect(await screen.findByRole("link", { name: "Connexion" })).toBeVisible();
+  expect(profileReads).toBe(3);
+  expect(queryClient.getQueryData(CURRENT_USER_QUERY_KEY)).toBeNull();
+  expect(queryClient.getQueryData(PRIVATE_QUERY_KEY)).toBeUndefined();
+  expect(localStorage.getItem(AUTH_EVENT)).toMatch(/^signed-out:/);
 });
 
 it("links to the accessible request screen from sign-in in French and English", async () => {
