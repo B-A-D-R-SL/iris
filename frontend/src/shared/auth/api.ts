@@ -43,7 +43,12 @@ async function csrfToken(): Promise<string> {
   return token;
 }
 
-async function send(method: "POST" | "DELETE", path: string, language: string, body?: object) {
+export async function sendAuthRequest(
+  method: "POST" | "DELETE",
+  path: string,
+  language: string,
+  body?: object,
+) {
   const token = await csrfToken();
   try {
     return await fetch(`${AUTH}${path}`, {
@@ -77,7 +82,7 @@ export async function loginWithPassword(
   password: string,
   language: string,
 ): Promise<void> {
-  const response = await send("POST", "/login", language, { email, password });
+  const response = await sendAuthRequest("POST", "/login", language, { email, password });
   // A live browser session can remain after a failed /api/me/ lookup.
   if (response.ok || response.status === 409) return;
   const body = await readBody(response);
@@ -94,7 +99,7 @@ export async function loginWithPassword(
 }
 
 export async function logout(language: string): Promise<void> {
-  const response = await send("DELETE", "/session", language);
+  const response = await sendAuthRequest("DELETE", "/session", language);
   // allauth returns the resulting unauthenticated session as HTTP 401.
   if (response.status !== 401 && !response.ok) throw new AuthError("unavailable");
 }

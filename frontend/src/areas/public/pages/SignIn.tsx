@@ -170,9 +170,11 @@ function SignInForm({ flow }: { flow: SignInFlow }) {
 
 function SignInLinks() {
   const { t } = useTranslation();
-  // Password reset and online sign-up add their links with their screens.
   return (
     <Stack gap="xs" align="center">
+      <Anchor component={Link} to="/forgot-password" size="sm">
+        {t("auth.common.forgotPassword")}
+      </Anchor>
       <Anchor component={Link} to="/partner/apply" size="sm">
         {t("store.partnerApplication.becomePartner")}
       </Anchor>

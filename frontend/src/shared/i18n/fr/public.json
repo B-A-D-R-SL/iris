@@ -19,6 +19,24 @@
       "locked": "Trop de tentatives. Réessayez dans 15 minutes.",
       "unavailable": "La connexion est indisponible. Réessayez."
     },
+    "passwordReset": {
+      "requestHelp": "Entrez le courriel que vous utilisez pour vous connecter.",
+      "requestSubmit": "Envoyer le lien de réinitialisation",
+      "requestSuccess": "Si un compte utilise ce courriel, nous vous enverrons un lien de réinitialisation.",
+      "resetTitle": "Réinitialiser votre mot de passe",
+      "resetSubmit": "Réinitialiser mon mot de passe",
+      "resetSuccess": "Votre mot de passe a été réinitialisé.",
+      "newPassword": "Nouveau mot de passe",
+      "togglePasswordVisibility": "Afficher ou masquer le mot de passe",
+      "newLink": "Demander un nouveau lien",
+      "signedInGuidance": "Vous êtes toujours connecté à votre compte actuel. Pour vous connecter à un autre compte, utilisez d’abord Déconnexion dans l’en-tête.",
+      "checkForm": "Vérifiez les champs et réessayez.",
+      "invalidEmail": "Entrez un courriel valide.",
+      "invalidLink": "Ce lien de réinitialisation est invalide ou a expiré.",
+      "weakPassword": "Choisissez un mot de passe moins courant et difficile à deviner.",
+      "rateLimited": "Trop de tentatives. Réessayez plus tard.",
+      "unavailable": "La réinitialisation du mot de passe est indisponible. Réessayez."
+    },
     "invitation": {
       "title": "Définir votre mot de passe",
       "submit": "Définir mon mot de passe",

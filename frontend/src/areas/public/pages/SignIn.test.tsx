@@ -443,15 +443,17 @@ describe("US-01 existing browser sessions", () => {
 });
 
 describe("US-01 available sign-in links", () => {
-  it("links to the partner application, and not to screens that are not built", async () => {
+  it("links to the partner application and password recovery", async () => {
     renderSignIn();
     await screen.findByRole("heading", { name: "Connexion" });
     expect(screen.getByRole("link", { name: /devenir partenaire/i })).toHaveAttribute(
       "href",
       "/partner/apply",
     );
-    // Password reset and online sign-up add their links with their screens (FIX-13).
-    expect(screen.queryByRole("link", { name: "Mot de passe oublié?" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Mot de passe oublié?" })).toHaveAttribute(
+      "href",
+      "/forgot-password",
+    );
     expect(screen.queryByRole("link", { name: "Créer un compte" })).not.toBeInTheDocument();
   });
 });

@@ -13,15 +13,28 @@ Django URL namespaces. US-01 uses the browser sign-in and sign-out operations;
 `/api/me/` supplies the current profile. Public registration stays closed until
 US-02 adds email verification. MFA enrollment remains later work (US-09, Release 2).
 
-Password reset is live on the backend: allauth's browser routes
-`/api/auth/browser/v1/auth/password/request` and `.../auth/password/reset` are
-mounted with the rest of `allauth.headless.urls`, and
-`backend/modules/accounts/adapter.py` queues the reset email through the shared
-notifications service (`password_reset` template). There is no frontend reset
-screen yet: `/forgot-password` has no route (see `frontend/src/app/App.test.tsx`,
-"screens not built yet have no route"). The endpoint access test
-(`backend/tests/test_endpoint_access.py`) exempts the whole `api/auth/` prefix,
-because allauth enforces its own authentication there.
+US-03 supplies `/forgot-password` and `/reset-password/:key` in French and
+English. Allauth's browser `/api/auth/browser/v1/auth/password/request` returns
+the same HTTP 200 response for known, unknown and inactive email addresses.
+The `.../auth/password/reset` route uses the accounts module's small allauth
+subclass to lock the target account and revalidate its emailed key before
+replacing the password. It remains public to all roles with that capability;
+a signed-in session alone grants no authority over another account.
+The key is single-use and valid for 3600 seconds. Links use the configured
+application origin and the existing queued `password_reset` email template.
+On opening a link, the browser keeps its key in memory and replaces the address
+with `/reset-password`. After reloading, reopen the email link or request a new one. Reset
+requests are limited to 20 per minute per IP and five per hour per email address.
+
+Successful anonymous reset returns allauth's resulting unauthenticated session
+(HTTP 401, `meta.is_authenticated: false` and the login flow), not an error.
+An already authenticated session returns HTTP 200; resetting its own account
+invalidates that session on its next request. The frontend refreshes its current
+profile after completion and never signs in automatically. Invalid keys/passwords
+return 400, missing CSRF returns 403, and native throttling returns 429.
+Dedicated `backend/modules/accounts/tests/password_reset/test_api.py` coverage
+checks every role and anonymous callers, supplementing the general endpoint
+sweep's allauth exemption.
 
 FIX-14 removes the dormant frontend two-factor API request and code-entry step
 until US-09 supplies the server flow. `allauth.mfa` is not installed. An unexpected

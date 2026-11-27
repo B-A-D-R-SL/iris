@@ -81,7 +81,6 @@ describe("public area", () => {
 
 describe("screens not built yet have no route (FIX-13)", () => {
   it.each([
-    ["/forgot-password", "signed-out"],
     ["/sign-up", "signed-out"],
     ["/home", "beneficiary"],
     ["/profile", "beneficiary"],

@@ -10,7 +10,7 @@ from allauth.core.internal import ratelimit
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
-from django.db import connection, transaction
+from django.db import DatabaseError, connection, transaction
 from django.http import HttpRequest
 
 from modules.accounts.models import User
@@ -38,6 +38,19 @@ _NOTIFICATION_TEMPLATES = {
 
 
 class AccountAdapter(DefaultAccountAdapter):
+    def send_password_reset_mail(
+        self, user: User, email: str, context: dict[str, Any]
+    ) -> None:
+        """An email-log outage must not expose whether the account exists."""
+        try:
+            with transaction.atomic():
+                super().send_password_reset_mail(user, email, context)
+        except DatabaseError:
+            logger.error(
+                "Password reset email unavailable",
+                extra={"event": "password_reset_email_unavailable"},
+            )
+
     def is_open_for_signup(self, request: HttpRequest) -> bool:
         """Keep public registration closed until US-02 adds email verification."""
         return False

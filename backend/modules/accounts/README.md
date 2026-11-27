@@ -133,8 +133,8 @@ handled by the shared notification service: EmailLog records
 raise an early URL-type error. Valid supported flows retain their URL/token
 ownership and captured language.
 Signup remains closed.
-US-02/US-03 must configure the frontend action URLs and any additional allauth
-mail types before enabling their workflows.
+US-03 configures the password-reset frontend action URLs. US-02 must configure
+its own signup/confirmation URLs and any additional mail types before enabling signup.
 
 US-13 partner approval and operator reissue now build and queue manager
 invitations through the shared service. Staff/store-team issuing screens and
@@ -154,3 +154,44 @@ identifiers. Invitation services emit `invitation_created` and
 `invitation_accepted` only after transaction commit, without recipient details,
 account identifiers, tokens or passwords. Document later business audit events
 when their workflows are added.
+
+## Forgotten password (US-03)
+
+The public `/forgot-password` and `/reset-password/:key` pages support French
+and English. Sign-in links to the request page. The request always confirms
+that a link will be sent if an eligible account exists. Unknown and inactive
+addresses receive the same HTTP 200 body and do not queue email.
+
+Allauth's browser `POST /api/auth/browser/v1/auth/password/request` accepts
+`{email}`. Its reset endpoint accepts `{key, password}`; a valid emailed key
+authorizes only that account, independently of the visitor's role or session.
+Both operations require CSRF and retain allauth's native IP/email limits.
+Reset requests are limited to 20 per minute per IP and five per hour per
+case-insensitive email address, including unknown addresses.
+The browser removes the key from the address with history replacement and keeps
+it in memory only; after reloading the clean URL, reopen the email link or request
+a new one.
+App-client authentication remains disabled. Recovery never signs the visitor in
+or switches accounts. A reset of the current account invalidates its existing
+session on its next request; the page refreshes the current-user state.
+
+`PASSWORD_RESET_TIMEOUT` is 3600 seconds, the fixed US-03 security requirement.
+Django accepts the key at exactly 3600 seconds and rejects it after that instant.
+The configured `PUBLIC_APP_ORIGIN` determines the link, never the request host.
+The shared notification adapter queues the saved account language after commit
+(BR-NOTIF-002 / BR-NOTIF-003). Delivery failures retain their existing safe
+EmailLog outcome; failure to write email metadata is caught with a static event
+so account membership is not exposed. Passwords/keys are never written to logs.
+
+`SingleUseResetPasswordView` retains allauth's validation, hashing, response,
+CSRF and throttling. Its POST locks the target account and revalidates the key
+before changing the password. Concurrent reuse yields exactly one successful
+reset. Changing to the same password still invalidates the old key through its
+new salted hash. Accounts deactivated after issuance cannot reset.
+
+Tests in `tests/password_reset/` trace #427 and #752: actual queued email to
+fake transport, request/reset to PostgreSQL, time boundary, replay/concurrent
+replay, every role, token ownership, native limits, CSRF, password policy,
+invalid payloads, trusted origin, and private queue/database failures.
+Frontend tests next to the helpers and public pages cover both languages,
+accessible labels/focus, retry and the real headless response contract.

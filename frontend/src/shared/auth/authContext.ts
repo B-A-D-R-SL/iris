@@ -7,6 +7,7 @@ export interface AuthContextValue {
   user: CurrentUser | null | undefined;
   signIn: (email: string, password: string) => Promise<CurrentUser>;
   retryProfile: () => Promise<CurrentUser>;
+  refreshAfterPasswordReset: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 

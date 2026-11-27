@@ -1,12 +1,14 @@
 # AI contribution: 50% or more AI-generated
 """URL routes for the Iris backend."""
 
+from allauth.headless.constants import Client
 from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from iris.views import health
 from modules.accounts.admin import RateLimitedAdminAuthenticationForm
+from modules.accounts.password_reset import SingleUseResetPasswordView
 
 admin.site.login_form = RateLimitedAdminAuthenticationForm
 
@@ -26,7 +28,13 @@ urlpatterns = [
     path("api/store/pickups/", include("modules.reservations.api.store_urls")),
     # Django admin
     path("admin/", admin.site.urls),
-    # Authentication: allauth's own versioned app/browser subpaths live here.
+    # Public recovery uses the emailed key as ownership proof for every role.
+    # Allauth's browser views enforce CSRF and their own authentication limits.
+    path(
+        "api/auth/browser/v1/auth/password/reset",
+        SingleUseResetPasswordView.as_api_view(client=Client.BROWSER),
+        name="single_use_password_reset",
+    ),
     path("api/auth/", include("allauth.headless.urls")),
     path("accounts/", include("allauth.urls")),
     path("api/store/", include("modules.listings.api.urls")),
