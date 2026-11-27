@@ -95,6 +95,25 @@ function useAccountLanguage(user: AuthContextValue["user"]) {
   }, [id, language, i18n]);
 }
 
+/** A completed reset needs a session lookup started after the reset itself. */
+async function fetchSessionAfterReset(queryClient: QueryClient) {
+  try {
+    await queryClient.cancelQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+    await queryClient.invalidateQueries({
+      queryKey: CURRENT_USER_QUERY_KEY,
+      refetchType: "none",
+    });
+    return await queryClient.fetchQuery({
+      queryKey: CURRENT_USER_QUERY_KEY,
+      queryFn: fetchCurrentUser,
+      staleTime: 0,
+    });
+  } catch {
+    logger.warning("auth_tab_sync_unavailable");
+    return null;
+  }
+}
+
 /** Reuse the existing /api/me/ query for every screen and react to other tabs. */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
@@ -117,21 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     retryProfile: loadUser,
     async refreshAfterPasswordReset() {
-      let current = null;
-      try {
-        await queryClient.cancelQueries({ queryKey: CURRENT_USER_QUERY_KEY });
-        await queryClient.invalidateQueries({
-          queryKey: CURRENT_USER_QUERY_KEY,
-          refetchType: "none",
-        });
-        current = await queryClient.fetchQuery({
-          queryKey: CURRENT_USER_QUERY_KEY,
-          queryFn: fetchCurrentUser,
-          staleTime: 0,
-        });
-      } catch {
-        logger.warning("auth_tab_sync_unavailable");
-      }
+      const current = await fetchSessionAfterReset(queryClient);
       if (!current && hasSeenUser.current) {
         await clearSessionData(queryClient);
         notifyTabs("signed-out");
